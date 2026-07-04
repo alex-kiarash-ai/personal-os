@@ -5,7 +5,8 @@
     "utility_commands": ["setup", "ingest", "status", "lint", "new", "cron-setup", "brand"],
     "known_extra_projects_no_work_folder": [
       { "name": "recovery", "status_md": "vault/projects/recovery/status.md", "reason": "system layer; code in scripts/ + work/18-recovery-layer" },
-      { "name": "alex-costs", "status_md": "vault/projects/alex-costs/status.md", "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot" }
+      { "name": "alex-costs", "status_md": "vault/projects/alex-costs/status.md", "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot" },
+      { "name": "modeling", "status_md": "vault/projects/modeling/status.md", "reason": "active vault-only project (Modeling Career Project); no work/ folder or command by design. Registered 2026-07-04 after the recovery GC confirmed it is active, not a dead scaffold." }
     ]
   },
   "projects": [
