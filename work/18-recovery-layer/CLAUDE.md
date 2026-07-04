@@ -23,7 +23,7 @@ PowerShell 5.1 (Get-ChildItem/Get-FileHash/Get-ScheduledTask/Invoke-RestMethod),
 
 ## Infrastructure (as built 2026-07-04)
 - **Manifest** `manifest.json` — the curated desired-state registry: one entry per project (num, name, work_dir, commands[], status_md, cadence_days, n8n id, claude_md_sha) + `meta.utility_commands` allowlist + `meta.known_extra_projects_no_work_folder` (recovery, alex-costs). Edited BY HAND when a project is added / retired / renamed. This is the source of truth the sweep validates disk against.
-- **Checker** `check.ps1` — the sweep. Exit **0 clean / 2 drift / 1 checker-error** (Terraform `-detailed-exitcode` convention). Writes `vault/projects/recovery/last-sweep.md` (human report the Monday brief reads) and pushes `recovery/integrity` to Alex HQ (green clean / amber drift, value_num = drift count). Log: `outputs/logs/recovery-check.log`.
+- **Checker** `check.ps1` — the sweep. Exit **0 clean / 2 drift / 1 checker-error** (Terraform `-detailed-exitcode` convention). Writes `vault/projects/recovery/last-sweep.md` (human report the Monday brief reads) and pushes `recovery/integrity` to Alex HQ (green clean / amber drift, value_num = distinct-finding count). Log: `outputs/logs/recovery-check.log`. **Hardened 2026-07-04 (QA review [[research/recovery-layer-qa-review]]):** repo root derived from `$PSScriptRoot` (survives a restore to any path/machine); the whole sweep is wrapped in a **fail-loud** try/catch that pushes RED integrity (value_num -1) + exit 1 on a checker error, so it can never sit stale-green while dead; the HQ push is best-effort (a bad token/network never fails the sweep).
 - **State** `state/baseline.json` (CLAUDE.md hashes + last_init from `-Init`) + `state/log-highwater.json` (monotonic log line count). Gitignored (local runtime state).
 
 ## The checks (v1 — 10, all deterministic, grow from real misses per the design)
@@ -31,7 +31,7 @@ PowerShell 5.1 (Get-ChildItem/Get-FileHash/Get-ScheduledTask/Invoke-RestMethod),
 2. **orphan commands** — every `.claude/commands/*.md` is owned by a project or the utility allowlist (caught `/venture-sync`).
 3. **orphan work folders** — every `work/NN-*` dir is in the manifest.
 4. **orphan vault projects** — every `vault/projects/*` is registered or a known extra (caught `modeling` + stale `market-pulse`/`opportunity-scout`).
-5. **wiki-link resolution** — every `[[link]]` resolves to a vault page (Obsidian basename/path style; index.md + log.md excluded as navigation; prose placeholders ignored; soul.md allowed).
+5. **wiki-link resolution** — every `[[link]]` resolves to a vault page (Obsidian basename/path style; index.md + log.md + the checker's own last-sweep.md excluded as *sources*; `vault/archive/` pages stay valid *targets* per supersede-never-delete; prose placeholders ignored; soul.md allowed). The report ranks the **top distinct unresolved targets by count**, so a page referenced 10x that doesn't exist surfaces instead of hiding behind one noisy root cause.
 6. **routing rows** — each manifest project's work_dir appears in the CLAUDE.md routing table.
 7. **scheduler ↔ Task Scheduler** — every documented `PersonalOS-*` job is registered and vice versa.
 8. **dependent staleness** — flags a project whose work CLAUDE.md is >7 days newer than its status.md (propagation may be stale).
@@ -69,6 +69,8 @@ Only its own report (`vault/projects/recovery/last-sweep.md`) + status.md + log.
 Beyond the universal list, a recovery run verifies: the sweep wrote last-sweep.md this run; the integrity metric pushed (or logged why not); exit code matches the report (0/2/1); nothing outside last-sweep.md/status.md/log.md was modified (detect-only invariant).
 
 ## Open items
+- **QA hardening DONE 2026-07-04** ([[research/recovery-layer-qa-review]], 3-agent review): 5 must-fixes applied — de-hardcoded `$repo`, fail-loud try/catch, stopped self-polluting via last-sweep.md, true log line-count (`.Count` not `Measure-Object -Line`), archive/ kept as valid link targets. Findings verified all true positives; fail-loud path self-tested (throw → RED + exit 1).
+- **Remaining should-fixes (from the review, not yet done):** (a) C5 routing matches the whole CLAUDE.md, not just the routing table — scope it to the `| NN |` row; (b) C6 basename fallback resolves `[[x/status]]` via any `status.md`, under-reporting path drift — for path-style links require the full relpath; (c) the link regex counts `[[links]]` inside `code spans` (so docs *about* dangling links, incl. this review, inflate the count) — skip fenced/inline code; (d) implement the design's named **index.md ↔ disk** check; (e) C3 ignores non-`NN-` work folders (e.g. `work/voice/`); (f) C8 mtime staleness goes silent after a git clone resets mtimes.
 - **Phase 3:** the gated monthly /lint (checker shortlist → LLM judge). Aligns with the Radar first-Monday retro.
 - **Deprecation/GC protocol (design piece 4):** supersede-never-delete tombstones + `vault/archive/` move + strike-through routing row, for the orphan-project findings (modeling, market-pulse, opportunity-scout). Candidacy is a dumb 90-day date compare; judgment stays human.
 - **Grow the check list** from real misses logged in [[projects/error-log]] (design: medium-confidence v1).

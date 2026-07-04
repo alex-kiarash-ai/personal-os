@@ -17,7 +17,9 @@
 param([switch]$Init, [switch]$DryRun)
 
 $ErrorActionPreference = 'Stop'
-$repo = "C:\Users\Thinkpad\Desktop\personal-os"
+# Derive the repo root from the script's own location (work/18-recovery-layer/check.ps1 -> ..\..).
+# A RECOVERY tool must survive a restore to any path/machine, so never hardcode the root.
+$repo = if ($PSScriptRoot) { (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path } else { (Get-Location).Path }
 Set-Location $repo
 $here     = "work\18-recovery-layer"
 $stateDir = Join-Path $here "state"
@@ -41,14 +43,15 @@ if ($Init) {
     }
     @{ hashes = $hashes; last_init = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
         ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 $baselineFile
-    $logLines = (Get-Content "vault\log.md" | Measure-Object -Line).Lines
+    $logLines = (Get-Content "vault\log.md").Count   # true line count; Measure-Object -Line drops blank lines
     @{ lines = $logLines; updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
         ConvertTo-Json | Set-Content -Encoding utf8 $hwFile
     Write-Output "Baselined: $($manifest.projects.Count) CLAUDE.md hashes + log high-water $logLines lines -> $stateDir"
     exit 0
 }
 
-# ---------------------------------------------------------------- sweep
+# ---------------------------------------------------------------- sweep (wrapped: fail LOUD on checker error)
+try {
 $drift = New-Object System.Collections.Generic.List[object]
 function Add-Drift($cat, $msg) { $drift.Add([pscustomobject]@{ cat = $cat; msg = $msg }) }
 
@@ -98,11 +101,12 @@ foreach ($d in Get-ChildItem "vault\projects" -Directory) {
 }
 
 # --- C6 wiki-link resolution: every [[link]] resolves to a vault page (Obsidian basename/path style) ---
-$vaultMd = Get-ChildItem "vault" -Recurse -Filter *.md |
-    Where-Object { $_.FullName -notmatch '\\\.obsidian\\|\\sources\\|\\archive\\' }
+# TARGET set INCLUDES vault/archive/ (supersede-never-delete GC keeps archived pages valid link targets).
+$targetMd = Get-ChildItem "vault" -Recurse -Filter *.md |
+    Where-Object { $_.FullName -notmatch '\\\.obsidian\\|\\sources\\' }
 $relpaths  = New-Object System.Collections.Generic.HashSet[string]
 $basenames = New-Object System.Collections.Generic.HashSet[string]
-foreach ($m in $vaultMd) {
+foreach ($m in $targetMd) {
     $rel = $m.FullName.Substring((Resolve-Path "vault").Path.Length + 1).Replace('\', '/').ToLower()
     [void]$relpaths.Add(($rel -replace '\.md$', ''))
     [void]$basenames.Add($m.BaseName.ToLower())
@@ -111,9 +115,10 @@ foreach ($m in $vaultMd) {
 # Placeholder targets that appear in prose/instructions, not real links.
 $ignoreTargets = @('wiki links', 'wiki link', 'link', 'links', 'name', 'people/name', 'projects/name', 'business/company', 'wiki-links')
 $unresolved = New-Object System.Collections.Generic.List[string]
-# index.md + log.md are navigation/append-only history (graph-builder convention): skip as link SOURCES.
-foreach ($m in ($vaultMd | Where-Object { $_.Name -ne 'index.md' -and $_.Name -ne 'log.md' })) {
-    $src = $m.Name
+# SOURCES exclude archive/ (don't scan retired pages), index.md + log.md (navigation/history),
+# and last-sweep.md (the checker's OWN output — scanning it self-pollutes the next run's count).
+$linkSources = $targetMd | Where-Object { $_.FullName -notmatch '\\archive\\' -and @('index.md', 'log.md', 'last-sweep.md') -notcontains $_.Name }
+foreach ($m in $linkSources) {
     $content = Get-Content $m.FullName -Raw
     if (-not $content) { continue }
     foreach ($mt in [regex]::Matches($content, '\[\[([^\]|#]+)')) {
@@ -122,14 +127,17 @@ foreach ($m in ($vaultMd | Where-Object { $_.Name -ne 'index.md' -and $_.Name -n
         $seg = ($t -split '/')[-1]
         $ok = $relpaths.Contains($t) -or ($basenames.Contains($seg))
         if (-not $ok) { foreach ($r in $relpaths) { if ($r.EndsWith("/$t")) { $ok = $true; break } } }
-        if (-not $ok) { $unresolved.Add("[[$t]] in $src") }
+        if (-not $ok) { $unresolved.Add($t) }   # store the bare target so we can rank distinct ones
     }
 }
-# ONE drift item for links (often one root cause repeated); samples go to the report, not the count.
+# ONE drift item for links; the report lists the TOP DISTINCT targets by count so real missing pages
+# (e.g. a page referenced 10x that doesn't exist) don't hide behind one noisy root cause.
 $linkSamples = @()
 if ($unresolved.Count -gt 0) {
-    Add-Drift 'links' "$($unresolved.Count) unresolved [[wiki links]] (samples below)"
-    $linkSamples = $unresolved | Select-Object -Unique -First 12
+    $distinct = ($unresolved | Select-Object -Unique).Count
+    Add-Drift 'links' "$($unresolved.Count) unresolved [[wiki links]] across $distinct distinct targets (top below)"
+    $linkSamples = $unresolved | Group-Object | Sort-Object Count -Descending | Select-Object -First 12 |
+        ForEach-Object { "[[$($_.Name)]] x$($_.Count)" }
 }
 
 # --- C7 scheduler <-> live Task Scheduler ---
@@ -149,7 +157,7 @@ foreach ($p in $manifest.projects) {
 }
 
 # --- C9 log monotonicity: vault/log.md line count must never drop (append-only history) ---
-$logLines = (Get-Content "vault\log.md" | Measure-Object -Line).Lines
+$logLines = (Get-Content "vault\log.md").Count   # true line count; Measure-Object -Line drops blank lines
 $prevHw = if (Test-Path $hwFile) { [int](Get-Content $hwFile -Raw | ConvertFrom-Json).lines } else { 0 }
 if ($logLines -lt $prevHw) { Add-Drift 'log-shrink' "vault/log.md shrank from $prevHw to $logLines lines (data loss?)" }
 $newHw = [math]::Max($logLines, $prevHw)
@@ -200,11 +208,11 @@ Write-Output "Report: vault/projects/recovery/last-sweep.md"
 # ---------------------------------------------------------------- Alex HQ push (recovery/integrity)
 $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"
 if ((Test-Path $tokenFile) -and -not $DryRun) {
-    $token = (Get-Content $tokenFile -Raw).Trim()
-    $head = if ($n -eq 0) { "consistent, $($manifest.projects.Count) projects" } else { "$n drift: " + (($byCat | Select-Object -First 3 | ForEach-Object { "$($_.Name) $($_.Count)" }) -join ', ') }
-    $body = @{ project = 'recovery'; metric_key = 'integrity'; value_num = $n
-               headline = $head; status = $(if ($n -eq 0) { 'green' } else { 'amber' }) } | ConvertTo-Json -Compress
-    try {
+    try {   # token read + body build INSIDE the try: a bad/empty token never fails the sweep (report is already written)
+        $token = (Get-Content $tokenFile -Raw).Trim()
+        $head = if ($n -eq 0) { "consistent, $($manifest.projects.Count) projects" } else { "$n drift: " + (($byCat | Select-Object -First 3 | ForEach-Object { "$($_.Name) $($_.Count)" }) -join ', ') }
+        $body = @{ project = 'recovery'; metric_key = 'integrity'; value_num = $n
+                   headline = $head; status = $(if ($n -eq 0) { 'green' } else { 'amber' }) } | ConvertTo-Json -Compress
         Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
             -Headers @{ 'X-Alex-Token' = $token } -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null
         Say "HQ push sent (integrity=$n)"
@@ -213,3 +221,23 @@ if ((Test-Path $tokenFile) -and -not $DryRun) {
 
 Say "done ($n drift)"
 if ($n -eq 0) { exit 0 } else { exit 2 }
+}
+catch {
+    # Fail LOUD: the checker itself broke. Push RED integrity (value_num -1) so the tile can't sit
+    # stale-green while the sweep is dead — the exact "job can't announce its own failure" class this
+    # layer was built to kill (design piece 5), now guarded inside the layer itself.
+    $err = $_.Exception.Message
+    Say "CHECKER ERROR: $err"
+    Write-Output "Recovery checker ERROR (exit 1): $err"
+    $tf = "work\16-alex-hq\config\alex-hq-token.txt"
+    if ((Test-Path $tf) -and -not $DryRun) {
+        try {
+            $token = (Get-Content $tf -Raw).Trim()
+            $body = @{ project = 'recovery'; metric_key = 'integrity'; value_num = -1
+                       headline = "checker ERROR: $err"; status = 'red' } | ConvertTo-Json -Compress
+            Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
+                -Headers @{ 'X-Alex-Token' = $token } -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null
+        } catch { Say "RED error-push failed: $($_.Exception.Message)" }
+    }
+    exit 1
+}
