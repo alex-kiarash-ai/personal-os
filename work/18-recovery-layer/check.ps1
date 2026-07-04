@@ -37,11 +37,12 @@ function Get-Sha($path) { if (Test-Path $path) { (Get-FileHash $path -Algorithm 
 # ---------------------------------------------------------------- -Init: baseline desired state
 if ($Init) {
     $hashes = @{}
+    $statusHashes = @{}
     foreach ($p in $manifest.projects) {
-        $cm = Join-Path $p.work_dir "CLAUDE.md"
-        $hashes["$($p.num)"] = Get-Sha $cm
+        $hashes["$($p.num)"]       = Get-Sha (Join-Path $p.work_dir "CLAUDE.md")
+        $statusHashes["$($p.num)"] = Get-Sha $p.status_md   # baseline the status.md too, for the hash-based C8
     }
-    @{ hashes = $hashes; last_init = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
+    @{ hashes = $hashes; status_hashes = $statusHashes; last_init = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
         ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 $baselineFile
     $logLines = (Get-Content "vault\log.md").Count   # true line count; Measure-Object -Line drops blank lines
     @{ lines = $logLines; updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
@@ -111,12 +112,15 @@ $targetMd = Get-ChildItem "vault" -Recurse -Filter *.md |
     Where-Object { $_.FullName -notmatch '\\\.obsidian\\' }   # include archive/ AND sources/ as valid link TARGETS (real files); they're excluded as SOURCES below
 $relpaths  = New-Object System.Collections.Generic.HashSet[string]
 $basenames = New-Object System.Collections.Generic.HashSet[string]
+$basenameCounts = @{}   # how many files share each basename; a UNIQUE basename may resolve a path-style link, an ambiguous one (status/index) may not
 foreach ($m in $targetMd) {
     $rel = $m.FullName.Substring((Resolve-Path "vault").Path.Length + 1).Replace('\', '/').ToLower()
     [void]$relpaths.Add(($rel -replace '\.md$', ''))
-    [void]$basenames.Add($m.BaseName.ToLower())
+    $bn = $m.BaseName.ToLower()
+    [void]$basenames.Add($bn)
+    $basenameCounts[$bn] = [int]$basenameCounts[$bn] + 1
 }
-[void]$basenames.Add('soul')  # soul.md lives at the repo root (outside the Obsidian vault) but is a real target
+[void]$basenames.Add('soul'); $basenameCounts['soul'] = 1  # soul.md lives at the repo root (outside the Obsidian vault) but is a real, unique target
 # Placeholder targets that appear in prose/instructions, not real links.
 $ignoreTargets = @('wiki links', 'wiki link', 'link', 'links', 'name', 'people/name', 'projects/name', 'business/company', 'wiki-links')
 $unresolved = New-Object System.Collections.Generic.List[string]
@@ -133,9 +137,18 @@ foreach ($m in $linkSources) {
     foreach ($mt in [regex]::Matches($content, '\[\[([^\]|#]+)')) {
         $t = $mt.Groups[1].Value.Trim().TrimEnd('\').ToLower()   # TrimEnd('\'): a pipe escaped for a markdown table (\|) leaves a trailing backslash on the captured target
         if ($t -eq '' -or $ignoreTargets -contains $t) { continue }
-        $seg = ($t -split '/')[-1]
-        $ok = $relpaths.Contains($t) -or ($basenames.Contains($seg))
-        if (-not $ok) { foreach ($r in $relpaths) { if ($r.EndsWith("/$t")) { $ok = $true; break } } }
+        # Path-style links (containing /) must resolve to the FULL relpath; basename fallback is ONLY for
+        # bare [[name]]. Otherwise [[x/status]] falsely resolves via any status.md (hollow "links resolve").
+        if ($t -match '/') {
+            $ok = $relpaths.Contains($t)
+            if (-not $ok) { foreach ($r in $relpaths) { if ($r.EndsWith("/$t")) { $ok = $true; break } } }
+            # A UNIQUE basename resolves (e.g. [[people/name]] -> the one name.md, per the People Protocol);
+            # an AMBIGUOUS basename (status/index, ~19 files) does NOT, so [[x/status]] must match the real path.
+            $seg = ($t -split '/')[-1]
+            if (-not $ok -and $basenameCounts[$seg] -eq 1) { $ok = $true }
+        } else {
+            $ok = $relpaths.Contains($t) -or $basenames.Contains($t)
+        }
         # Cross-tree: a link to a real file OUTSIDE vault/ (work/, sources/, outputs/) resolves if it exists on disk.
         # -LiteralPath so a target with wildcard chars (* ? [) can't glob-false-resolve; try/catch so an illegal-char
         # target degrades to "unresolved" instead of throwing into the fail-loud catch under ErrorActionPreference Stop.
@@ -160,12 +173,22 @@ $liveJobs = Get-ScheduledTask -TaskName "PersonalOS-*" -ErrorAction SilentlyCont
 foreach ($j in $docJobs) { if ($liveJobs -notcontains $j) { Add-Drift 'scheduler' "documented job '$j' is NOT registered in Task Scheduler" } }
 foreach ($j in $liveJobs) { if ($docJobs -notcontains $j) { Add-Drift 'scheduler' "registered job '$j' is NOT documented in scheduler/schedule.md" } }
 
-# --- C8 dependent staleness: work CLAUDE.md edited well after its status.md (propagation may be stale) ---
-foreach ($p in $manifest.projects) {
-    $cm = Join-Path $p.work_dir 'CLAUDE.md'
-    if ((Test-Path $cm) -and (Test-Path $p.status_md)) {
-        $days = ((Get-Item $cm).LastWriteTime - (Get-Item $p.status_md).LastWriteTime).TotalDays
-        if ($days -gt 7) { Add-Drift 'stale-status' "#$($p.num) $($p.name): CLAUDE.md is $([math]::Round($days)) days newer than status.md (propagation may be stale)" }
+# --- C8 dependent staleness (HASH-based, mtime-immune): spec changed since -Init but status.md did NOT ---
+# Was mtime-based, which a mass write (privacy scrub) or a git clone bumps in BOTH directions -> false
+# positives AND negatives. Hashing status.md + CLAUDE.md against the -Init baseline flags only a real
+# propagation gap: "the spec moved, the status didn't." Resolution = propagate for real, then re-run -Init.
+if (Test-Path $baselineFile) {
+    $blC8 = Get-Content $baselineFile -Raw | ConvertFrom-Json
+    if ($null -ne $blC8.status_hashes) {
+        foreach ($p in $manifest.projects) {
+            $curCm = Get-Sha (Join-Path $p.work_dir 'CLAUDE.md')
+            $curSt = Get-Sha $p.status_md
+            $oldCm = $blC8.hashes."$($p.num)"
+            $oldSt = $blC8.status_hashes."$($p.num)"
+            if ($oldCm -and $curCm -and ($curCm -ne $oldCm) -and $oldSt -and $curSt -and ($curSt -eq $oldSt)) {
+                Add-Drift 'stale-status' "#$($p.num) $($p.name): CLAUDE.md changed since last -Init but status.md did not (propagate into status.md, then re-run -Init)"
+            }
+        }
     }
 }
 
@@ -187,6 +210,14 @@ if (Test-Path $baselineFile) {
     }
 } else {
     Add-Drift 'manifest-stale' "no baseline yet - run 'check.ps1 -Init' to seed manifest hashes"
+}
+
+# --- C11 index catalog (index.md <-> disk): each manifest project's status page is catalogued in the index ---
+# Design piece-2 "index.md <-> disk diff": a registered project missing from the catalog goes undetected.
+$indexRaw = Get-Content "vault\index.md" -Raw
+foreach ($p in $manifest.projects) {
+    $stRef = ($p.status_md -replace '^vault/', '' -replace '\.md$', '')   # e.g. projects/job-pipeline/status
+    if ($indexRaw -notmatch [regex]::Escape($stRef)) { Add-Drift 'index' "#$($p.num) $($p.name): status page [[$stRef]] not catalogued in vault/index.md" }
 }
 
 # ---------------------------------------------------------------- report
