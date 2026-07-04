@@ -5,7 +5,7 @@ Pulls high-value markdown from each external venture repo into `vault/ventures/{
 ## When this runs
 
 - **Manually** when the user types `/venture-sync`.
-- **Scheduled** weekly Monday 8 AM (added to `scheduler/schedule.md`).
+- **On-demand only for now.** A weekly Monday schedule is planned but NOT yet registered (no `PersonalOS-venture-sync` job, no `scheduler/schedule.md` entry). Add both when the ventures go live. Project #19, currently DORMANT.
 - **Suggested by `/lint`** if synced docs' git_sha is more than 14 days behind the source.
 
 ## Modes

@@ -27,6 +27,7 @@
     { "num": 15, "name": "alex-ai-radar",       "work_dir": "work/15-alex-ai-radar",       "commands": ["alex-radar"],                     "status_md": "vault/projects/alex-ai-radar/status.md",       "cadence_days": 7,  "n8n": null,                 "claude_md_sha": null },
     { "num": 16, "name": "alex-hq",             "work_dir": "work/16-alex-hq",             "commands": ["alex-hq"],                        "status_md": "vault/projects/alex-hq/status.md",             "cadence_days": 1,  "n8n": "GLcMPA4m0DRGjnQH",    "claude_md_sha": null },
     { "num": 17, "name": "health-tracker",      "work_dir": "work/17-health-tracker",      "commands": [],                                 "status_md": "vault/projects/health-tracker/status.md",      "cadence_days": 1,  "n8n": "WtOKBY00Cq1FhQ8T",    "claude_md_sha": null },
-    { "num": 18, "name": "recovery-layer",      "work_dir": "work/18-recovery-layer",      "commands": [],                                 "status_md": "vault/projects/recovery/status.md",            "cadence_days": 7,  "n8n": null,                 "claude_md_sha": null }
+    { "num": 18, "name": "recovery-layer",      "work_dir": "work/18-recovery-layer",      "commands": [],                                 "status_md": "vault/projects/recovery/status.md",            "cadence_days": 7,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 19, "name": "venture-sync",        "work_dir": "work/19-venture-sync",        "commands": ["venture-sync"],                   "status_md": "vault/projects/venture-sync/status.md",         "cadence_days": 0,  "n8n": null,                 "claude_md_sha": null }
   ]
 }
