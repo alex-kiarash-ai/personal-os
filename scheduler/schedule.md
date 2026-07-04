@@ -94,6 +94,12 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: Commits the whole personal-os tree (respecting .gitignore: secrets/outputs/build artifacts excluded) and pushes to the private GitHub repo alex-kiarash-ai/personal-os. Pushes recovery/run_status GREEN to Alex HQ on success, RED with reason on failure, so a dead backup is never silent. PAT lives in Windows Credential Manager (expires ~2027-07, rotation note in the plan). Plan: vault/projects/recovery/github-backup-plan.md.
 - Added: 2026-07-02
 
+### Vault Backup — encrypted local-only (Recovery Phase 1)
+- Command: scripts/vault-backup.ps1 (pure PowerShell, no claude call)
+- Frequency: daily at 9:45 PM (Task Scheduler job PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push.
+- Description: Closes the privacy-scrub gap. Tars everything git IGNORES (minus regenerable junk — set derived from .gitignore so it can't drift), gpg AES256-encrypts it, round-trip-verifies before shipping, scp's the single .gpg to n8n:/opt/alex-backups/ (last 14 kept), pushes recovery/vault_backup GREEN/RED to Alex HQ. Passphrase in C:\Users\Thinkpad\.alex-secrets\vault-backup.pass (OUTSIDE the repo, icacls-locked) — **must also be in Shaheen's password manager or the off-machine blob is unrecoverable if this machine dies.** Restore drill proven 2026-07-04. Plan: vault/projects/recovery/vault-backup-plan.md.
+- Added: 2026-07-04
+
 ### Alex HQ Local Push
 - Command: /alex-hq
 - Frequency: daily at 8:30 AM
