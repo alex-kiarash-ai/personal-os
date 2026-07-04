@@ -19,6 +19,9 @@ venv/
 __pycache__/
 *.pyc
 
+# Recovery checker runtime state (regenerable via check.ps1 -Init; machine-local baseline)
+work/18-recovery-layer/state/
+
 # === deliverables (decision D2 2026-07-02: excluded from backup v1) ===
 outputs/
 

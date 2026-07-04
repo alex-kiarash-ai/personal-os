@@ -52,7 +52,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Email Triage
 - Command: /email-triage scheduled
 - Frequency: 3x daily at 9:00 AM, 1:00 PM, 5:00 PM
-- Description: Classifies unread mail (Act Now/Read Later/Archive), pulls CRM sender context, writes voice-matched reply drafts to outputs/ (scheduled mode never stages blind). Task Scheduler jobs PersonalOS-email-triage-0900/1300/1700.
+- Description: Classifies unread mail (Act Now/Read Later/Archive), pulls CRM sender context, writes voice-matched reply drafts to outputs/ (scheduled mode never stages blind). Task Scheduler jobs PersonalOS-email-triage-0900, PersonalOS-email-triage-1300, PersonalOS-email-triage-1700.
 - Added: 2026-06-12
 
 ### Expense Wrangler
@@ -100,10 +100,16 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: Closes the privacy-scrub gap. Tars everything git IGNORES (minus regenerable junk — set derived from .gitignore so it can't drift), gpg AES256-encrypts it, round-trip-verifies before shipping, scp's the single .gpg to n8n:/opt/alex-backups/ (last 14 kept), pushes recovery/vault_backup GREEN/RED to Alex HQ. Passphrase in C:\Users\Thinkpad\.alex-secrets\vault-backup.pass (OUTSIDE the repo, icacls-locked) — **must also be in Shaheen's password manager or the off-machine blob is unrecoverable if this machine dies.** Restore drill proven 2026-07-04. Plan: vault/projects/recovery/vault-backup-plan.md.
 - Added: 2026-07-04
 
+### Recovery Layer sweep (Recovery Phase 2)
+- Command: work/18-recovery-layer/check.ps1 (pure PowerShell, no claude call, zero tokens)
+- Frequency: Mondays at 7:30 AM (Task Scheduler job PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure.
+- Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against work/18-recovery-layer/manifest.json (10 checks: quad completeness, orphans, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
+- Added: 2026-07-04
+
 ### Alex HQ Local Push
 - Command: /alex-hq
 - Frequency: daily at 8:30 AM
-- Description: Build #16 local-side feed. Harvests the metrics only this ThinkPad can see (MCP tool count, vault page counts, scheduler health), pushes them to the Alex HQ ingest webhook, regenerates + ships the Brain graph (scp, no rebuild), then presents the health summary. Failure-tolerant; never prints the token. Spec: work/16-alex-hq/CLAUDE.md, command: .claude/commands/alex-hq.md.
+- Description: Build #16 local-side feed. Harvests the metrics only this ThinkPad can see (MCP tool count, vault page counts, scheduler health), pushes them to the Alex HQ ingest webhook, regenerates + ships the Brain graph (scp, no rebuild), then presents the health summary. Failure-tolerant; never prints the token. Spec: work/16-alex-hq/CLAUDE.md, command: .claude/commands/alex-hq.md. Task Scheduler job PersonalOS-alex-hq.
 - Added: 2026-07-02
 
 ---

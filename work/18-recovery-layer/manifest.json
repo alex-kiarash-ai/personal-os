@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "generated": "2026-07-04",
+    "purpose": "Desired-state registry for the Recovery deterministic checker (work/18-recovery-layer/check.ps1). This is the SOURCE OF TRUTH the sweep validates disk against. Curated by hand: when a project is added, retired, or renamed, edit this file. The per-project CLAUDE.md baseline hashes are stored by `check.ps1 -Init` in state/baseline.json (NOT here); the claude_md_sha fields below are reserved/unused.",
+    "utility_commands": ["setup", "ingest", "status", "lint", "new", "cron-setup", "brand"],
+    "known_extra_projects_no_work_folder": [
+      { "name": "recovery", "status_md": "vault/projects/recovery/status.md", "reason": "system layer; code in scripts/ + work/18-recovery-layer" },
+      { "name": "alex-costs", "status_md": "vault/projects/alex-costs/status.md", "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot" }
+    ]
+  },
+  "projects": [
+    { "num": 1,  "name": "sprint-tracker",      "work_dir": "work/01-sprint-tracker",      "commands": ["sprint-tracker"],                 "status_md": "vault/projects/sprint-tracker/status.md",      "cadence_days": 1,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 2,  "name": "morning-brief",       "work_dir": "work/02-morning-brief",       "commands": ["morning-brief"],                  "status_md": "vault/projects/morning-brief/status.md",       "cadence_days": 1,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 3,  "name": "application-engine",  "work_dir": "work/03-application-engine",  "commands": ["application-engine"],             "status_md": "vault/projects/job-pipeline/status.md",         "cadence_days": 1,  "n8n": "9XuIEfxS71DEetVR",    "claude_md_sha": null },
+    { "num": 4,  "name": "research-team",       "work_dir": "work/04-research-team",       "commands": ["research-team"],                  "status_md": "vault/projects/research-team/status.md",       "cadence_days": 0,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 5,  "name": "personal-crm",        "work_dir": "work/05-personal-crm",        "commands": ["personal-crm"],                   "status_md": "vault/projects/personal-crm/status.md",        "cadence_days": 7,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 6,  "name": "meeting-intel",       "work_dir": "work/06-meeting-intel",       "commands": ["meeting-intel"],                  "status_md": "vault/projects/meeting-intel/status.md",       "cadence_days": 0,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 7,  "name": "email-triage",        "work_dir": "work/07-email-triage",        "commands": ["email-triage"],                   "status_md": "vault/projects/email-triage/status.md",        "cadence_days": 1,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 8,  "name": "expense-wrangler",    "work_dir": "work/08-expense-wrangler",    "commands": ["expense-wrangler"],               "status_md": "vault/projects/expense-wrangler/status.md",     "cadence_days": 30, "n8n": null,                 "claude_md_sha": null },
+    { "num": 9,  "name": "content-machine",     "work_dir": "work/09-content-machine",     "commands": ["content-machine", "content-plan"], "status_md": "vault/projects/content-machine/status.md",     "cadence_days": 0,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 10, "name": "weekly-exec-report",  "work_dir": "work/10-weekly-exec-report",  "commands": ["weekly-exec-report"],             "status_md": "vault/projects/weekly-exec-report/status.md",   "cadence_days": 7,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 11, "name": "whatsapp-harvest",    "work_dir": "work/11-whatsapp-harvest",    "commands": ["whatsapp-harvest"],               "status_md": "vault/projects/whatsapp-harvest/status.md",     "cadence_days": 1,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 12, "name": "linkedin-series",     "work_dir": "work/12-linkedin-series",     "commands": ["post-episode", "post-publish"],   "status_md": "vault/projects/linkedin-series/status.md",      "cadence_days": 0,  "n8n": "v1GbDYganOz9EGpM",    "claude_md_sha": null },
+    { "num": 13, "name": "airbnb-host",         "work_dir": "work/13-airbnb-host",         "commands": ["airbnb-host"],                    "status_md": "vault/projects/airbnb-host/status.md",         "cadence_days": 1,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 14, "name": "ai-application-engine","work_dir": "work/14-ai-application-engine","commands": [],                                "status_md": "vault/projects/ai-job-pipeline/status.md",      "cadence_days": 1,  "n8n": "9x9M3EnEEeX3O8dy",    "claude_md_sha": null },
+    { "num": 15, "name": "alex-ai-radar",       "work_dir": "work/15-alex-ai-radar",       "commands": ["alex-radar"],                     "status_md": "vault/projects/alex-ai-radar/status.md",       "cadence_days": 7,  "n8n": null,                 "claude_md_sha": null },
+    { "num": 16, "name": "alex-hq",             "work_dir": "work/16-alex-hq",             "commands": ["alex-hq"],                        "status_md": "vault/projects/alex-hq/status.md",             "cadence_days": 1,  "n8n": "GLcMPA4m0DRGjnQH",    "claude_md_sha": null },
+    { "num": 17, "name": "health-tracker",      "work_dir": "work/17-health-tracker",      "commands": [],                                 "status_md": "vault/projects/health-tracker/status.md",      "cadence_days": 1,  "n8n": "WtOKBY00Cq1FhQ8T",    "claude_md_sha": null },
+    { "num": 18, "name": "recovery-layer",      "work_dir": "work/18-recovery-layer",      "commands": [],                                 "status_md": "vault/projects/recovery/status.md",            "cadence_days": 7,  "n8n": null,                 "claude_md_sha": null }
+  ]
+}
