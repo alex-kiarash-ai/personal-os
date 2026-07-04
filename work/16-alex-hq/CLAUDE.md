@@ -60,7 +60,7 @@ Shaheen drops a note (typed or voice) into the "Drop a note to Alex" card on the
 - **Header:** runway clock (`me.runway`).
 - **Daily row:** morning-brief `urgent_count` · app-engine-bi + app-engine-ai (`drafted_today`, `pass_rate_pct`, `needs_review_depth`, `total_spend_usd`) · email-triage `act_now` · linkedin-series `episodes_published` · airbnb `ytd_income_kr` · radar `shipped_30d` + headline.
 - **Weekly row:** sprint `velocity` (retrofitted 2026-07-02 with the #01 wrapper hardening; seeded red clears on the first clean 9:00 run) · crm `followups_due` · expenses `mtd_total_kr`.
-- **Infra row:** automation health board (derived from per-project `status` + `last_ts` age) · infra `mcp_tools` + `vault_pages` · infra `scheduled_jobs_active`.
+- **Infra row / Alex Brain strip:** automation health board (derived from per-project `status` + `last_ts` age) · infra `mcp_tools` + `vault_pages` · infra `scheduled_jobs_active` · infra `n8n_up_today` (active n8n workflows that ran today over active count, computed each daily harvest by `scripts/n8n_liveness.py` since 2026-07-04 — was a one-shot push before).
 
 ## Vault Structure
 - Tier 1: vault/projects/alex-hq/status.md (endpoints, IDs, last run, deployment state)
@@ -73,7 +73,7 @@ Shaheen drops a note (typed or voice) into the "Drop a note to Alex" card on the
 - vault/projects/alex-hq/status.md per change; vault/log.md per run; vault/index.md on new pages
 
 ## Connections
-- **Fed by:** every automation (post-run POST), /alex-hq local harvest (MCP count, vault size, scheduler), **Shaheen's notes** (typed + voice via the PWA card, Inbox Contract)
+- **Fed by:** every automation (post-run POST), /alex-hq local harvest (MCP count, vault size, scheduler, n8n workflow liveness), **Shaheen's notes** (typed + voice via the PWA card, Inbox Contract)
 - **Feeds into:** Shaheen's phone/PC (the UI), the vault (filed notes → calendar/people/me/meetings/projects), morning-brief ("Notes you dropped" block + may quote HQ health), Building Alex episode ("I gave Alex a face"), STEMPLICITY demo
 
 ## Post-Run (mandatory)
