@@ -514,6 +514,8 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
     simple("radar", "Radar · shipped 30d", "radar", "shipped_30d"),
     simple("expenses", "Expenses · MTD kr", "expenses", "mtd_total_kr"),
     simple("build", "Build tasks · done this week", "sprint", "velocity"),
+    simple("health-sleep", "Body · sleep score", "health", "sleep_score_today"),
+    simple("health-steps", "Body · steps yesterday", "health", "steps_today"),
   ].filter((t): t is TileDef => t !== null);
 
   const brainStats: [string, Metric | null, string | null][] = [

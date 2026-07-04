@@ -86,6 +86,7 @@ export const DESCRIPTIONS: Record<string, string> = {
   "weekly-exec": "Friday 16:00 capstone: aggregates every automation into a branded weekly report.",
   infra: "The local harvest: MCP tool count, vault size, scheduled jobs, brain graph sync from the ThinkPad.",
   "alex-hq": "This dashboard. Metrics ingest, summary API and the notes inbox, all on the Hetzner box.",
+  health: "Apple Watch sleep and steps off the iPhone: a nightly Alex Sleep Score (0-100, from sleep stages) and yesterday's step count, pushed daily by a native iOS Shortcut to the box.",
 };
 
 // The stack Alex runs on — rendered in the Alex Brain drill-down.
@@ -118,5 +119,6 @@ export const CADENCE_HOURS: Record<string, number> = {
   sprint: 80,
   infra: 26,
   "alex-hq": 800,
+  health: 30,
   me: 100000,
 };

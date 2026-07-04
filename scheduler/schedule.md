@@ -18,6 +18,12 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 <!-- - Description: what it does -->
 <!-- - Added: YYYY-MM-DD -->
 
+### Health Tracker (#17) — phone-side, NOT a Windows task
+- Command: none (no /command, no Task Scheduler job).
+- Frequency: **daily 23:59, triggered ON the iPhone** by a native Shortcuts time-automation (Shaheen builds it, guide `work/17-health-tracker/IPHONE-SHORTCUT.md`). It POSTs to the n8n webhook `/webhook/alex-health-ingest`; n8n scores + stores. Nothing to add to /cron-setup on this machine. **23:59 chosen (2026-07-04) so the day's steps are complete while "is today" still captures last night's sleep — one combined row/day.**
+- Note: the ingest workflow (`WtOKBY00Cq1FhQ8T`) runs on the Hetzner box, always-on. Consumers (brief/HQ) read on their own schedules. If iOS skips a run, the pipeline is idempotent; optional 00:30 catch-up automation.
+- Added: 2026-07-04
+
 ### Sprint Tracker
 - Command: /sprint-tracker
 - Frequency: weekdays at 9:00 AM
