@@ -108,7 +108,7 @@ foreach ($d in Get-ChildItem "vault\projects" -Directory) {
 # --- C6 wiki-link resolution: every [[link]] resolves to a vault page (Obsidian basename/path style) ---
 # TARGET set INCLUDES vault/archive/ (supersede-never-delete GC keeps archived pages valid link targets).
 $targetMd = Get-ChildItem "vault" -Recurse -Filter *.md |
-    Where-Object { $_.FullName -notmatch '\\\.obsidian\\|\\sources\\' }
+    Where-Object { $_.FullName -notmatch '\\\.obsidian\\' }   # include archive/ AND sources/ as valid link TARGETS (real files); they're excluded as SOURCES below
 $relpaths  = New-Object System.Collections.Generic.HashSet[string]
 $basenames = New-Object System.Collections.Generic.HashSet[string]
 foreach ($m in $targetMd) {
@@ -122,7 +122,9 @@ $ignoreTargets = @('wiki links', 'wiki link', 'link', 'links', 'name', 'people/n
 $unresolved = New-Object System.Collections.Generic.List[string]
 # SOURCES exclude archive/ (don't scan retired pages), index.md + log.md (navigation/history),
 # and last-sweep.md (the checker's OWN output — scanning it self-pollutes the next run's count).
-$linkSources = $targetMd | Where-Object { $_.FullName -notmatch '\\archive\\' -and @('index.md', 'log.md', 'last-sweep.md') -notcontains $_.Name }
+# Also skip immutable dated records (history/ + standups/): append-only snapshots we never edit, so a
+# dangling link in a 3-week-old brief is not actionable (same rationale as log.md/index.md).
+$linkSources = $targetMd | Where-Object { $_.FullName -notmatch '\\archive\\|\\sources\\|\\history\\|\\standups\\' -and @('index.md', 'log.md', 'last-sweep.md') -notcontains $_.Name }
 foreach ($m in $linkSources) {
     $content = Get-Content $m.FullName -Raw
     if (-not $content) { continue }
