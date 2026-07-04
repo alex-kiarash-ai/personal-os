@@ -3,6 +3,8 @@
     "generated": "2026-07-04",
     "purpose": "Desired-state registry for the Recovery deterministic checker (work/18-recovery-layer/check.ps1). This is the SOURCE OF TRUTH the sweep validates disk against. Curated by hand: when a project is added, retired, or renamed, edit this file. The per-project CLAUDE.md baseline hashes are stored by `check.ps1 -Init` in state/baseline.json (NOT here); the claude_md_sha fields below are reserved/unused.",
     "utility_commands": ["setup", "ingest", "status", "lint", "new", "cron-setup", "brand"],
+    "known_work_folders": ["voice"],
+    "known_work_folders_note": "Non-project work/ folders that are legit tooling, not numbered automations. voice = the local TTS hook (speak-hook.ps1 etc.) wired live in .claude/settings.json. C3 allowlists these so a real rogue folder still flags.",
     "known_extra_projects_no_work_folder": [
       { "name": "recovery", "status_md": "vault/projects/recovery/status.md", "reason": "system layer; code in scripts/ + work/18-recovery-layer" },
       { "name": "alex-costs", "status_md": "vault/projects/alex-costs/status.md", "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot" },

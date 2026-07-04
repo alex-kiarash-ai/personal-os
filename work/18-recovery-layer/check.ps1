@@ -56,6 +56,7 @@ $drift = New-Object System.Collections.Generic.List[object]
 function Add-Drift($cat, $msg) { $drift.Add([pscustomobject]@{ cat = $cat; msg = $msg }) }
 
 $claudeMd = Get-Content "CLAUDE.md" -Raw
+$claudeMdLines = $claudeMd -split "`r?`n"
 $utility  = @($manifest.meta.utility_commands)
 $knownExtra = @($manifest.meta.known_extra_projects_no_work_folder)
 
@@ -72,8 +73,9 @@ foreach ($p in $manifest.projects) {
     foreach ($c in $p.commands) {
         if (-not (Test-Path ".claude\commands\$c.md")) { Add-Drift 'quad' "#$($p.num) $($p.name): command file .claude/commands/$c.md missing" }
     }
-    # --- C5 routing row: project's work_dir referenced in the routing table ---
-    if ($claudeMd -notmatch [regex]::Escape($p.work_dir)) { Add-Drift 'routing' "#$($p.num) $($p.name): no routing-table row (work_dir not in CLAUDE.md)" }
+    # --- C5 routing row: a real '| NN |' TABLE row carrying this work_dir (not just any prose mention) ---
+    $routingRow = $claudeMdLines | Where-Object { $_ -match "^\|\s*0*$($p.num)\s*\|" -and $_ -match [regex]::Escape($p.work_dir) }   # 0* tolerates zero-padded row numbers (| 01 |)
+    if (-not $routingRow) { Add-Drift 'routing' "#$($p.num) $($p.name): no routing-table row ('| $($p.num) |' row carrying $($p.work_dir))" }
 }
 
 # --- C2 orphan commands: a command file that no project or utility claims (catches venture-sync) ---
@@ -82,11 +84,14 @@ foreach ($f in Get-ChildItem ".claude\commands" -Filter *.md) {
     if (-not $declaredCmds.Contains($name)) { Add-Drift 'orphan-cmd' "command '/$name' is not owned by any project or utility (register it in the routing table + manifest)" }
 }
 
-# --- C3 orphan work folders: a work/NN-* dir with no manifest entry ---
+# --- C3 orphan work folders: ANY work/ dir (not just NN-*) with no manifest entry / allowlist ---
 $manifestDirs = $manifest.projects | ForEach-Object { $_.work_dir.Replace('/', '\') }
-foreach ($d in Get-ChildItem "work" -Directory | Where-Object { $_.Name -match '^\d{2}-' }) {
+$knownWork = @($manifest.meta.known_work_folders)   # non-project tooling folders (e.g. voice); allowlisted so a real rogue folder still flags
+foreach ($d in Get-ChildItem "work" -Directory) {
     $rel = "work\$($d.Name)"
-    if ($manifestDirs -notcontains $rel) { Add-Drift 'orphan-work' "work folder '$rel' has no manifest entry" }
+    if (($manifestDirs -notcontains $rel) -and ($knownWork -notcontains $d.Name)) {
+        Add-Drift 'orphan-work' "work folder '$rel' has no manifest entry (register it, or add to meta.known_work_folders if it is non-project tooling)"
+    }
 }
 
 # --- C4 orphan vault projects: a vault/projects/* not registered (catches modeling + stale pages) ---
@@ -121,12 +126,16 @@ $linkSources = $targetMd | Where-Object { $_.FullName -notmatch '\\archive\\' -a
 foreach ($m in $linkSources) {
     $content = Get-Content $m.FullName -Raw
     if (-not $content) { continue }
+    # Strip fenced + inline code so [[links]] shown as EXAMPLES in code (incl. docs about dangling links) don't count.
+    $content = $content -replace '(?s)```.*?```', '' -replace '`[^`]*`', ''
     foreach ($mt in [regex]::Matches($content, '\[\[([^\]|#]+)')) {
         $t = $mt.Groups[1].Value.Trim().TrimEnd('\').ToLower()   # TrimEnd('\'): a pipe escaped for a markdown table (\|) leaves a trailing backslash on the captured target
         if ($t -eq '' -or $ignoreTargets -contains $t) { continue }
         $seg = ($t -split '/')[-1]
         $ok = $relpaths.Contains($t) -or ($basenames.Contains($seg))
         if (-not $ok) { foreach ($r in $relpaths) { if ($r.EndsWith("/$t")) { $ok = $true; break } } }
+        # Cross-tree: a link to a real file OUTSIDE vault/ (work/, sources/, outputs/) resolves if it exists on disk.
+        if (-not $ok) { if ((Test-Path (Join-Path $repo "$t.md")) -or (Test-Path (Join-Path $repo $t))) { $ok = $true } }
         if (-not $ok) { $unresolved.Add($t) }   # store the bare target so we can rank distinct ones
     }
 }
