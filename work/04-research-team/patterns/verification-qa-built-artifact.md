@@ -2,7 +2,7 @@
 class: verification
 created: 2026-07-04
 last_used: 2026-07-04
-times_used: 1
+times_used: 2
 ---
 # Verify a built artifact (QA a script/system already shipped)
 
@@ -42,3 +42,9 @@ can be true (PASS-WITH-CONCERNS is the common verdict for a v1).
   it can't corrupt the very thing under test. Best synthesis insight: the sharpest defects were the
   artifact re-committing the exact sins it was built to prevent (a recovery tool that can't survive a
   restore or announce its own failure) — look for that self-referential class explicitly.
+- **Reuse 2 (2026-07-04, recovery GC content-QA):** works for a content/GC task, not just code. Swap the
+  dynamic-fixture lane for a **new-page accuracy verifier** (re-derive every claim against sources) when the
+  artifact is reconstructed pages, not a script. That lane caught a fabricated number (a borrowed interest
+  score) and under-read trip dates that the decision + completeness lanes both missed. Rule: decision +
+  completeness lanes verify the *judgment*; a dedicated accuracy lane verifies the *facts*, and they catch
+  different failure classes, so keep both.

@@ -122,7 +122,7 @@ foreach ($m in $linkSources) {
     $content = Get-Content $m.FullName -Raw
     if (-not $content) { continue }
     foreach ($mt in [regex]::Matches($content, '\[\[([^\]|#]+)')) {
-        $t = $mt.Groups[1].Value.Trim().ToLower()
+        $t = $mt.Groups[1].Value.Trim().TrimEnd('\').ToLower()   # TrimEnd('\'): a pipe escaped for a markdown table (\|) leaves a trailing backslash on the captured target
         if ($t -eq '' -or $ignoreTargets -contains $t) { continue }
         $seg = ($t -split '/')[-1]
         $ok = $relpaths.Contains($t) -or ($basenames.Contains($seg))
