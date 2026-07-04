@@ -135,7 +135,9 @@ foreach ($m in $linkSources) {
         $ok = $relpaths.Contains($t) -or ($basenames.Contains($seg))
         if (-not $ok) { foreach ($r in $relpaths) { if ($r.EndsWith("/$t")) { $ok = $true; break } } }
         # Cross-tree: a link to a real file OUTSIDE vault/ (work/, sources/, outputs/) resolves if it exists on disk.
-        if (-not $ok) { if ((Test-Path (Join-Path $repo "$t.md")) -or (Test-Path (Join-Path $repo $t))) { $ok = $true } }
+        # -LiteralPath so a target with wildcard chars (* ? [) can't glob-false-resolve; try/catch so an illegal-char
+        # target degrades to "unresolved" instead of throwing into the fail-loud catch under ErrorActionPreference Stop.
+        if (-not $ok) { try { if ((Test-Path -LiteralPath (Join-Path $repo "$t.md")) -or (Test-Path -LiteralPath (Join-Path $repo $t))) { $ok = $true } } catch { } }
         if (-not $ok) { $unresolved.Add($t) }   # store the bare target so we can rank distinct ones
     }
 }
