@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "job-pipeline-dashboard"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "7f3a9c41-2b8e-4d16-9a52-c8e1f0b6d3a7"
+  }
+}

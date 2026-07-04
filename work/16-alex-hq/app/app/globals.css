@@ -1,0 +1,382 @@
+@import "tailwindcss";
+
+/* ALEX brand — Deep Water Instrument Panel (brand/config/color-system.md v1.0)
+   Canvas Ink Black · structure Dark Teal/Cyan · Pearl Aqua secondary ·
+   Vanilla Custard tertiary · ONE Golden Orange accent per view · reds alarm-only */
+:root {
+  --ink: #001219;
+  --elev: #00232e;
+  --teal: #005f73;
+  --cyan: #0a9396;
+  --aqua: #94d2bd;
+  --custard: #e9d8a6;
+  --orange: #ee9b00;
+  --caramel: #ca6702;
+  --warn: #bb3e03;
+  --error: #ae2012;
+  --paper: #ffffff;
+  --mute: rgba(148, 210, 189, 0.62); /* aqua tier, not off-palette slate */
+  --card: rgba(0, 35, 46, 0.52);
+}
+
+html {
+  background: var(--ink);
+}
+
+body {
+  color: var(--paper);
+  font-family: var(--font-plex), sans-serif;
+  min-height: 100dvh;
+  background:
+    radial-gradient(1200px 560px at 14% -10%, rgba(0, 95, 115, 0.38), transparent 62%),
+    radial-gradient(900px 480px at 88% 2%, rgba(10, 147, 150, 0.14), transparent 58%),
+    radial-gradient(820px 620px at 50% 116%, rgba(0, 95, 115, 0.2), transparent 60%),
+    var(--ink);
+  background-attachment: fixed;
+}
+
+/* instrument graph-paper grid, barely there */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(rgba(148, 210, 189, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 210, 189, 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(1200px 900px at 50% 0%, black, transparent 85%);
+}
+
+/* film grain above the grid, below content */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+}
+
+/* Custom component classes live in the components layer so Tailwind utilities
+   (min-w-full, line-clamp-*) can override them — unlayered CSS would always win in v4. */
+@layer components {
+.font-display {
+  font-family: var(--font-chakra), sans-serif;
+}
+
+/* glass instrument tile: hairline teal edge, deep shadow */
+.tile {
+  position: relative;
+  border-radius: 1rem;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(150deg, rgba(10, 147, 150, 0.5), rgba(0, 95, 115, 0.22) 45%, rgba(10, 147, 150, 0.05) 80%) border-box;
+  border: 1px solid transparent;
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 1px 0 rgba(148, 210, 189, 0.06) inset,
+    0 24px 48px -28px rgba(0, 0, 0, 0.9);
+  cursor: pointer;
+  transition: box-shadow 0.35s ease;
+}
+
+button.tile:hover {
+  box-shadow:
+    0 1px 0 rgba(148, 210, 189, 0.08) inset,
+    0 0 0 1px rgba(10, 147, 150, 0.35),
+    0 0 34px -6px rgba(10, 147, 150, 0.45),
+    0 28px 52px -28px rgba(0, 0, 0, 0.95);
+}
+
+.tap-hint {
+  position: absolute;
+  right: 1.1rem;
+  bottom: 0.7rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+button.tile:hover .tap-hint {
+  opacity: 0.8;
+}
+
+.backdrop {
+  background: rgba(0, 18, 25, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.close-btn {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  color: var(--mute);
+  background: rgba(148, 210, 189, 0.1);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.close-btn:hover {
+  color: var(--paper);
+  background: rgba(10, 147, 150, 0.25);
+}
+
+.metric-row {
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(148, 210, 189, 0.12);
+}
+.metric-row:last-of-type {
+  border-bottom: none;
+}
+
+.brain-wrap {
+  position: relative;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  background:
+    radial-gradient(420px 300px at 50% 40%, rgba(0, 95, 115, 0.35), transparent 70%),
+    rgba(0, 18, 25, 0.5);
+  border: 1px solid rgba(10, 147, 150, 0.14);
+  min-height: 340px;
+}
+
+.health-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  min-height: 2.75rem; /* 44px touch target */
+  padding: 0.3rem 0.5rem;
+  margin: 0 -0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  text-align: left;
+}
+.health-row:hover {
+  background: rgba(10, 147, 150, 0.1);
+}
+
+/* status tints: warning + error borders (reds = alarm only) */
+.tile-red {
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(150deg, rgba(174, 32, 18, 0.7), rgba(174, 32, 18, 0.12) 55%) border-box;
+}
+
+.tile-amber {
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(150deg, rgba(187, 62, 3, 0.55), rgba(187, 62, 3, 0.1) 55%) border-box;
+}
+
+.kicker {
+  font-family: var(--font-chakra), sans-serif;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--aqua);
+}
+
+/* instrument readout numerals */
+.big {
+  font-family: var(--font-mono), monospace;
+  font-weight: 600;
+  font-size: clamp(1.9rem, 4vw, 2.9rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  flex: none;
+}
+.dot-green { background: var(--cyan);  box-shadow: 0 0 10px rgba(10, 147, 150, 0.9); }
+.dot-amber { background: var(--warn);  box-shadow: 0 0 10px rgba(187, 62, 3, 0.8); }
+.dot-red   { background: var(--error); box-shadow: 0 0 12px rgba(174, 32, 18, 0.95); animation: pulse 1.6s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.7; }
+}
+
+/* header hairline: brand gradient teal → cyan, slow shimmer */
+.filament {
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--teal), var(--cyan) 40%, var(--aqua) 70%, var(--teal));
+  background-size: 220% 100%;
+  box-shadow: 0 0 12px rgba(10, 147, 150, 0.45);
+  animation: shimmer 8s linear infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 0% 0; }
+  to   { background-position: 220% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filament { animation: none; }
+}
+
+::selection {
+  background: rgba(10, 147, 150, 0.4);
+}
+
+/* notes card (two-way inbox) */
+.note-input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  background: rgba(0, 18, 25, 0.5);
+  border: 1px solid rgba(148, 210, 189, 0.16);
+  border-radius: 0.7rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--paper);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.note-input::placeholder {
+  color: rgba(111, 144, 153, 0.75);
+}
+.note-input:focus {
+  border-color: rgba(10, 147, 150, 0.55);
+}
+
+/* THE one Golden Orange accent on the main view: the primary CTA.
+   Dark text on orange, never white (brand law). Hover = Burnt Caramel. */
+.btn-send {
+  font-family: var(--font-chakra), sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 1.15rem;
+  border-radius: 9999px;
+  background: var(--orange);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.btn-send:hover:not(:disabled) {
+  background: var(--caramel);
+  box-shadow: 0 0 18px rgba(238, 155, 0, 0.35);
+}
+/* disabled = ghost secondary (4.3), never a muddied brand orange */
+.btn-send:disabled {
+  background: transparent;
+  border: 1px solid rgba(10, 147, 150, 0.4);
+  color: rgba(148, 210, 189, 0.5);
+  cursor: default;
+}
+
+/* mic: unmistakable voice control — bordered pill, mic glyph, label on wide screens */
+.btn-mic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  height: 2.6rem;
+  min-width: 2.9rem;
+  padding: 0 0.85rem;
+  flex: none;
+  border-radius: 9999px;
+  background: rgba(10, 147, 150, 0.12);
+  border: 1px solid rgba(10, 147, 150, 0.45);
+  color: var(--aqua);
+  font-family: var(--font-chakra), sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-mic:hover:not(:disabled) {
+  background: rgba(10, 147, 150, 0.22);
+  color: var(--paper);
+}
+.btn-mic.rec {
+  background: rgba(174, 32, 18, 0.18);
+  color: #ff8a75;
+  border-color: rgba(174, 32, 18, 0.65);
+  animation: rec-breathe 1.6s ease-in-out infinite;
+}
+@keyframes rec-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(174, 32, 18, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(174, 32, 18, 0); }
+}
+.btn-mic:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.note-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(148, 210, 189, 0.09);
+}
+.note-row:last-of-type {
+  border-bottom: none;
+}
+
+/* Alex Brain strip: horizontal count readouts */
+.brain-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.brain-stat .v {
+  font-family: var(--font-mono), monospace;
+  font-weight: 600;
+  font-size: 1.55rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.brain-stat .k {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  white-space: nowrap;
+}
+
+/* stack list rows in the Brain overlay */
+.stack-row {
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(148, 210, 189, 0.09);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.stack-row:last-of-type { border-bottom: none; }
+.stack-row .name {
+  flex: none;
+  width: 9.5rem;
+  font-family: var(--font-chakra), sans-serif;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--aqua);
+  padding-top: 0.1rem;
+}
+.stack-row .what { color: var(--mute); min-width: 0; }
+} /* end @layer components */

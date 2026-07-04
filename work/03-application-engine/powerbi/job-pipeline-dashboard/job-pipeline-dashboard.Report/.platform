@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "job-pipeline-dashboard"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "e2d5b8f6-1c47-4a93-b07e-5f9a3d2c8b14"
+  }
+}
