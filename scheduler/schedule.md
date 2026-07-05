@@ -103,7 +103,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Recovery Layer sweep (Recovery Phase 2)
 - Command: work/18-recovery-layer/check.ps1 (pure PowerShell, no claude call, zero tokens)
 - Frequency: Mondays at 7:30 AM (Task Scheduler job PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure.
-- Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against work/18-recovery-layer/manifest.json (10 checks: quad completeness, orphans, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
+- Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against work/18-recovery-layer/manifest.json (11 checks incl. quad completeness, orphans, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
 - Added: 2026-07-04
 
 ### Alex HQ Local Push
