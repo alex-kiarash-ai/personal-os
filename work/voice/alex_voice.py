@@ -218,19 +218,14 @@ class Alex:
             args = ["cmd", "/c", exe] + cli_args
         else:
             args = [exe] + cli_args
-        print("[alex-voice] waking Alex (loading MCP + vault, ~5s)...", end="", flush=True)
         self.p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                   cwd=REPO, text=True, encoding="utf-8", bufsize=1,
                                   stderr=subprocess.DEVNULL)
-        # drain startup events until the session init arrives
-        for line in self.p.stdout:
-            try:
-                ev = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if ev.get("type") == "system" and ev.get("subtype") == "init":
-                break
-        print(" ready.")
+        # claude emits nothing until it receives the first message, so we do NOT drain
+        # startup events here (that would block forever). The first ask() reads through
+        # the startup system events and harmlessly skips them; the first reply is a few
+        # seconds slower while MCP + vault load.
+        print("[alex-voice] Alex is up (first reply loads MCP + vault, give it a few seconds).")
 
     def ask(self, text):
         msg = {"type": "user", "message": {"role": "user", "content": text}}
