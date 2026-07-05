@@ -26,6 +26,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -208,9 +209,15 @@ def record_until_silence(threshold):
 # ------------------------- the Alex brain (persistent claude) -------------------------
 class Alex:
     def __init__(self):
-        claude = "claude"
-        args = [claude, "-p", "--input-format", "stream-json", "--output-format",
-                "stream-json", "--verbose", "--permission-mode", CLAUDE_PERMISSION_MODE]
+        exe = shutil.which("claude") or "claude"
+        cli_args = ["-p", "--input-format", "stream-json", "--output-format",
+                    "stream-json", "--verbose", "--permission-mode", CLAUDE_PERMISSION_MODE]
+        # On Windows `claude` is a .cmd shim; a bare CreateProcess can't launch it (WinError 2),
+        # so route .cmd/.bat through cmd.exe. A real .exe (or non-Windows) launches directly.
+        if os.name == "nt" and exe.lower().endswith((".cmd", ".bat")):
+            args = ["cmd", "/c", exe] + cli_args
+        else:
+            args = [exe] + cli_args
         print("[alex-voice] waking Alex (loading MCP + vault, ~5s)...", end="", flush=True)
         self.p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                   cwd=REPO, text=True, encoding="utf-8", bufsize=1,
