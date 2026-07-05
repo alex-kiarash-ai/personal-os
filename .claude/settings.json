@@ -33,16 +33,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\Thinkpad\\Desktop\\personal-os\\work\\voice\\speak-hook.ps1\""
-          }
-        ]
-      }
     ]
   }
 }
