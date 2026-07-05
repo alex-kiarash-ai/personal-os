@@ -3,7 +3,7 @@
 alex_voice.py - Alex's two-way voice conversation loop (v1).
 
 Replaces the old one-way Stop-hook TTS (speak-hook.ps1) with a real back-and-forth:
-you talk, Alex talks back, you can cut him off with Esc, and it loops.
+you talk, Alex talks back, you can cut in with Esc, and it loops.
 
 Architecture (decided from research-team run 13 + measured on this box):
   - ONE persistent `claude` process in stream-json mode = the full Alex brain
@@ -44,8 +44,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 WHISPER_MODEL = "base"          # base = good CPU balance + multilingual (EN/AR/SV). "small" = better, slower.
 TTS_BACKEND = "openai"         # the "sage" Alex voice via gpt-4o-mini-tts (Shaheen topping up credits 2026-07-05). Auto-falls back to local SAPI if the account is dry, so it's safe even before the top-up lands. Set "sapi" to force the free/local/robotic voice.
 TTS_MODEL = "gpt-4o-mini-tts"
-TTS_VOICE = "ash"               # masculine, calm/wise (Shaheen 2026-07-05: Alex is masculine, he/him). Swap: onyx=deeper, ballad=warmer, echo/verse. Only used when TTS_BACKEND="openai".
-TTS_INSTRUCTIONS = ("Speak as Alex, a masculine voice: calm, incisive, warm but direct, with dry wit. "
+TTS_VOICE = "coral"             # warm feminine voice (Shaheen 2026-07-05: wants a female voice for Alex). Swap: nova=brighter, shimmer=softer, sage=calmer/neutral. Only used when TTS_BACKEND="openai".
+TTS_INSTRUCTIONS = ("Speak as Alex, a warm feminine voice: calm, incisive, warm but direct, with dry wit. "
                     "Unhurried, natural human pacing. A wise mentor who cuts through noise. "
                     "Never robotic or announcer-like.")
 SAMPLE_RATE = 16000             # Whisper wants 16k mono
@@ -260,7 +260,7 @@ def main():
     print("=" * 60)
     print(" Alex Voice v1  -  talk to Alex")
     print("  Enter = start talking (auto-stops when you go quiet)")
-    print("  Esc   = cut Alex off while he's speaking")
+    print("  Esc   = cut Alex off mid-reply")
     print("  q+Enter or Ctrl-C = quit")
     print("=" * 60)
 

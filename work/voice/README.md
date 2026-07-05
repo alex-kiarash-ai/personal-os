@@ -12,7 +12,7 @@ or double-run `work/voice/talk.ps1`. **Wear the headphones** (Jabra) so Alex's v
 
 ## Controls
 - **Enter** - start talking. Recording auto-stops when you go quiet (~1.2s of silence).
-- **Esc** - cut Alex off while he's speaking (barge-in).
+- **Esc** - cut Alex off mid-reply (barge-in).
 - **q + Enter** (or Ctrl-C) - quit.
 
 ## How it works
