@@ -19,7 +19,7 @@ Design + evidence: [[research/health-tracker-architecture]] (/research-team run 
 - **Store:** n8n Data Table `alex_health`, id in `config/table-id.txt` (currently `J2cGka85Cf9DzNFc`), 16 columns (date, steps, asleep_min, deep_min, rem_min, core_min, awake_min, inbed_min, awakenings, efficiency, bedtime, waketime, bedtime_dev_min, sleep_score, source, ts). **Append-only** (like alex_metrics); readers merge by field per date. Seeded with 1,479 daily rows / 151 scored nights (Jan 2024 → 2026-07-04).
 - **Ingest workflow:** `Alex Health - Ingest (17)`, id `WtOKBY00Cq1FhQ8T`, ACTIVE. Webhook → Code "Score + Normalize" (the Alex Sleep Score, v1 5-component) → Data Table insert → Respond `{ok,count}`. JSON backup: `config/wf-health-ingest.json`.
 - **Read:** the existing `Alex HQ - Summary API (16)` (id `GLcMPA4m0DRGjnQH`) was EXTENDED to also read `alex_health` and expose a `health` project (`steps_today`, `sleep_score_today`, each 14-day history). Pre-change backup: `work/16-alex-hq/config/wf-summary-backup-pre-health.json`.
-- **Auth:** same `X-Alex-Token` header cred (`m6VkVeG9bym6OFID`) as all Alex HQ webhooks. 403 without it (verified). Token file `work/16-alex-hq/config/alex-hq-token.txt` — never printed/logged/committed.
+- **Auth:** same `X-Alex-Token` header cred (`m6VkVeG9bym6OFID`) as all Alex HQ webhooks. 403 without it (verified). Token file `work/16-alex-hq/config/alex-hq-token.txt` - never printed/logged/committed.
 - **n8n mgmt:** REST API base `https://n8n.shaheenkiarash.com/api/v1`, key `work/03-application-engine/config/n8n-api-key.txt` (header `X-N8N-API-KEY`). NB: this n8n's PUBLIC API only supports GET + insert on data-table rows (no PATCH/DELETE/upsert); richer ops live only on the in-workflow Data Table node. Table create = `POST /data-tables` (project-scoped path 404s; global path works, projectId in body). Table delete = `DELETE /data-tables/{id}`.
 
 ## The Alex Sleep Score (v1, 5 components, config-tunable)
@@ -40,19 +40,19 @@ The formula lives in TWO mirrored places (keep in sync): the n8n Code node (dail
 - **Freshness knob:** the **23:59** trigger is chosen because the day's steps are essentially complete and "is today" still grabs last night's sleep, so both land in one row that the **next** morning's 08:00 brief reads. Trigger time only, no pipeline change; the pipeline is idempotent, so a skipped run just leaves the last good row in place.
 
 ## Consumers
-- **Morning Brief:** `.claude/commands/morning-brief.md` step 4e — a "Body" line in Life Ops (`steps yesterday · Sleep X/100, night of {date}`), skip-safe, read-only from the HQ summary.
+- **Morning Brief:** `.claude/commands/morning-brief.md` step 4e - a "Body" line in Life Ops (`steps yesterday · Sleep X/100, night of {date}`), skip-safe, read-only from the HQ summary.
 - **Alex HQ PWA:** two glance tiles `Body · sleep score` + `Body · steps yesterday` (`app/app/dashboard.tsx`), `health` in DESCRIPTIONS + CADENCE_HOURS=30 (`app/lib/types.ts`). **LIVE (redeployed 2026-07-04):** both tiles render real data on https://hq.shaheenkiarash.com.
 
 ## Scripts (work/17-health-tracker/scripts/)
-- `backfill_health.py` — stream-parse export.xml → summarized daily rows (dedup, sessions, score). `--emit-rows PATH` = POST-ready (no score, n8n scores).
-- `n8n_api.py` — list-tables / ensure-table (writes `config/table-id.txt`) / seed.
-- `deploy_ingest.py` — build + deploy + activate the ingest workflow (reads table-id.txt).
-- `deploy_summary.py` — extend the HQ summary with the health block (backs up the live one first).
-- `seed_via_webhook.py` — POST the backfill history through the webhook in chunks + verify.
+- `backfill_health.py` - stream-parse export.xml → summarized daily rows (dedup, sessions, score). `--emit-rows PATH` = POST-ready (no score, n8n scores).
+- `n8n_api.py` - list-tables / ensure-table (writes `config/table-id.txt`) / seed.
+- `deploy_ingest.py` - build + deploy + activate the ingest workflow (reads table-id.txt).
+- `deploy_summary.py` - extend the HQ summary with the health block (backs up the live one first).
+- `seed_via_webhook.py` - POST the backfill history through the webhook in chunks + verify.
 
 ## Vault Structure
 - Tier 1: `vault/projects/health-tracker/status.md`
-- Tier 2: `vault/projects/health-tracker/backfill-data.json` (local, gitignored — the parsed history; personal health data)
+- Tier 2: `vault/projects/health-tracker/backfill-data.json` (local, gitignored - the parsed history; personal health data)
 
 ## Connections
 - Fed by: iPhone Health (Watch sleep stages + steps) via the native Shortcut.

@@ -2,12 +2,12 @@
 
 Spec: work/09-content-machine/CLAUDE.md (read it first). On-demand. Pairs with /content-machine.
 
-## Step 0 — Context first
-Read: vault/me/goals.md, vault/business/ (products, launches, positioning), vault/research/ (topics that could become content), vault/projects/content-machine/ (already created/planned), vault/business/competitors/ (if present — counter-position/fill gaps; skip gracefully if not built). notion-search the Content Library for what's already planned/published.
+## Step 0 - Context first
+Read: vault/me/goals.md, vault/business/ (products, launches, positioning), vault/research/ (topics that could become content), vault/projects/content-machine/ (already created/planned), vault/business/competitors/ (if present - counter-position/fill gaps; skip gracefully if not built). notion-search the Content Library for what's already planned/published.
 
 ## Ask only what's needed
 1. "How many weeks?" (can't infer)
-2. If goals.md shows an upcoming launch/milestone: suggest, don't ask — "I see {launch} coming. Want content planned around it?"
+2. If goals.md shows an upcoming launch/milestone: suggest, don't ask - "I see {launch} coming. Want content planned around it?"
 3. If posting cadence isn't established: "How often per platform?"
 
 ## Plan

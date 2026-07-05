@@ -8,8 +8,8 @@ Turns meetings into leverage on both ends. **Pre-meeting:** given a calendar eve
 
 ## Entry Points
 - On-demand only. Not scheduled.
-- `/meeting-intel prep "<event or 2pm>"` — pre-meeting dossier.
-- `/meeting-intel process [file]` — post-meeting. With no arg, processes everything in inbox/.
+- `/meeting-intel prep "<event or 2pm>"` - pre-meeting dossier.
+- `/meeting-intel process [file]` - post-meeting. With no arg, processes everything in inbox/.
 - Natural language: "prep me for my 2pm", "process my meeting notes".
 
 ## Tools Used
@@ -24,7 +24,7 @@ Turns meetings into leverage on both ends. **Pre-meeting:** given a calendar eve
 ## Audio Transcription (Whisper)
 On the FIRST audio file (.mp3 / .m4a / .wav):
 1. Check if installed: `python -c "import whisper"`.
-2. If missing: `pip install openai-whisper` and let it pull the `base` model on first transcribe. Whisper needs ffmpeg; if `ffmpeg` is absent, install it (winget `Gyan.FFmpeg` on Windows) — note this in the run output.
+2. If missing: `pip install openai-whisper` and let it pull the `base` model on first transcribe. Whisper needs ffmpeg; if `ffmpeg` is absent, install it (winget `Gyan.FFmpeg` on Windows) - note this in the run output.
 3. Tell the user verbatim: "Installed Whisper for voice transcription. Using the base model. If you need better accuracy for longer meetings, you can upgrade to small later."
 4. Transcribe: `whisper <file> --model base --output_format txt --output_dir <tmp>`, then process the .txt.
 On later runs, skip install; just transcribe. Timebox long files; if a transcription stalls, report it rather than hanging.
@@ -35,7 +35,7 @@ On later runs, skip install; just transcribe. Timebox long files; if a transcrip
 | .txt .md | Read directly |
 | .vtt | Strip WebVTT timestamps/cues with Python, keep speaker text |
 | .pdf | Read tool (pages param) |
-| .jpg .png | Read tool (vision — whiteboard photos, screenshots) |
+| .jpg .png | Read tool (vision - whiteboard photos, screenshots) |
 | .mp3 .m4a .wav | Whisper → .txt |
 | pasted text | Process directly, no file |
 
@@ -45,7 +45,7 @@ Columns:
 - **Title** (title)
 - **Date** (date)
 - **Attendees** (text)
-- **Action Items** (number — count of items extracted)
+- **Action Items** (number - count of items extracted)
 - **Status** (select: Prep, Complete, Follow-up Sent)
 
 Views:
@@ -56,15 +56,15 @@ Each row's page **content** holds the full structured notes: Summary, Decisions,
 
 **Cross-DB writes (IDs in the respective status.md):**
 - Sprint board (Progress Tracker, data_source 0c239613-7e4e-410c-b064-266fa31a9da4): one task row per action item assigned to Shaheen (Status from its state, Project inferred, Notes = source meeting).
-- Personal CRM (data_source 746bc5bf-8ab3-4e34-911d-00b9d180e350): bump Last Contact to the meeting date, set a Follow-Up Date, append context to Notes — for attendees already in the CRM.
+- Personal CRM (data_source 746bc5bf-8ab3-4e34-911d-00b9d180e350): bump Last Contact to the meeting date, set a Follow-Up Date, append context to Notes - for attendees already in the CRM.
 
 ## Vault Structure
-- **Tier 1:** vault/projects/meeting-intel/status.md — DB IDs, last run, recent meetings, dossiers/notes index.
-- **Tier 2:** vault/meetings/YYYY-MM-DD-<slug>.md — one structured note per meeting (THIS is the knowledge). Pre-meeting dossiers: vault/meetings/dossiers/YYYY-MM-DD-<slug>.md.
+- **Tier 1:** vault/projects/meeting-intel/status.md - DB IDs, last run, recent meetings, dossiers/notes index.
+- **Tier 2:** vault/meetings/YYYY-MM-DD-<slug>.md - one structured note per meeting (THIS is the knowledge). Pre-meeting dossiers: vault/meetings/dossiers/YYYY-MM-DD-<slug>.md.
 
 ## Vault Reads
 - soul.md (follow-up email voice).
-- vault/people/ (attendee context — source of truth, fed by CRM + Morning Brief).
+- vault/people/ (attendee context - source of truth, fed by CRM + Morning Brief).
 - vault/projects/personal-crm/status.md (CRM DB IDs + contact page map).
 - vault/projects/sprint-tracker/status.md (sprint DB IDs to push action items).
 - vault/business/ (company context for attendees).

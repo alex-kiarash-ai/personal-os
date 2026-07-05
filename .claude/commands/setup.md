@@ -31,7 +31,7 @@ Tell the user, exactly:
 ```
 Let's build your identity. Two ways to feed me:
 
-1. Drop files into the inbox/ folder — resume, LinkedIn export, writing samples,
+1. Drop files into the inbox/ folder - resume, LinkedIn export, writing samples,
    transcripts, bio, decks, anything that helps me know you. PDF, DOCX, MD, TXT
    all work. I'll read everything in there.
 2. Paste text directly into the chat.
@@ -124,14 +124,14 @@ soul.md MUST be fully filled. No placeholders. Under 2.5KB.
 ### C. Top-up wiki pages from soul.md
 
 `/ingest` already created entity pages for everyone/everything mentioned in the sources. Now add the user-specific pages that didn't have an obvious source mention:
-- `vault/me/role.md`, `vault/me/goals.md`, `vault/me/preferences.md` — from soul.md and chat answers.
+- `vault/me/role.md`, `vault/me/goals.md`, `vault/me/preferences.md` - from soul.md and chat answers.
 - Cross-reference these to the entity pages already created (`[[business/company]]`, `[[people/name]]`).
 
 ### D. Index and log
 
 `/ingest` already updated `vault/index.md` and `vault/log.md`. Verify the user-specific pages from step C are also listed in the index. Append a final `## [YYYY-MM-DD HH:MM] /setup | onboarding complete` entry to `vault/log.md`.
 
-### E. Verify (no-dummy gate — do NOT skip)
+### E. Verify (no-dummy gate - do NOT skip)
 
 Before declaring Step 4 done, run this check on what you just wrote. If ANY check fails, fix it before continuing.
 
@@ -139,7 +139,7 @@ Before declaring Step 4 done, run this check on what you just wrote. If ANY chec
 2. **Real names.** Every `vault/people/*.md` filename must be a real name from the inbox or chat. No `person-1.md`, `placeholder.md`, `example.md`.
 3. **Non-empty pages.** Every wiki page has > 50 chars of actual body (not just frontmatter + a heading).
 4. **Cross-references.** Every page has at least one `[[wiki link]]` to another page (except `vault/index.md` and `vault/log.md`).
-5. **Source provenance.** soul.md and the vault pages cite or reflect content from `vault/sources/`. If you couldn't extract a fact, leave the field absent — do NOT invent.
+5. **Source provenance.** soul.md and the vault pages cite or reflect content from `vault/sources/`. If you couldn't extract a fact, leave the field absent - do NOT invent.
 6. **Voice match.** soul.md's example responses use the user's actual writing style from samples, not generic Claude phrasing.
 
 If any check fails: report exactly which one, fix it (re-read sources, ask a targeted question, rewrite the offending file), then re-run the check. Do not move to Step 5 until all six pass.
@@ -186,7 +186,7 @@ Summary:
 - Vault: [X pages] created
 - Obsidian: ready
 
-### Final message — branch on what's in work/
+### Final message - branch on what's in work/
 
 Run `ls work/` and check what's there:
 
@@ -194,21 +194,21 @@ Run `ls work/` and check what's there:
 
 Tell the user, exactly:
 ```
-Your Personal OS is ready. The automations are pre-built — no prompts to run.
+Your Personal OS is ready. The automations are pre-built - no prompts to run.
 
 Try any of these commands. Each one runs Step 0 (Bootstrap) on first invocation
 to create its Notion DB lazily, then does its job:
 
-  /sprint-tracker      — read the progress board, generate a standup
-  /morning-brief       — today's emails + calendar digest
-  /market-pulse        — competitor scan
-  /research-team       — multi-agent research on a topic
-  /meeting-intel       — pre-meeting dossier or post-meeting extraction
-  /personal-crm        — sync contacts and stage follow-up drafts
-  /email-triage        — classify Gmail and draft replies
-  /expense-wrangler    — process receipts, generate Excel report
-  /content-machine     — turn any source into a content kit
-  /weekly-exec-report  — Friday capstone deck across all 9
+  /sprint-tracker      - read the progress board, generate a standup
+  /morning-brief       - today's emails + calendar digest
+  /market-pulse        - competitor scan
+  /research-team       - multi-agent research on a topic
+  /meeting-intel       - pre-meeting dossier or post-meeting extraction
+  /personal-crm        - sync contacts and stage follow-up drafts
+  /email-triage        - classify Gmail and draft replies
+  /expense-wrangler    - process receipts, generate Excel report
+  /content-machine     - turn any source into a content kit
+  /weekly-exec-report  - Friday capstone deck across all 9
 
 Optional admin: /brand, /ingest, /lint, /status, /cron-setup, /venture-sync.
 ```

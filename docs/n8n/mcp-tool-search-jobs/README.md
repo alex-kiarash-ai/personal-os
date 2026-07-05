@@ -1,4 +1,4 @@
-# MCP Tool — search_jobs (worker)
+# MCP Tool - search_jobs (worker)
 
 **Workflow ID:** `K4OGYfB5g77VU2Jr` · **Runs:** only when the [MCP front desk](../mcp-server-application-engine/) calls it · **Nodes:** 3 · **Export in this folder:** workflow.json (2026-07-01 version, latest)
 
@@ -12,11 +12,11 @@ Same reason as its sibling workers: the MCP front desk needs one dedicated, repl
 
 ## The steps, node by node
 
-- **When Called** — wake-up trigger; fires only when the front desk delegates a search.
-- **Read sheet** — opens the pipeline sheet's `processed_jobs` tab (the ledger of every job ever judged).
-- **Shape** — plain code that applies the caller's filters (keywords, location, minimum fit, how many results) and formats the hits into a clean answer.
+- **When Called** - wake-up trigger; fires only when the front desk delegates a search.
+- **Read sheet** - opens the pipeline sheet's `processed_jobs` tab (the ledger of every job ever judged).
+- **Shape** - plain code that applies the caller's filters (keywords, location, minimum fit, how many results) and formats the hits into a clean answer.
 
 ## Connected to
 
-- **[mcp-server-application-engine](../mcp-server-application-engine/)** — owns this tool's button.
-- **[03-application-engine](../03-application-engine/)** — the pipeline whose ledger this searches (read-only).
+- **[mcp-server-application-engine](../mcp-server-application-engine/)** - owns this tool's button.
+- **[03-application-engine](../03-application-engine/)** - the pipeline whose ledger this searches (read-only).

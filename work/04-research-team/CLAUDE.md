@@ -13,20 +13,20 @@ An adaptive research system that designs its own team per question. Given a rese
 - Agent tool (sub-agents: Explore for breadth, general-purpose for deep dives)
 - WebSearch + WebFetch (load via ToolSearch first)
 - Chrome only for sites that block plain fetch (deep scraping; never for Gmail/Calendar/Notion)
-- Python (data analysis, charts) — via Bash, cleanup after
+- Python (data analysis, charts) - via Bash, cleanup after
 - Notion MCP: notion-search (internal context), notion-create-pages (research page under Personal OS parent)
 - **Claude Design (DesignSync) for branded decks** (standing rule 2026-06-15; NOT /pptx), /xlsx skill (data tables), Python/reportlab (standalone PDF)
 
 ## The Runtime Flow (executed by Claude Code per run)
 1. **Analyze the question.** Classify: market-scan | competitor-deep-dive | technical-evaluation | decision-brief | person-or-company-profile | other. Identify what evidence would settle it.
 2. **Check patterns/.** Read work/04-research-team/patterns/index.md. If a pattern matches the question class, load it and adapt; note "reusing pattern {name}".
-3. **Design the team.** 2-5 sub-agents max, each with: name, one-sentence mission, tools, expected output. Parallel where independent. One synthesizer (the main session) — sub-agents report, they do not conclude.
-4. **Approval gate.** Show the design via AskUserQuestion: approve / modify / answer-without-team (for questions too small for a team). Do NOT spawn agents before approval — sub-agents are the expensive path.
+3. **Design the team.** 2-5 sub-agents max, each with: name, one-sentence mission, tools, expected output. Parallel where independent. One synthesizer (the main session) - sub-agents report, they do not conclude.
+4. **Approval gate.** Show the design via AskUserQuestion: approve / modify / answer-without-team (for questions too small for a team). Do NOT spawn agents before approval - sub-agents are the expensive path.
 5. **Execute.** Spawn approved sub-agents (parallel calls in one block where independent). Each returns findings + sources. **Timebox every lane:** each sub-agent's mission includes "if reasonable effort turns up nothing, report 'nothing found' with what was tried; do not keep digging." A lane that comes back empty is a finding, not a failure. Never re-spawn an agent to retry an empty lane without a changed approach.
 6. **Synthesize.** Main session writes the answer: findings first, confidence levels, what's unknown stays unknown. Alex voice, no padding.
 7. **Save knowledge.** vault/research/{topic-slug}.md (concise findings, key insights, sources, [[wiki links]]). Notion page "Research: {topic}" under the Personal OS parent (ID in vault/projects/notion-parent-id.md) with the full findings as content.
 8. **Save the pattern.** If the team design was new or meaningfully adapted: write patterns/{class}-{slug}.md (see Pattern Format) and update patterns/index.md.
-9. **Deliverable (team runs only).** If the run went through the answer-without-team path, the vault page + Notion page IS the deliverable — do not build a file for a two-paragraph answer. For team runs, ask via AskUserQuestion: "Claude Design deck or PDF?" Then:
+9. **Deliverable (team runs only).** If the run went through the answer-without-team path, the vault page + Notion page IS the deliverable - do not build a file for a two-paragraph answer. For team runs, ask via AskUserQuestion: "Claude Design deck or PDF?" Then:
    - **Deck → Claude Design (DesignSync)** (standing rule 2026-06-15): build on claude.ai/design as a design-system deck, slides as components one at a time (finalize_plan → write_files), branded from brand/config/brand-config.md (ALEX brand: #001219 canvas, #005f73 + #0a9396 teal structure, one #ee9b00 accent, Calibri, ALEX logo block), then export PDF. NOT /pptx (no native .pptx).
    - PDF → Python reportlab/weasyprint, brand colors + fonts, dark teal header bar with the ALEX logo block
    - Save the exported PDF (and note the claude.ai/design project link) to outputs/research-team/YYYY-MM-DD/. Delete ALL build scripts and temp dirs after. Team-run deliverables are always branded, never just markdown.
@@ -56,13 +56,13 @@ No new database. One page per research run under the Personal OS parent page (`3
 
 ## Vault Structure
 - Tier 1: vault/projects/research-team/status.md (last run, run count, recent topics, output paths)
-- Tier 2: vault/research/{topic-slug}.md (one page per research output — this IS the knowledge)
+- Tier 2: vault/research/{topic-slug}.md (one page per research output - this IS the knowledge)
 - Patterns live in work/04-research-team/patterns/ (architecture = config, not knowledge)
 
 ## Vault Reads
 - soul.md (voice + priorities: research serving job hunt or STEMPLICITY outranks curiosities)
 - vault/research/ (don't re-research what's answered; link instead)
-- vault/business/ (market/competitor context). NOTE: vault/business/competitors/ is fed by Market Pulse, which is NOT BUILT yet — if absent, skip gracefully, never error.
+- vault/business/ (market/competitor context). NOTE: vault/business/competitors/ is fed by Market Pulse, which is NOT BUILT yet - if absent, skip gracefully, never error.
 - vault/people/, vault/projects/ for context on names that appear
 
 ## Vault Writes
@@ -84,5 +84,5 @@ No new database. One page per research run under the Personal OS parent page (`3
 
 ## Implementation Notes (as built, 2026-06-10)
 - Built as spec + command + pattern library scaffold. No live run yet (on-demand; first question starts the pattern library for real).
-- patterns/ seeded with index.md and the format spec only — no padding with invented patterns.
-- Guardrails carried from soul.md: no invented facts (unknown stays "unknown"), no model-verifier chains — sub-agents gather, deterministic checks + one synthesizer conclude.
+- patterns/ seeded with index.md and the format spec only - no padding with invented patterns.
+- Guardrails carried from soul.md: no invented facts (unknown stays "unknown"), no model-verifier chains - sub-agents gather, deterministic checks + one synthesizer conclude.

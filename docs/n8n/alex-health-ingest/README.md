@@ -1,4 +1,4 @@
-# Alex Health — Ingest (the sleep + steps receiver)
+# Alex Health - Ingest (the sleep + steps receiver)
 
 **Workflow ID:** `WtOKBY00Cq1FhQ8T` · **Trigger:** an iPhone Shortcut POSTs to it once a day at 23:59 · **Nodes:** 4 · **Export in this folder:** workflow.json (2026-07-04, latest)
 
@@ -12,10 +12,10 @@ Apple Health has no way to send data out on a schedule and no single sleep score
 
 ## The steps, node by node
 
-- **Health Webhook** — the front door. Listens for a POST at `/webhook/alex-health-ingest`. It's locked: every request must carry the secret `X-Alex-Token` header or it's turned away (403). Accepts one day, or a batch of days (the history load used a batch).
-- **Score + Normalize** — the brain. For each day it reads the sleep-stage minutes (deep, REM, core, awake, in-bed) and computes the Alex Sleep Score: full marks for 7-9 hours asleep, good efficiency, healthy deep and REM percentages, and few wake-ups; points come off for short or broken nights. It cleans every field into the right type and stamps the row. (The exact same formula also lives in the backfill script, so history and daily runs score identically.)
-- **Insert Health Row** — files the finished row into the `alex_health` table. The table is append-only: re-sending a day just adds a newer row, and the readers always take the latest, so nothing is ever overwritten or lost.
-- **Respond OK** — tells the phone it worked (`{"ok": true, "count": N}`).
+- **Health Webhook** - the front door. Listens for a POST at `/webhook/alex-health-ingest`. It's locked: every request must carry the secret `X-Alex-Token` header or it's turned away (403). Accepts one day, or a batch of days (the history load used a batch).
+- **Score + Normalize** - the brain. For each day it reads the sleep-stage minutes (deep, REM, core, awake, in-bed) and computes the Alex Sleep Score: full marks for 7-9 hours asleep, good efficiency, healthy deep and REM percentages, and few wake-ups; points come off for short or broken nights. It cleans every field into the right type and stamps the row. (The exact same formula also lives in the backfill script, so history and daily runs score identically.)
+- **Insert Health Row** - files the finished row into the `alex_health` table. The table is append-only: re-sending a day just adds a newer row, and the readers always take the latest, so nothing is ever overwritten or lost.
+- **Respond OK** - tells the phone it worked (`{"ok": true, "count": N}`).
 
 ## Notes
 - The score is **v1, five components** (duration, efficiency, deep %, REM %, restfulness). A sixth, bedtime consistency, is planned once the daily path can look back at recent nights.

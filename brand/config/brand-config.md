@@ -1,17 +1,17 @@
-# Brand Configuration — ALEX (Shaheen Kiarash)
+# Brand Configuration - ALEX (Shaheen Kiarash)
 
 **Rebrand 2026-07-03:** the STEMPLICITY identity (navy #0C1651 / cyan #12CCDD / coral #F09063 + wordmark) is retired. Everything that carried it now uses the ALEX brand below. Old assets: `brand/archive/stemplicity/`.
 
-**Source of law: `brand/config/color-system.md`** (Brand File v1.0, July 2026, written by Shaheen for Alex). That file is the specification — exact hexes, usage rules, contrast pairings, do/don't. This page is the operational quick layer; when in doubt, the Brand File wins.
+**Source of law: `brand/config/color-system.md`** (Brand File v1.0, July 2026, written by Shaheen for Alex). That file is the specification - exact hexes, usage rules, contrast pairings, do/don't. This page is the operational quick layer; when in doubt, the Brand File wins.
 
 ## Colors (core palette)
-- **Ink Black `#001219`** — dark canvas (default for hero/slides/social), primary text on light
-- **Dark Teal `#005f73`** — PRIMARY brand: headers, cards, nav, structure; headings on light
-- **Dark Cyan `#0a9396`** — secondary brand: links, active states, success
-- **Pearl Aqua `#94d2bd`** — highlights, secondary text on dark, soft surfaces
-- **Vanilla Custard `#e9d8a6`** — warm neutral: callout tints, dividers, tertiary text on dark (never a full-page background)
-- **Golden Orange `#ee9b00`** — THE accent: primary CTA, key numbers. **One per view.** Dark text `#001219` on it, never white.
-- **Burnt Caramel `#ca6702`** — CTA hover / pressed only
+- **Ink Black `#001219`** - dark canvas (default for hero/slides/social), primary text on light
+- **Dark Teal `#005f73`** - PRIMARY brand: headers, cards, nav, structure; headings on light
+- **Dark Cyan `#0a9396`** - secondary brand: links, active states, success
+- **Pearl Aqua `#94d2bd`** - highlights, secondary text on dark, soft surfaces
+- **Vanilla Custard `#e9d8a6`** - warm neutral: callout tints, dividers, tertiary text on dark (never a full-page background)
+- **Golden Orange `#ee9b00`** - THE accent: primary CTA, key numbers. **One per view.** Dark text `#001219` on it, never white.
+- **Burnt Caramel `#ca6702`** - CTA hover / pressed only
 - **Reds = alarm only, never decoration:** Rusty Spice `#bb3e03` (warning) · Oxidized Iron `#ae2012` (error/critical) · Brown Red `#9b2226` (deep error / destructive hover)
 
 **60-30-10:** 60% canvas (`#001219` dark or white light) · 30% teal family · 10% Golden Orange. A healthy screen has no red. Elevated dark surface: `#00232e`. Light elevated / soft tint: `#fff5e1`.
@@ -21,8 +21,8 @@
 - The ALEX display lettering exists only inside the logo file. Never retype the wordmark.
 
 ## Logo
-- **Primary: `brand/images/alex-logo-transparent.png`** — ALEX wordmark + circuit-trace mark on a transparent background (extracted from the JPG 2026-07-03, glow removed). Works on dark AND light surfaces; verified on #001219, white, and #005f73.
-- **Full-bleed variant: `brand/images/alex-logo.jpg`** — the original on the dark teal gradient with soft glow. Use as a self-contained block (hero, cover, dark card). Never float the JPG on white.
+- **Primary: `brand/images/alex-logo-transparent.png`** - ALEX wordmark + circuit-trace mark on a transparent background (extracted from the JPG 2026-07-03, glow removed). Works on dark AND light surfaces; verified on #001219, white, and #005f73.
+- **Full-bleed variant: `brand/images/alex-logo.jpg`** - the original on the dark teal gradient with soft glow. Use as a self-contained block (hero, cover, dark card). Never float the JPG on white.
 - Placement: top-left or bottom-left.
 - The mark's ring cores are opaque white by design (connection nodes); keep them.
 - Nice-to-have someday: vector SVG from the original design file.

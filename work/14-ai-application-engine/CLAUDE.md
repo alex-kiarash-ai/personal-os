@@ -19,11 +19,11 @@ Daily 07:30 Stockholm: discover LinkedIn AI/automation jobs per location via Bri
 - Bright Data dataset: `gd_lpfll7v5hcqtkxl6l` (unchanged; discover_by=keyword, discover_new, limit_per_input=10)
 - Gotenberg: `http://gotenberg:3000/forms/chromium/convert/html` (unchanged)
 
-## Credentials (n8n) — ALL REUSED, no new OAuth
-- `Bright Data Header Auth` — exists, validated
-- `Anthropic account` — exists, validated
-- `Google Sheets account` (OAuth2) — exists (created for the BI pipeline)
-- `Google Drive account` (OAuth2) — exists
+## Credentials (n8n) - ALL REUSED, no new OAuth
+- `Bright Data Header Auth` - exists, validated
+- `Anthropic account` - exists, validated
+- `Google Sheets account` (OAuth2) - exists (created for the BI pipeline)
+- `Google Drive account` (OAuth2) - exists
 After cloning, the new nodes must point at these existing credential IDs (the clone script copies them from the live BI workflow, so they should carry over; verify in the UI).
 
 ## Sheet setup (ONE-TIME, on the copied sheet)
@@ -31,7 +31,7 @@ The sheet is a copy of the BI one, so all 4 tabs + headers exist. Two manual ste
 1. Replace the `search_config` rows with the AI rows in `config/search-config-seed.md`.
 2. Clear the data rows (keep headers) in `processed_jobs`, `run_log`, `needs_review` so the AI ledger starts clean.
 
-## search_config (AI) — see config/search-config-seed.md
+## search_config (AI) - see config/search-config-seed.md
 Locations locked by Shaheen 2026-06-16: Gulf (Dubai/Qatar/Saudi) on-site+hybrid · London remote · Stockholm hybrid · Europe remote. Titles: AI Automation Engineer, AI Engineer, n8n Developer, Automation Engineer, AI Consultant, Workflow Automation, LLM Engineer.
 > KNOWN TUNING ITEM: the literal location "Europe" may return thin/empty Bright Data results. First tuning candidate is to swap the Europe rows for concrete remote hubs (Berlin, Amsterdam, Dublin). Verify on first test.
 

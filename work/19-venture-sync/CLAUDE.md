@@ -12,7 +12,7 @@ Mirror high-value markdown from each external venture's own repo into `vault/ven
 - **Suggested by /lint** when a synced doc's `git_sha` is >14 days behind source.
 
 ## Config
-`vault/ventures/_sync-config.md` — YAML whitelist of `{code_path, sync_files, project_source}` per venture. Currently 5 ventures: **brandmodal, alphastar, insightai, finance-us, stemplicity** (all `~/Desktop/{name}`). Auto-skips sysprompts/boilerplate (CLAUDE.md, AGENTS.md, README.md, oversized CHANGELOG). Edit this file to add/drop docs; do NOT hardcode paths in the command.
+`vault/ventures/_sync-config.md` - YAML whitelist of `{code_path, sync_files, project_source}` per venture. Currently 5 ventures: **brandmodal, alphastar, insightai, finance-us, stemplicity** (all `~/Desktop/{name}`). Auto-skips sysprompts/boilerplate (CLAUDE.md, AGENTS.md, README.md, oversized CHANGELOG). Edit this file to add/drop docs; do NOT hardcode paths in the command.
 
 ## Tools Used
 Local filesystem (read external repos, write vault), git (read `git_sha` of source), the command's own LLM synthesis for `brief.md`. No MCP, no n8n. Read-only against the venture repos.

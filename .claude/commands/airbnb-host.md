@@ -20,13 +20,13 @@ Data comes from a local read-only Playwright harvest of his own dashboard, not G
 - Gmail: `search_threads` `from:(express@airbnb.com OR automated@airbnb.com) newer_than:{window}` (default 30d). `get_thread` when a snippet lacks dates/amount/guest. Classify per spec table. Same Notion/vault writes.
 
 ## Always
-- Surface pending requests (they EXPIRE) and unanswered guest messages prominently — these are the action items.
+- Surface pending requests (they EXPIRE) and unanswered guest messages prominently - these are the action items.
 - Excel model lives at outputs/airbnb-host/YYYY-MM-DD/airbnb-studio-income-model.xlsx (real formulas, written by ingest_airbnb.py).
 
 ## Daily fold-in (no separate run)
 The morning brief reads Gmail anyway. It surfaces Airbnb pending requests as URGENT and arrivals/guest messages as context. This command is for the deeper on-demand pull.
 
-## Phase 2 (deferred — only if Shaheen asks)
+## Phase 2 (deferred - only if Shaheen asks)
 Voice-matched guest-reply drafts to Gmail behind a HARD draft gate. Never auto-send.
 
 ## Post-Run

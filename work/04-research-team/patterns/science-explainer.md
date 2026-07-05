@@ -7,7 +7,7 @@ times_used: 1
 # Science Explainer (two-lane decomposition)
 
 ## Question shape
-A "how/why does X work" question grounded in a real scientific literature, where the ask splits into 2 independent sub-questions that don't depend on each other's findings. Good for biology, physiology, neuroscience, materials — anything where the answer is "what does the evidence actually say" and folklore needs separating from fact. Example: "how does a horse feel touch, and why is each side processed separately?"
+A "how/why does X work" question grounded in a real scientific literature, where the ask splits into 2 independent sub-questions that don't depend on each other's findings. Good for biology, physiology, neuroscience, materials - anything where the answer is "what does the evidence actually say" and folklore needs separating from fact. Example: "how does a horse feel touch, and why is each side processed separately?"
 
 ## Team
 - Lane A agent (general-purpose): owns sub-question 1. Mission framed as plain-language-for-an-expert. Tools: WebSearch + WebFetch. Output: findings by sub-point, key insights, sources with URLs, explicit unknowns.
@@ -15,9 +15,9 @@ A "how/why does X work" question grounded in a real scientific literature, where
 - Synthesizer (main session): merges both, leads with the bottom line, separates solid science from folklore, keeps unknowns unknown, Alex voice.
 
 ## Synthesis approach
-Lead with the single most load-bearing fact per half. Actively call out myths the literature refutes (high value — the reader has heard the folklore). Mark population-tendency vs law. End with one memorable one-liner. Persist to vault/research/ + Notion, branded deliverable only if the user wants one (small/personal-curiosity asks can stop at the vault page).
+Lead with the single most load-bearing fact per half. Actively call out myths the literature refutes (high value - the reader has heard the folklore). Mark population-tendency vs law. End with one memorable one-liner. Persist to vault/research/ + Notion, branded deliverable only if the user wants one (small/personal-curiosity asks can stop at the vault page).
 
 ## Lessons
 - Both lanes returned in ~2–3 min, ~41k tokens each. Two parallel agents was right; a single merged agent would have thinned the science.
 - The myth-vs-fact distinction was the most valuable output. Brief future explainer agents explicitly to separate "solid science / oversimplification / rider folklore."
-- Instructing each agent to mark unsourced claims "not well established" worked — got honest caveats (Baragli 2021 counter-evidence, secondhand MRI citation) instead of false confidence.
+- Instructing each agent to mark unsourced claims "not well established" worked - got honest caveats (Baragli 2021 counter-evidence, secondhand MRI citation) instead of false confidence.

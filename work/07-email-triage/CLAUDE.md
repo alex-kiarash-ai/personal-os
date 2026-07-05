@@ -53,17 +53,17 @@ Columns:
 - **Date** (date)
 
 Views:
-- **Today** (table, filter Date is today — set at runtime; built as Date is-not-empty sorted desc, agent slices to today)
+- **Today** (table, filter Date is today - set at runtime; built as Date is-not-empty sorted desc, agent slices to today)
 - **Pending Drafts** (table, filter Draft Status = Pending)
 
-Row content holds the *intelligence*: sender + relationship, what they want, why it matters, classification reason, and (for drafts) a link/reference — NOT the raw email body.
+Row content holds the *intelligence*: sender + relationship, what they want, why it matters, classification reason, and (for drafts) a link/reference - NOT the raw email body.
 
-**Cross-DB:** Personal CRM (data_source 746bc5bf-8ab3-4e34-911d-00b9d180e350) — look up sender context; add unknown senders as new rows (Status New, tag inferred).
+**Cross-DB:** Personal CRM (data_source 746bc5bf-8ab3-4e34-911d-00b9d180e350) - look up sender context; add unknown senders as new rows (Status New, tag inferred).
 
 ## Vault Structure
-- **Tier 1:** vault/projects/email-triage/status.md — DB IDs, last run, counts, pending-draft pointer.
-- **Tier 2:** vault/projects/email-triage/history/YYYY-MM-DD.md — per-run counts + classifications (NO raw content).
-- vault/me/writing-style-notes.md — learned voice patterns (shared, also read by CRM + Meeting Intel drafts).
+- **Tier 1:** vault/projects/email-triage/status.md - DB IDs, last run, counts, pending-draft pointer.
+- **Tier 2:** vault/projects/email-triage/history/YYYY-MM-DD.md - per-run counts + classifications (NO raw content).
+- vault/me/writing-style-notes.md - learned voice patterns (shared, also read by CRM + Meeting Intel drafts).
 
 ## Vault Reads
 - soul.md (draft voice) + vault/me/writing-style-notes.md (learned edits).

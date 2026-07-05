@@ -1,6 +1,6 @@
-# /ingest — Process New Raw Sources Into the Wiki
+# /ingest - Process New Raw Sources Into the Wiki
 
-Takes new files from `inbox/`, reads them, and weaves them into the vault. This is Karpathy's "ingest" operation — the LLM does all the bookkeeping (summarizing, cross-referencing, filing) so the wiki compounds over time.
+Takes new files from `inbox/`, reads them, and weaves them into the vault. This is Karpathy's "ingest" operation - the LLM does all the bookkeeping (summarizing, cross-referencing, filing) so the wiki compounds over time.
 
 ## When this runs
 
@@ -11,9 +11,9 @@ Takes new files from `inbox/`, reads them, and weaves them into the vault. This 
 
 ## Modes
 
-- `/ingest` — Interactive (default). Process ONE file at a time. Discuss takeaways with the user, ask what to emphasize, show the wiki updates as they happen. This matches the Karpathy "LLM open on one side, Obsidian on the other" workflow.
-- `/ingest --batch` — Process all unprocessed files in one pass with no discussion. Use when dumping many sources.
-- `/ingest <path>` — Force-ingest a specific file (even if already in the manifest).
+- `/ingest` - Interactive (default). Process ONE file at a time. Discuss takeaways with the user, ask what to emphasize, show the wiki updates as they happen. This matches the Karpathy "LLM open on one side, Obsidian on the other" workflow.
+- `/ingest --batch` - Process all unprocessed files in one pass with no discussion. Use when dumping many sources.
+- `/ingest <path>` - Force-ingest a specific file (even if already in the manifest).
 
 ## Step 1: Read state
 
@@ -102,7 +102,7 @@ Move the file from `inbox/` into `vault/sources/`:
 - Images → `vault/sources/notes/` (alongside any extracted text).
 - Audio → keep the `.mp3` AND its transcribed `.txt` in `vault/sources/notes/`.
 
-Use `mv`, not `cp`. After moving, the file is in the immutable archive — do NOT modify it again.
+Use `mv`, not `cp`. After moving, the file is in the immutable archive - do NOT modify it again.
 
 ### F. Update the manifest
 
@@ -115,7 +115,7 @@ The filename in the manifest reflects where it ORIGINALLY lived in inbox, even t
 
 ### G. Update index and log
 
-- `vault/index.md`: append any new pages to the right category. Each entry: `- [[page-name]] — one-line summary`.
+- `vault/index.md`: append any new pages to the right category. Each entry: `- [[page-name]] - one-line summary`.
 - `vault/log.md`: append `## [YYYY-MM-DD HH:MM] /ingest | {source filename} | {N pages touched}: {comma-list}`.
 
 ## Step 4: Report
@@ -124,17 +124,17 @@ After all files are processed, summarize to the user in soul.md voice:
 - N files ingested.
 - M wiki pages created, K updated.
 - Any contradictions flagged.
-- Suggested next steps (e.g., "you have 3 new people pages without writing samples — want me to research them via /research-team?").
+- Suggested next steps (e.g., "you have 3 new people pages without writing samples - want me to research them via /research-team?").
 
 ## Special cases
 
 - **Source is just a URL** (user pastes a link in chat instead of dropping a file). Fetch with WebFetch, save the text to `inbox/web-{date}-{slug}.md` first, then ingest.
 - **Source is a chat paste** (long text directly in chat). Save to `inbox/chat-{date}.md` first, then ingest.
 - **Source is huge (>50KB)** in interactive mode. Skim and summarize first, then ask the user which sections to deep-read before doing the full update.
-- **Notion MCP unavailable**: ingest still works (it operates on local vault/). Notion sync is not part of /ingest's job — automations handle that.
+- **Notion MCP unavailable**: ingest still works (it operates on local vault/). Notion sync is not part of /ingest's job - automations handle that.
 
 ## What /ingest does NOT do
 
 - It does not modify `vault/sources/` after archiving (immutability rule).
 - It does not run automations (`/morning-brief`, etc.). Pure wiki maintenance.
-- It does not deduplicate the wiki — that's `/lint`'s job.
+- It does not deduplicate the wiki - that's `/lint`'s job.

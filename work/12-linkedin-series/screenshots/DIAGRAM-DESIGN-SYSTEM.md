@@ -1,4 +1,4 @@
-# Building Alex — Diagram Design System (LOCKED 2026-06-17, Shaheen approved)
+# Building Alex - Diagram Design System (LOCKED 2026-06-17, Shaheen approved)
 
 Reusable spec for every "Building Alex" diagram/picture. Shaheen approved this on EP3.
 **STANDING RULE:** every time Shaheen asks to generate a picture, FIRST invoke the `frontend-design` (UX design) skill, then build with this system.

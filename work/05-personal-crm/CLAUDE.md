@@ -31,7 +31,7 @@ Every row carries full readable context in the page **content**, not just proper
 2. **Enrich.** Pull recent Gmail senders + Calendar attendees (last 90 days). If a known contact's email or a real last-contact date surfaces, fill it. New people worth tracking get a new row + a vault/people/ page (post-run ingestion). Timebox: if enrichment turns up nothing for a contact, leave the field blank, don't dig.
 3. **Score + status.** Relationship Score 1-10 (frequency + recency + importance to current goals; job-hunt and venture contacts weigh up). Status: Active (ongoing exchange), Warm (real but quiet), Cold (fading/closed), New (just appeared, unqualified).
 4. **Follow-up list.** Select rows whose Follow-Up Date is due this week, OR Warm/Active rows gone quiet past their cadence. Write the list to status.md and the Monday section.
-5. **Draft gate (HARD RULES — see below).** For each eligible follow-up, draft an email in soul.md voice and stage via gmail_create_draft. Log every draft in status.md. NEVER auto-send.
+5. **Draft gate (HARD RULES - see below).** For each eligible follow-up, draft an email in soul.md voice and stage via gmail_create_draft. Log every draft in status.md. NEVER auto-send.
 
 ## Draft Gate (non-negotiable)
 A contact is drafted to ONLY IF all are true:
@@ -43,13 +43,13 @@ A contact is drafted to ONLY IF all are true:
 If a contact would be a useful follow-up but fails a gate (e.g. no email), list them in the follow-up list as "needs your call" with the reason, and draft nothing.
 
 ## Vault Structure
-- **Tier 1:** vault/projects/personal-crm/status.md — DB IDs, row→pageID map, last run, current follow-up list, drafts staged.
-- **Tier 2:** vault/projects/personal-crm/history/YYYY-MM-DD.md — one snapshot per run (follow-up list + drafts that week).
+- **Tier 1:** vault/projects/personal-crm/status.md - DB IDs, row→pageID map, last run, current follow-up list, drafts staged.
+- **Tier 2:** vault/projects/personal-crm/history/YYYY-MM-DD.md - one snapshot per run (follow-up list + drafts that week).
 
 ## Vault Reads
-- soul.md (email voice — terse, systems-led, no AI slop, no em-dashes).
+- soul.md (email voice - terse, systems-led, no AI slop, no em-dashes).
 - vault/people/ (the contact source of truth).
-- vault/meetings/ (last-met context). NOTE: not built yet — skip gracefully if absent.
+- vault/meetings/ (last-met context). NOTE: not built yet - skip gracefully if absent.
 - vault/me/goals.md (to weight scores toward job-hunt + STEMPLICITY goals).
 - vault/business/ (company context for the Company select).
 
@@ -79,5 +79,5 @@ Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not CO
 
 ## Implementation Notes (as built, 2026-06-11)
 - DB created and seeded with the 9 real vault/people contacts. IDs in status.md.
-- **No emails on file for any seeded contact, and the only Warm contacts are in do-not-draft categories.** So the Monday drafter has zero eligible targets at build time — correct and expected, not a bug. It starts drafting once real professional contacts with emails enter the vault (via Morning Brief / job hunt).
+- **No emails on file for any seeded contact, and the only Warm contacts are in do-not-draft categories.** So the Monday drafter has zero eligible targets at build time - correct and expected, not a bug. It starts drafting once real professional contacts with emails enter the vault (via Morning Brief / job hunt).
 - Draft gate enforced in spec before any email logic runs. Contacts tagged `personal` and `do-not-contact` are explicitly excluded from drafting.

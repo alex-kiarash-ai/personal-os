@@ -94,7 +94,7 @@ For outputs, use the installed skills. ALWAYS use the skill, not raw Python:
 - Save to outputs/content/ or outputs/reports/
 
 **When the user asks for a report/deck/presentation/spreadsheet:**
-- Default to a **Claude Design deck** (web + PDF) for presentations and summaries — NOT .pptx (standing rule 2026-06-15)
+- Default to a **Claude Design deck** (web + PDF) for presentations and summaries - NOT .pptx (standing rule 2026-06-15)
 - Default to Excel for data and financial reports
 - Default to PDF for single-page briefs
 - .pptx only if Shaheen explicitly asks for an editable PowerPoint

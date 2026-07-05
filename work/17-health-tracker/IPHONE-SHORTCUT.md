@@ -1,4 +1,4 @@
-# iPhone Shortcut — "Alex Health Push" (iOS 26.5.1, live-rebuilt 2026-07-04)
+# iPhone Shortcut - "Alex Health Push" (iOS 26.5.1, live-rebuilt 2026-07-04)
 
 The last mile: a free, native iOS Shortcut that reads today's steps + last night's sleep from Health and
 POSTs them to Alex's box once a day at 23:59. Everything server-side is already live and tested.
@@ -16,7 +16,7 @@ not guessed. Follow it top to bottom.
 ## THE THREE THINGS THAT TRIPPED US UP (read first, 30 seconds)
 
 1. **One Shortcut, many lines.** A *Shortcut* is one recipe card ("Alex Health Push"). *Actions* are lines
-   stacked inside it. Add every line from the **search bar at the BOTTOM of the open shortcut** — never go
+   stacked inside it. Add every line from the **search bar at the BOTTOM of the open shortcut** - never go
    back to the gallery and make a new shortcut. You want exactly ONE shortcut.
 
 2. **Sleep durations come out in SECONDS.** Calculate Statistics on sleep gives seconds (e.g. 1883). The
@@ -37,57 +37,57 @@ all from the bottom search bar. Only two patterns repeat:
 - **Pattern A (a count):** Find Health Samples → Calculate Statistics (**Sum**) → Set Variable
 - **Pattern B (sleep minutes):** Find Health Samples → Calculate Statistics (**Sum of Duration**) → Calculate (**÷ 60**) → Set Variable
 
-### Block 1 — Today's date (2 lines)
+### Block 1 - Today's date (2 lines)
 1. **Format Date** → Date = **Current Date**, Format = **Custom** = `yyyy-MM-dd`
 2. **Set Variable** → **Today**
 
-### Block 2 — Steps (Pattern A, 3 lines)
+### Block 2 - Steps (Pattern A, 3 lines)
 3. **Find Health Samples** → Sample Type **Steps** · filter **Start Date is today** · filter **Source is iPhone**
 4. **Calculate Statistics** → **Sum** (if it asks "of ___", leave the default)
 5. **Set Variable** → **Steps**
 
-### Block 3 — Deep (Pattern B, 4 lines)
+### Block 3 - Deep (Pattern B, 4 lines)
 6. **Find Health Samples** → Sample Type **Sleep** · filter **Value is deep** · filter **Start Date is today**
 7. **Calculate Statistics** → **Sum of Duration**
 8. **Calculate** → change **+** to **÷**, number **60**
 9. **Set Variable** → **DeepMin**
 
-### Block 4 — REM (Pattern B, 4 lines)
+### Block 4 - REM (Pattern B, 4 lines)
 10. **Find Health Samples** → Sleep · **Value is REM** · **Start Date is today**
 11. **Calculate Statistics** → **Sum of Duration**
 12. **Calculate** → **÷ 60**
 13. **Set Variable** → **RemMin**
 
-### Block 5 — Core (Pattern B, 4 lines)
+### Block 5 - Core (Pattern B, 4 lines)
 14. **Find Health Samples** → Sleep · **Value is Core** · **Start Date is today**
 15. **Calculate Statistics** → **Sum of Duration**
 16. **Calculate** → **÷ 60**
 17. **Set Variable** → **CoreMin**
 
-### Block 6 — In Bed (Pattern B, 4 lines)
+### Block 6 - In Bed (Pattern B, 4 lines)
 18. **Find Health Samples** → Sleep · **Value is In Bed** · **Start Date is today**
 19. **Calculate Statistics** → **Sum of Duration**
 20. **Calculate** → **÷ 60**
 21. **Set Variable** → **InBedMin**
 
-### Block 7 — Awakenings (count, 3 lines)
+### Block 7 - Awakenings (count, 3 lines)
 22. **Find Health Samples** → Sleep · **Value is Awake** · **Start Date is today**
-23. **Calculate Statistics** → **Count** (not Sum — we want how many times, not minutes)
+23. **Calculate Statistics** → **Count** (not Sum - we want how many times, not minutes)
 24. **Set Variable** → **Wakes**
 
-### Block 8 — Total asleep (2 lines)
+### Block 8 - Total asleep (2 lines)
 25. **Calculate Expression** → insert **DeepMin + RemMin + CoreMin** (the three chips, `+` between them).
     *(No "Calculate Expression" action? Use two plain Calculate lines: DeepMin + RemMin, then that result + CoreMin.)*
 26. **Set Variable** → **AsleepMin**
 
-### Block 9 — Build the payload (1 line)
+### Block 9 - Build the payload (1 line)
 27. **Text** → type this exactly, replacing each **⟨Name⟩** with the matching variable chip. Quotes stay
     around the date; numbers have NO quotes:
 ```
 {"days":[{"date":"⟨Today⟩","steps":⟨Steps⟩,"deep_min":⟨DeepMin⟩,"rem_min":⟨RemMin⟩,"core_min":⟨CoreMin⟩,"inbed_min":⟨InBedMin⟩,"asleep_min":⟨AsleepMin⟩,"awakenings":⟨Wakes⟩,"source":"phone"}]}
 ```
 
-### Block 10 — Send it (2 lines)
+### Block 10 - Send it (2 lines)
 28. **Get Contents of URL**
     - URL: `https://n8n.shaheenkiarash.com/webhook/alex-health-ingest`
     - **Show More** → Method **POST**
@@ -95,7 +95,7 @@ all from the bottom search bar. Only two patterns repeat:
       and `Content-Type` = `application/json`
     - Request Body: **File** → pick the **Text** from line 27
       *(Text-as-body + the application/json header is what makes n8n parse it. Do NOT use the "JSON" body
-      builder — that nested-dictionary path is the trap we avoided.)*
+      builder - that nested-dictionary path is the trap we avoided.)*
 29. **Show Notification** → content = the **Contents of URL** result
 
 ---
@@ -103,7 +103,7 @@ all from the bottom search bar. Only two patterns repeat:
 ## Test (do the moment it's built)
 Tap **▶**. The notification should read **`{"ok":true,"count":1}`**.
 - `count:1` = the row landed. Good.
-- `count:0` or an error = a typo in the Text (line 27) — check every quote and comma.
+- `count:0` or an error = a typo in the Text (line 27) - check every quote and comma.
 - `403` = the `X-Alex-Token` header is wrong or missing.
 - nothing / hang = URL typo or no network.
 
@@ -112,7 +112,7 @@ Then sanity-check against the Health app:
 - **Steps** ≈ today's step count. A single source (iPhone) reads a bit UNDER Health's shown total, because
   Health secretly merges iPhone + Watch and the phone can't. Close and consistent is the goal.
 - If ONE sleep stage comes back 0, its Value word is off. Try **contains** instead of **is**, or check the
-  spelling (deep / REM / Core / In Bed / Awake). In Bed and Awake are optional — if they won't read, the score
+  spelling (deep / REM / Core / In Bed / Awake). In Bed and Awake are optional - if they won't read, the score
   still computes from duration + deep + REM, just slightly less precise.
 
 ## Schedule it (once the test passes)

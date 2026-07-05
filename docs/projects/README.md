@@ -1,4 +1,4 @@
-# The Projects — Plain-Language Guide
+# The Projects - Plain-Language Guide
 
 One file per project in the Personal OS: **what it actually does, why it exists, and which other projects it works with.** Written for a non-technical reader. Snapshot date: 2026-07-02.
 
@@ -22,7 +22,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 14 | [AI Application Engine](14-ai-application-engine.md) | The second job robot, aimed at AI/automation roles. |
 | 15 | [Alex AI Radar](15-alex-ai-radar.md) | Weekly scan of the AI landscape for tools worth adopting. |
 | 16 | [Alex HQ](16-alex-hq.md) | The glanceable dashboard: every number on one screen, plus a note-drop to Alex. |
-| — | [Venture Sync](venture-sync.md) | Mirrors business-venture documents into the vault. |
-| — | [Modeling](modeling.md) | The modeling career, run as an engineered system. |
+| - | [Venture Sync](venture-sync.md) | Mirrors business-venture documents into the vault. |
+| - | [Modeling](modeling.md) | The modeling career, run as an engineered system. |
 
 Maintained under the Change Propagation standing order: when a project changes for real, its file here changes in the same session.

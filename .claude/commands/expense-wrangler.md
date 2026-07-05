@@ -10,7 +10,7 @@ Spec: work/08-expense-wrangler/CLAUDE.md (read it first). Two modes, same comman
 4. Append the row to `outputs/reports/expense-tracker.xlsx` Expense Log AND write its Month (col G) + Quarter (col H) formulas. Summaries auto-update.
 5. Recalc-verify via LibreOffice headless. Confirm to the user (vendor, amount, category, deductible).
 
-## Batch (no input) — also the monthly cron
+## Batch (no input) - also the monthly cron
 1. Gmail search_threads for forwarded receipts / order confirmations since last run (status.md last_run).
 2. Process every file in work/08-expense-wrangler/inbox/ (photos, bank CSVs, bank PDFs).
 3. Chrome: log into the bank, scrape transactions, cross-reference each expense → Verified / Unmatched / Flagged.
@@ -18,7 +18,7 @@ Spec: work/08-expense-wrangler/CLAUDE.md (read it first). Two modes, same comman
 5. Write the monthly close to vault/projects/expense-wrangler/history/YYYY-MM.md.
 
 ## Rules
-- **ALL Excel totals are formulas** (SUMIFS/SUMIF/SUMPRODUCT) — never hardcode a sum.
+- **ALL Excel totals are formulas** (SUMIFS/SUMIF/SUMPRODUCT) - never hardcode a sum.
 - Notion DB id in status.md. Always write readable detail to row content.
 - Flag unusually large or low-confidence items rather than guessing. Never assert tax-deductibility on a guess.
 - Clean temp (recalc dirs, .tmp); keep only expense-tracker.xlsx in outputs/reports/.

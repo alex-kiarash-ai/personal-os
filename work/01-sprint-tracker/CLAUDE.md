@@ -27,9 +27,9 @@ Reads the Notion Progress Tracker board (the master list of automations to build
 Each run also creates one **standup page** under the Personal OS parent page, titled `Standup YYYY-MM-DD`, with the full summary as content.
 
 ## Vault Structure
-- **Tier 1:** `vault/projects/sprint-tracker/status.md` — DB IDs, schema, current board snapshot, last run.
-- **Tier 2:** `vault/projects/sprint-tracker/standups/YYYY-MM-DD.md` — one standup per run.
-- **Tier 2:** `vault/projects/sprint-tracker/velocity.md` — append-only counts table, one row per run; velocity = Done delta between runs.
+- **Tier 1:** `vault/projects/sprint-tracker/status.md` - DB IDs, schema, current board snapshot, last run.
+- **Tier 2:** `vault/projects/sprint-tracker/standups/YYYY-MM-DD.md` - one standup per run.
+- **Tier 2:** `vault/projects/sprint-tracker/velocity.md` - append-only counts table, one row per run; velocity = Done delta between runs.
 
 ## Vault Reads
 - soul.md (voice + priority filtering: rent-moving work first, job pipeline > modeling > STEMPLICITY)

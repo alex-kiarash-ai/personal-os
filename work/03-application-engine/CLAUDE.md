@@ -1,7 +1,7 @@
 # Application Engine (job-application pipeline rebuild)
 
 ## Type
-Automation (n8n workflow on the Hetzner box — NOT a local Claude Code automation). This folder holds the regenerated workflow exports + the import runbook. The single source of truth for design is `C:\Users\Thinkpad\Desktop\Job Applications\CV\LinkdIn Automation (1)\job_pipeline_documentation.md` (v1.17).
+Automation (n8n workflow on the Hetzner box - NOT a local Claude Code automation). This folder holds the regenerated workflow exports + the import runbook. The single source of truth for design is `C:\Users\Thinkpad\Desktop\Job Applications\CV\LinkdIn Automation (1)\job_pipeline_documentation.md` (v1.17).
 
 ## Purpose
 Daily 07:00 Stockholm: discover LinkedIn jobs per city via Bright Data, score fit + automation-interest with one Claude call, gate deterministically, write tailored CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job Google Drive folder, log every job + cost to the Google Sheet. Review-ready drafts; no auto-submit. Two reasoning calls wrapped in deterministic gates, not a chain of model verifiers.
@@ -27,10 +27,10 @@ The old separate poll-loop export is obsolete: the loop is integrated in stage1.
 3. `Parse Writer` (stage4) → `QA + Fill Templates` (stage5)
 
 ## Credentials (n8n)
-- `Bright Data Header Auth` (Header Auth, `Authorization: Bearer <key>`) — EXISTS, validated
-- `Anthropic account` (anthropicApi) — EXISTS, validated
-- Google Sheets OAuth2 (`Google Sheets account`) — **MISSING, the Stage 5b blocker**
-- Google Drive OAuth2 (`Google Drive account`) — **MISSING, the Stage 5b blocker**
+- `Bright Data Header Auth` (Header Auth, `Authorization: Bearer <key>`) - EXISTS, validated
+- `Anthropic account` (anthropicApi) - EXISTS, validated
+- Google Sheets OAuth2 (`Google Sheets account`) - **MISSING, the Stage 5b blocker**
+- Google Drive OAuth2 (`Google Drive account`) - **MISSING, the Stage 5b blocker**
 After creating the two Google credentials, select them on every Sheets/Drive node (placeholders say REPLACE_WITH_GOOGLE_*).
 
 ## External IDs (baked into the JSONs)
@@ -63,11 +63,11 @@ None new, by design: the review surface is the Google Sheet (doc decision 1.5, "
 
 ## MCP Server (added 2026-07-01, from Alex AI Radar decision #1)
 Separate, additive n8n workflow "Application Engine (MCP)" (`CnhvoIVLSc6cUQZG`, active) exposes this pipeline to Shaheen's own Claude/Cursor over MCP via a native **MCP Server Trigger** node. The live 07:00 cron (`9XuIEfxS71DEetVR`) is untouched. Three read-only tools, each backed by an active worker sub-workflow reading the Job Search Pipeline Sheet:
-- `pipeline_status` (worker `k4p4TUoGrAuFt3Gg`) — today's jobs/drafts/cost from run_log.
-- `search_jobs` (worker `K4OGYfB5g77VU2Jr`) — filter already-scored jobs by `{location,keyword,min_fit}`. **Read-only over run_log history, NO Bright Data crawl / no spend** (a live paid search would be a separate spend-gated tool).
-- `needs_review_list` (worker `0AAbgjjezs16BCCX`) — the gate/QA-failure queue, `{limit}`.
+- `pipeline_status` (worker `k4p4TUoGrAuFt3Gg`) - today's jobs/drafts/cost from run_log.
+- `search_jobs` (worker `K4OGYfB5g77VU2Jr`) - filter already-scored jobs by `{location,keyword,min_fit}`. **Read-only over run_log history, NO Bright Data crawl / no spend** (a live paid search would be a separate spend-gated tool).
+- `needs_review_list` (worker `0AAbgjjezs16BCCX`) - the gate/QA-failure queue, `{limit}`.
 
-Endpoint (streamable HTTP since 2026-07-02, bearer-gated): `https://n8n.shaheenkiarash.com/mcp/app-engine` (trigger bumped typeVersion 1→2 on the radar deep-dive's finding; the old legacy-SSE `/sse` route is gone; backup `config/backup-pre-typebump-1783001244.json`). Bearer cred `S7Q1jSraHTmQXk29` (token NOT in repo/vault — with Shaheen; NOT in `/opt/n8n/.env` either, checked 2026-07-02). Built via the n8n REST API (not Chrome/manual import). **Full build steps, gotchas, demo queries, transport-upgrade log, and rotation procedure: `mcp-server-trigger-runbook.md`.**
+Endpoint (streamable HTTP since 2026-07-02, bearer-gated): `https://n8n.shaheenkiarash.com/mcp/app-engine` (trigger bumped typeVersion 1→2 on the radar deep-dive's finding; the old legacy-SSE `/sse` route is gone; backup `config/backup-pre-typebump-1783001244.json`). Bearer cred `S7Q1jSraHTmQXk29` (token NOT in repo/vault - with Shaheen; NOT in `/opt/n8n/.env` either, checked 2026-07-02). Built via the n8n REST API (not Chrome/manual import). **Full build steps, gotchas, demo queries, transport-upgrade log, and rotation procedure: `mcp-server-trigger-runbook.md`.**
 
 ## Connections
 - Feeds into: Job Search Pipeline sheet (review surface), Google Drive drafts.

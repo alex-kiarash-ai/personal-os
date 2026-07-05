@@ -1,6 +1,6 @@
-# /lint — Vault Health Check
+# /lint - Vault Health Check
 
-Periodic quality scan of the wiki. Karpathy's "lint" operation: catches the small drift that accumulates as the wiki grows. Read-only by default — proposes fixes, applies only with user approval (or `--fix`).
+Periodic quality scan of the wiki. Karpathy's "lint" operation: catches the small drift that accumulates as the wiki grows. Read-only by default - proposes fixes, applies only with user approval (or `--fix`).
 
 ## When this runs
 
@@ -10,10 +10,10 @@ Periodic quality scan of the wiki. Karpathy's "lint" operation: catches the smal
 
 ## Modes
 
-- `/lint` — Report-only. Lists every issue with a suggested fix. Asks the user "want me to fix these?".
-- `/lint --fix` — Apply all auto-safe fixes. Still reports unsafe ones (contradictions, data gaps) for user review.
-- `/lint --quick` — Run only checks 1, 4, 7 (orphans, broken links, index drift). Cheap. Suitable for daily use.
-- `/lint --section {me,people,business,projects,research,meetings}` — Limit to one vault section.
+- `/lint` - Report-only. Lists every issue with a suggested fix. Asks the user "want me to fix these?".
+- `/lint --fix` - Apply all auto-safe fixes. Still reports unsafe ones (contradictions, data gaps) for user review.
+- `/lint --quick` - Run only checks 1, 4, 7 (orphans, broken links, index drift). Cheap. Suitable for daily use.
+- `/lint --section {me,people,business,projects,research,meetings}` - Limit to one vault section.
 
 ## Step 1: Inventory the vault
 
@@ -27,24 +27,24 @@ Periodic quality scan of the wiki. Karpathy's "lint" operation: catches the smal
 
 For each check, build a list of findings: `(severity, path, problem, suggested_fix, auto_safe)`.
 
-### Check 1 — Orphan pages
+### Check 1 - Orphan pages
 A page is an orphan if it has zero inbound `[[wiki links]]` from any other page (and isn't `index.md` or `log.md`).
 
 For each orphan, suggest: a candidate page that SHOULD link to it (look for keyword overlap with existing pages). Auto-safe: no, requires judgment.
 
-### Check 2 — Stale pages
+### Check 2 - Stale pages
 A page is stale if its `date_updated` frontmatter is more than 30 days old AND its content references a date or time-sensitive claim ("currently", "this quarter", "Q1 2026", etc.).
 
 Suggest: re-ingest the source, or mark the section "## As of {date}" so it's clearly historical. Auto-safe: no.
 
-### Check 3 — Contradictions
+### Check 3 - Contradictions
 Scan every page for the explicit `## Contradictions` section that `/ingest` adds. Also scan for soft contradictions: pages that say different things about the same entity.
 
 Pattern: same `[[entity]]` mentioned across multiple pages with different facts (different role, different company, different status).
 
 Suggest: surface the contradiction to the user with the conflicting claims side by side. Auto-safe: no.
 
-### Check 4 — Broken wiki links
+### Check 4 - Broken wiki links
 A `[[wiki link]]` that points to a page that doesn't exist.
 
 For each broken link, suggest:
@@ -53,36 +53,36 @@ For each broken link, suggest:
 
 Auto-safe: yes, for the stub creation. Rename suggestions need user approval.
 
-### Check 5 — Missing cross-references
+### Check 5 - Missing cross-references
 Two pages mention the same entity (by name) but neither links to the other or to a shared entity page.
 
 Example: `vault/meetings/2026-04-12.md` and `vault/meetings/2026-04-19.md` both mention "Acme Corp" but neither links to `vault/business/acme.md`.
 
 Suggest: add the `[[acme]]` link to both meeting pages. Auto-safe: yes if the target page exists.
 
-### Check 6 — Data gaps
+### Check 6 - Data gaps
 A topic is mentioned across 3+ pages but has no dedicated page of its own.
 
 Example: "RAG retrieval" gets mentioned in 5 research notes but `vault/research/rag-retrieval.md` doesn't exist.
 
 Suggest: create a stub page or run `/research-team` on the topic. Auto-safe: stub yes, research no.
 
-### Check 7 — Index drift
+### Check 7 - Index drift
 Pages that exist on disk but aren't listed in `vault/index.md`. Or entries in `vault/index.md` that point to pages that don't exist.
 
 Auto-safe: yes, mechanical.
 
-### Check 8 — Source coverage
+### Check 8 - Source coverage
 Files in `vault/sources/` that don't appear in `inbox/_ingested.md`. Means a file was added directly without going through `/ingest`, so the wiki may not reflect it.
 
 Suggest: run `/ingest <path>` on the unprocessed source. Auto-safe: no, requires judgment about emphasis.
 
-### Check 9 — Empty pages
+### Check 9 - Empty pages
 Pages with less than 50 chars of body beyond frontmatter and headings.
 
 Suggest: delete, or flag for re-ingestion. Auto-safe: no (may be intentionally minimal).
 
-### Check 10 — Frontmatter compliance
+### Check 10 - Frontmatter compliance
 Pages missing required YAML frontmatter (`tags`, `date_created`, `date_updated`, `sources`).
 
 Auto-safe: yes, fill in defaults from file mtime and infer tags from path.

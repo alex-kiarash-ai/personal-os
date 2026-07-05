@@ -3,8 +3,8 @@
 Spec: work/05-personal-crm/CLAUDE.md (read it first; the Draft Gate is non-negotiable).
 
 ## Modes
-- `/personal-crm` — full run: sync contacts, enrich, score, build follow-up list, stage eligible drafts.
-- `/personal-crm sync` — DB sync only, no follow-up list, no drafts.
+- `/personal-crm` - full run: sync contacts, enrich, score, build follow-up list, stage eligible drafts.
+- `/personal-crm sync` - DB sync only, no follow-up list, no drafts.
 
 ## Steps
 1. Read vault/projects/personal-crm/status.md for DB IDs and the row→pageID map. Read soul.md (email voice) and vault/me/goals.md (score weighting).

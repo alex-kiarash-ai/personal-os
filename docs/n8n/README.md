@@ -1,9 +1,9 @@
-# The n8n Automations — Plain-Language Guide
+# The n8n Automations - Plain-Language Guide
 
 This folder documents every n8n workflow that is **live right now** on Shaheen's server (n8n.shaheenkiarash.com, a small Hetzner cloud box). One folder per workflow. Each folder holds exactly two files:
 
-- **workflow.json** — the latest export of the real workflow, pulled straight from the server. This is a working backup: if the server ever dies, open n8n anywhere → Workflows → "Import from File" → pick this file, reconnect the credentials, and the automation is back.
-- **README.md** — what the automation does, why it exists at all, and what every step (every "node") does, written so a non-technical person can follow it.
+- **workflow.json** - the latest export of the real workflow, pulled straight from the server. This is a working backup: if the server ever dies, open n8n anywhere → Workflows → "Import from File" → pick this file, reconnect the credentials, and the automation is back.
+- **README.md** - what the automation does, why it exists at all, and what every step (every "node") does, written so a non-technical person can follow it.
 
 Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03). Refresh recipe at the bottom.
 
@@ -27,11 +27,11 @@ Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03). Refre
 
 ## Also on the server, but switched OFF (not documented here)
 
-- **Application Engine (X36J9ni0vbZChMWV)** — the original v1 of the job engine, kept as a museum piece after the rebuild. Inactive since 2026-06-11.
-- **Lead Enrichment (lead-enrichment-v1)** — an early experiment, dead since 2026-06-02.
+- **Application Engine (X36J9ni0vbZChMWV)** - the original v1 of the job engine, kept as a museum piece after the rebuild. Inactive since 2026-06-11.
+- **Lead Enrichment (lead-enrichment-v1)** - an early experiment, dead since 2026-06-02.
 
 ## How to refresh these files
 
-Ask Alex to re-run the export, or by hand: `GET https://n8n.shaheenkiarash.com/api/v1/workflows/{id}` with header `X-N8N-API-KEY` (key file: `work/03-application-engine/config/n8n-api-key.txt`, not in the backup). The exports contain **no secrets** — n8n keeps credential values on the server, workflows only reference them by name.
+Ask Alex to re-run the export, or by hand: `GET https://n8n.shaheenkiarash.com/api/v1/workflows/{id}` with header `X-N8N-API-KEY` (key file: `work/03-application-engine/config/n8n-api-key.txt`, not in the backup). The exports contain **no secrets** - n8n keeps credential values on the server, workflows only reference them by name.
 
 Maintained under the Change Propagation standing order: when a live workflow changes, this folder must be refreshed in the same session. See also `vault/identity.md` (the whole-system map) and `docs/projects/` (the same plain-language treatment for every project, not just the n8n ones).

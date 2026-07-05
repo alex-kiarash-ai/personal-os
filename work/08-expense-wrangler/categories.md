@@ -1,4 +1,4 @@
-# Expense Categories — Rules
+# Expense Categories - Rules
 
 How the wrangler classifies an expense. One category per row. Tax-deductible defaults below; the human can override per row.
 
@@ -9,7 +9,7 @@ How the wrangler classifies an expense. One category per row. Tax-deductible def
 | **Software** | SaaS, APIs (Anthropic, OpenAI), hosting (Hetzner), domains, dev tools | Yes |
 | **Office** | Coworking (WeWork), hardware, supplies, furniture | Yes |
 | **Subscriptions** | Recurring non-software (memberships, media used for work) | Case by case |
-| **Other** | Anything that doesn't fit | Default No — flag for review |
+| **Other** | Anything that doesn't fit | Default No - flag for review |
 
 ## Classification logic
 1. Check `vendors.md` for a known vendor → use its mapping (fastest, most reliable).
@@ -20,4 +20,4 @@ How the wrangler classifies an expense. One category per row. Tax-deductible def
 STEMPLICITY / job-hunt / freelance-related = deductible. Personal = not. When unclear, default the safer answer (No) and flag. Never assert deductibility on a guess.
 
 ## Currency
-SEK (kr) throughout. Excel uses `#,##0.00 "kr"`; Notion Amount uses `number_with_commas` (no symbol — Notion has no native SEK format). All amounts are kronor.
+SEK (kr) throughout. Excel uses `#,##0.00 "kr"`; Notion Amount uses `number_with_commas` (no symbol - Notion has no native SEK format). All amounts are kronor.

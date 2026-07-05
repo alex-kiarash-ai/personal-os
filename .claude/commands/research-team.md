@@ -2,11 +2,11 @@
 
 Spec: work/04-research-team/CLAUDE.md (read it first; it defines the full runtime flow).
 
-Usage: `/research-team {question or topic}`. If no question given, ask for one — don't invent a topic.
+Usage: `/research-team {question or topic}`. If no question given, ask for one - don't invent a topic.
 
 ## Steps (condensed; spec is authoritative)
 1. Classify the question; check work/04-research-team/patterns/index.md for a reusable team.
-2. Check vault/research/ and notion-search first — partial answers may exist; don't re-buy them.
+2. Check vault/research/ and notion-search first - partial answers may exist; don't re-buy them.
 3. Design the team (2-5 sub-agents, parallel where independent) or adapt the matched pattern.
 4. AskUserQuestion: approve / modify / answer-without-team. NO sub-agents before approval.
 5. Execute, synthesize in Alex voice. Unknown stays unknown; cite sources.

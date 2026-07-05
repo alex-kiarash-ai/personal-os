@@ -16,16 +16,16 @@ Core principle, encoded not hoped: **Alex proposes, Shaheen decides.** Alex neve
 Reframe that shaped this spec (2026-07-01 research run, [[research/alex-ai-radar-validation]]): the constraint is output, not signal. So the radar is only allowed to be net-neutral or net-negative on open loops. Every "ready to build" must name what gets dropped to make room.
 
 ## Entry Points
-- **On-demand (Phase 0-1):** `/alex-radar` — Alex runs the whole loop by hand (fetch → dedup → score → present → update memory).
-- **Seed mode (added 2026-07-02):** `/alex-radar {url}` — Shaheen drops any link he spots (LinkedIn, X, anywhere). Alex scores that ONE item through the same rubric + run checks (dedup vs memory, corroboration search is reading), writes the Notion row at Status <= Interesting, updates memory. Ten-second capture path; every reaction on a seeded item warms the taste profile, currently the coldest part of the system.
+- **On-demand (Phase 0-1):** `/alex-radar` - Alex runs the whole loop by hand (fetch → dedup → score → present → update memory).
+- **Seed mode (added 2026-07-02):** `/alex-radar {url}` - Shaheen drops any link he spots (LinkedIn, X, anywhere). Alex scores that ONE item through the same rubric + run checks (dedup vs memory, corroboration search is reading), writes the Notion row at Status <= Interesting, updates memory. Ten-second capture path; every reaction on a seeded item warms the taste profile, currently the coldest part of the system.
 - **Scheduled (Phase 1, LIVE 2026-07-02):** weekly Stream B sweep, **Mondays 07:30** (slot confirmed by Shaheen 2026-07-02), Task Scheduler job `PersonalOS-alex-radar` → `scripts/run-alex-radar.ps1` → headless `claude -p "Run /alex-radar --weekly"`, log in `outputs/logs/alex-radar.log`. Runs BEFORE the 08:00 [[projects/morning-brief/status|Morning Brief]], which surfaces the output as its **Radar section** (rule added to work/02-morning-brief/CLAUDE.md), not a separate ritual.
 - **Phase 2 (deferred):** n8n does the deterministic muscle (schedule, scrape incl. X via Bright Data, dedup, write raw items to a Notion Inbox DB). Alex keeps brain + memory only.
 
 ## Tools Used
-- **WebSearch + WebFetch** (load via ToolSearch first) — the pilot data layer. Free feeds only, no scraping in Phase 0-1.
-- **Notion MCP** (`notion-create-database`, `notion-move-pages`, `notion-update-data-source`, `notion-create-view`, `notion-create-pages`, `notion-fetch`, `notion-update-page`, `notion-search`) — the Tools decision pipeline + status gate.
-- **Vault (Read/Write/Edit)** — the compounding memory (Taste Profile, Landscape Memory, decisions log). This is the hero, and it is vault-native markdown, not Notion.
-- **Chrome** — only for a source that blocks plain fetch. Never for the free APIs, never for Gmail/Calendar/Notion.
+- **WebSearch + WebFetch** (load via ToolSearch first) - the pilot data layer. Free feeds only, no scraping in Phase 0-1.
+- **Notion MCP** (`notion-create-database`, `notion-move-pages`, `notion-update-data-source`, `notion-create-view`, `notion-create-pages`, `notion-fetch`, `notion-update-page`, `notion-search`) - the Tools decision pipeline + status gate.
+- **Vault (Read/Write/Edit)** - the compounding memory (Taste Profile, Landscape Memory, decisions log). This is the hero, and it is vault-native markdown, not Notion.
+- **Chrome** - only for a source that blocks plain fetch. Never for the free APIs, never for Gmail/Calendar/Notion.
 - Feeds [[projects/morning-brief/status|Morning Brief]] and [[projects/content-machine/status|Content Machine]].
 - **Phase 2 only:** Bright Data (X scrape, ~$30/mo bolt-on) + n8n. Model routing rule applies (see Phase 2).
 
@@ -33,15 +33,15 @@ Reframe that shaped this spec (2026-07-01 research run, [[research/alex-ai-radar
 Backbone is free and stable. X is a Phase 2 paid bolt-on, not the backbone (research corrected the original spec, which had it inverted).
 
 **Stream B (ships first):**
-- Hacker News (Firebase API + Algolia search) — front page, Show HN, `ai`/`mcp`/`agent` matches. No key, no rate limit.
-- GitHub — release + tag Atom feeds (`/releases.atom`) for stack repos (n8n, MCP servers, AI tooling); REST for trending-by-search. No auth for the feeds.
-- Product Hunt — GraphQL API / RSS, developer-tools + AI categories.
-- Model provider changelogs — OpenAI RSS (`openai.com/news/rss.xml`), Google DeepMind blog RSS. **Anthropic has no official RSS**, use a third-party feed (e.g. Releasebot) or fetch the news page.
-- MCP registry — new server listings.
+- Hacker News (Firebase API + Algolia search) - front page, Show HN, `ai`/`mcp`/`agent` matches. No key, no rate limit.
+- GitHub - release + tag Atom feeds (`/releases.atom`) for stack repos (n8n, MCP servers, AI tooling); REST for trending-by-search. No auth for the feeds.
+- Product Hunt - GraphQL API / RSS, developer-tools + AI categories.
+- Model provider changelogs - OpenAI RSS (`openai.com/news/rss.xml`), Google DeepMind blog RSS. **Anthropic has no official RSS**, use a third-party feed (e.g. Releasebot) or fetch the news page.
+- MCP registry - new server listings.
 
-**Self-watch lane (added 2026-07-02, Shaheen's "keep Alex updated" decision: feeds weekly + diff monthly):** the radar's mirror — releases of Alex's OWN stack, not the field. Four free feeds ride every weekly sweep: Claude Code releases (`anthropics/claude-code/releases.atom`), official MCP servers (`modelcontextprotocol/servers/releases.atom`), n8n (`n8n-io/n8n/releases.atom`), Anthropic news page (no RSS). Scored and gated like any item, `Improves = Alex`. On the **first Monday of each month**, the weekly run ALSO does a **capability diff**: inventory local reality (`claude --version`, installed MCP servers, skills list, Hetzner n8n version) vs the self-watch releases since the last diff, and propose upgrades as Tools rows at Status <= Interesting. Installs still need an explicit yes, always.
+**Self-watch lane (added 2026-07-02, Shaheen's "keep Alex updated" decision: feeds weekly + diff monthly):** the radar's mirror - releases of Alex's OWN stack, not the field. Four free feeds ride every weekly sweep: Claude Code releases (`anthropics/claude-code/releases.atom`), official MCP servers (`modelcontextprotocol/servers/releases.atom`), n8n (`n8n-io/n8n/releases.atom`), Anthropic news page (no RSS). Scored and gated like any item, `Improves = Alex`. On the **first Monday of each month**, the weekly run ALSO does a **capability diff**: inventory local reality (`claude --version`, installed MCP servers, skills list, Hetzner n8n version) vs the self-watch releases since the last diff, and propose upgrades as Tools rows at Status <= Interesting. Installs still need an explicit yes, always.
 
-**Friction-first matching (added 2026-07-02):** `vault/projects/alex-ai-radar/friction-list.md` is the radar's demand side — the table of known pains and their current workarounds (no Airbnb API, WhatsApp screen-capture, Notion row-listing gap, legacy-SSE MCP transport, ...). Every sweep matches surviving items against it BEFORE generic scoring. A friction match is named explicitly in the presentation ("kills friction #5"), justifies a maxed Leverage score, and gets presented even in an otherwise zero-item week. Alex maintains the list: add a row when a new workaround gets built, strike (with date) when something kills one. This is also the standing "better MCP for a tool I already use" watchlist.
+**Friction-first matching (added 2026-07-02):** `vault/projects/alex-ai-radar/friction-list.md` is the radar's demand side - the table of known pains and their current workarounds (no Airbnb API, WhatsApp screen-capture, Notion row-listing gap, legacy-SSE MCP transport, ...). Every sweep matches surviving items against it BEFORE generic scoring. A friction match is named explicitly in the presentation ("kills friction #5"), justifies a maxed Leverage score, and gets presented even in an otherwise zero-item week. Alex maintains the list: add a row when a new workaround gets built, strike (with date) when something kills one. This is also the standing "better MCP for a tool I already use" watchlist.
 
 **Error-log flywheel (added 2026-07-02):** staying updated includes stopping repeated mistakes. On the first-Monday run (alongside the capability diff), Alex retros HERSELF: scan `vault/projects/error-log.md`, failed/flagged runs in `outputs/logs/*.log` since the last diff, and any wrong assumption caught mid-build (like decision #1's voided Notion-refactor target). Propose up to 3 concrete spec/runbook fixes in the presentation. Fixes are applied only on Shaheen's yes, then propagated per the Change Propagation standing order.
 
@@ -66,8 +66,8 @@ Bootstrap on first run per the root **Bootstrap Protocol** (Notion creation sequ
 - **What it does** (text)
 - **Improves** (select: Alex, Personal OS, Job Pipeline, Modeling, STEMPLICITY, Content)
 - **Source** (url)
-- **Corroboration** (number — count of INDEPENDENT sources after dedup, Run Check 1)
-- **Fit score** (number — rubric total, see Scoring)
+- **Corroboration** (number - count of INDEPENDENT sources after dedup, Run Check 1)
+- **Fit score** (number - rubric total, see Scoring)
 - **Status** (select: New, Interesting, Approved to research, Researched, Approved to install, Installed, Dropped)
 - **Effort** (select: Trivial, Moderate, Heavy)
 - **Decision** (select: Pending, Yes, No, Park)
@@ -75,7 +75,7 @@ Bootstrap on first run per the root **Bootstrap Protocol** (Notion creation sequ
 - **Notes** (text)
 
 **`AI Radar Ideas` schema (Stream A, DEFERRED, create only when Tap 3 goes live):**
-- **Idea** (title), **Concept** (one-line text), **Bucket** (select: Interesting, Ready to build, Heavy infrastructure), **Opportunity score** (number), **Rationale** (text), **Sources** (text), **Status** (select: New, Interesting, Approved for deep-dive, Deep-dived, Validated, Decided), **Drops-what** (text — the guardrail: what Shaheen drops to build this), **Decision** (select: Build, Park, Drop, Pending), **First seen** (date), **Notes** (text).
+- **Idea** (title), **Concept** (one-line text), **Bucket** (select: Interesting, Ready to build, Heavy infrastructure), **Opportunity score** (number), **Rationale** (text), **Sources** (text), **Status** (select: New, Interesting, Approved for deep-dive, Deep-dived, Validated, Decided), **Drops-what** (text - the guardrail: what Shaheen drops to build this), **Decision** (select: Build, Park, Drop, Pending), **First seen** (date), **Notes** (text).
 
 **Gotcha (same as [[projects/sprint-tracker/status|Sprint Tracker]]):** `notion-fetch` on a database/data source returns schema + views only, NOT rows. Primary read path: fetch each row by page ID from the snapshot table in `status.md`. Use `notion-search` scoped to the data source only to discover hand-added rows; it caps at 25 and is not exhaustive, never the sole listing. Add any newly discovered row's page ID to the snapshot.
 
@@ -97,18 +97,18 @@ No LLM re-checking an LLM. Deterministic gates + one reasoning pass.
 ## Vault Structure
 work/ holds this spec + config only. All knowledge is in the vault.
 
-- **Tier 1:** `vault/projects/alex-ai-radar/status.md` — DB IDs, schema, phase, source list pointer, Tools row snapshot (Task/Status/Since/Page ID), last run, current outcome metric.
+- **Tier 1:** `vault/projects/alex-ai-radar/status.md` - DB IDs, schema, phase, source list pointer, Tools row snapshot (Task/Status/Since/Page ID), last run, current outcome metric.
 - **Tier 2 (the brain, markdown, wiki-linked, git-tracked):**
-  - `vault/projects/alex-ai-radar/taste-profile.md` — **the hero.** Alex's model of Shaheen. Seeded from the vault on run 1 (Run Check 4). Sections: My stack · What "sellable" means to me · Greenlit patterns · Rejected patterns · Topics I care about · Topics to ignore · Profile confidence (cold until ≥20 dated decisions) · Last pruned.
-  - `vault/projects/alex-ai-radar/landscape-memory.md` — the "what's cooking" tracker. One row per theme: theme · first seen · last seen · **independent-event count (dedup'd, Run Check 1)** · notable players · trajectory (accelerating / steady / cooling) · amplified-not-accelerating flag · note.
-  - `vault/projects/alex-ai-radar/decisions.md` — append-only ground truth. One line per Shaheen yes/no/park, dated, with the item and reason. Feeds the Taste Profile and the outcome metric. Never overwritten.
-  - `vault/projects/alex-ai-radar/radars/YYYY-MM-DD.md` — one radar output per run (the shortlist presented, with scores + corroboration).
-  - `vault/projects/alex-ai-radar/sources.md` — free-feed source list + endpoints (config that reads as knowledge).
+  - `vault/projects/alex-ai-radar/taste-profile.md` - **the hero.** Alex's model of Shaheen. Seeded from the vault on run 1 (Run Check 4). Sections: My stack · What "sellable" means to me · Greenlit patterns · Rejected patterns · Topics I care about · Topics to ignore · Profile confidence (cold until ≥20 dated decisions) · Last pruned.
+  - `vault/projects/alex-ai-radar/landscape-memory.md` - the "what's cooking" tracker. One row per theme: theme · first seen · last seen · **independent-event count (dedup'd, Run Check 1)** · notable players · trajectory (accelerating / steady / cooling) · amplified-not-accelerating flag · note.
+  - `vault/projects/alex-ai-radar/decisions.md` - append-only ground truth. One line per Shaheen yes/no/park, dated, with the item and reason. Feeds the Taste Profile and the outcome metric. Never overwritten.
+  - `vault/projects/alex-ai-radar/radars/YYYY-MM-DD.md` - one radar output per run (the shortlist presented, with scores + corroboration).
+  - `vault/projects/alex-ai-radar/sources.md` - free-feed source list + endpoints (config that reads as knowledge).
 
 ## Vault Reads
 - **soul.md** (voice + priorities: rent-moving work first, job pivot > STEMPLICITY > curiosities; the "My Words" corpus for any human-facing prose; the Building Alex never-share list before any content-tap suggestion).
-- `taste-profile.md`, `landscape-memory.md`, `decisions.md` (the compounding memory — read every run).
-- `friction-list.md` (the demand side — matched against every sweep's survivors before generic scoring).
+- `taste-profile.md`, `landscape-memory.md`, `decisions.md` (the compounding memory - read every run).
+- `friction-list.md` (the demand side - matched against every sweep's survivors before generic scoring).
 - `vault/projects/error-log.md` + `outputs/logs/*.log` (first-Monday flywheel retro only).
 - `vault/me/goals.md` and `vault/me/situation.md` (the too-many-tracks constraint that the drop-rule enforces).
 - `vault/projects/*/status.md` (what's already built + his real stack, so "Improves which project" and "fit to my stack" are grounded, not guessed).
@@ -149,7 +149,7 @@ High-conviction items get researched automatically, no manual greenlight, becaus
 - `vault/log.md` entry; `vault/index.md` on first run / new pages.
 
 ## Connections
-- **Feeds into:** [[projects/morning-brief/status|Morning Brief]] (weekly Radar section — the delivery surface, no separate ritual); [[projects/content-machine/status|Content Machine]] + Building Alex series (Tap 2 content angles); the job pivot / STEMPLICITY demo (the taste-learning memory IS the portfolio artifact).
+- **Feeds into:** [[projects/morning-brief/status|Morning Brief]] (weekly Radar section - the delivery surface, no separate ritual); [[projects/content-machine/status|Content Machine]] + Building Alex series (Tap 2 content angles); the job pivot / STEMPLICITY demo (the taste-learning memory IS the portfolio artifact).
 - **Fed by:** free feeds (HN, GitHub, Product Hunt, OpenAI/Google RSS, MCP registry); soul.md + the vault (taste seed); Phase 2 n8n + Bright Data (X).
 - **Reuses:** the [[projects/application-engine/status|Application Engine]] n8n + Bright Data muscle pattern for Phase 2 (already in production, do not rebuild).
 - **Auto-invokes:** [[projects/research-team/status|Research Team]] (#04) for the auto deep-dive on high-conviction items → concept PDF (see Auto deep-dive). Shared surfaces: `vault/research/` + Notion.

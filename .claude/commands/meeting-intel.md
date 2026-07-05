@@ -5,7 +5,7 @@ Spec: work/06-meeting-intel/CLAUDE.md (read it first). On-demand, two modes.
 ## Mode: prep
 `/meeting-intel prep "<event or 2pm>"`
 1. Resolve the meeting via Calendar MCP (list_events/get_event). Pull attendees.
-2. For each attendee: look up the Personal CRM (notion-search) + vault/people/. Light web research (Chrome, public info only — background, never autonomous outreach).
+2. For each attendee: look up the Personal CRM (notion-search) + vault/people/. Light web research (Chrome, public info only - background, never autonomous outreach).
 3. notion-search for relevant Notion docs (past meetings, projects, threads).
 4. Write a one-page dossier → vault/meetings/dossiers/YYYY-MM-DD-<slug>.md and a Meeting Notes row (Status: Prep). Lead with "who they are + what matters + your angle", Alex voice.
 
@@ -19,7 +19,7 @@ Spec: work/06-meeting-intel/CLAUDE.md (read it first). On-demand, two modes.
 4. Notion Meeting Notes row (Status: Complete; Action Items = count; full notes in page content).
 5. Push each action item owned by Shaheen onto the sprint board (Progress Tracker) as a task.
 6. Update CRM rows for attendees: Last Contact = meeting date, set Follow-Up Date, append Notes.
-7. Draft a follow-up email in soul.md voice via gmail_create_draft — ONLY if the recipient passes the CRM draft gate (real email, not personal/family, not a do-not-contact/sensitive contact). Never send. If gated, note "needs your call".
+7. Draft a follow-up email in soul.md voice via gmail_create_draft - ONLY if the recipient passes the CRM draft gate (real email, not personal/family, not a do-not-contact/sensitive contact). Never send. If gated, note "needs your call".
 8. Move processed files to work/06-meeting-intel/processed/.
 
 ## Notion / IDs

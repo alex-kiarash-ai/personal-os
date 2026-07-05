@@ -12,7 +12,7 @@ Turn Shaheen's real Personal OS history into a 10-episode LinkedIn series in his
 
 ## HARD RULES (every run, no exceptions)
 1. Read `vault/projects/linkedin-series/concept.md` EVERY run. It holds the locked decisions and the **never-share living list** (money details, other people's identities, employer internals, real-time feelings, and other private items). Shaheen adds items over time; each addition binds immediately.
-2. **No em-dashes or en-dashes anywhere.** After drafting, run a deterministic scan for — and –. Any hit = failed output, rewrite the sentence.
+2. **No em-dashes or en-dashes anywhere.** After drafting, run a deterministic scan for - and –. Any hit = failed output, rewrite the sentence.
 3. **Never the "Geoffrey/RL" framing.** The honest line is: "every correction becomes a rule he never breaks again, my mistakes are his training data."
 4. Sensitive personal topics appear at most once, plainly, and are never relitigated.
 5. STEMPLICITY is invisible in the series.
