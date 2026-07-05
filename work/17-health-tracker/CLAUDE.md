@@ -11,7 +11,7 @@ raw numbers to a token-gated n8n webhook, n8n computes the score, the brief + HQ
 Design + evidence: [[research/health-tracker-architecture]] (/research-team run 8, 3 lanes).
 
 ## Entry Points
-- **Producer (phone):** native iOS Shortcut "Alex Health Push", daily time automation at **23:59, Run Immediately** (every date filter is **"is today"**, and every sleep block ends in **Calculate ÷ 60** because Health returns seconds; both gotchas are in the guide). Build guide: `IPHONE-SHORTCUT.md`. This is the ONLY manual-setup piece; everything server-side is built.
+- **Producer (phone):** native iOS Shortcut "Alex Health Push", daily time automation at **23:59, Run Immediately** (every date filter is **"is today"**, and every sleep block ends in **Calculate ÷ 60** because Health returns seconds; both gotchas are in the guide). Build guide: `IPHONE-SHORTCUT.md`. **BUILT + 23:59 automation set + verified live 2026-07-06** (was the only manual piece). Sends `Content-Type: text/plain`; the webhook is self-healing (`rawBody` + the Score node coerces empty fields `:,`->`:0,`) so an empty steps/sleep value can't break it.
 - **Ingest (n8n, Hetzner):** `POST https://n8n.shaheenkiarash.com/webhook/alex-health-ingest` (header `X-Alex-Token`). Accepts a single day object, `{day:{...}}`, or `{days:[...]}` (batch). The daily Shortcut sends `{days:[one combined row]}` and gets back `{ok:true,count:1}`; the one-time backfill sends many.
 - **Backfill (one-time):** `scripts/backfill_health.py` streams the 532MB export, `scripts/seed_via_webhook.py` POSTs the history through the webhook.
 

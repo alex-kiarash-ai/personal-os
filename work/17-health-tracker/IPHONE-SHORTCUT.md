@@ -75,6 +75,19 @@ all from the bottom search bar. Only two patterns repeat:
 23. **Calculate Statistics** → **Count** (not Sum - we want how many times, not minutes)
 24. **Set Variable** → **Wakes**
 
+### Block 7.5 - Guard empty sleep stages (added 2026-07-06, fixes the "Math error")
+On a night with NO sleep (Watch not worn, or you run it while awake), Deep/REM/Core/InBed come back
+**empty**, and Block 8's `DeepMin + RemMin + CoreMin` throws **Math error** (can't add empties) - the
+Shortcut dies before it sends. Default each to 0. After each of the sleep Set-Variable lines
+(**DeepMin, RemMin, CoreMin, InBedMin** — and **Steps** too, which is empty if you run just after
+midnight before any steps exist for "today"; the invalid payload `"steps":,` gives a 422 "not valid JSON"), add:
+- **If** → input = that variable → condition **does not have any value**
+- inside: **Set Variable** → that variable → value **0** *(if it won't take a typed 0, add a **Number** = 0 first, then Set Variable to it)*
+- **End If** (auto)
+
+*(Shortcut for the common all-empty case: one guard before Block 8 - **If InBedMin does not have any value** → set DeepMin/RemMin/CoreMin/InBedMin all to 0. Less bulletproof on partial nights, but rare.)*
+After this, a Watch-less night sends zeros (score comes back blank, which is correct) instead of crashing.
+
 ### Block 8 - Total asleep (2 lines)
 25. **Calculate Expression** → insert **DeepMin + RemMin + CoreMin** (the three chips, `+` between them).
     *(No "Calculate Expression" action? Use two plain Calculate lines: DeepMin + RemMin, then that result + CoreMin.)*
@@ -92,7 +105,13 @@ all from the bottom search bar. Only two patterns repeat:
     - URL: `https://n8n.shaheenkiarash.com/webhook/alex-health-ingest`
     - **Show More** → Method **POST**
     - Headers → add two: `X-Alex-Token` = *(paste token from `work/16-alex-hq/config/alex-hq-token.txt`)*,
-      and `Content-Type` = `application/json`
+      and `Content-Type` = **`text/plain`** (NOT application/json - see below)
+    - **Why text/plain (fixed 2026-07-06):** n8n rejects malformed JSON with a 422 BEFORE the workflow can
+      run, so any empty field (`"steps":,` on a just-after-midnight test, or an empty sleep stage) killed it.
+      The webhook now receives `text/plain` as a raw string and the "Score + Normalize" node HEALS empties
+      (`:,` -> `:0,`) before parsing (webhook `rawBody`, healing in the Code node). So `text/plain` makes the
+      phone bulletproof - the per-stage 0-guards above become optional (harmless to keep). `application/json`
+      still works too, but only for already-valid JSON (the backfill/seed scripts).
     - Request Body: **File** → pick the **Text** from line 27
       *(Text-as-body + the application/json header is what makes n8n parse it. Do NOT use the "JSON" body
       builder - that nested-dictionary path is the trap we avoided.)*
