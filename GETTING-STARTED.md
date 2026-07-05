@@ -1,6 +1,6 @@
 # Getting Started with Your Personal OS
 
-Do these steps BEFORE you run /setup. Takes about 5-10 minutes.
+This is the quick pre-flight (prereqs + connect) before you run /setup, about 5-10 minutes. For the full picture (what Alex is, the automations, scheduling, backup/restore), see **SYSTEM-GUIDE.md**.
 
 ## Step 1: Install Prerequisites
 
@@ -13,14 +13,14 @@ npm install -g @anthropic-ai/claude-code
 
 ## Step 2: Connect Your Tools
 
-Open Claude Code anywhere and type `/mcp` to open the connection manager. Authenticate these:
+Go to **claude.ai → Settings → Connectors** (the in-app `/mcp` manager inside Claude Code is an alternative path to the same connectors). Authenticate these:
 
-- **claude.ai Gmail** - Click it, sign in with your Google account
-- **claude.ai Google Calendar** - Click it, same Google account
-- **claude.ai Notion** - Enable it, sign in with your Notion workspace
-- **claude.ai GitHub** - If you use GitHub, authenticate here too
+- **Gmail** - sign in with your Google account
+- **Google Calendar** - same Google account
+- **Google Drive** - same Google account (one Google sign-in covers all three)
+- **Notion** - sign in with your Notion workspace (optional; needed for the CRM/expenses/content databases)
 
-These are one-time authentications. They persist across all sessions.
+These are one-time authentications; they persist across all sessions. (GitHub is NOT a connector here, it's used only for backup via git + a token, set that up later during scheduling/restore.)
 
 ## Step 3: Run /setup
 
@@ -49,4 +49,4 @@ If you want to control your agent from your phone, set up Dispatch in Claude Cod
 
 Open Cowork and point it at the personal-os folder. Or run `claude` from the terminal in this directory. Your agent loads your personality automatically from soul.md.
 
-Start building automations by pasting prompts from the prompts/ folder into your session.
+Start building automations with `/new` (the master command that scaffolds any automation), or run an existing one directly (`/morning-brief`, `/email-triage`, and so on). Each automation's spec lives in its own `work/{n}-{name}/CLAUDE.md`.

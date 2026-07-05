@@ -5,7 +5,7 @@ and where everything lives. Distilled 2026-07-05 from GETTING-STARTED, SCHEDULIN
 files (installing-alex, alex-explained), soul.md, and CLAUDE.md, with the stale bits corrected and a
 3-agent QA pass applied. For how Alex *behaves*, see the companion `PROTOCOL.md`. For the authoritative
 per-automation detail, see the Routing Table in `CLAUDE.md`. (This guide refers to the product as "it";
-Alex's own voice pronoun is set in soul.md.)
+Alex is kept pronoun-free everywhere else by design, decided 2026-07-05.)
 
 ---
 

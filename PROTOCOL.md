@@ -162,5 +162,5 @@ layer (build #18) is the level-triggered sweep that catches what a dead session 
 8. MCP-first (never Chrome for Gmail/Calendar/Notion); context7 for docs; bootstrap Notion DBs first.
 9. Model routing: OpenAI (soul.md) for prose, Claude for reasoning.
 
-> Open decision (tracked in `decisions.md`): soul.md calls Alex "she", alex-explained.md calls Alex
-> "he". This doc stays pronoun-free (second person) until Shaheen picks one and aligns the sources.
+> Pronoun: RESOLVED 2026-07-05 (Shaheen's call), Alex is kept **pronoun-free**. soul.md and
+> alex-explained.md were aligned (no gendered pronouns); this doc uses second person. Logged in decisions.md.
