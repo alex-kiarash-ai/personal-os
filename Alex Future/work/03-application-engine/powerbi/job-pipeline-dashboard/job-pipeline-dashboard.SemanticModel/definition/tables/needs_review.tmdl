@@ -1,0 +1,100 @@
+/// Jobs the gate routed to manual review, with scores and gate reasons.
+table needs_review
+	lineageTag: 0c90e13a-14fc-409b-9169-2c5d41aae17b
+
+	measure 'Avg Fit (To Review)' = AVERAGE(needs_review[fit_score])
+		formatString: 0.0
+		lineageTag: 61a17366-4978-4004-a8a4-416d1e9a2a92
+
+	column date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 7529d503-d5b6-4bdb-998a-d94b5e238b3c
+		summarizeBy: none
+		sourceColumn: date
+
+		variation Variation
+			isDefault
+			relationship: ae17e9cc-dcf0-402c-9154-81c8ac67537c
+			defaultHierarchy: LocalDateTable_4fba07a1-ec1a-48b3-8966-9631d0952515.'Date Hierarchy'
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column job_posting_id
+		dataType: int64
+		lineageTag: 201212c1-ffbf-454f-93dd-f5bd7f86eefe
+		summarizeBy: sum
+		sourceColumn: job_posting_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column job_title
+		dataType: string
+		lineageTag: df005732-b1be-41e1-aaaa-41d113f81024
+		summarizeBy: none
+		sourceColumn: job_title
+
+		annotation SummarizationSetBy = Automatic
+
+	column company_name
+		dataType: string
+		lineageTag: 93c8f162-e2d9-4484-96c7-240f174f98c9
+		summarizeBy: none
+		sourceColumn: company_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column job_location
+		dataType: string
+		lineageTag: cdcfac67-64b1-400e-ac7f-8c00569e273f
+		summarizeBy: none
+		sourceColumn: job_location
+
+		annotation SummarizationSetBy = Automatic
+
+	column url
+		dataType: string
+		lineageTag: a3ffba41-430b-4bd8-8aa9-a85f7362654d
+		summarizeBy: none
+		sourceColumn: url
+
+		annotation SummarizationSetBy = Automatic
+
+	column fit_score
+		dataType: int64
+		lineageTag: 9da09776-92e0-4497-8339-d1918b92807d
+		summarizeBy: sum
+		sourceColumn: fit_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column interest_score
+		dataType: int64
+		lineageTag: f8bc4c14-b65e-46df-86cf-05aef2fde6dc
+		summarizeBy: sum
+		sourceColumn: interest_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column rank_score
+		dataType: int64
+		lineageTag: 7b8bbee3-aa33-4c2a-b63d-5d9321a3f2f7
+		summarizeBy: sum
+		sourceColumn: rank_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column reasons
+		dataType: string
+		lineageTag: ce782823-7c9c-4591-b1f0-6c197bf21bf5
+		summarizeBy: none
+		sourceColumn: reasons
+
+		annotation SummarizationSetBy = Automatic
+
+	partition needs_review = m
+		mode: import
+		source = let Source = Excel.Workbook(File.Contents("C:\Users\Thinkpad\Desktop\personal-os\work\03-application-engine\powerbi\job-search-pipeline.xlsx"), null, true), Sheet = Source{[Item="needs_review",Kind="Sheet"]}[Data], Promoted = Table.PromoteHeaders(Sheet, [PromoteAllScalars=true]), Selected = Table.SelectColumns(Promoted, {"date", "job_posting_id", "job_title", "company_name", "job_location", "url", "fit_score", "interest_score", "rank_score", "reasons"}), Typed = Table.TransformColumnTypes(Selected, {{"date", type date}, {"job_posting_id", Int64.Type}, {"job_title", type text}, {"company_name", type text}, {"job_location", type text}, {"url", type text}, {"fit_score", Int64.Type}, {"interest_score", Int64.Type}, {"rank_score", Int64.Type}, {"reasons", type text}}) in Typed
+

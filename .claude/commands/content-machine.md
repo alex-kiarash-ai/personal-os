@@ -1,6 +1,8 @@
-# /content-machine - Create Platform-Native Content in Shaheen's Voice
+# /content-machine - RETIRED 2026-07-06
 
-Spec: work/09-content-machine/CLAUDE.md (read it first). On-demand. 3-agent pipeline.
+**This command is retired (folded into #12 LinkedIn Series, Shaheen's call).** If invoked: say so, and offer /post-episode (work/12-linkedin-series) instead - same Content Library DB, locked voice template. Do not run the pipeline below.
+
+Spec: work/09-content-machine/CLAUDE.md (retired; read for history only). On-demand. 3-agent pipeline.
 
 ## Step 0 - Context first (before asking anything)
 Read: vault/me/goals.md, vault/business/brand.md + vault/business/, vault/research/, vault/people/, vault/projects/content-machine/status.md, soul.md, vault/me/writing-style-notes.md, brand/config/brand-config.md. notion-search the Content Library for past content on the topic (don't repeat angles).

@@ -34,7 +34,7 @@ function Invoke-CloseOutCheck {
         if ($reason.Length -gt 140) { $reason = $reason.Substring(0, 140) }
     } elseif ($Out -match 'Not logged in|Please run /login') {
         $reason = 'not logged in - needs interactive claude /login'
-    } elseif ($Out -match 'session limit|usage limit|API usage limits') {
+    } elseif ($Out -match 'session limit|usage limit|API usage limits|reached your .{0,40}limit') {
         $line = ($Out -split "`r?`n" | Where-Object { $_ -match 'limit' } | Select-Object -First 1)
         $reason = if ($line) { $line.Trim() } else { 'usage/session limit' }
         if ($reason.Length -gt 140) { $reason = $reason.Substring(0, 140) }
@@ -80,6 +80,41 @@ function Invoke-CloseOutCheck {
         "HQ push skipped: no run_status tile for this wrapper" | Out-File -Append -Encoding utf8 $Log
     }
 
-    # Non-zero exit -> a task with a restart policy retries (covers the 1pm quota reset).
+    # --- Self-scheduled retry (added 2026-07-06). Task Scheduler's RestartCount does NOT fire on a
+    # non-zero exit code (proven 2026-07-06: four exit-1 limit failures at 07:30-09:00, RestartCount=4
+    # on every task, zero restarts). So a failed wrapper schedules its OWN one-shot retry task 90 min
+    # out, up to 4 retries (attempts 2-5), so a transient quota/auth window self-heals. The attempt
+    # number rides $env:ALEX_RETRY_ATTEMPT; the one-shot task auto-deletes after its window passes.
+    $attempt = 1
+    if ($env:ALEX_RETRY_ATTEMPT -match '^\d+$') { $attempt = [int]$env:ALEX_RETRY_ATTEMPT }
+    $wrapper = (Get-PSCallStack | Where-Object { $_.ScriptName -and $_.ScriptName -ne $PSCommandPath } |
+                Select-Object -First 1).ScriptName
+    if (-not $wrapper) {
+        "retry skipped: calling wrapper path unknown" | Out-File -Append -Encoding utf8 $Log
+    } elseif ($attempt -ge 5) {
+        "retry chain exhausted (attempt $attempt/5), giving up until the next scheduled slot" | Out-File -Append -Encoding utf8 $Log
+    } else {
+        $next = $attempt + 1
+        $rname = "PersonalOS-retry-$([IO.Path]::GetFileNameWithoutExtension($wrapper))-$next"
+        $rat = (Get-Date).AddMinutes(90)
+        if ($DryRun) {
+            "DRYRUN, would register $rname at $($rat.ToString('HH:mm'))" | Out-File -Append -Encoding utf8 $Log
+        } else {
+            try {
+                $act = New-ScheduledTaskAction -Execute 'powershell.exe' `
+                    -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"& { `$env:ALEX_RETRY_ATTEMPT='$next'; & '$wrapper'; exit `$LASTEXITCODE }`""
+                $trg = New-ScheduledTaskTrigger -Once -At $rat
+                $trg.EndBoundary = $rat.AddMinutes(60).ToString("yyyy-MM-dd'T'HH:mm:ss")
+                $set = New-ScheduledTaskSettingsSet -StartWhenAvailable -WakeToRun -AllowStartIfOnBatteries `
+                    -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew `
+                    -ExecutionTimeLimit (New-TimeSpan -Hours 2) -DeleteExpiredTaskAfter (New-TimeSpan -Hours 1)
+                Register-ScheduledTask -TaskName $rname -Action $act -Trigger $trg -Settings $set -Force | Out-Null
+                "retry $next/5 scheduled: $rname at $($rat.ToString('HH:mm'))" | Out-File -Append -Encoding utf8 $Log
+            } catch {
+                "retry registration failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $Log
+            }
+        }
+    }
+
     exit 1
 }

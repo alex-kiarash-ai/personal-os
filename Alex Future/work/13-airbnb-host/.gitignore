@@ -1,0 +1,5 @@
+# Live logged-in Airbnb session = as sensitive as a password. Never commit.
+.browser-profile/
+raw/_debug/
+raw/*.csv
+raw/*.json

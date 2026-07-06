@@ -49,6 +49,61 @@ body::before {
   mask-image: radial-gradient(1200px 900px at 50% 0%, black, transparent 85%);
 }
 
+/* deep-water drift: three blurred brand-tint bubbles behind everything.
+   transform-only animation (GPU), very slow — the panel breathes, it never dances. */
+.bubbles {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bubble {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  will-change: transform;
+}
+.bubble-1 {
+  width: 55vw;
+  height: 55vw;
+  left: -12vw;
+  top: -18vw;
+  background: radial-gradient(circle, rgba(0, 95, 115, 0.16), transparent 70%);
+  animation: drift-1 90s ease-in-out infinite alternate;
+}
+.bubble-2 {
+  width: 40vw;
+  height: 40vw;
+  right: -10vw;
+  top: 22vh;
+  background: radial-gradient(circle, rgba(10, 147, 150, 0.1), transparent 70%);
+  animation: drift-2 120s ease-in-out infinite alternate;
+}
+.bubble-3 {
+  width: 30vw;
+  height: 30vw;
+  left: 28vw;
+  bottom: -12vw;
+  background: radial-gradient(circle, rgba(148, 210, 189, 0.07), transparent 70%);
+  animation: drift-3 150s ease-in-out infinite alternate;
+}
+@keyframes drift-1 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(9vw, 7vh) scale(1.12); }
+}
+@keyframes drift-2 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-7vw, -9vh) scale(1.08); }
+}
+@keyframes drift-3 {
+  from { transform: translate(0, 0) scale(1.05); }
+  to   { transform: translate(6vw, -6vh) scale(0.95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble { animation: none; }
+}
+
 /* film grain above the grid, below content */
 body::after {
   content: "";
@@ -89,21 +144,6 @@ button.tile:hover {
     0 0 0 1px rgba(10, 147, 150, 0.35),
     0 0 34px -6px rgba(10, 147, 150, 0.45),
     0 28px 52px -28px rgba(0, 0, 0, 0.95);
-}
-
-.tap-hint {
-  position: absolute;
-  right: 1.1rem;
-  bottom: 0.7rem;
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--mute);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-button.tile:hover .tap-hint {
-  opacity: 0.8;
 }
 
 .backdrop {
@@ -198,12 +238,12 @@ button.tile:hover .tap-hint {
 }
 
 .dot {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.65rem;
+  height: 0.65rem;
   border-radius: 9999px;
   flex: none;
 }
-.dot-green { background: var(--cyan);  box-shadow: 0 0 10px rgba(10, 147, 150, 0.9); }
+.dot-green { background: var(--cyan);  box-shadow: 0 0 12px rgba(10, 147, 150, 1); }
 .dot-amber { background: var(--warn);  box-shadow: 0 0 10px rgba(187, 62, 3, 0.8); }
 .dot-red   { background: var(--error); box-shadow: 0 0 12px rgba(174, 32, 18, 0.95); animation: pulse 1.6s ease-in-out infinite; }
 

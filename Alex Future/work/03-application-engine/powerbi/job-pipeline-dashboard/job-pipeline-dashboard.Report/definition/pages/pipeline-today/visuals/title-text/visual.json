@@ -1,0 +1,50 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "title-text",
+  "position": {
+    "x": 40,
+    "y": 20,
+    "z": 0,
+    "height": 84,
+    "width": 1200,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Job pipeline, this morning",
+                    "textStyle": {
+                      "fontWeight": "bold",
+                      "fontSize": "24pt",
+                      "fontFamily": "Calibri",
+                      "color": "#001219"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Scored overnight by the engine. Two numbers matter: what is drafted, and what needs your eyes.",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "fontFamily": "Calibri",
+                      "color": "#005F73"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

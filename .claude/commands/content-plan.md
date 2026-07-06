@@ -1,6 +1,8 @@
-# /content-plan - Plan the Content Calendar
+# /content-plan - RETIRED 2026-07-06
 
-Spec: work/09-content-machine/CLAUDE.md (read it first). On-demand. Pairs with /content-machine.
+**This command is retired (folded into #12 LinkedIn Series, Shaheen's call).** If invoked: say so, and plan content inside work/12-linkedin-series (episode pipeline + Content Library DB) instead. Do not run the flow below.
+
+Spec: work/09-content-machine/CLAUDE.md (retired; read for history only). On-demand. Pairs with /content-machine.
 
 ## Step 0 - Context first
 Read: vault/me/goals.md, vault/business/ (products, launches, positioning), vault/research/ (topics that could become content), vault/projects/content-machine/ (already created/planned), vault/business/competitors/ (if present - counter-position/fill gaps; skip gracefully if not built). notion-search the Content Library for what's already planned/published.

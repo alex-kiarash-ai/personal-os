@@ -1,0 +1,116 @@
+/// Jobs that passed the gate and have rendered CV + cover letter in Drive. status=draft_ready means waiting for Shaheen to submit.
+table run_log
+	lineageTag: 097fe5de-5e48-4b55-af52-1fb7429e7bcd
+
+	measure 'Pipeline Cost (USD)' = SUM(run_log[total_cost])
+		formatString: $0.000
+		lineageTag: 18cc82e7-23dc-4602-84ed-2e413c89d11e
+
+	column date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 39aefcbf-ce3b-4afb-bf3e-49a4f9e4f879
+		summarizeBy: none
+		sourceColumn: date
+
+		variation Variation
+			isDefault
+			relationship: 621b1b76-bbb5-430e-9f63-4e0aae7793b9
+			defaultHierarchy: LocalDateTable_26858b8b-a4e0-4aa9-a1b6-1e0b40c34a0a.'Date Hierarchy'
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column job_posting_id
+		dataType: int64
+		lineageTag: 78f7f67b-861b-47fe-ae31-699d03f90e50
+		summarizeBy: sum
+		sourceColumn: job_posting_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column company
+		dataType: string
+		lineageTag: d84c48e5-ab55-42e7-a75b-75e08f094348
+		summarizeBy: none
+		sourceColumn: company
+
+		annotation SummarizationSetBy = Automatic
+
+	column location
+		dataType: string
+		lineageTag: 9f78e713-894b-49d9-982e-4eaa5b90b6eb
+		summarizeBy: none
+		sourceColumn: location
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		lineageTag: 5c868273-0ad8-428a-be39-ff8cfeffb3c5
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	column fit_score
+		dataType: int64
+		lineageTag: 33a3b7cc-96f3-454e-bdb2-800aec1029a6
+		summarizeBy: sum
+		sourceColumn: fit_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column interest_score
+		dataType: int64
+		lineageTag: 78dee857-29c6-4f71-9da4-a705948dd3fd
+		summarizeBy: sum
+		sourceColumn: interest_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column rank_score
+		dataType: int64
+		lineageTag: bb86eada-fb92-4b61-ba32-f4f214c95f13
+		summarizeBy: sum
+		sourceColumn: rank_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_cost
+		dataType: double
+		lineageTag: ef438728-9d24-4d7b-ad37-2668ff3172a2
+		summarizeBy: sum
+		sourceColumn: total_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column drive_folder_url
+		dataType: string
+		lineageTag: 4757e186-c909-4671-af5a-1cbee0886bba
+		summarizeBy: none
+		sourceColumn: drive_folder_url
+
+		annotation SummarizationSetBy = Automatic
+
+	column job_url
+		dataType: string
+		lineageTag: 7b33e620-c6fa-4e7b-a167-e5aadb5335fd
+		summarizeBy: none
+		sourceColumn: job_url
+
+		annotation SummarizationSetBy = Automatic
+
+	column status
+		dataType: string
+		lineageTag: 0a90563a-b2a1-439a-9c48-3d047cc04dae
+		summarizeBy: none
+		sourceColumn: status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition run_log = m
+		mode: import
+		source = let Source = Excel.Workbook(File.Contents("C:\Users\Thinkpad\Desktop\personal-os\work\03-application-engine\powerbi\job-search-pipeline.xlsx"), null, true), Sheet = Source{[Item="run_log",Kind="Sheet"]}[Data], Promoted = Table.PromoteHeaders(Sheet, [PromoteAllScalars=true]), Selected = Table.SelectColumns(Promoted, {"date", "job_posting_id", "company", "location", "country", "fit_score", "interest_score", "rank_score", "total_cost", "drive_folder_url", "job_url", "status"}), Typed = Table.TransformColumnTypes(Selected, {{"date", type date}, {"job_posting_id", Int64.Type}, {"company", type text}, {"location", type text}, {"country", type text}, {"fit_score", Int64.Type}, {"interest_score", Int64.Type}, {"rank_score", Int64.Type}, {"total_cost", type number}, {"drive_folder_url", type text}, {"job_url", type text}, {"status", type text}}) in Typed
+

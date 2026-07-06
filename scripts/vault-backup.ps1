@@ -46,6 +46,12 @@ try {
     $junk = '(^|/)(node_modules|\.next|venv|__pycache__|outputs|\.browser-profile|\.obsidian)/|\.(pyc|log|tmp|lock)$|/\.pbi/|(^|/)\.DS_Store$|next-env\.d\.ts$'
     # TrimEnd('/'): bsdtar's -T rejects directory entries that carry a trailing slash.
     $list = $ignored | Where-Object { $_ -and ($_ -notmatch $junk) -and (Test-Path $_) } | ForEach-Object { $_.TrimEnd('/') }
+    # Irreplaceable outputs (audit step 7, 2026-07-06): deliverables that exist nowhere else
+    # (PBIP dashboard, monthly workbooks, final reports). outputs/ stays excluded as a class;
+    # only these named folders ride along.
+    $keepOutputs = @('outputs/alex-costs','outputs/reports','outputs/runway','outputs/expense-wrangler') |
+                   Where-Object { Test-Path $_ }
+    $list = @($list) + @($keepOutputs)
     $n = ($list | Measure-Object).Count
     if ($n -lt 5) { throw "include list too small ($n paths) - refusing to ship a thin backup" }
     Say "include: $n paths"

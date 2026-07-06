@@ -8,7 +8,7 @@ Turn the daily flood of AI-field noise into a small number of decisions Shaheen 
 
 One scrape/fetch feeds one scoring pass, which routes survivors to three taps:
 - **Tap 1 (Stream B, capability upgrades):** new MCPs, models, libraries, techniques that make Alex and the existing automations better. **Ships first.**
-- **Tap 2 (content angles):** interesting items routed to [[content-machine]] / the Building Alex series. Nearly free once the engine runs. Ships second.
+- **Tap 2 (content angles):** interesting items routed to the [[projects/linkedin-series/status|Building Alex series]] (#12; Content Machine retired into it 2026-07-06). Nearly free once the engine runs. Ships second.
 - **Tap 3 (Stream A, product opportunities):** ideas Shaheen could build and sell. **Stays dark until Stream B earns trust**, and when live it runs behind the drop-rule guardrail (Run Check 6).
 
 Core principle, encoded not hoped: **Alex proposes, Shaheen decides.** Alex never advances an item past "Interesting," never installs, builds, deploys, or spends, without an explicit yes. The permission rule is a Notion status gate (Run Check 2), not a promise.
@@ -19,14 +19,14 @@ Reframe that shaped this spec (2026-07-01 research run, [[research/alex-ai-radar
 - **On-demand (Phase 0-1):** `/alex-radar` - Alex runs the whole loop by hand (fetch → dedup → score → present → update memory).
 - **Seed mode (added 2026-07-02):** `/alex-radar {url}` - Shaheen drops any link he spots (LinkedIn, X, anywhere). Alex scores that ONE item through the same rubric + run checks (dedup vs memory, corroboration search is reading), writes the Notion row at Status <= Interesting, updates memory. Ten-second capture path; every reaction on a seeded item warms the taste profile, currently the coldest part of the system.
 - **Scheduled (Phase 1, LIVE 2026-07-02):** weekly Stream B sweep, **Mondays 07:30** (slot confirmed by Shaheen 2026-07-02), Task Scheduler job `PersonalOS-alex-radar` → `scripts/run-alex-radar.ps1` → headless `claude -p "Run /alex-radar --weekly"`, log in `outputs/logs/alex-radar.log`. Runs BEFORE the 08:00 [[projects/morning-brief/status|Morning Brief]], which surfaces the output as its **Radar section** (rule added to work/02-morning-brief/CLAUDE.md), not a separate ritual.
-- **Phase 2 (deferred):** n8n does the deterministic muscle (schedule, scrape incl. X via Bright Data, dedup, write raw items to a Notion Inbox DB). Alex keeps brain + memory only.
+- **Phase 2 collection half LIVE (2026-07-06, audit step 6):** n8n workflow **"Alex Radar - Collector (15)"** (`PYePT4Al6aPZi56M`, daily 06:00 + manual `GET /webhook/radar-collect`) pulls the Tier 1 feeds (Claude Code / MCP servers / MCP spec / n8n release atoms, OpenAI + DeepMind RSS, 3 HN Algolia queries) into data table **`radar_inbox`** (`GLyqcNyG7iCudXcI`), dedup = 3-day recency window + in-batch hash (NO table read in-workflow: the dataTable get/returnAll node crashed the box, see error-log 2026-07-06). An **urgent lane** (Tier-1 breaking-change vocabulary OR friction-list keyword match) POSTs one aggregated note per run to the alex_inbox (`/webhook/alex-note`, field `text`) so breakage news reaches Shaheen same-day instead of Monday. The weekly sweep READS the table first (REST rows GET, cursor pagination) and live-fetches only Product Hunt / community / MCP directories / Anthropic news + as fallback. Builder: `scripts/build-radar-collector.js` (idempotent, re-run to update); exports in config/ + docs/n8n/radar-collector/. Error handler wired (Pipeline Error Alert), but note: CRASHED executions bypass it (liveness catches those). X via Bright Data / official MCP remains the deferred paid half of Phase 2.
 
 ## Tools Used
 - **WebSearch + WebFetch** (load via ToolSearch first) - the pilot data layer. Free feeds only, no scraping in Phase 0-1.
 - **Notion MCP** (`notion-create-database`, `notion-move-pages`, `notion-update-data-source`, `notion-create-view`, `notion-create-pages`, `notion-fetch`, `notion-update-page`, `notion-search`) - the Tools decision pipeline + status gate.
 - **Vault (Read/Write/Edit)** - the compounding memory (Taste Profile, Landscape Memory, decisions log). This is the hero, and it is vault-native markdown, not Notion.
 - **Chrome** - only for a source that blocks plain fetch. Never for the free APIs, never for Gmail/Calendar/Notion.
-- Feeds [[projects/morning-brief/status|Morning Brief]] and [[projects/content-machine/status|Content Machine]].
+- Feeds [[projects/morning-brief/status|Morning Brief]] and the [[projects/linkedin-series/status|Building Alex series]] (content lane; Content Machine retired into #12 on 2026-07-06).
 - **Phase 2 only:** Bright Data (X scrape, ~$30/mo bolt-on) + n8n. Model routing rule applies (see Phase 2).
 
 ## Sources (Phase 0-1: free feeds, ~$0)
@@ -149,7 +149,7 @@ High-conviction items get researched automatically, no manual greenlight, becaus
 - `vault/log.md` entry; `vault/index.md` on first run / new pages.
 
 ## Connections
-- **Feeds into:** [[projects/morning-brief/status|Morning Brief]] (weekly Radar section - the delivery surface, no separate ritual); [[projects/content-machine/status|Content Machine]] + Building Alex series (Tap 2 content angles); the job pivot / STEMPLICITY demo (the taste-learning memory IS the portfolio artifact).
+- **Feeds into:** [[projects/morning-brief/status|Morning Brief]] (weekly Radar section - the delivery surface, no separate ritual); the [[projects/linkedin-series/status|Building Alex series]] (Tap 2 content angles; Content Machine retired into #12 on 2026-07-06); the job pivot / STEMPLICITY demo (the taste-learning memory IS the portfolio artifact).
 - **Fed by:** free feeds (HN, GitHub, Product Hunt, OpenAI/Google RSS, MCP registry); soul.md + the vault (taste seed); Phase 2 n8n + Bright Data (X).
 - **Reuses:** the [[projects/application-engine/status|Application Engine]] n8n + Bright Data muscle pattern for Phase 2 (already in production, do not rebuild).
 - **Auto-invokes:** [[projects/research-team/status|Research Team]] (#04) for the auto deep-dive on high-conviction items → concept PDF (see Auto deep-dive). Shared surfaces: `vault/research/` + Notion.

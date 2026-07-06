@@ -16,8 +16,15 @@
 
 **60-30-10:** 60% canvas (`#001219` dark or white light) · 30% teal family · 10% Golden Orange. A healthy screen has no red. Elevated dark surface: `#00232e`. Light elevated / soft tint: `#fff5e1`.
 
-## Fonts
-- **Body + headings in generated docs: Calibri** (Brand File v1.0 defines colors only; fonts unchanged until Shaheen specifies).
+## Fonts (Type System v1.1, adopted by Shaheen 2026-07-06)
+**Generated documents (Word/Excel/PDF/HTML reports): Calibri.**
+- Title/cover: 26pt bold · H1: 20pt bold `#005f73` · H2: 16pt bold `#005f73` · H3: 13pt bold `#005f73` · Body: 11pt `#001219` · Captions/footnotes: 9pt `#4a5a5e`. Line height ~1.45.
+- Emphasis = bold, never color alone. Headings never in Golden Orange or any red (those are accent/alarm, not structure).
+
+**Web/UI (Alex HQ, web apps): `"Segoe UI", system-ui, -apple-system, sans-serif`.**
+- Calibri is not web-safe cross-device; Segoe UI is its closest system sibling and needs no font download.
+- Scale (px): display 32 · h1 24 · h2 18 · body 16 · secondary 14 · caption 12. Same color rules as documents (dark mode: white primary, Pearl Aqua secondary, Vanilla Custard tertiary).
+
 - The ALEX display lettering exists only inside the logo file. Never retype the wordmark.
 
 ## Logo

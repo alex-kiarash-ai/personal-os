@@ -51,6 +51,43 @@ export function ageLabel(ts: string | null | undefined, now: number): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+// Deterministic absolute stamp, Europe/Stockholm: "2026-07-06 14:28".
+// formatToParts + manual assembly (raw toLocaleString risks locale-data drift between
+// node and browser) — pure function of the ts string, no `now`, hydration-safe.
+const DT_PARTS = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Stockholm",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+export function fmtDateTime(ts: string | null | undefined): string {
+  if (!ts) return "never";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "–";
+  const p: Record<string, string> = {};
+  for (const part of DT_PARTS.formatToParts(d)) p[part.type] = part.value;
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}
+
+// Whole days between a YYYY-MM-DD date and `now`'s Stockholm calendar day (positive = past).
+// `now` comes from the server prop, so server and client compute the same value.
+const DAY_PARTS = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Stockholm",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+export function daysSinceStockholm(dateStr: string, now: number): number {
+  const p: Record<string, string> = {};
+  for (const part of DAY_PARTS.formatToParts(new Date(now))) p[part.type] = part.value;
+  const today = Date.UTC(+p.year, +p.month - 1, +p.day);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return Math.round((today - Date.UTC(y, m - 1, d)) / 86400000);
+}
+
 // Some producers pushed middots with broken encoding; never render the replacement char.
 // Null-safe: the contract says value_text/headline are optional, one bad row must never blank the page.
 export function clean(s: string | null | undefined): string {

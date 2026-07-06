@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { motion, AnimatePresence, animate } from "motion/react";
 import type { Inbox, Metric, Project, Status, Summary } from "@/lib/types";
-import { ageLabel, clean, fmtNum, CADENCE_HOURS, DESCRIPTIONS, STACK } from "@/lib/types";
+import { ageLabel, clean, daysSinceStockholm, fmtDateTime, fmtNum, CADENCE_HOURS, DESCRIPTIONS, STACK } from "@/lib/types";
 import { BrainGraph } from "./brain";
 import { NotesCard } from "./notes";
 
@@ -11,6 +11,49 @@ import { NotesCard } from "./notes";
 
 function Dot({ status }: { status: Status }) {
   return <span className={`dot dot-${status}`} aria-label={status} />;
+}
+
+/* Client fetch of a static /data JSON (the graph.json pattern).
+   null = loading, "failed" = not synced. First client render matches the server
+   (loading state), data arrives via state — no hydration risk. */
+function useJson<T>(url: string): T | null | "failed" {
+  const [data, setData] = useState<T | null | "failed">(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => alive && setData(d))
+      .catch(() => alive && setData("failed"));
+    return () => {
+      alive = false;
+    };
+  }, [url]);
+  return data;
+}
+
+/* static /data JSON shapes (producers: n8n_liveness.py, build-todos.mjs, build-life.mjs) */
+type N8nList = {
+  generated_at: string;
+  active_count: number;
+  workflows: { name: string; id: string; last_exec: string | null; status: string; broken_reason: string | null }[];
+};
+type TodosData = {
+  generated_at: string;
+  snapshot_date: string;
+  items: { task: string; status: string; since: string }[];
+};
+type LifeData = {
+  generated_at: string;
+  gym: { start_date: string; interval_days: number; label: string; as_of: string | null };
+  plants: { as_of: string | null; items: { name: string; every_days: number; last_watered: string }[] };
+};
+
+/* due-ness computed at render from raw dates, so the card is right even if the sync lagged */
+function plantsDue(life: LifeData, now: number) {
+  return life.plants.items.map((p) => ({
+    ...p,
+    overdue_days: daysSinceStockholm(p.last_watered, now) - p.every_days, // >= 0 means due
+  }));
 }
 
 function CountUp({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -80,6 +123,7 @@ function Tile({
   dim,
   accent,
   sub,
+  stamp,
   history,
   className = "",
   index,
@@ -92,6 +136,7 @@ function Tile({
   dim?: boolean;
   accent?: string;
   sub?: string;
+  stamp?: string;
   history?: Metric["history"];
   className?: string;
   index: number;
@@ -128,10 +173,12 @@ function Tile({
           {sub}
         </p>
       ) : null}
+      {stamp ? (
+        <p className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+          {stamp}
+        </p>
+      ) : null}
       {history ? <Sparkline history={history} /> : null}
-      <span className="tap-hint" aria-hidden>
-        tap for breakdown
-      </span>
     </motion.button>
   );
 }
@@ -150,7 +197,7 @@ function MetricRow({ mkey, m, now }: { mkey: string; m: Metric; now: number }) {
           {prettyKey(mkey)}
         </span>
         <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
-          {ageLabel(m.ts, now)}
+          {fmtDateTime(m.ts)} · {ageLabel(m.ts, now)}
         </span>
       </div>
       <div className="mt-1 flex items-baseline gap-3">
@@ -196,8 +243,8 @@ function AppsBreakdown({ projects, now }: { projects: Record<string, Project>; n
             <div className="mb-1 flex items-center gap-2">
               <Dot status={p?.status ?? "amber"} />
               <span className="font-display text-sm font-bold">{label}</span>
-              <span className="ml-auto text-xs" style={{ color: "var(--mute)" }}>
-                last event {ageLabel(p?.last_ts, now)}
+              <span className="ml-auto text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+                last event {fmtDateTime(p?.last_ts)} · {ageLabel(p?.last_ts, now)}
               </span>
             </div>
             <div className="metric-row">
@@ -236,19 +283,28 @@ function AppsBreakdown({ projects, now }: { projects: Record<string, Project>; n
   );
 }
 
-/* Alex Brain breakdown: the counts, then the stack. */
+/* Alex Brain breakdown: the counts, the graph stamp, then the stack. */
 function BrainBreakdown({ projects, projectCount }: { projects: Record<string, Project>; projectCount: number }) {
   const infra = projects["infra"]?.metrics ?? {};
+  // browser cache makes this second graph.json fetch free (BrainGraph already pulled it)
+  const graph = useJson<{ generated_at: string }>("/data/graph.json");
+  const graphStamp =
+    graph && graph !== "failed"
+      ? fmtDateTime(graph.generated_at)
+      : infra.brain_graph
+        ? fmtDateTime(infra.brain_graph.ts)
+        : null;
   const counts: [string, Metric | undefined | null, string | null][] = [
     ["vault pages", infra.vault_pages, null],
     ["mcp tools", infra.mcp_tools, null],
     ["scheduled jobs", infra.scheduled_jobs_active, null],
     ["n8n up + ran today", infra.n8n_up_today, null],
+    ["n8n broken today", infra.n8n_broken_today, null],
     ["projects reporting", null, String(projectCount)],
   ];
   return (
     <div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 pb-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 pb-2 sm:grid-cols-3">
         {counts.map(([label, m, fixed]) => (
           <div key={label} className="brain-stat">
             <span className="v">
@@ -258,6 +314,11 @@ function BrainBreakdown({ projects, projectCount }: { projects: Record<string, P
           </div>
         ))}
       </div>
+      {graphStamp ? (
+        <p className="pb-3 text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+          vault graph updated {graphStamp}
+        </p>
+      ) : null}
       <div className="mb-1 mt-2 kicker" style={{ color: "var(--cyan)" }}>
         the stack
       </div>
@@ -271,6 +332,206 @@ function BrainBreakdown({ projects, projectCount }: { projects: Record<string, P
   );
 }
 
+/* n8n breakdown: what is broken right now, then every active workflow + last run.
+   Freshness is harvest-cadence — the footer says so; an error still flips the TILE red instantly. */
+function N8nBreakdown() {
+  const data = useJson<N8nList>("/data/n8n-workflows.json");
+  if (data === "failed")
+    return (
+      <p className="text-sm" style={{ color: "var(--mute)" }}>
+        Workflow list not synced yet. Run /alex-hq on the ThinkPad.
+      </p>
+    );
+  if (!data)
+    return (
+      <p className="text-sm" style={{ color: "var(--mute)" }}>
+        reading the box…
+      </p>
+    );
+  const broken = data.workflows.filter((w) => w.broken_reason);
+  const dotFor = (w: N8nList["workflows"][number]): Status =>
+    w.broken_reason
+      ? w.broken_reason === "errored"
+        ? "red"
+        : "amber"
+      : w.status === "success"
+        ? "green"
+        : "amber";
+  return (
+    <div>
+      <div className="mb-1 kicker" style={{ color: "var(--cyan)" }}>
+        broken now
+      </div>
+      {broken.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--mute)" }}>
+          all {data.active_count} active workflows healthy
+        </p>
+      ) : (
+        broken.map((w) => (
+          <div key={w.id} className="note-row">
+            <Dot status={dotFor(w)} />
+            <span className="min-w-0 flex-1 truncate font-medium">{w.name}</span>
+            <span
+              className="text-xs"
+              style={{ color: w.broken_reason === "errored" ? "var(--error)" : "var(--warn)" }}
+            >
+              {w.broken_reason}
+            </span>
+          </div>
+        ))
+      )}
+      <div className="mb-1 mt-4 kicker" style={{ color: "var(--cyan)" }}>
+        all {data.active_count} active · last run
+      </div>
+      {data.workflows.map((w) => (
+        <div key={w.id} className="note-row">
+          <Dot status={dotFor(w)} />
+          <span className="min-w-0 flex-1 truncate">{w.name}</span>
+          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+            {w.last_exec ? fmtDateTime(w.last_exec) : "never ran"}
+          </span>
+        </div>
+      ))}
+      <p className="mt-3 text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+        as of {fmtDateTime(data.generated_at)} · list refreshes with each harvest; an error flips the tile red instantly
+      </p>
+    </div>
+  );
+}
+
+/* Expenses breakdown: the usual metric rows plus MTD split by category (from mtd_by_category value_text) */
+function ExpensesBreakdown({ proj, now }: { proj: Project; now: number }) {
+  const cat = proj.metrics["mtd_by_category"];
+  const parsed = cat
+    ? clean(cat.value_text)
+        .split("·")
+        .map((s) => s.trim())
+        .map((s) => {
+          const m2 = s.match(/^(.*\S)\s+(\d+(?:\.\d+)?)$/);
+          return m2 ? { name: m2[1], kr: Number(m2[2]) } : null;
+        })
+        .filter((r): r is { name: string; kr: number } => r !== null)
+    : [];
+  return (
+    <div>
+      <div className="mb-1 text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+        last event {fmtDateTime(proj.last_ts)} · {ageLabel(proj.last_ts, now)}
+      </div>
+      {Object.entries(proj.metrics)
+        .filter(([k]) => k !== "mtd_by_category")
+        .map(([k, m2]) => (
+          <MetricRow key={k} mkey={k} m={m2} now={now} />
+        ))}
+      {cat ? (
+        <div className="mt-3">
+          <div className="mb-1 kicker" style={{ color: "var(--cyan)" }}>
+            {clean(cat.headline) || "MTD by category"}
+          </div>
+          {parsed.length > 0 ? (
+            parsed.map((r) => (
+              <div key={r.name} className="note-row">
+                <span className="min-w-0 flex-1 truncate">{r.name}</span>
+                <span className="text-sm tabular-nums" style={{ color: "var(--custard)" }}>
+                  {fmtNum(r.kr)} kr
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm" style={{ color: "var(--mute)" }}>
+              {clean(cat.value_text)}
+            </p>
+          )}
+          <p className="mt-2 text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+            as of {fmtDateTime(cat.ts)}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* To-Do breakdown: open build-board items grouped by status, In Progress first */
+const TODO_GROUPS = ["In Progress", "Next", "Blocked", "Planned"] as const;
+function TodoBreakdown({ todos }: { todos: TodosData | null | "failed" }) {
+  if (todos === "failed")
+    return (
+      <p className="text-sm" style={{ color: "var(--mute)" }}>
+        Board not synced yet. Run /alex-hq on the ThinkPad.
+      </p>
+    );
+  if (!todos)
+    return (
+      <p className="text-sm" style={{ color: "var(--mute)" }}>
+        reading the board…
+      </p>
+    );
+  return (
+    <div>
+      {TODO_GROUPS.map((g) => {
+        const rows = todos.items.filter((i) => i.status === g);
+        if (rows.length === 0) return null;
+        return (
+          <div key={g} className="mb-3">
+            <div className="mb-1 kicker" style={{ color: "var(--cyan)" }}>
+              {g} · {rows.length}
+            </div>
+            {rows.map((i) => (
+              <div key={i.task} className="note-row">
+                <span className="min-w-0 flex-1">{i.task}</span>
+                <span className="flex-none text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+                  since {i.since}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      <p className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+        from the Notion build board via the sprint snapshot · as of {fmtDateTime(todos.generated_at)}
+      </p>
+    </div>
+  );
+}
+
+/* Plants breakdown: all plants with cadence, last watered and next due — due first */
+function PlantsBreakdown({ life, now }: { life: LifeData | null | "failed"; now: number }) {
+  if (life === "failed")
+    return (
+      <p className="text-sm" style={{ color: "var(--mute)" }}>
+        Watering data not synced yet. Run /alex-hq on the ThinkPad.
+      </p>
+    );
+  if (!life)
+    return (
+      <p className="text-sm" style={{ color: "var(--mute)" }}>
+        checking the plants…
+      </p>
+    );
+  const rows = plantsDue(life, now).sort((a, b) => b.overdue_days - a.overdue_days || a.name.localeCompare(b.name));
+  return (
+    <div>
+      {rows.map((p) => (
+        <div key={p.name} className="note-row">
+          <Dot status={p.overdue_days >= 0 ? "amber" : "green"} />
+          <span className="min-w-0 flex-1 truncate">{p.name}</span>
+          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+            every {p.every_days}d · watered {p.last_watered}
+          </span>
+          <span
+            className="w-16 flex-none text-right text-xs tabular-nums"
+            style={{ color: p.overdue_days >= 0 ? "var(--warn)" : "var(--mute)" }}
+          >
+            {p.overdue_days > 0 ? `${p.overdue_days}d over` : p.overdue_days === 0 ? "due today" : `in ${-p.overdue_days}d`}
+          </span>
+        </div>
+      ))}
+      <p className="mt-2 text-xs" style={{ color: "var(--mute)" }}>
+        watering data as of {life.plants.as_of ?? "unknown"} · tell Alex &quot;watered&quot; and the sheet gets stamped
+      </p>
+    </div>
+  );
+}
+
 /* ---------- detail overlay ---------- */
 
 function DetailOverlay({
@@ -278,12 +539,16 @@ function DetailOverlay({
   projects,
   projectCount,
   now,
+  todos,
+  life,
   onClose,
 }: {
-  tile: { id: string; kicker: string; projects: string[] };
+  tile: { id: string; kicker: string; projects: string[]; metricKeys?: string[] };
   projects: Record<string, Project>;
   projectCount: number;
   now: number;
+  todos: TodosData | null | "failed";
+  life: LifeData | null | "failed";
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -300,9 +565,15 @@ function DetailOverlay({
   const desc =
     tile.id === "apps"
       ? "Two job engines on the Hetzner box: BI roles at 07:00, AI roles at 07:30. Each sources postings, scores fit, writes a tailored CV + cover letter, renders PDFs to Drive. Never auto-submits."
-      : projSlug
-        ? DESCRIPTIONS[projSlug]
-        : null;
+      : tile.id === "n8n-broken"
+        ? "Every active workflow on the Hetzner box: what is broken right now, and when each one last ran."
+        : tile.id === "todos"
+          ? "Open items on the Notion build board, In Progress first. Synced from the sprint snapshot."
+          : tile.id === "plants"
+            ? "Per-plant watering cadence vs last watered. Due-ness is computed live from the dates."
+            : projSlug
+              ? DESCRIPTIONS[projSlug]
+              : null;
 
   return (
     <motion.div
@@ -340,6 +611,14 @@ function DetailOverlay({
             <AppsBreakdown projects={projects} now={now} />
           ) : tile.id === "brain" ? (
             <BrainBreakdown projects={projects} projectCount={projectCount} />
+          ) : tile.id === "n8n-broken" ? (
+            <N8nBreakdown />
+          ) : tile.id === "todos" ? (
+            <TodoBreakdown todos={todos} />
+          ) : tile.id === "plants" ? (
+            <PlantsBreakdown life={life} now={now} />
+          ) : tile.id === "expenses" && projects["expenses"] ? (
+            <ExpensesBreakdown proj={projects["expenses"]} now={now} />
           ) : (
             tile.projects.map((p) => {
               const proj = projects[p];
@@ -350,24 +629,58 @@ function DetailOverlay({
                     <div className="mt-2 mb-1 flex items-center gap-2">
                       <Dot status={proj.status} />
                       <span className="font-display text-sm font-bold">{p}</span>
-                      <span className="ml-auto text-xs" style={{ color: "var(--mute)" }}>
-                        last event {ageLabel(proj.last_ts, now)}
+                      <span className="ml-auto text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+                        last event {fmtDateTime(proj.last_ts)} · {ageLabel(proj.last_ts, now)}
                       </span>
                     </div>
                   ) : (
-                    <div className="mb-1 text-xs" style={{ color: "var(--mute)" }}>
-                      last event {ageLabel(proj.last_ts, now)}
+                    <div className="mb-1 text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+                      last event {fmtDateTime(proj.last_ts)} · {ageLabel(proj.last_ts, now)}
                     </div>
                   )}
-                  {Object.entries(proj.metrics).map(([k, m]) => (
-                    <MetricRow key={k} mkey={k} m={m} now={now} />
-                  ))}
+                  {Object.entries(proj.metrics)
+                    .filter(([k]) => !tile.metricKeys || tile.metricKeys.includes(k))
+                    .map(([k, m]) => (
+                      <MetricRow key={k} mkey={k} m={m} now={now} />
+                    ))}
                 </div>
               );
             })
           )}
         </div>
       </motion.div>
+    </motion.div>
+  );
+}
+
+/* ---------- gym card (no drill-down: the answer IS the card) ---------- */
+
+function GymCard({ life, now, index }: { life: LifeData | null | "failed"; now: number; index: number }) {
+  let big = "–";
+  let sub = life === "failed" ? "not synced yet · run /alex-hq" : "checking the cycle…";
+  if (life && life !== "failed") {
+    const d = daysSinceStockholm(life.gym.start_date, now);
+    const session = d >= 0 && d % life.gym.interval_days === 0;
+    big = session ? "GYM" : "REST";
+    sub = `${life.gym.label} · cycle from ${life.gym.start_date}`;
+  }
+  return (
+    <motion.div
+      className="tile flex flex-col gap-2 p-5"
+      style={{ borderRadius: "1rem", cursor: "default" }}
+      initial={{ opacity: 0, y: 28, scale: 0.96 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ ...spring, delay: Math.min(index * 0.055, 0.5) }}
+    >
+      <div className="flex w-full items-center justify-between gap-3">
+        <span className="kicker">Body · gym today</span>
+        <Dot status="green" />
+      </div>
+      <div className="big">{big}</div>
+      <p className="line-clamp-2 text-sm leading-snug" style={{ color: "var(--mute)" }}>
+        {sub}
+      </p>
     </motion.div>
   );
 }
@@ -443,6 +756,8 @@ function HealthBoard({
 
 export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: number; inbox: Inbox | null }) {
   const [open, setOpen] = useState<string | null>(null);
+  const todos = useJson<TodosData>("/data/todos.json");
+  const life = useJson<LifeData>("/data/life.json");
 
   const m = (p: string, k: string): Metric | null => s.projects?.[p]?.metrics?.[k] ?? null;
 
@@ -472,11 +787,19 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
     dim?: boolean;
     accent?: string;
     sub?: string;
+    stamp?: string;
     history?: Metric["history"];
     className?: string;
+    metricKeys?: string[];
   };
 
-  const simple = (id: string, kicker: string, project: string, key: string): TileDef | null => {
+  const simple = (
+    id: string,
+    kicker: string,
+    project: string,
+    key: string,
+    opts?: { spark?: boolean; noAccent?: boolean; metricKeys?: string[] }
+  ): TileDef | null => {
     const mm = m(project, key);
     if (!mm) return null;
     return {
@@ -486,11 +809,88 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
       status: mm.status,
       big: mm.value_num != null ? <CountUp value={mm.value_num} /> : clean(mm.value_text) || "–",
       dim: mm.value_num === 0 && mm.status === "green",
-      accent: mm.value_num != null && mm.value_text ? clean(mm.value_text) : undefined,
+      accent: opts?.noAccent ? undefined : mm.value_num != null && mm.value_text ? clean(mm.value_text) : undefined,
       sub: mm.headline ? clean(mm.headline) : undefined,
-      history: mm.history,
+      history: opts?.spark === false ? undefined : mm.history,
+      metricKeys: opts?.metricKeys,
     };
   };
+
+  // per-tile shaping (2026-07-06 feedback round): absolute stamps, sparklines only where
+  // the trend means something, subs carrying the ONE next-action fact
+  const airbnbTile = simple("airbnb", "Airbnb · YTD kr", "airbnb", "ytd_income_kr", { spark: false });
+  const nextBooking = m("airbnb", "next_booking");
+  if (airbnbTile && nextBooking) airbnbTile.sub = `next: ${clean(nextBooking.value_text) || clean(nextBooking.headline) || "no booking"}`;
+
+  const radarTile = simple("radar", "Radar · shipped 30d", "radar", "shipped_30d", { spark: false });
+  if (radarTile) radarTile.stamp = `last run ${fmtDateTime(m("radar", "shipped_30d")?.ts)}`;
+
+  const buildTile = simple("build", "Build tasks · done this week", "sprint", "velocity", { spark: false });
+  if (buildTile) buildTile.stamp = `last run ${fmtDateTime(m("sprint", "velocity")?.ts)}`;
+
+  const sleepTile = simple("health-sleep", "Body · sleep score", "health", "sleep_score_today", {
+    spark: false,
+    metricKeys: ["sleep_score_today"],
+  });
+  if (sleepTile) sleepTile.stamp = `pushed ${fmtDateTime(m("health", "sleep_score_today")?.ts)}`;
+
+  const stepsTile = simple("health-steps", "Body · steps yesterday", "health", "steps_today", {
+    metricKeys: ["steps_today"],
+  });
+  if (stepsTile) stepsTile.stamp = `pushed ${fmtDateTime(m("health", "steps_today")?.ts)}`;
+
+  const expensesTile = simple("expenses", "Expenses · MTD kr", "expenses", "mtd_total_kr");
+  const mtdCat = m("expenses", "mtd_by_category");
+  if (expensesTile && mtdCat && mtdCat.value_text) expensesTile.sub = clean(mtdCat.value_text);
+
+  // To-Do: the open build-board items (client-fetched todos.json, sprint snapshot)
+  const openTodos = todos && todos !== "failed" ? todos.items : null;
+  const todoTile: TileDef = {
+    id: "todos",
+    kicker: "To-Do · build board",
+    projects: [],
+    status: "green",
+    big: openTodos ? (
+      <CountUp value={openTodos.filter((i) => i.status === "In Progress" || i.status === "Next").length} />
+    ) : (
+      "–"
+    ),
+    sub:
+      todos === "failed"
+        ? "not synced yet · run /alex-hq"
+        : openTodos
+          ? `${openTodos.filter((i) => i.status === "In Progress").length} in progress · ${openTodos.filter((i) => i.status === "Next").length} next · ${openTodos.length} open total`
+          : undefined,
+    stamp: openTodos && todos !== "failed" && todos ? `as of ${fmtDateTime(todos.generated_at)}` : undefined,
+  };
+
+  // Plants: count due today, computed at render from the raw dates
+  const plantsTile: TileDef = {
+    id: "plants",
+    kicker: "Home · plants due",
+    projects: [],
+    status: "green",
+    big: "–",
+    sub: life === "failed" ? "not synced yet · run /alex-hq" : "checking the plants…",
+  };
+  if (life && life !== "failed") {
+    const all = plantsDue(life, now);
+    const due = all.filter((p) => p.overdue_days >= 0);
+    const sourceDead = all.length > 0 && all.every((p) => p.overdue_days > p.every_days);
+    if (sourceDead) {
+      // every plant past 2x its cadence = the log is stale, not the plants dying — say so
+      const oldest = all.reduce((a, b) => (a.last_watered < b.last_watered ? a : b)).last_watered;
+      plantsTile.big = "?";
+      plantsTile.status = "amber";
+      plantsTile.sub = `watering log stale since ${oldest} · tell Alex when you water`;
+    } else {
+      plantsTile.big = <CountUp value={due.length} />;
+      plantsTile.dim = due.length === 0;
+      plantsTile.status = due.length > 0 ? "amber" : "green";
+      plantsTile.sub = due.length > 0 ? `need water: ${due.map((p) => p.name).join(", ")}` : "none need water";
+      plantsTile.stamp = `watering data as of ${life.plants.as_of ?? "unknown"}`;
+    }
+  }
 
   const appsMissing = !bi.drafted_today && !ai.drafted_today;
   const tiles: TileDef[] = [
@@ -505,17 +905,23 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
           big: <CountUp value={drafted} />,
           sub: `ready to apply BI ${fmtNum(bi.draft_ready_total?.value_num ?? null)} · AI ${fmtNum(
             ai.draft_ready_total?.value_num ?? null
-          )} · tap for both lanes`,
+          )}`,
           className: "sm:col-span-2",
         },
-    simple("brief", "Morning Brief · urgent", "morning-brief", "urgent_count"),
-    simple("email", "Email · act now", "email-triage", "act_now"),
-    simple("airbnb", "Airbnb · YTD kr", "airbnb", "ytd_income_kr"),
-    simple("radar", "Radar · shipped 30d", "radar", "shipped_30d"),
-    simple("expenses", "Expenses · MTD kr", "expenses", "mtd_total_kr"),
-    simple("build", "Build tasks · done this week", "sprint", "velocity"),
-    simple("health-sleep", "Body · sleep score", "health", "sleep_score_today"),
-    simple("health-steps", "Body · steps yesterday", "health", "steps_today"),
+    // Broken n8n today: green 0 whispers, a red count shouts. The one glance that answers
+    // "is anything on the box down right now?" — fed daily by the liveness harvest and
+    // flipped red instantly by the Pipeline Error Alert workflow the moment something throws.
+    // Drill-down = the full running-workflow list (n8n-workflows.json).
+    simple("n8n-broken", "n8n · broken today", "infra", "n8n_broken_today", { spark: false, noAccent: true }),
+    simple("brief", "Morning Brief · urgent", "morning-brief", "urgent_count", { spark: false }),
+    simple("email", "Email · act now", "email-triage", "act_now", { spark: false }),
+    airbnbTile,
+    radarTile,
+    expensesTile,
+    buildTile,
+    todoTile,
+    sleepTile,
+    stepsTile,
   ].filter((t): t is TileDef => t !== null);
 
   const brainStats: [string, Metric | null, string | null][] = [
@@ -531,9 +937,18 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
       ? { id: open, kicker: open.slice(5), projects: [open.slice(5)] }
       : open === "brain"
         ? { id: "brain", kicker: "Alex Brain · the structure", projects: ["infra"] }
-        : tiles.find((t) => t.id === open) ?? null;
+        : open === "plants"
+          ? plantsTile
+          : tiles.find((t) => t.id === open) ?? null;
 
   return (
+    <>
+      {/* deep-water drift: three blurred brand bubbles behind everything (respects reduced motion) */}
+      <div className="bubbles" aria-hidden>
+        <div className="bubble bubble-1" />
+        <div className="bubble bubble-2" />
+        <div className="bubble bubble-3" />
+      </div>
     <main className="relative z-10 mx-auto max-w-6xl p-4 pb-14 sm:p-6">
       {/* Header: the ALEX mark, no runway */}
       <motion.header
@@ -546,8 +961,8 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/alex-logo.png" alt="ALEX" className="h-12 w-auto sm:h-14" />
-          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
-            {s.row_count} events · updated {ageLabel(s.generated_at, now)}
+          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }} title={ageLabel(s.generated_at, now)}>
+            {s.row_count} events · updated {fmtDateTime(s.generated_at)}
           </span>
         </div>
         <div className="filament" />
@@ -563,6 +978,10 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
         {tiles.map((t, i) => (
           <Tile key={t.id} {...t} index={i} onOpen={setOpen} />
         ))}
+
+        {/* Life cards: gym (the answer is the card) + plants (drill-down lists all 8) */}
+        <GymCard life={life} now={now} index={tiles.length} />
+        <Tile {...plantsTile} index={tiles.length + 1} onOpen={setOpen} />
 
         {/* Alex Brain: the structure strip */}
         <motion.button
@@ -591,9 +1010,6 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
               </div>
             ))}
           </div>
-          <span className="tap-hint" aria-hidden>
-            tap for the stack
-          </span>
         </motion.button>
       </section>
 
@@ -618,10 +1034,13 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
             projects={s.projects}
             projectCount={projectCount}
             now={now}
+            todos={todos}
+            life={life}
             onClose={() => setOpen(null)}
           />
         ) : null}
       </AnimatePresence>
     </main>
+    </>
   );
 }

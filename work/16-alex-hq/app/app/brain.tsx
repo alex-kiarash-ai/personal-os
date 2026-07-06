@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
+import { fmtDateTime } from "@/lib/types";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
@@ -72,8 +73,8 @@ export function BrainGraph() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="kicker">The Brain · vault graph</span>
         {data ? (
-          <span className="text-xs" style={{ color: "var(--mute)" }}>
-            {data.nodes.length} pages · {data.links.length} links
+          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+            {data.nodes.length} pages · {data.links.length} links · built {fmtDateTime(data.generated_at)}
           </span>
         ) : null}
       </div>

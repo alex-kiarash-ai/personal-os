@@ -5,9 +5,9 @@ This folder documents every n8n workflow that is **live right now** on Shaheen's
 - **workflow.json** - the latest export of the real workflow, pulled straight from the server. This is a working backup: if the server ever dies, open n8n anywhere → Workflows → "Import from File" → pick this file, reconnect the credentials, and the automation is back.
 - **README.md** - what the automation does, why it exists at all, and what every step (every "node") does, written so a non-technical person can follow it.
 
-Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03). Refresh recipe at the bottom.
+Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03; radar-collector added 2026-07-06). Refresh recipe at the bottom.
 
-## The 13 live workflows
+## The 14 live workflows
 
 | Folder | What it is, in one line |
 |---|---|
@@ -23,6 +23,7 @@ Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03). Refre
 | [hq-notes-inbox](hq-notes-inbox/) | The two-way lane: Shaheen drops typed or voice notes to Alex from his phone; Alex picks them up later. |
 | [pipeline-error-alert](pipeline-error-alert/) | The smoke alarm: any workflow crash becomes a Notion alert the morning brief will surface. |
 | [linkedin-series-staging](linkedin-series-staging/) | Tue/Thu prep robot for the "Building Alex" LinkedIn series: stages approved episodes, never posts. |
+| [radar-collector](radar-collector/) | The Radar's always-on ear (added 2026-07-06): collects the AI-landscape feeds daily at 06:00 into a server table; urgent items become same-day notes. |
 | [life-ops-sheet-writeback](life-ops-sheet-writeback/) | The plant-and-gym stamp: one authorized web call updates the watering log and gym start date in Shaheen's life-ops spreadsheet, so the morning brief's Life Ops section stays true. |
 
 ## Also on the server, but switched OFF (not documented here)

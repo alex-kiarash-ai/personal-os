@@ -29,7 +29,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Frequency: weekdays at 9:00 AM
 - Description: Reads the Notion Progress Tracker board, writes a standup summary to vault + Notion, appends velocity.
 - Added: 2026-06-10
-- **Task settings (hardened 2026-07-02, MUST survive any task re-creation):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 1h, StartWhenAvailable. The wrapper (scripts/run-sprint-tracker.ps1) exits 1 on login/quota/blank-output failures and pushes sprint/run_status RED to Alex HQ; the retry ladder (10:30/12:00/13:30/15:00) covers the 1pm session-limit reset. If /cron-setup re-creates this task, re-apply: `Set-ScheduledTask -TaskName "PersonalOS-sprint-tracker" -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -WakeToRun -RestartCount 4 -RestartInterval (New-TimeSpan -Minutes 90) -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew)`
+- **Task settings (hardened 2026-07-02, MUST survive any task re-creation):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 1h, StartWhenAvailable. The wrapper (scripts/run-sprint-tracker.ps1) exits 1 on login/quota/blank-output failures and pushes sprint/run_status RED to Alex HQ. **CORRECTION 2026-07-06 (the quad failure): RestartCount does NOT fire on exit 1 (launch failures only), so the 10:30/12:00/13:30/15:00 ladder never actually ran. The working retry is now the close-out lib's self-scheduled one-shot task (+90 min, attempts 2-5) - see Task Hardening below.** If /cron-setup re-creates this task, re-apply: `Set-ScheduledTask -TaskName "PersonalOS-sprint-tracker" -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -WakeToRun -RestartCount 4 -RestartInterval (New-TimeSpan -Minutes 90) -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew)`
 
 ### Morning Brief
 - Command: /morning-brief
@@ -69,6 +69,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### WhatsApp Harvest - PAUSED 2026-06-18 (Shaheen: eating tokens too fast)
 - Status: **DISABLED** in Task Scheduler (`Disable-ScheduledTask PersonalOS-whatsapp-harvest`). Will not run until re-enabled. Re-enable with `Enable-ScheduledTask -TaskName 'PersonalOS-whatsapp-harvest'`.
+- **State PARKED 2026-07-06 (audit step 4), revisit 2026-08-01:** the revisit question is Phase 2 only (iPhone-backup pipeline: build or retire). Phase 1 screen automation is a proven dead end and does not come back.
 - Command: /whatsapp-harvest
 - Frequency (when active): daily at 2:30 AM (usage-based slot: runs while Shaheen sleeps so it never competes with his Claude limit; checkpoint-pushes each thread so consumed tokens always equal pushed data)
 - Description: Reads WhatsApp through the official desktop client (read-only screen capture, zero ban risk). TEXT ONLY, never media; voice notes ignored (phase 2 decision pending). Harvests Shaheen's own lines into soul.md per-language voice registers, updates vault/people/ friend pages (context, never transcripts), flags 48h+ unanswered personal messages to the Morning Brief, writes a per-run harvest report + review queue for Shaheen's tag notes. Spec: work/11-whatsapp-harvest/CLAUDE.md.
@@ -112,14 +113,52 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: Build #16 local-side feed. Harvests the metrics only this ThinkPad can see (MCP tool count, vault page counts, scheduler health), pushes them to the Alex HQ ingest webhook, regenerates + ships the Brain graph (scp, no rebuild), then presents the health summary. Failure-tolerant; never prints the token. Spec: work/16-alex-hq/CLAUDE.md, command: .claude/commands/alex-hq.md. Task Scheduler job PersonalOS-alex-hq.
 - Added: 2026-07-02
 
+### Runway Command Center
+- Command: /runway
+- Frequency: monthly, last day of month, AFTER /expense-wrangler (reads the freshest expense + booking data)
+- Description: Build #20. Joins starting savings + burn + the salary/severance/a-kassa timeline + Airbnb income into a month-by-month runway model with a zero date + a new-job scenario. Branded all-formula SEK Excel; reads the Expenses + Bookings DBs, no Notion DB. Spec work/20-runway/CLAUDE.md, command .claude/commands/runway.md.
+- **REGISTERED 2026-07-06:** Task Scheduler job PersonalOS-runway, monthly LASTDAY 21:15 (after expense-wrangler 20:00), wrapper scripts/run-runway.ps1, standard hardening (4x90min, 2h limit, wake, battery-safe).
+- Added: 2026-07-06
+
+### Interview-to-Offer Copilot
+- Command: /interview
+- Frequency: NO dedicated schedule. Event-driven (the morning brief flags interview invites/events) + on-demand /interview. No Task Scheduler job by design.
+- Description: Build #21. Dossier + prep against Shaheen's answer bank, notes capture, runway-aware negotiation drafts. Drafts only, never sends. Spec work/21-interview-copilot/CLAUDE.md, command .claude/commands/interview.md.
+- Added: 2026-07-06
+
+### Teach-Alex Button
+- Command: /teach-alex
+- Frequency: NO dedicated schedule. Event-driven (a correction note in the alex_inbox, caught at the morning-brief inbox step + other touchpoints) + on-demand. No Task Scheduler job by design.
+- Description: Build #22. Classifies + files corrections (voice/fact/label/rule/format), identity files confirm, all logged to the corrections-log. Rides the #16 inbox. Spec work/22-teach-alex/CLAUDE.md.
+- Added: 2026-07-06
+
+### Alex Reviews Alex (Self-Review)
+- Command: /self-review
+- Frequency: weekly, Sunday 20:00 (quiet slot, before the Monday brief). **REGISTERED 2026-07-06:** job PersonalOS-self-review, wrapper scripts/run-self-review.ps1, standard hardening. Also on-demand.
+- Description: Build #23. Reads corrections/error-log/INCOMPLETE close-outs/My Words weekly, proposes upgrades to its own rules/voice/taste behind approval, never self-edits identity files unapproved. Spec work/23-self-review/CLAUDE.md.
+- Added: 2026-07-06
+
+### Gated Monthly Lint (Recovery Phase 3)
+- Command: scripts/run-lint.ps1 (checker first, then claude -p "/lint gated")
+- Frequency: monthly, first Monday at 10:00 AM (Task Scheduler job PersonalOS-lint-monthly; after the 07:30 recovery sweep + radar and the 08:00 brief)
+- Description: Recovery Phase 3, live 2026-07-06. The zero-token checker (work/18-recovery-layer/check.ps1) runs FIRST as the nomination pass; if it errors (exit 1) the LLM pass is skipped. Otherwise /lint judges ONLY the nominated items + semantic drift on the pages they touch, writes vault/projects/recovery/lint-YYYY-MM.md, and PROPOSES fixes (applies nothing unapproved). Project key: recovery.
+- Added: 2026-07-06
+
+### Auth Freshness Probe
+- Command: scripts/auth-check.ps1 (one micro claude -p probe, pattern detection, HQ push)
+- Frequency: weekly, Sunday at 7:30 PM (Task Scheduler job PersonalOS-auth-check; before the 20:00 self-review, ahead of the Monday job train)
+- Description: Catches headless-claude login expiry / quota exhaustion Sunday evening instead of via a dead Monday (the 06-26/29/30 blackout class). Pushes infra/auth_ok GREEN/RED to Alex HQ. Light hardening (2x30min retries, 30min limit). From audit step 2 + self-review proposal 3.
+- Added: 2026-07-06
+
 ---
 
 ## Task Hardening (Close-Out Gate, 2026-07-03)
 
-Every scheduled wrapper dot-sources `scripts/lib/close-out.ps1` (shared mechanism). On a failed run (blank output, wrapper crash, not-logged-in, usage/session limit, non-zero exit) it logs `FAILED: reason`, pushes `run_status` RED to Alex HQ where a tile exists, and exits 1. No scheduled run can die silent (exit 0) anymore.
+Every scheduled wrapper dot-sources `scripts/lib/close-out.ps1` (shared mechanism). On a failed run (blank output, wrapper crash, not-logged-in, usage/session limit including the "reached your <model> limit" wording, non-zero exit) it logs `FAILED: reason`, pushes `run_status` RED to Alex HQ where a tile exists, **registers its own one-shot retry task** (`PersonalOS-retry-{wrapper}-{n}`, +90 min, attempts 2-5 via `$env:ALEX_RETRY_ATTEMPT`, StartWhenAvailable + WakeToRun, auto-deletes after its window), and exits 1. No scheduled run can die silent (exit 0) anymore, and a transient quota/auth window self-heals without touching any wrapper.
 
-Retry ladders so a transient quota/auth fail self-heals instead of waiting a day/week/month. All tasks keep `MultipleInstances IgnoreNew`, `StartWhenAvailable`, `WakeToRun`, battery-safe.
-- **Standard (daily/weekly/monthly):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 2h - morning-brief, application-engine, personal-crm, expense-wrangler, weekly-exec-report, airbnb-host, alex-radar, alex-hq, whatsapp-harvest (disabled).
+**RestartCount is NOT the retry (proven 2026-07-06, the quad failure):** Task Scheduler's restart-on-failure only fires when the task fails to LAUNCH; a wrapper that runs and exits 1 counts as "completed", so the 2026-07-02 RestartCount ladders below never fired once. They stay in place (they still cover true launch failures), but the working retry is the close-out lib's self-scheduled one-shot task above. All tasks keep `MultipleInstances IgnoreNew`, `StartWhenAvailable`, `WakeToRun`, battery-safe.
+- **Standard (daily/weekly/monthly):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 2h - morning-brief, application-engine, personal-crm, expense-wrangler, weekly-exec-report, airbnb-host, alex-radar, alex-hq, whatsapp-harvest (disabled), runway, self-review, lint-monthly (all three added 2026-07-06).
+- **Auth-check (added 2026-07-06):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a probe, not a run.
 - **Sprint Tracker:** RestartCount 4, 90 min, ExecutionTimeLimit 1h (see its entry).
 - **Email Triage x3:** RestartCount 2, RestartInterval 60 min, ExecutionTimeLimit 2h - lighter because the 9/13/17 slots are only hours apart.
 - **Git Backup:** RestartCount 2, 30 min, ExecutionTimeLimit 30 min.

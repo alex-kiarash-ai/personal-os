@@ -1,0 +1,24 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-SE
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_ProTooling = ["MCP-PBIModeling","DevMode"]
+
+annotation PBI_QueryOrder = ["processed_jobs","run_log","needs_review"]
+
+ref table processed_jobs
+ref table run_log
+ref table needs_review
+ref table DateTableTemplate_cad0219b-f05e-427d-9902-b0e15cb1a4ac
+ref table LocalDateTable_2e7cbb3e-bbf8-4dbd-bff2-24f8900d0546
+ref table LocalDateTable_26858b8b-a4e0-4aa9-a1b6-1e0b40c34a0a
+ref table LocalDateTable_4fba07a1-ec1a-48b3-8966-9631d0952515
+
+ref cultureInfo en-US
+

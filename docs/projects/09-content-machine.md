@@ -1,6 +1,8 @@
-# 09 - Content Machine
+# 09 - Content Machine (RETIRED 2026-07-06)
 
-## What it actually does
+> **Retired, folded into [12 - LinkedIn Series](12-linkedin-series.md).** It was built and proven on a test run, then never used for real: the LinkedIn series carried all actual content work with its own locked voice template. One content system is better than two, so this one's ambitions (multi-platform output, the calendar) now live under #12 when needed. The Content Library database stays in use there. Kept below as history.
+
+## What it actually did
 On demand, turns an idea into publish-ready content through a three-agent assembly line: a **Researcher** gathers the facts, a **Writer** drafts in Shaheen's voice, an **Editor** cuts fluff and enforces the house rules (no dashes, no AI-sounding prose, real numbers). Output is native to each platform - X, LinkedIn, Instagram, TikTok script, newsletter, blog - not one text pasted six places. Everything lands tagged in the Content Library database; a companion command (`/content-plan`) plans the calendar around it.
 
 ## Why it exists

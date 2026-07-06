@@ -84,7 +84,7 @@ Shaheen chose **browser automation over the Gmail feed** (he wants his actual ac
 4. Update Notion Bookings DB rows (with full `content`).
 5. Update vault/index.md if new pages.
 6. Update vault/log.md.
-- Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/airbnb-host.md. Failure-tolerant, token never printed.
+- Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/airbnb-host.md. Failure-tolerant, token never printed. Two keys since 2026-07-06: `ytd_income_kr` + `next_booking` (guest + dates as value_text, exactly `"no booking"` when nothing upcoming — feeds the HQ Airbnb tile's next-booking line; the morning brief also refreshes it when the Gmail feed shows a booking change).
 
 ## Phase 2 (deferred, not in v1)
 Voice-matched guest-reply drafts (soul.md, per-language register) staged to **Gmail drafts behind a HARD draft gate** - never sends. Same pattern as [[email-triage]]/[[personal-crm]]. Build only when Shaheen asks.

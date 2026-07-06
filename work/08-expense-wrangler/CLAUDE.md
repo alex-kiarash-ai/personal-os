@@ -59,7 +59,7 @@ Summary formulas reference WHOLE COLUMNS of the log ($C:$C, $G:$G, $H:$H), so th
 4. vault/index.md + vault/log.md updated.
 5. Sprint board: Done on first build (2026-06-12).
 6. Clean temp: delete any recalc/ dir and *.tmp; keep only expense-tracker.xlsx in outputs/reports/.
-- Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/expense-wrangler.md. Failure-tolerant, token never printed.
+- Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/expense-wrangler.md. Failure-tolerant, token never printed. Two keys since 2026-07-06: `mtd_total_kr` + `mtd_by_category` (per-Category sums for current-month rows, compact `"Travel 1273.63 · Meals 474"` value_text — feeds the HQ expenses tile + drill-down). BOTH modes push, immediate single-receipt mode included, so the tile isn't a month behind until the last-day close.
 
 ## Implementation Notes (as built, 2026-06-12)
 - Expenses DB + 3 views created. Branded 4-sheet workbook built and **recalc-verified through LibreOffice** with seed data (April 560, grand 1350, Software 330, %-of-total 1.0, QoQ blank for Q1) - all formulas computed cleanly, zero errors. Delivered EMPTY (no example rows) so the live financial file starts clean.

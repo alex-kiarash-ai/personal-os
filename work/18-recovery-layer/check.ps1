@@ -169,7 +169,10 @@ if ($unresolved.Count -gt 0) {
 # --- C7 scheduler <-> live Task Scheduler ---
 $docJobs = [regex]::Matches((Get-Content "scheduler\schedule.md" -Raw), 'PersonalOS-[\w-]+') |
     ForEach-Object { $_.Value } | Sort-Object -Unique
-$liveJobs = Get-ScheduledTask -TaskName "PersonalOS-*" -ErrorAction SilentlyContinue | ForEach-Object { $_.TaskName }
+# PersonalOS-retry-* are the close-out lib's ephemeral one-shot retry tasks (self-registered on a
+# failed run, auto-delete after their window, 2026-07-06). Not documented jobs; never drift.
+$liveJobs = Get-ScheduledTask -TaskName "PersonalOS-*" -ErrorAction SilentlyContinue |
+    Where-Object { $_.TaskName -notlike 'PersonalOS-retry-*' } | ForEach-Object { $_.TaskName }
 foreach ($j in $docJobs) { if ($liveJobs -notcontains $j) { Add-Drift 'scheduler' "documented job '$j' is NOT registered in Task Scheduler" } }
 foreach ($j in $liveJobs) { if ($docJobs -notcontains $j) { Add-Drift 'scheduler' "registered job '$j' is NOT documented in scheduler/schedule.md" } }
 

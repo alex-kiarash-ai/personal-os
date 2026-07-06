@@ -1,0 +1,73 @@
+# === SECRETS - never commit; if one is ever staged/pushed, rotate it immediately ===
+work/03-application-engine/config/n8n-api-key.txt
+work/03-application-engine/config/brightdata-api-key.dpapi
+work/16-alex-hq/config/alex-hq-token.txt
+work/16-alex-hq/config/hq-basic-auth.txt
+.claude/settings.local.json
+.env
+.env.local
+*.key
+*.dpapi
+
+# Chrome user-data profile (cookies, session tokens) - airbnb-host headed browser
+**/.browser-profile/
+
+# === dependencies / build artifacts ===
+node_modules/
+.next/
+venv/
+__pycache__/
+*.pyc
+
+# Recovery checker runtime state (regenerable via check.ps1 -Init; machine-local baseline)
+work/18-recovery-layer/state/
+
+# === deliverables (decision D2 2026-07-02: excluded from backup v1) ===
+outputs/
+
+# === runtime artifacts / OS noise ===
+.claude/scheduled_tasks.lock
+*.log
+*.tmp
+nul
+Thumbs.db
+.DS_Store
+
+# Obsidian internals (device-local UI state)
+.obsidian/
+vault/.obsidian/
+
+# Power BI project local cache
+**/.pbi/cache.abf
+**/.pbi/localSettings.json
+
+# === PRIVACY SCRUB 2026-07-04 (Shaheen's call): personal life stays LOCAL-ONLY, never on GitHub ===
+# The vault is Shaheen's personal brain — kept on the machine, excluded from the backup repo.
+vault/
+# workflow exports + build backups embed the CV, employment history and personal email
+work/*/config/
+work/*/export/
+docs/n8n/*/workflow.json
+# personal professional profile draft
+work/12-linkedin-series/profile/
+# soul = full personal identity; loaded locally by the session hook, never backed up
+soul.md
+# HQ brain-graph snapshot embeds vault node names (people + job-target companies)
+work/16-alex-hq/app/public/data/graph.json
+# raw personal dumps + personal ops data + ingested notes + personal-story episodes
+I want you to brainstorm with me, I.txt
+notion_rows.txt
+inbox/_ingested.md
+work/12-linkedin-series/episodes/
+work/12-linkedin-series/screenshots/*.png
+work/12-linkedin-series/screenshots/*.jpg
+work/12-linkedin-series/screenshots/*.jpeg
+work/12-linkedin-series/screenshots/episode-*.md
+# personal financial ledger + learned vendor trail + old brand binaries
+work/08-expense-wrangler/expense-data.json
+work/08-expense-wrangler/vendors.md
+brand/archive/
+# private meeting-call artifacts (transcript + audio of real client calls)
+work/06-meeting-intel/processed/
+# live job-hunt data: real target companies, titles, application URLs
+work/03-application-engine/powerbi/*.xlsx

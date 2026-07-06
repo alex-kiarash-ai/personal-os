@@ -89,7 +89,7 @@ Row content holds the *intelligence*: sender + relationship, what they want, why
 5. vault/index.md updated.
 6. vault/log.md updated.
 7. Sprint board: Done on first build (2026-06-12).
-- Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/email-triage.md. Failure-tolerant, token never printed.
+- Alex HQ metrics push (added 2026-07-02; run_status added 2026-07-06): POST `act_now` AND a GREEN `run_status` to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/email-triage.md. The green run_status is mandatory - it clears any stale red the scheduled wrapper pushed on a prior failed run (a 07-03 session-limit fail sat red on the health board through 07-05 because a clean run never pushed green). Failure-tolerant, token never printed.
 
 ## Close-Out Extras (Close-Out Gate)
 Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not COMPLETE until:

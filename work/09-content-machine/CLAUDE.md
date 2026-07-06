@@ -1,5 +1,7 @@
 # Content Machine
 
+> **RETIRED 2026-07-06, folded into #12 LinkedIn Series (Shaheen's call, audit step 4).** Zero real runs since build while #12 carried all content work. Do not run /content-machine or /content-plan; route content creation through work/12-linkedin-series (same Content Library DB). Spec kept as history (supersede-never-delete).
+
 ## Type
 Automation (on-demand, two commands: /content-machine create + /content-plan calendar)
 
