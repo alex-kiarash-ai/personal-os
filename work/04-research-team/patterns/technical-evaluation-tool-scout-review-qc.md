@@ -1,8 +1,8 @@
 ---
 class: technical-evaluation
 created: 2026-07-05
-last_used: 2026-07-05
-times_used: 1
+last_used: 2026-07-07
+times_used: 3
 ---
 # Tool Scout -> Review -> QC (sequential 3-loop)
 
@@ -24,3 +24,10 @@ Session grounds first, then runs the three sequentially (each sees the prior's o
 - Make the QC adversarial and give it the internal facts: it earned the run by overturning the recommendation (adopt -> evolve) and inverting a wrong privacy claim (EEA jurisdiction flips the "free tier trains" objection).
 - Separate LOGGED (pricing-page) rates from ESTIMATE totals at every hop; the cost of realtime speech-to-speech APIs is the expensive trap, not TTS.
 - For a tool pick, the honest deliverable is often the decision + a build plan, not a branded deck. Ask before building slides.
+
+## Lessons (run 16, 2026-07-07 - Alex voice hands-free, reuse 3)
+- When the question is a FOLLOW-UP to a past run, the pre-step grounding must include the past run's page + what it already rejected, stated as "do not re-research" - Engine 1 stayed on the new territory (wake word, TTS quality, barge-in) instead of re-buying run 13.
+- Give the QC engine license to overrule the Reviewer's OPTION COMPOSITION, not just its facts: here it deleted a whole framework dependency (RealtimeSTT) from the winning option and demoted a fragile tier - structural edits, not fact corrections.
+- Make each engine verify PyPI requires-python + dependency chains for anything pip-installed; two "known painful" installs (espeak, openwakeword) turned out solved/avoidable on current versions, which flipped effort estimates.
+- Check LANGUAGE coverage of every model tier separately (STT vs TTS): the multilingual requirement survived STT in every option and silently died at TTS in all of them - only the QC pass caught it.
+- User-specified team designs (engines named in the ask) map onto this pattern cleanly; take the user's design verbatim as the approval and skip the redundant gate.

@@ -5,14 +5,14 @@
     "states_doc": "LIVE = scheduled/event-driven + producing (needs wrapper/error-handler + HQ push). ON-DEMAND = runs when invoked. EVENT = triggered by a detected event, no cron by design. DORMANT = built, waiting on an external dependency (name it + revisit date; two unchanged revisits force activate-or-retire). PARKED = deliberately stopped (resume context + revisit date; same two-strike rule). RETIRED = superseded, tombstoned, strikethrough row.",
     "utility_commands": ["setup", "ingest", "status", "lint", "new", "cron-setup", "brand"],
     "known_work_folders": ["voice"],
-    "known_work_folders_note": "Non-project work/ folders that are legit tooling, not numbered automations. voice = the parked two-way voice loop (alex_voice.py; registered as an unnumbered project below). C3 allowlists these so a real rogue folder still flags.",
+    "known_work_folders_note": "Non-project work/ folders that are legit tooling, not numbered automations. voice = the on-demand two-way voice loop (alex_voice.py; registered as an unnumbered project below). C3 allowlists these so a real rogue folder still flags.",
     "known_extra_projects_no_work_folder": [
       { "name": "recovery", "status_md": "vault/projects/recovery/status.md", "reason": "system layer; code in scripts/ + work/18-recovery-layer" },
       { "name": "alex-costs", "status_md": "vault/projects/alex-costs/status.md", "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot" },
       { "name": "modeling", "status_md": "vault/projects/modeling/status.md", "reason": "active vault-only project (Modeling Career Project); no work/ folder or command by design. Registered 2026-07-04 after the recovery GC confirmed it is active, not a dead scaffold." }
     ],
     "unnumbered": [
-      { "name": "voice", "title": "Voice", "state": "PARKED", "revisit": "2026-08-01", "trigger": "on-demand (talk.ps1)", "one_liner": "Two-way local voice loop: Whisper in, persistent Claude brain, interruptible TTS out. Parked on voice quality.", "docs": "voice.md", "spec": "work/voice/README.md", "status_md": null },
+      { "name": "voice", "title": "Voice", "state": "ON-DEMAND", "revisit": null, "trigger": "on-demand (desktop shortcut / Ctrl+Alt+A / talk.ps1)", "one_liner": "Hands-free two-way voice: open-mic Whisper in, persistent Claude (sonnet) brain as the full Alex, Edge-TTS neural voice out with a never-mute Edge->SAPI floor. Free/local except the brain's Claude-plan usage. Adopted 2026-07-07 as THE voice solution (replaced v1's OpenAI TTS + the SAC-blocked Kokoro plan); latency + conversation tuning same day.", "docs": "voice.md", "spec": "work/voice/README.md", "status_md": null },
       { "name": "alex-costs", "title": "Alex Cost Tracker", "state": "ON-DEMAND", "revisit": null, "trigger": "monthly (piggybacks expense slot)", "one_liner": "What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate).", "docs": "alex-costs.md", "spec": null, "status_md": "vault/projects/alex-costs/status.md" },
       { "name": "modeling", "title": "Modeling", "state": "DORMANT", "revisit": "2026-10-01", "trigger": "-", "one_liner": "Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows).", "docs": "modeling.md", "spec": null, "status_md": "vault/projects/modeling/status.md" }
     ]

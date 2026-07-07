@@ -25,16 +25,21 @@ function Invoke-CloseOutCheck {
     )
 
     # --- A1: blocked/degraded detection (the 06-26/29/30 blackout classes) ---
+    # Content-pattern checks (not-logged-in / limit) only apply to SHORT output: a genuinely blocked
+    # run emits nothing but the error line (<~500 chars), while a real run emits kilobytes. Without
+    # the gate, a successful run whose PROSE mentions the incident ("died on the session limit")
+    # false-flags itself - happened live 2026-07-06 22:03 (morning-brief catch-up brief).
     $reason = $null
+    $short = ($Out -replace '\s', '').Length -lt 500
     if (($Out -replace '\s', '').Length -eq 0) {
         $reason = 'blank output (silent fail)'
     } elseif ($Out -match 'WRAPPER EXCEPTION') {
         $line = ($Out -split "`r?`n" | Where-Object { $_ -match 'WRAPPER EXCEPTION' } | Select-Object -First 1)
         $reason = if ($line) { $line.Trim() } else { 'wrapper exception' }
         if ($reason.Length -gt 140) { $reason = $reason.Substring(0, 140) }
-    } elseif ($Out -match 'Not logged in|Please run /login') {
+    } elseif ($short -and $Out -match 'Not logged in|Please run /login') {
         $reason = 'not logged in - needs interactive claude /login'
-    } elseif ($Out -match 'session limit|usage limit|API usage limits|reached your .{0,40}limit') {
+    } elseif ($short -and $Out -match 'session limit|usage limit|API usage limits|reached your .{0,40}limit') {
         $line = ($Out -split "`r?`n" | Where-Object { $_ -match 'limit' } | Select-Object -First 1)
         $reason = if ($line) { $line.Trim() } else { 'usage/session limit' }
         if ($reason.Length -gt 140) { $reason = $reason.Substring(0, 140) }

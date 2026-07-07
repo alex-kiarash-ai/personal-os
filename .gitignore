@@ -16,6 +16,8 @@ work/16-alex-hq/config/hq-basic-auth.txt
 node_modules/
 .next/
 venv/
+.venv/
+work/voice/.venv/
 __pycache__/
 *.pyc
 
