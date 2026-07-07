@@ -21,6 +21,19 @@ Turns Alex's learning loop from passive filing into an active habit. Once a week
 ## The hard rule (the whole point)
 Alex NEVER self-edits soul.md or any CLAUDE.md without Shaheen's explicit approval. Proposing is automatic; applying identity-file changes is gated, always. Low-risk classes (a My Words phrase already confirmed via #22) may be pre-approved, but soul.md / CLAUDE.md edits are never auto-applied here.
 
+## Close-Out Grader (separate-context, item C) - added 2026-07-07 (upgrade-scan item 2)
+The kit in `work/23-self-review/close-out-grader/` (rubric.md + grader-prompt.md + README.md) implements
+Anthropic's Outcomes pattern for Close-Out item C: a fresh subagent that sees ONLY the finished
+identity-carrying artifact + the rubric, never the producing session's reasoning, and returns
+per-criterion PASS/FAIL (palette / accent / type / red / logo; dashes / AI-tells / softeners / rhythm /
+his-words; pre-flight). It fixes the self-grading bias that let the 2026-07-03 brand incident ship.
+**ADVISORY ONLY, hard constraint:** it flags, it never blocks a run; it is deliberately NOT wired into
+`scripts/lib/close-out.ps1`, so a grader FAIL / slow grader / unavailable grader can never fail one of
+the 15 scheduled jobs. Invoked via the Agent tool (Alex's existing inline-subagent convention, no new
+Claude Code config). Verified 2026-07-07 against a reconstructed 07-03 violator (FAIL) + a compliant
+artifact (PASS). #23 owns the kit because it owns the review/quality surface; the invocation is global
+(every session's item C), driven from the root CLAUDE.md Close-Out Gate.
+
 ## Data / infra it uses (all live)
 Git history (weekly diff of the identity files), `vault/projects/error-log.md`, [[projects/teach-alex/corrections-log]] (#22), [[projects/self-review/close-out-log]], soul.md My Words, `vault/me/decisions.md`, `vault/me/taste-profile.md`, the vault, Notion (approval rows), Alex HQ (approval card). No new external service; this is reasoning over files that already exist.
 
@@ -50,6 +63,7 @@ Claude for the clustering and the reasoning. If a human-readable weekly summary 
 ## Close-Out Extras
 - Every review cites its sources; proposals cite their origin correction/error.
 - Nothing applied without approval; applied changes go through full Change Propagation + log.
+- The close-out-grader kit stays ADVISORY: never add it to scripts/lib/close-out.ps1 or gate any run on it.
 
 ## Phasing
 - **Phase 1 (now):** the weekly proposal doc, Shaheen applies approved items; the general taste-profile + close-out-log seeded so the inputs actually exist. A first self-review proof written.

@@ -1,0 +1,26 @@
+<!-- @dsCard group="Exec Deck" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Section divider</title>
+<style>
+  :root{--ink:#001219;--teal:#005f73;--cyan:#0a9396;--aqua:#94d2bd;--custard:#e9d8a6;--orange:#ee9b00}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{font-family:Calibri,"Segoe UI",system-ui,-apple-system,sans-serif}
+  .slide{position:relative;width:1280px;height:720px;overflow:hidden;color:#fff;
+    background:linear-gradient(150deg,#001219 0%,#003847 58%,#005f73 100%);
+    display:flex;flex-direction:column;justify-content:center;padding:0 96px}
+  .slide::after{content:"";position:absolute;bottom:-220px;left:-160px;width:640px;height:640px;
+    background:radial-gradient(circle,rgba(10,147,150,.35) 0%,rgba(0,18,25,0) 65%)}
+  .num{color:var(--aqua);font-size:26px;letter-spacing:.34em;text-transform:uppercase;margin-bottom:20px;z-index:1}
+  h1{font-size:82px;font-weight:700;line-height:1.05;max-width:900px;letter-spacing:-.5px;z-index:1}
+  .rule{width:110px;height:6px;background:var(--orange);border-radius:3px;margin-top:34px;z-index:1}
+  .logo{position:absolute;bottom:52px;right:80px;height:30px;opacity:.92}
+</style></head>
+<body>
+  <div class="slide">
+    <div class="num">{{section_no}}</div>
+    <h1>{{section_title}}</h1>
+    <div class="rule"></div>
+    <img class="logo" src="alex-logo-transparent.png" alt="ALEX">
+  </div>
+</body></html>

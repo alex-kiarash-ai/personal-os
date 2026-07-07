@@ -47,6 +47,29 @@ type LifeData = {
   gym: { start_date: string; interval_days: number; label: string; as_of: string | null };
   plants: { as_of: string | null; items: { name: string; every_days: number; last_watered: string }[] };
 };
+/* projects.json (build-projects.mjs, from the project registry): the full roster so the health
+   board shows EVERY registered project, not just the ones pushing telemetry. hq_slug links a
+   project to its live metrics; null = it pushes none (renders as an honest idle ticket). */
+type RegProject = {
+  name: string;
+  num: number | null;
+  title: string;
+  state: string;
+  trigger: string;
+  one_liner: string;
+  hq_slug: string | null;
+};
+type ProjectsData = { generated_at: string; count: number; projects: RegProject[] };
+
+const STATE_LABEL: Record<string, string> = {
+  LIVE: "no telemetry yet",
+  "ON-DEMAND": "on-demand",
+  EVENT: "event-triggered",
+  DORMANT: "dormant",
+  PARKED: "parked",
+  RETIRED: "retired",
+};
+const idleLabel = (state: string) => STATE_LABEL[state] ?? state.toLowerCase();
 
 /* due-ness computed at render from raw dates, so the card is right even if the sync lagged */
 function plantsDue(life: LifeData, now: number) {
@@ -284,10 +307,13 @@ function AppsBreakdown({ projects, now }: { projects: Record<string, Project>; n
 }
 
 /* Alex Brain breakdown: the counts, the graph stamp, then the stack. */
-function BrainBreakdown({ projects, projectCount }: { projects: Record<string, Project>; projectCount: number }) {
+function BrainBreakdown({ projects }: { projects: Record<string, Project> }) {
   const infra = projects["infra"]?.metrics ?? {};
   // browser cache makes this second graph.json fetch free (BrainGraph already pulled it)
   const graph = useJson<{ generated_at: string }>("/data/graph.json");
+  const registry = useJson<ProjectsData>("/data/projects.json");
+  const registered = registry && registry !== "failed" ? registry.count : null;
+  const reporting = Object.keys(projects).filter((p) => p !== "me").length;
   const graphStamp =
     graph && graph !== "failed"
       ? fmtDateTime(graph.generated_at)
@@ -300,7 +326,8 @@ function BrainBreakdown({ projects, projectCount }: { projects: Record<string, P
     ["scheduled jobs", infra.scheduled_jobs_active, null],
     ["n8n up + ran today", infra.n8n_up_today, null],
     ["n8n broken today", infra.n8n_broken_today, null],
-    ["projects reporting", null, String(projectCount)],
+    ["projects registered", null, registered != null ? String(registered) : "–"],
+    ["reporting live", null, String(reporting)],
   ];
   return (
     <div>
@@ -532,12 +559,37 @@ function PlantsBreakdown({ life, now }: { life: LifeData | null | "failed"; now:
   );
 }
 
+/* Registry card: a registered project that pushes no live telemetry. Says what it is and why
+   it's quiet, so the ticket is informative instead of a dead end. */
+function RegistryCard({ reg }: { reg: RegProject }) {
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="state-chip">{reg.state}</span>
+        {reg.num ? (
+          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+            #{String(reg.num).padStart(2, "0")}
+          </span>
+        ) : null}
+        <span className="ml-auto text-xs" style={{ color: "var(--mute)" }}>
+          trigger · {reg.trigger}
+        </span>
+      </div>
+      <p className="text-sm leading-relaxed" style={{ color: "var(--mute)" }}>
+        {reg.state === "LIVE"
+          ? "Runs on a schedule but doesn't push live metrics to HQ yet. On the board because it's a registered project."
+          : `Reports on demand, not on a schedule (${idleLabel(reg.state)}). On the board because it's a registered project.`}
+      </p>
+    </div>
+  );
+}
+
 /* ---------- detail overlay ---------- */
 
 function DetailOverlay({
   tile,
   projects,
-  projectCount,
+  registry,
   now,
   todos,
   life,
@@ -545,7 +597,7 @@ function DetailOverlay({
 }: {
   tile: { id: string; kicker: string; projects: string[]; metricKeys?: string[] };
   projects: Record<string, Project>;
-  projectCount: number;
+  registry: ProjectsData | null | "failed";
   now: number;
   todos: TodosData | null | "failed";
   life: LifeData | null | "failed";
@@ -562,6 +614,9 @@ function DetailOverlay({
   }, [onClose]);
 
   const projSlug = tile.id.startsWith("proj:") ? tile.id.slice(5) : tile.projects.length === 1 ? tile.projects[0] : null;
+  const regList = registry && registry !== "failed" ? registry.projects : [];
+  const reg = projSlug ? regList.find((r) => r.hq_slug === projSlug || r.name === projSlug) ?? null : null;
+  const isIdleProj = tile.id.startsWith("proj:") && projSlug != null && !projects[projSlug];
   const desc =
     tile.id === "apps"
       ? "Two job engines on the Hetzner box: BI roles at 07:00, AI roles at 07:30. Each sources postings, scores fit, writes a tailored CV + cover letter, renders PDFs to Drive. Never auto-submits."
@@ -572,7 +627,7 @@ function DetailOverlay({
           : tile.id === "plants"
             ? "Per-plant watering cadence vs last watered. Due-ness is computed live from the dates."
             : projSlug
-              ? DESCRIPTIONS[projSlug]
+              ? DESCRIPTIONS[projSlug] ?? reg?.one_liner ?? null
               : null;
 
   return (
@@ -610,7 +665,7 @@ function DetailOverlay({
           {tile.id === "apps" ? (
             <AppsBreakdown projects={projects} now={now} />
           ) : tile.id === "brain" ? (
-            <BrainBreakdown projects={projects} projectCount={projectCount} />
+            <BrainBreakdown projects={projects} />
           ) : tile.id === "n8n-broken" ? (
             <N8nBreakdown />
           ) : tile.id === "todos" ? (
@@ -619,6 +674,14 @@ function DetailOverlay({
             <PlantsBreakdown life={life} now={now} />
           ) : tile.id === "expenses" && projects["expenses"] ? (
             <ExpensesBreakdown proj={projects["expenses"]} now={now} />
+          ) : isIdleProj ? (
+            reg ? (
+              <RegistryCard reg={reg} />
+            ) : (
+              <p className="text-sm" style={{ color: "var(--mute)" }}>
+                No live metrics for this project yet.
+              </p>
+            )
           ) : (
             tile.projects.map((p) => {
               const proj = projects[p];
@@ -687,31 +750,79 @@ function GymCard({ life, now, index }: { life: LifeData | null | "failed"; now: 
 
 /* ---------- health board ---------- */
 
+type HealthRow = {
+  key: string;
+  drillId: string;
+  label: string;
+  display: Status | "idle";
+  meta: string;
+  sortRank: number;
+};
+
+// Live status for a reporting project, cadence-staleness folded in (the pre-registry rule).
+function liveRow(key: string, label: string, p: Project, now: number, slug: string): HealthRow {
+  const ageH = p.last_ts ? (now - new Date(p.last_ts).getTime()) / 3600000 : Infinity;
+  const stale = ageH > (CADENCE_HOURS[slug] ?? 48);
+  const status: Status = p.status === "red" ? "red" : stale ? "amber" : p.status;
+  return {
+    key,
+    drillId: `proj:${slug}`,
+    label,
+    display: status,
+    meta: `${ageLabel(p.last_ts, now)}${stale ? " · stale" : ""}`,
+    sortRank: { red: 0, amber: 1, green: 2 }[status],
+  };
+}
+
 function HealthBoard({
   projects,
+  registry,
   now,
   onOpen,
 }: {
   projects: Record<string, Project>;
+  registry: ProjectsData | null | "failed";
   now: number;
   onOpen: (id: string) => void;
 }) {
-  const rows = useMemo(
-    () =>
-      Object.values(projects)
-        .filter((p) => p.project !== "me")
-        .map((p) => {
-          const ageH = p.last_ts ? (now - new Date(p.last_ts).getTime()) / 3600000 : Infinity;
-          const stale = ageH > (CADENCE_HOURS[p.project] ?? 48);
-          const status: Status = p.status === "red" ? "red" : stale ? "amber" : p.status;
-          return { ...p, status, stale };
-        })
-        .sort((a, b) => {
-          const rank = { red: 0, amber: 1, green: 2 };
-          return rank[a.status] - rank[b.status] || a.project.localeCompare(b.project);
-        }),
-    [projects, now]
-  );
+  const rows = useMemo<HealthRow[]>(() => {
+    const live: Record<string, Project> = {};
+    for (const [k, v] of Object.entries(projects)) if (k !== "me") live[k] = v;
+
+    const out: HealthRow[] = [];
+    const claimed = new Set<string>();
+
+    if (registry && registry !== "failed") {
+      // one row per REGISTERED project — the full roster, from the source of truth
+      for (const reg of registry.projects) {
+        const lp = reg.hq_slug ? live[reg.hq_slug] : null;
+        if (lp && reg.hq_slug) {
+          claimed.add(reg.hq_slug);
+          out.push(liveRow(reg.name, reg.title, lp, now, reg.hq_slug));
+        } else {
+          // registered but no live telemetry: show its real state, never a false red/stale
+          out.push({
+            key: reg.name,
+            drillId: `proj:${reg.name}`,
+            label: reg.title,
+            display: "idle",
+            meta: idleLabel(reg.state),
+            sortRank: 3,
+          });
+        }
+      }
+    }
+    // any live slug the registry didn't claim (infra, plus any future unmapped producer) —
+    // keep it so nothing that reports today ever disappears
+    for (const [slug, lp] of Object.entries(live)) {
+      if (claimed.has(slug)) continue;
+      out.push(liveRow(slug, slug, lp, now, slug));
+    }
+
+    return out.sort((a, b) => a.sortRank - b.sortRank || a.label.localeCompare(b.label));
+  }, [projects, registry, now]);
+
+  const loading = registry === null;
 
   return (
     <motion.div
@@ -731,23 +842,31 @@ function HealthBoard({
       <ul className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
         {rows.map((p, i) => (
           <motion.li
-            key={p.project}
+            key={p.key}
             initial={{ opacity: 0, x: -12 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ ...spring, delay: i * 0.03 }}
           >
-            <button className="health-row" onClick={() => onOpen(`proj:${p.project}`)}>
-              <Dot status={p.status} />
-              <span className="font-medium">{p.project}</span>
-              <span className="ml-auto text-xs tabular-nums" style={{ color: "var(--mute)" }}>
-                {ageLabel(p.last_ts, now)}
-                {p.stale ? " · stale" : ""}
+            <button className="health-row" onClick={() => onOpen(p.drillId)}>
+              <span className={`dot dot-${p.display}`} aria-label={p.display} />
+              <span className="min-w-0 flex-1 truncate font-medium">{p.label}</span>
+              <span className="ml-auto flex-none text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+                {p.meta}
               </span>
             </button>
           </motion.li>
         ))}
       </ul>
+      {loading ? (
+        <p className="text-xs" style={{ color: "var(--mute)" }}>
+          loading the full roster…
+        </p>
+      ) : registry === "failed" ? (
+        <p className="text-xs" style={{ color: "var(--mute)" }}>
+          showing reporting projects only · registry not synced (run /alex-hq on the ThinkPad)
+        </p>
+      ) : null}
     </motion.div>
   );
 }
@@ -758,6 +877,7 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
   const [open, setOpen] = useState<string | null>(null);
   const todos = useJson<TodosData>("/data/todos.json");
   const life = useJson<LifeData>("/data/life.json");
+  const registry = useJson<ProjectsData>("/data/projects.json");
 
   const m = (p: string, k: string): Metric | null => s.projects?.[p]?.metrics?.[k] ?? null;
 
@@ -776,7 +896,16 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
 
   const infra = s.projects["infra"]?.metrics ?? {};
   const infraStatus: Status = s.projects["infra"]?.status ?? "amber";
-  const projectCount = Object.keys(s.projects).filter((p) => p !== "me").length;
+  const reportingCount = Object.keys(s.projects).filter((p) => p !== "me").length;
+  // the honest headline: how many projects Alex HAS (registry), not how many push telemetry
+  const registeredCount = registry && registry !== "failed" ? registry.count : null;
+  const projectCount = registeredCount ?? reportingCount;
+  const regByKey: Record<string, RegProject> = {};
+  if (registry && registry !== "failed")
+    for (const r of registry.projects) {
+      regByKey[r.name] = r;
+      if (r.hq_slug) regByKey[r.hq_slug] = r;
+    }
 
   type TileDef = {
     id: string;
@@ -934,7 +1063,7 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
 
   const openTile =
     open?.startsWith("proj:") && open
-      ? { id: open, kicker: open.slice(5), projects: [open.slice(5)] }
+      ? { id: open, kicker: regByKey[open.slice(5)]?.title ?? open.slice(5), projects: [open.slice(5)] }
       : open === "brain"
         ? { id: "brain", kicker: "Alex Brain · the structure", projects: ["infra"] }
         : open === "plants"
@@ -1015,7 +1144,7 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
 
       {/* Health board: the flagship sits above the graph */}
       <section className="mt-4">
-        <HealthBoard projects={s.projects} now={now} onOpen={setOpen} />
+        <HealthBoard projects={s.projects} registry={registry} now={now} onOpen={setOpen} />
       </section>
 
       {/* The Brain graph */}
@@ -1032,7 +1161,7 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
           <DetailOverlay
             tile={openTile}
             projects={s.projects}
-            projectCount={projectCount}
+            registry={registry}
             now={now}
             todos={todos}
             life={life}

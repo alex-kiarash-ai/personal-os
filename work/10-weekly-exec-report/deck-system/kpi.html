@@ -1,0 +1,37 @@
+<!-- @dsCard group="Exec Deck" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>KPI grid</title>
+<style>
+  :root{--ink:#001219;--teal:#005f73;--cyan:#0a9396;--aqua:#94d2bd;--custard:#e9d8a6;--orange:#ee9b00;--elev:#00232e}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{font-family:Calibri,"Segoe UI",system-ui,-apple-system,sans-serif}
+  .slide{position:relative;width:1280px;height:720px;background:var(--ink);color:#fff;overflow:hidden;padding:64px 80px;display:flex;flex-direction:column}
+  .hd{display:flex;align-items:baseline;gap:18px}
+  h2{font-size:44px;font-weight:700;letter-spacing:-.3px}
+  .hd .tag{color:var(--aqua);font-size:20px;letter-spacing:.06em}
+  .accent{width:72px;height:5px;background:var(--orange);border-radius:3px;margin:18px 0 0}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;flex:1;align-content:center}
+  .tile{min-width:0;min-height:238px;background:var(--elev);border:1px solid rgba(148,210,189,.14);border-radius:16px;padding:32px 28px;display:flex;flex-direction:column;justify-content:space-between}
+  .tile .label{color:var(--aqua);font-size:21px;font-weight:600;letter-spacing:.02em}
+  .tile .num{font-size:56px;font-weight:700;line-height:1;margin-top:22px;overflow-wrap:anywhere}
+  .tile .delta{color:var(--custard);font-size:18px;margin-top:14px;overflow-wrap:anywhere}
+  /* one highlighted tile per view: the single orange accent */
+  .tile.key{border-color:rgba(238,155,0,.5)}
+  .tile.key .num{color:var(--orange)}
+  .foot{display:flex;align-items:center;gap:14px;margin-top:30px;color:var(--aqua);font-size:16px}
+  .foot img{height:22px;opacity:.9}
+</style></head>
+<body>
+  <div class="slide">
+    <div class="hd"><h2>{{section_title}}</h2><span class="tag">this week at a glance</span></div>
+    <div class="accent"></div>
+    <div class="grid">
+      <div class="tile"><div class="label">{{k1_label}}</div><div class="num">{{k1}}</div><div class="delta">{{k1_note}}</div></div>
+      <div class="tile"><div class="label">{{k2_label}}</div><div class="num">{{k2}}</div><div class="delta">{{k2_note}}</div></div>
+      <div class="tile"><div class="label">{{k3_label}}</div><div class="num">{{k3}}</div><div class="delta">{{k3_note}}</div></div>
+      <div class="tile key"><div class="label">{{k4_label}}</div><div class="num">{{k4}}</div><div class="delta">{{k4_note}}</div></div>
+    </div>
+    <div class="foot"><img src="alex-logo-transparent.png" alt="ALEX"><span>Weekly Executive Report &nbsp;·&nbsp; {{date}}</span></div>
+  </div>
+</body></html>

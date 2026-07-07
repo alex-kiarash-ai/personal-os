@@ -3,6 +3,15 @@
 # (the 06-26/29/30 sprint blackout). This probe catches login expiry SUNDAY EVENING, before the
 # Monday morning job train, instead of it being discovered by a dead week.
 # One micro-prompt (~zero cost), pattern-detects the failure classes, pushes infra/auth_ok to Alex HQ.
+#
+# EXTENDED 2026-07-07 (upgrade-scan item 3): also runs `claude mcp list` (zero tokens - a health
+# probe, no LLM call) and pushes infra/mcp_ok, RED if a CRITICAL connector (Notion/Gmail/Google
+# Calendar/Google Drive) is unattached - the 2026-06-16 "MCP not attached, run blocked" class,
+# now caught Sunday evening before the Monday train. Optional connectors (Windsor/Microsoft 365)
+# are intentionally ignored so the flag never cries wolf. This is ADDITIVE: it never changes the
+# auth-probe exit code. Recovery command (run interactively when it goes red):
+#     claude mcp login <name>              (opens a browser to re-authorize the connector)
+#     claude mcp login <name> --no-browser (SSH/headless: prints the auth URL, paste the redirect back)
 param(
     [string]$ClaudeCmd = "$env:APPDATA\npm\claude.ps1",
     [switch]$DryRun
@@ -49,6 +58,52 @@ if (Test-Path $tokenFile) {
         } catch { "HQ push failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $log }
     }
 } else { "HQ push skipped: token file missing" | Out-File -Append -Encoding utf8 $log }
+
+# ============================================================================
+# MCP connectivity probe (upgrade-scan item 3, 2026-07-07). Runs AFTER the auth push and is
+# strictly additive: best-effort, wrapped, and it NEVER changes the auth-based exit code below.
+# Flags only CRITICAL connectors so the perpetually-unauthenticated optional ones don't cry red.
+# ============================================================================
+$criticalMcp = @('Notion', 'Gmail', 'Google Calendar', 'Google Drive')
+$mcpReason = $null; $unattachedCrit = @(); $unattachedAll = @()
+try {
+    $mcpOut = (& $ClaudeCmd mcp list 2>&1 | Out-String)
+    "--- mcp list ---" | Out-File -Append -Encoding utf8 $log
+    $mcpOut.TrimEnd() | Out-File -Append -Encoding utf8 $log
+    foreach ($line in ($mcpOut -split "`r?`n")) {
+        if ($line -notmatch ':' -or $line -notmatch ' - ') { continue }
+        $status = ($line -split ' - ')[-1].Trim()
+        $name   = ($line.Substring(0, $line.IndexOf(':'))).Trim()
+        if (-not $name) { continue }
+        # Healthy = "Connected" with no failure/warning marker. Catches "! Connected - tools fetch
+        # failed" (degraded) and "! Needs authentication" / "Failed to connect" (down) alike.
+        $ok = ($status -match 'Connected') -and ($status -notmatch 'Disconnected|fail|Needs|error|unauthor')
+        if ($ok) { continue }
+        $unattachedAll += $name
+        foreach ($c in $criticalMcp) { if ($name -match [regex]::Escape($c)) { $unattachedCrit += $name; break } }
+    }
+    if ($mcpOut -notmatch ':') { $mcpReason = 'mcp list produced no parseable output' }
+} catch { $mcpReason = "mcp list failed: $($_.Exception.Message)" }
+
+if (Test-Path $tokenFile) {
+    $token = (Get-Content $tokenFile -Raw).Trim()
+    if (($null -eq $mcpReason) -and ($unattachedCrit.Count -eq 0)) {
+        $extra = if ($unattachedAll.Count) { " (optional off: $($unattachedAll -join ', '))" } else { '' }
+        $mbody = @{ project='infra'; metric_key='mcp_ok'; value_num=1; headline="critical MCP connectors attached$extra"; status='green' } | ConvertTo-Json -Compress
+    } else {
+        $head = if ($mcpReason) { "MCP probe: $mcpReason" } else { "critical MCP UNATTACHED: $($unattachedCrit -join ', ') -> claude mcp login <name>" }
+        $mbody = @{ project='infra'; metric_key='mcp_ok'; value_num=0; headline=$head; status='red' } | ConvertTo-Json -Compress
+    }
+    if ($DryRun) {
+        "DRYRUN, would push mcp: $mbody" | Out-File -Append -Encoding utf8 $log
+    } else {
+        try {
+            Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
+                -Headers @{ 'X-Alex-Token'=$token } -ContentType 'application/json' -Body $mbody -TimeoutSec 10 | Out-Null
+            "MCP HQ push sent (critical unattached: $($unattachedCrit.Count))" | Out-File -Append -Encoding utf8 $log
+        } catch { "MCP HQ push failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $log }
+    }
+} else { "MCP push skipped: token file missing" | Out-File -Append -Encoding utf8 $log }
 
 if ($null -eq $reason) { "OK" | Out-File -Append -Encoding utf8 $log; exit 0 }
 "FAILED: $reason" | Out-File -Append -Encoding utf8 $log; exit 1

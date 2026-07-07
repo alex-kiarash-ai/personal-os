@@ -60,7 +60,7 @@ for (const k of Object.keys(latest)) {
 // ---- health (alex_health via the Stash Health node) ----
 // Merge by field per date (latest non-null wins) so partial rows coalesce:
 // the phone can send yesterday's steps and last night's sleep as separate objects.
-const hrows = ($('Stash Health').first().json.health || []).filter(r => r.date);
+const hrows = ($('Stash Health').first().json.health || []).filter(r => r.date).filter(r => !/test/i.test(String(r.source || '')));  // drop synthetic *-test rows: never surface as real health (fix 2026-07-07)
 hrows.sort((a, b) => (String(a.ts) < String(b.ts) ? -1 : 1));
 const HFIELDS = ['steps','asleep_min','deep_min','rem_min','core_min','awake_min','inbed_min','awakenings','efficiency','sleep_score','bedtime','waketime'];
 const byDate = {};

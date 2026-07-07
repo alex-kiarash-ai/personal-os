@@ -246,6 +246,22 @@ button.tile:hover {
 .dot-green { background: var(--cyan);  box-shadow: 0 0 12px rgba(10, 147, 150, 1); }
 .dot-amber { background: var(--warn);  box-shadow: 0 0 10px rgba(187, 62, 3, 0.8); }
 .dot-red   { background: var(--error); box-shadow: 0 0 12px rgba(174, 32, 18, 0.95); animation: pulse 1.6s ease-in-out infinite; }
+/* idle: registered project with no live telemetry — a quiet hollow marker, never an alarm */
+.dot-idle  { background: transparent; border: 1px solid rgba(148, 210, 189, 0.4); box-shadow: none; }
+
+/* state chip in the registry drill-down card */
+.state-chip {
+  font-family: var(--font-chakra), sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--aqua);
+  background: rgba(10, 147, 150, 0.14);
+  border: 1px solid rgba(10, 147, 150, 0.3);
+  border-radius: 9999px;
+  padding: 0.15rem 0.55rem;
+}
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }

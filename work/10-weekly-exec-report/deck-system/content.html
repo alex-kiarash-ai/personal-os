@@ -1,0 +1,45 @@
+<!-- @dsCard group="Exec Deck" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Content</title>
+<style>
+  :root{--ink:#001219;--teal:#005f73;--cyan:#0a9396;--aqua:#94d2bd;--custard:#e9d8a6;--orange:#ee9b00;--elev:#00232e}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{font-family:Calibri,"Segoe UI",system-ui,-apple-system,sans-serif}
+  .slide{position:relative;width:1280px;height:720px;background:var(--ink);color:#fff;overflow:hidden;padding:64px 80px;display:grid;grid-template-columns:1fr 360px;gap:56px}
+  .main{display:flex;flex-direction:column}
+  h2{font-size:44px;font-weight:700;letter-spacing:-.3px}
+  .accent{width:72px;height:5px;background:var(--orange);border-radius:3px;margin:18px 0 34px}
+  ul{list-style:none;display:flex;flex-direction:column;gap:24px}
+  li{position:relative;padding-left:34px;font-size:26px;line-height:1.4;color:#eef4f4}
+  li::before{content:"";position:absolute;left:0;top:12px;width:12px;height:12px;border-radius:3px;background:var(--cyan)}
+  li b{color:#fff;font-weight:700}
+  li span{color:var(--aqua)}
+  /* right accent panel */
+  .panel{align-self:center;min-width:0;background:linear-gradient(160deg,#005f73,#003847);border-radius:18px;padding:38px 32px;display:flex;flex-direction:column;gap:10px}
+  .panel .plabel{color:var(--aqua);font-size:20px;letter-spacing:.04em}
+  .panel .pbig{font-size:46px;font-weight:700;color:var(--orange);line-height:1.02;overflow-wrap:anywhere}
+  .panel .pnote{color:#eaf3f2;font-size:19px;line-height:1.4;margin-top:8px}
+  .foot{position:absolute;bottom:44px;left:80px;display:flex;align-items:center;gap:14px;color:var(--aqua);font-size:16px}
+  .foot img{height:22px;opacity:.9}
+</style></head>
+<body>
+  <div class="slide">
+    <div class="main">
+      <h2>{{section_title}}</h2>
+      <div class="accent"></div>
+      <ul>
+        <li><b>{{item1_head}}</b> <span>{{item1_detail}}</span></li>
+        <li><b>{{item2_head}}</b> <span>{{item2_detail}}</span></li>
+        <li><b>{{item3_head}}</b> <span>{{item3_detail}}</span></li>
+        <li><b>{{item4_head}}</b> <span>{{item4_detail}}</span></li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="plabel">{{callout_label}}</div>
+      <div class="pbig">{{callout_value}}</div>
+      <div class="pnote">{{callout_note}}</div>
+    </div>
+    <div class="foot"><img src="alex-logo-transparent.png" alt="ALEX"><span>Weekly Executive Report &nbsp;·&nbsp; {{date}}</span></div>
+  </div>
+</body></html>

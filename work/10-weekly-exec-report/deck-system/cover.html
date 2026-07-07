@@ -1,0 +1,36 @@
+<!-- @dsCard group="Exec Deck" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Cover</title>
+<style>
+  :root{
+    --ink:#001219; --teal:#005f73; --cyan:#0a9396; --aqua:#94d2bd;
+    --custard:#e9d8a6; --orange:#ee9b00; --elev:#00232e;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{font-family:Calibri,"Segoe UI",system-ui,-apple-system,sans-serif}
+  .slide{
+    position:relative;width:1280px;height:720px;background:var(--ink);color:#fff;
+    overflow:hidden;padding:72px 80px;display:flex;flex-direction:column;justify-content:center;
+  }
+  /* subtle teal depth glow, top-right (brand: #001219->#005f73, sparingly) */
+  .slide::before{content:"";position:absolute;top:-260px;right:-200px;width:760px;height:760px;
+    background:radial-gradient(circle,rgba(0,95,115,.55) 0%,rgba(0,18,25,0) 62%);pointer-events:none}
+  .logo{position:absolute;top:56px;left:80px;height:38px}
+  .kicker{color:var(--aqua);font-size:20px;letter-spacing:.28em;text-transform:uppercase;margin-bottom:22px}
+  h1{font-size:74px;line-height:1.04;font-weight:700;max-width:940px;letter-spacing:-.5px}
+  .rule{width:96px;height:6px;background:var(--orange);border-radius:3px;margin:34px 0 26px}
+  .sub{color:var(--custard);font-size:30px;font-weight:400}
+  .foot{position:absolute;bottom:52px;left:80px;color:var(--aqua);font-size:18px;letter-spacing:.02em}
+  .foot b{color:#fff;font-weight:600}
+</style></head>
+<body>
+  <div class="slide">
+    <img class="logo" src="alex-logo-transparent.png" alt="ALEX">
+    <div class="kicker">Weekly Executive Report</div>
+    <h1>{{headline}}</h1>
+    <div class="rule"></div>
+    <div class="sub">Week of {{week_range}}</div>
+    <div class="foot">Prepared by <b>Alex</b> for Shaheen Kiarash &nbsp;·&nbsp; {{date}}</div>
+  </div>
+</body></html>

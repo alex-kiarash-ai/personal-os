@@ -558,6 +558,26 @@ def transcribe(model, audio):
     return (result.get("text") or "").strip()
 
 
+def save_transcript(text):
+    """Append the RAW spoken line, timestamped, to outputs/voice/transcripts/YYYY-MM-DD.md.
+    This is the durable, least-AI-shaped record of how Shaheen actually words things - the
+    primary corpus source the soul.md 'My Words' voice-transcription rule harvests from
+    (added 2026-07-07). Kept verbatim: no cleanup, imperfections are the signal. Local-only
+    (outputs/ is gitignored). Never crash the loop over a log write."""
+    try:
+        day = time.strftime("%Y-%m-%d")
+        d = os.path.join(REPO, "outputs", "voice", "transcripts")
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, f"{day}.md")
+        if not os.path.exists(path):
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(f"# Voice transcript {day} (raw spoken lines, for soul.md My Words harvest)\n\n")
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"- [{time.strftime('%H:%M')}] {text}\n")
+    except Exception as e:
+        log(f"transcript save skipped ({e})")
+
+
 # ------------------------- device sanity -------------------------
 def output_looks_like_speakers():
     try:
@@ -703,6 +723,7 @@ def main():
             if not you:
                 continue
             print(f"  you: {you}")
+            save_transcript(you)     # persist the RAW spoken line for the soul.md My Words corpus
             if re.search(r"\b(goodbye alex|quit|shut down)\b", you.lower()):
                 speak_stream(iter(["Later, Shaheen. Siga siga."]), threshold)
                 break

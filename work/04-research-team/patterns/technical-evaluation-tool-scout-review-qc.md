@@ -2,7 +2,7 @@
 class: technical-evaluation
 created: 2026-07-05
 last_used: 2026-07-07
-times_used: 3
+times_used: 4
 ---
 # Tool Scout -> Review -> QC (sequential 3-loop)
 
@@ -31,3 +31,9 @@ Session grounds first, then runs the three sequentially (each sees the prior's o
 - Make each engine verify PyPI requires-python + dependency chains for anything pip-installed; two "known painful" installs (espeak, openwakeword) turned out solved/avoidable on current versions, which flipped effort estimates.
 - Check LANGUAGE coverage of every model tier separately (STT vs TTS): the multilingual requirement survived STT in every option and silently died at TTS in all of them - only the QC pass caught it.
 - User-specified team designs (engines named in the ask) map onto this pattern cleanly; take the user's design verbatim as the approval and skip the redundant gate.
+
+## Lessons (run 17, 2026-07-07 - Alex upgrade scan, reuse 4)
+- The pattern scales from "pick one tool" to "scan the whole landscape" if the Scout gets explicit LANES (8 here) and a per-lane "nothing new found is a valid finding" clause - 20 candidates came back without padding.
+- Give the QC agent the MACHINE, not just the repo: `claude --version`, settings.json, a one-shot SSH. Two of the scan's three scariest headlines (Auto Memory "already writing", Graphiti RAM) died on machine facts no web agent could see. Also grant the QC one bounded remote check the Reviewer was denied; agent permission classes differ per session and the retry cost one command.
+- Make the session review spot-check the QC's heaviest overrules DIRECTLY (read the settings file, grep the error-log) instead of trusting the chain; and expect the review to still find one dropped constraint (the caching min-prefix) - three agents don't exempt the synthesizer from working.
+- When the ask is "improve system X", feed all agents the system's own audit (weaknesses by number) so every candidate maps to a named weakness; anything that maps to none self-identifies as padding.

@@ -107,6 +107,12 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against work/18-recovery-layer/manifest.json (11 checks incl. quad completeness, orphans, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
 - Added: 2026-07-04
 
+### Vault Search Index (upgrade-scan item 1)
+- Command: scripts/run-vault-index.ps1 (pure Python/SQLite, no claude call, zero tokens)
+- Frequency: daily at 9:35 PM (Task Scheduler job PersonalOS-vault-index; StartWhenAvailable + battery-safe + ExecutionTimeLimit 15 min; NO restart ladder - a missed rebuild self-heals next night and on-demand `build` always works). Placed 10 min before the 21:45 vault backup so the fresh .db ships in the encrypted blob.
+- Description: Rebuilds the FTS5 keyword index over vault/**/*.md (scripts/vault_search.py build) so cross-session recall scales past read-the-index-and-drill (2026-07-06 audit weakness 2). The .db lives in the gitignored in-repo dir scripts/vault-index/ (off GitHub, but inside the repo tree so the vault backup covers it; also fully regenerable). Pushes infra/vault_index GREEN/RED to Alex HQ. On-demand search: `python scripts/vault_search.py search "query"`. Built 2026-07-07.
+- Added: 2026-07-07
+
 ### Alex HQ Local Push
 - Command: /alex-hq
 - Frequency: daily at 8:30 AM

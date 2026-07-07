@@ -1,0 +1,46 @@
+<!-- @dsCard group="Exec Deck" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Chart</title>
+<style>
+  :root{--ink:#001219;--teal:#005f73;--cyan:#0a9396;--aqua:#94d2bd;--custard:#e9d8a6;--orange:#ee9b00;--elev:#00232e}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{font-family:Calibri,"Segoe UI",system-ui,-apple-system,sans-serif}
+  .slide{position:relative;width:1280px;height:720px;background:var(--ink);color:#fff;overflow:hidden;padding:64px 80px;display:flex;flex-direction:column}
+  h2{font-size:44px;font-weight:700;letter-spacing:-.3px}
+  .accent{width:72px;height:5px;background:var(--orange);border-radius:3px;margin:18px 0 10px}
+  .cap{color:var(--aqua);font-size:22px}
+  /* legend sits ABOVE the plot so it never collides with the x-axis labels */
+  .legend{display:flex;gap:30px;margin:18px 0 22px;color:#dfeceb;font-size:19px}
+  .legend span{display:flex;align-items:center;gap:9px}
+  .dot{width:14px;height:14px;border-radius:4px}
+  /* plot: brand chart series colors, series order per color-system 4.5 */
+  .plot{flex:1;display:flex;align-items:flex-end;gap:46px;padding:0 20px 52px;position:relative;border-bottom:2px solid rgba(148,210,189,.28)}
+  .grid-l{position:absolute;left:0;right:0;height:1px;background:rgba(148,210,189,.12)}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:14px;height:100%;justify-content:flex-end;z-index:1}
+  .bar .col{width:82px;border-radius:8px 8px 0 0}
+  .bar .v{font-size:22px;font-weight:700}
+  .bar .x{color:var(--aqua);font-size:19px;position:absolute;bottom:-38px}
+  .c1{background:var(--cyan)} .c2{background:var(--orange)} .c3{background:var(--teal)} .c4{background:var(--aqua)}
+  .foot{display:flex;align-items:center;gap:14px;margin-top:34px;color:var(--aqua);font-size:16px}
+  .foot img{height:22px;opacity:.9}
+</style></head>
+<body>
+  <div class="slide">
+    <h2>{{section_title}}</h2>
+    <div class="accent"></div>
+    <div class="cap">{{chart_caption}}</div>
+    <div class="legend">
+      <span><i class="dot c1"></i>{{s1}}</span><span><i class="dot c2"></i>{{s2}}</span>
+      <span><i class="dot c3"></i>{{s3}}</span><span><i class="dot c4"></i>{{s4}}</span>
+    </div>
+    <div class="plot">
+      <div class="grid-l" style="bottom:25%"></div><div class="grid-l" style="bottom:50%"></div><div class="grid-l" style="bottom:75%"></div>
+      <div class="bar"><div class="v">{{v1}}</div><div class="col c1" style="height:62%"></div><div class="x">{{x1}}</div></div>
+      <div class="bar"><div class="v">{{v2}}</div><div class="col c2" style="height:84%"></div><div class="x">{{x2}}</div></div>
+      <div class="bar"><div class="v">{{v3}}</div><div class="col c3" style="height:48%"></div><div class="x">{{x3}}</div></div>
+      <div class="bar"><div class="v">{{v4}}</div><div class="col c4" style="height:70%"></div><div class="x">{{x4}}</div></div>
+    </div>
+    <div class="foot"><img src="alex-logo-transparent.png" alt="ALEX"><span>Weekly Executive Report &nbsp;·&nbsp; {{date}}</span></div>
+  </div>
+</body></html>
