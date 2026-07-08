@@ -156,6 +156,18 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: Catches headless-claude login expiry / quota exhaustion Sunday evening instead of via a dead Monday (the 06-26/29/30 blackout class). Pushes infra/auth_ok GREEN/RED to Alex HQ. Light hardening (2x30min retries, 30min limit). From audit step 2 + self-review proposal 3.
 - Added: 2026-07-06
 
+### Landscape Monitor (#25)
+- Command: scripts/run-landscape-monitor.ps1 (pure Node, no claude call, zero tokens)
+- Frequency: daily at 7:10 AM (Task Scheduler job PersonalOS-landscape-monitor; StartWhenAvailable + WakeToRun + battery-safe + ExecutionTimeLimit 30 min; RestartCount 2 / 30 min - light class, and the close-out lib self-schedules the real retry)
+- Description: #25 Evolution monitoring layer. Fetches public keyless feeds (Claude models, MCPs, n8n patterns) and appends new items to system/landscape-log.jsonl. GREEN/RED run_status to Alex HQ (project evolution). Zero-token by design. Spec: work/25-evolution/CLAUDE.md.
+- Added: 2026-07-09 (activated with the v2 refactor merge)
+
+### Landscape Eval (#25)
+- Command: scripts/run-landscape-eval.ps1 (one claude -p call per week)
+- Frequency: Monday at 7:50 AM (Task Scheduler job PersonalOS-landscape-eval; standard hardening RestartCount 4 / 90 min / ExecutionTimeLimit 2h, WakeToRun, battery-safe)
+- Description: #25 Evolution evaluation layer. Reads the week's landscape log, one Claude call assesses each item (add/replace/relevance) with a recommend/skip verdict, writes outputs/evolution/YYYY-MM-DD/digest.md and opens an ai-landscape-update GitHub issue if gh is installed (else local fallback). Empty week posts nothing, stays GREEN. Alex proposes, Shaheen decides. Spec: work/25-evolution/CLAUDE.md.
+- Added: 2026-07-09 (activated with the v2 refactor merge)
+
 ---
 
 ## Task Hardening (Close-Out Gate, 2026-07-03)
@@ -163,7 +175,8 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 Every scheduled wrapper dot-sources `scripts/lib/close-out.ps1` (shared mechanism). On a failed run (blank output, wrapper crash, not-logged-in, usage/session limit including the "reached your <model> limit" wording, non-zero exit) it logs `FAILED: reason`, pushes `run_status` RED to Alex HQ where a tile exists, **registers its own one-shot retry task** (`PersonalOS-retry-{wrapper}-{n}`, +90 min, attempts 2-5 via `$env:ALEX_RETRY_ATTEMPT`, StartWhenAvailable + WakeToRun, auto-deletes after its window), and exits 1. No scheduled run can die silent (exit 0) anymore, and a transient quota/auth window self-heals without touching any wrapper.
 
 **RestartCount is NOT the retry (proven 2026-07-06, the quad failure):** Task Scheduler's restart-on-failure only fires when the task fails to LAUNCH; a wrapper that runs and exits 1 counts as "completed", so the 2026-07-02 RestartCount ladders below never fired once. They stay in place (they still cover true launch failures), but the working retry is the close-out lib's self-scheduled one-shot task above. All tasks keep `MultipleInstances IgnoreNew`, `StartWhenAvailable`, `WakeToRun`, battery-safe.
-- **Standard (daily/weekly/monthly):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 2h - morning-brief, application-engine, personal-crm, expense-wrangler, weekly-exec-report, airbnb-host, alex-radar, alex-hq, whatsapp-harvest (disabled), runway, self-review, lint-monthly (all three added 2026-07-06).
+- **Standard (daily/weekly/monthly):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 2h - morning-brief, application-engine, personal-crm, expense-wrangler, weekly-exec-report, airbnb-host, alex-radar, alex-hq, whatsapp-harvest (disabled), runway, self-review, lint-monthly (all three added 2026-07-06), landscape-eval (added 2026-07-09, the #25 weekly claude job).
+- **Landscape Monitor (#25, added 2026-07-09):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a zero-token fetch, light class like git-backup/vault-index.
 - **Auth-check (added 2026-07-06):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a probe, not a run.
 - **Sprint Tracker:** RestartCount 4, 90 min, ExecutionTimeLimit 1h (see its entry).
 - **Email Triage x3:** RestartCount 2, RestartInterval 60 min, ExecutionTimeLimit 2h - lighter because the 9/13/17 slots are only hours apart.
