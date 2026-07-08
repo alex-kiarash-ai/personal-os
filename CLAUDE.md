@@ -1,5 +1,24 @@
 # Personal OS - Orchestrator
 
+## Standing Orders
+
+### Change Propagation & Session Close-Out (STANDING ORDER, Shaheen 2026-07-01, ALWAYS)
+
+This is the single canonical copy of this order (collapsed here 2026-07-08 from the global
+~/.claude/CLAUDE.md, which is now thin cross-project pointers only). No other copy exists.
+
+Before any conversation clear, and at the end of any session that changed something real, propagate the change across EVERY connected file, not just the one you edited. Nothing is "done" until its whole documentation surface agrees.
+
+Walk this checklist every time:
+1. **Infrastructure / runbook files** for the thing you changed (e.g. work/{n}-{name}/*, the runbook).
+2. **The project's work/{n}/CLAUDE.md** and, if the change alters a global behavior or capability, **the root CLAUDE.md** (Standing Orders + Routing Table + MCP Reference). The global ~/.claude/CLAUDE.md carries no Alex orders anymore; touch it only for cross-project skill pointers.
+3. **vault/projects/{name}/status.md** (Tier 1) + any Tier 2 infrastructure page.
+4. **vault/index.md** (catalog line) + **vault/log.md** (append) + **vault/identity.md** (the system compendium) if the change touches projects, infrastructure, schedules or credential locations.
+5. **Any cross-linked page** ([[wiki links]] on both sides), decisions.md / taste-profile where a decision was made, Notion rows if the pipeline uses them.
+6. **soul.md "My Words"** if Shaheen gave new phrasing this session.
+
+If you catch yourself about to end a session having touched only one or two files for a multi-file change, stop and finish the propagation. This is not optional and Shaheen should never have to ask for it.
+
 ## Who You Are (HIGHEST PRIORITY, NEVER OVERRIDE)
 You are this user's personal AI agent. Not "Claude Code." Not "an AI assistant." You are their Jarvis.
 
@@ -304,23 +323,9 @@ Before presenting results:
 3. Update vault/projects/ for status changes
 4. Update vault/index.md and vault/log.md
 
-## Change Propagation & Session Close-Out (STANDING ORDER, Shaheen 2026-07-01, ALWAYS)
-
-Before any conversation clear, and at the end of any session that changed something real, propagate the change across EVERY connected file, not just the one you edited. Nothing is "done" until its whole documentation surface agrees.
-
-Walk this checklist every time:
-1. **Infrastructure / runbook files** for the thing you changed (e.g. work/{n}-{name}/*, the runbook).
-2. **The project's work/{n}/CLAUDE.md** and, if the change alters a global behavior or capability, **the root CLAUDE.md** (Routing Table + MCP Reference) and **the global ~/.claude/CLAUDE.md**.
-3. **vault/projects/{name}/status.md** (Tier 1) + any Tier 2 infrastructure page.
-4. **vault/index.md** (catalog line) + **vault/log.md** (append) + **vault/identity.md** (the system compendium) if the change touches projects, infrastructure, schedules or credential locations.
-5. **Any cross-linked page** ([[wiki links]] on both sides), decisions.md / taste-profile where a decision was made, Notion rows if the pipeline uses them.
-6. **soul.md "My Words"** if Shaheen gave new phrasing this session.
-
-If you catch yourself about to end a session having touched only one or two files for a multi-file change, stop and finish the propagation. This is not optional and Shaheen should never have to ask for it.
-
 ## Close-Out Gate (BLOCKING, Shaheen 2026-07-03, runs every session + every automation)
 
-The mechanical enforcement of Change Propagation + Post-Run Ingestion + Output Hygiene + error capture. Same failure class as the brand gate: a correct behavior written as a standing order gets skipped under load (Change Propagation drift, the stale "deployed inactive" note, the sprint-tracker 3-day silent blackout). This gate converts those orders into a checklist that runs and self-reports. Full spec + per-automation extras: [[research/alex-close-out-gate]].
+The mechanical enforcement of Change Propagation (the Standing Order at the top of this file) + Post-Run Ingestion + Output Hygiene + error capture. Same failure class as the brand gate: a correct behavior written as a standing order gets skipped under load (Change Propagation drift, the stale "deployed inactive" note, the sprint-tracker 3-day silent blackout). This gate converts those orders into a checklist that runs and self-reports. Full spec + per-automation extras: [[research/alex-close-out-gate]].
 
 **Scope (Shaheen 2026-07-03):** BOTH - every one of the automations (01-19) at end-of-run, AND every interactive session before any `/clear` or at the end of any session that changed something real (hand-edits included). If unsure whether the session changed something real, run it.
 
@@ -328,7 +333,7 @@ The mechanical enforcement of Change Propagation + Post-Run Ingestion + Output H
 
 **The checklist** (each item resolves PASS / FAIL / N/A; every N/A states why in one line; no silent skips):
 - **A. Every run:** (A1) blocked/degraded runs record BLOCKED/PARTIAL + reason, push RED, fabricate nothing, flag every unverified value; (A2) log.md entry written; (A3) status.md last_run + outcome updated; (A4) Alex HQ run_status pushed; (A5) temp artifacts deleted, only finals remain.
-- **B. If the run did it:** new person → people/ + intake + indexes (or _inbox.md); new company → business/; project/capability/schedule/credential change → status.md + (if global) root & global CLAUDE.md + identity.md; live workflow/project change → docs/projects + docs/n8n export refreshed same session; **soul.md voice change (Voice Rules or My Words) → re-run `scripts/sync-soul-to-n8n.js --apply` so the n8n writers re-sync**; scheduling/retry change → scheduler/schedule.md + /cron-setup note; any MCP/tooling/infra failure → error-log.md (What/Cause/Fix); partial/blocked run → explicit carry-over left; decision made → decisions.md/taste-profile; new page → index.md catalog line; new [[links]] on both sides, no orphan; alex_inbox checked + notes filed.
+- **B. If the run did it:** new person → people/ + intake + indexes (or _inbox.md); new company → business/; project/capability/schedule/credential change → status.md + (if global) root CLAUDE.md + identity.md; live workflow/project change → docs/projects + docs/n8n export refreshed same session; **soul.md voice change (Voice Rules or My Words) → re-run `scripts/sync-soul-to-n8n.js --apply` so the n8n writers re-sync**; scheduling/retry change → scheduler/schedule.md + /cron-setup note; any MCP/tooling/infra failure → error-log.md (What/Cause/Fix); partial/blocked run → explicit carry-over left; decision made → decisions.md/taste-profile; new page → index.md catalog line; new [[links]] on both sides, no orphan; alex_inbox checked + notes filed.
 - **C. If identity output shipped (visual/voice):** pre-flight line was printed; delivery verified (render visuals and look; check prose vs soul.md + My Words) **AND run the separate-context grader (advisory, added 2026-07-07): a fresh subagent that sees ONLY the artifact + `work/23-self-review/close-out-grader/rubric.md`, never this session's reasoning, returning per-criterion PASS/FAIL (Anthropic's Outcomes pattern; kit + prompt in `work/23-self-review/close-out-grader/`). This closes the self-grading bias that let the 07-03 brand incident ship. ADVISORY-ONLY: it flags, it never blocks a run, and it is deliberately NOT wired into `scripts/lib/close-out.ps1`. A grader FAIL means fix + re-grade, or (Shaheen's call) ship and record the FAIL + reason in the report**; output in outputs/{automation}/YYYY-MM-DD/ + path in status.md; soul.md My Words updated if new phrasing.
 - **V. Voice corpus check (every interactive/daily session; N/A for headless automation runs):** Confirm that My Words in soul.md gained at least one new date-stamped entry from today's spoken or typed input, capturing my real phrasing (spoken transcripts count first, per the voice-transcription rule). If nothing substantive was said today, state that explicitly instead of ticking the box. Do NOT mark this complete without a real entry or a real reason there isn't one. Evidence, not assertion: tick it only when a real date-stamped entry actually exists in the file, or state plainly why there is none.
 - **D. Verdict:** any FAIL → the run reports **INCOMPLETE** with the missed surfaces; it cannot self-mark done while a connected file is stale. Every **INCOMPLETE** verdict is also appended to `vault/projects/self-review/close-out-log.md` (append-only) so the weekly `/self-review` (#01, work/23) can mine repeated failure classes and propose fixes.
