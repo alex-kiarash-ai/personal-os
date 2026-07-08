@@ -95,6 +95,10 @@ const want = name => !ONLY || ONLY.includes(name);
     // 5. Swap or report.
     if (DRY) {
       log.step(`[5/5] DRY-RUN complete - staged output left in .staging/ for review (${aw.stagedFiles().length} file(s)), nothing real touched`);
+    } else if (aw.stagedFiles().length === 0) {
+      // --only selections without file outputs (e.g. --only=n8n) stage nothing; that is not an
+      // error - the external integration already ran above. Found by migration test 2 (P3-S2).
+      log.step('[5/5] nothing staged to swap (the --only selection produced no file outputs)');
     } else {
       const swapped = aw.swapAll();
       log.step(`[5/5] swapped ${swapped.length} file(s): ${swapped.join(', ')}`);
