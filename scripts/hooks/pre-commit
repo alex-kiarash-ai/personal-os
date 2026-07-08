@@ -1,0 +1,57 @@
+#!/bin/sh
+# pre-commit - the permanent validation gate (refactor P3-S3, decision D7).
+# Runs scripts/validate-alex.js (G1-G4 + V1-V6) on every commit; a red check blocks the commit.
+#
+# Install (one-time per clone; this file is versioned, .git/hooks is not):
+#   git config core.hooksPath scripts/hooks
+#
+# Credential design (P3-S3, option (a) + network carve-out, architect-flagged):
+#   - V6 needs N8N_API_URL/N8N_API_KEY. If they are not in the environment, this wrapper loads the
+#     key from the LOCAL key file (work/03-application-engine/config/n8n-api-key.txt, gitignored)
+#     so V6 runs for REAL at commit time - including the nightly 21:30 headless git-backup job.
+#     The credential itself never appears in code or in a committed file; this is a path, not a key.
+#   - In --context=pre-commit the validator degrades V6 (n8n unreachable / no creds) and the live
+#     half of V2 (no schtasks) to a LOUD WARNING SKIP instead of a failure, so a network outage or
+#     a vault-less clone on another machine can never block a commit - and, critically, can never
+#     block the nightly backup. A REAL mismatch (doc drift, job drift, rule model != live model)
+#     still blocks. Full strictness lives in the generator context, which every generate-alex.js
+#     run uses.
+#   - Non-interactive and cheap by design: one node process, one schtasks query, at most two HTTP
+#     GETs with a 15s timeout. Works under Windows Task Scheduler with no profile and no user env
+#     vars (node is machine-scope; explicit fallback below).
+#
+# Escape hatch: git's standard `--no-verify` (deliberate, logged-by-you decision - no custom flag).
+
+ROOT="$(git rev-parse --show-toplevel)" || exit 1
+
+# Locate node: PATH first, then the machine-scope install location.
+if command -v node >/dev/null 2>&1; then
+  NODE=node
+elif [ -x "/c/Program Files/nodejs/node.exe" ]; then
+  NODE="/c/Program Files/nodejs/node.exe"
+else
+  echo "pre-commit: WARNING - node not found; validate-alex CANNOT run. Commit allowed, but the" >&2
+  echo "pre-commit: validation gate did NOT run. Fix PATH or install Node.js." >&2
+  exit 0
+fi
+
+# Load n8n creds from the local key file when the environment does not carry them (option (a)).
+KEY_FILE="$ROOT/work/03-application-engine/config/n8n-api-key.txt"
+if [ -z "$N8N_API_KEY" ] && [ -f "$KEY_FILE" ]; then
+  N8N_API_KEY="$(tr -d '\r\n' < "$KEY_FILE")"
+  export N8N_API_KEY
+fi
+if [ -z "$N8N_API_URL" ]; then
+  N8N_API_URL="https://n8n.shaheenkiarash.com/api/v1"
+  export N8N_API_URL
+fi
+
+echo "pre-commit: validate-alex (G1-G4 + V1-V6, context=pre-commit)"
+"$NODE" "$ROOT/scripts/validate-alex.js" --context=pre-commit
+STATUS=$?
+if [ $STATUS -ne 0 ]; then
+  echo "pre-commit: BLOCKED - validation failed (see FAILED lines above)." >&2
+  echo "pre-commit: fix the named drift (usually: edit the source, run 'node scripts/generate-alex.js')." >&2
+  exit $STATUS
+fi
+exit 0
