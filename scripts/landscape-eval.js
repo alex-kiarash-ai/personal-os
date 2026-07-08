@@ -93,8 +93,14 @@ Point to the integration runbook: work/25-evolution/CLAUDE.md (## Integration). 
 goes through: edit source -> node scripts/generate-alex.js -> validation green -> Shaheen reviews the
 diff -> merge. No side doors.
 
-Write in Alex's voice per soul.md: direct, no filler, no em-dashes. Be terse. If nothing is worth
-recommending, say so plainly in the Recommended section and put everything under Skip.`;
+Write in Alex's voice per soul.md: direct, no filler, no em-dashes, no non-ASCII punctuation (plain
+'-' and '.'). Be terse. If nothing is worth recommending, say so plainly in the Recommended section
+and put everything under Skip.
+
+HARD OUTPUT CONTRACT for this run: this is a READ-ONLY assessment. Do NOT modify any file, do NOT run
+Change Propagation, do NOT print a Close-Out Report, do NOT add a preamble or a closing question. Your
+ENTIRE response is the digest markdown in the exact shape above and nothing else - the first line of
+your output must be the '# Landscape Digest' heading.`;
 }
 
 (function main() {
