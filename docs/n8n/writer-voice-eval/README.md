@@ -4,7 +4,8 @@
 
 ## What it is, in plain words
 A regression test for the job-pipeline's cover-letter/CV writer. The two live job engines (#03 BI,
-#14 AI) generate prose with a "voice block" that `scripts/sync-soul-to-n8n.js` injects from `soul.md`.
+#14 AI) generate prose with a "voice block" that the unified generator (`scripts/generate-alex.js`,
+module `scripts/lib/sync-n8n-voice.js`, since 2026-07-08) injects from `soul.md`.
 Every time Shaheen's voice changes and the block is re-synced, the writer's prompt changes in
 production, with nothing checking that the change didn't break the output. This workflow is that
 check: it runs the REAL writer prompt on a set of test job postings and scores the output on hard,
@@ -38,11 +39,11 @@ It is a SEPARATE workflow and does NOT touch the live 07:00 pipeline.
 
 ## How to run it
 Open the workflow in the n8n editor and click **Execute workflow**. Read the **Eval Summary** node's
-output. Do this after every `node scripts/sync-soul-to-n8n.js --apply` (the eval is a sync-soul
-TARGET, so its writer node is refreshed in lockstep with the two live engines).
+output. Do this after every generator run that re-syncs the voice block (`node scripts/generate-alex.js`;
+the eval is a sync TARGET, so its writer node is refreshed in lockstep with the two live engines).
 
 ## Kept honest by
-`scripts/sync-soul-to-n8n.js` lists this workflow as a third target, so a soul re-sync updates the
+The generator's voice-sync module lists this workflow as a third target, so a soul re-sync updates the
 eval's writer node too. Costs ~6 Sonnet calls per run (occasional, only after a re-sync).
 
 ## Run history (2026-07-07)

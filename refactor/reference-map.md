@@ -129,9 +129,18 @@ Every entry must be resolved by end of Phase 1. Resolution classes:
 | vault/projects/self-review/close-out-log.md | EXEMPT-HISTORY | append-only |
 | vault/log.md | EXEMPT-HISTORY | — |
 
-## Status
+## Status (closed 2026-07-08, end of Phase 1)
 
-- [ ] All FIX entries resolved (P1-S1 → P1-S4)
-- [ ] All RETIRES-WITH-FILE entries gone with their files (P1-S4)
-- [ ] ORCHESTRATOR entries handed over (listed above, exact file:line)
+- [x] All FIX entries resolved (P1-S1 → P1-S4). Grep-proven: remaining tracked-file mentions of
+      retired names are either the refactor spec / analysis doc (EXEMPT-SPEC), the explicit
+      routing-table archive (EXEMPT-HISTORY), this map, or provenance notes that name the script AS
+      retired/absorbed ("replaced generate-surfaces.ps1", "absorbed from the retired
+      sync-soul-to-n8n.js") - history, not dangling pointers.
+- [x] All RETIRES-WITH-FILE entries gone with their files (P1-S4: PROTOCOL.md, SYSTEM-GUIDE.md,
+      SCHEDULING-GUIDE.md, root GETTING-STARTED.md, generate-surfaces.ps1, sync-soul-to-n8n.js)
+- [ ] ORCHESTRATOR entries: OPEN, handed to the orchestrator session (vault propagation is its
+      scope by explicit instruction). Exact file:line list above; the big ones are
+      vault/identity.md, vault/index.md:163, vault/projects/recovery/{status,recovery-layer-plan}.md,
+      vault/identity/{alex-explained,installing-alex}.md, vault/me/build-playbook.md:25,
+      vault/research/alex-close-out-gate.md:50.
 - [x] EXEMPT classes justified inline
