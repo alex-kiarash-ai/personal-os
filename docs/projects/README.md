@@ -30,6 +30,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 21 | [Interview Copilot](21-interview-copilot.md) | EVENT | Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends. |
 | 22 | [Teach-Alex](22-teach-alex.md) | EVENT | Ten-second corrections from the phone: classified, filed, confirmed for identity files, logged for #23. |
 | 23 | [Self-Review](23-self-review.md) | LIVE | Alex reviews Alex weekly: clusters corrections, errors, INCOMPLETE close-outs; proposes upgrades behind approval. |
+| 24 | [Flight Search](24-flight-search.md) | ON-DEMAND | Cheapest + best flights across four sources in parallel (Kiwi, Turkish, Google Flights, Skyscanner); hybrid criteria intake, dedupe to the single cheapest, rank by Shaheen's rules, 30-min follow-up memory, fresh every search. |
 | - | [Voice](voice.md) | ON-DEMAND | Hands-free two-way voice: open-mic Whisper in, persistent Claude (sonnet) brain as the full Alex, Edge-TTS neural voice out with a never-mute Edge->SAPI floor. Free/local except the brain's Claude-plan usage. Adopted 2026-07-07 as THE voice solution (replaced v1's OpenAI TTS + the SAC-blocked Kokoro plan); latency + conversation tuning same day. |
 | - | [Alex Cost Tracker](alex-costs.md) | ON-DEMAND | What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate). |
 | - | [Modeling](modeling.md) | DORMANT | Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows). |

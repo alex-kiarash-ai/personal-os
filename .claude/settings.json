@@ -33,6 +33,16 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ./scripts/capture-typed-input.js"
+          }
+        ]
+      }
     ]
   }
 }

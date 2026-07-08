@@ -71,12 +71,20 @@ const STATE_LABEL: Record<string, string> = {
 };
 const idleLabel = (state: string) => STATE_LABEL[state] ?? state.toLowerCase();
 
-/* due-ness computed at render from raw dates, so the card is right even if the sync lagged */
+/* due-ness computed at render from raw dates, so the card is right even if the sync lagged.
+   "due_today" = today lands on the watering cadence (every Nth day from last watered), NOT a
+   growing overdue counter — carry-over / "Nd over" is deliberately gone (Shaheen 2026-07-08:
+   show only what's due today). overdue_days is kept solely for the stale-log guard below. */
 function plantsDue(life: LifeData, now: number) {
-  return life.plants.items.map((p) => ({
-    ...p,
-    overdue_days: daysSinceStockholm(p.last_watered, now) - p.every_days, // >= 0 means due
-  }));
+  return life.plants.items.map((p) => {
+    const daysSince = daysSinceStockholm(p.last_watered, now);
+    const overdue_days = daysSince - p.every_days;
+    const due_today = daysSince > 0 && daysSince % p.every_days === 0;
+    const cycles = Math.max(1, Math.ceil(daysSince / p.every_days)); // next on-or-after today
+    const nd = new Date(p.last_watered + "T00:00:00Z");
+    nd.setUTCDate(nd.getUTCDate() + cycles * p.every_days);
+    return { ...p, overdue_days, due_today, next_due: nd.toISOString().slice(0, 10) };
+  });
 }
 
 function CountUp({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -534,26 +542,29 @@ function PlantsBreakdown({ life, now }: { life: LifeData | null | "failed"; now:
         checking the plants…
       </p>
     );
-  const rows = plantsDue(life, now).sort((a, b) => b.overdue_days - a.overdue_days || a.name.localeCompare(b.name));
+  // due-today first, then by next watering date; overdue carry-over is never shown as an alarm
+  const rows = plantsDue(life, now).sort(
+    (a, b) => Number(b.due_today) - Number(a.due_today) || a.next_due.localeCompare(b.next_due) || a.name.localeCompare(b.name)
+  );
   return (
     <div>
       {rows.map((p) => (
         <div key={p.name} className="note-row">
-          <Dot status={p.overdue_days >= 0 ? "amber" : "green"} />
+          <Dot status={p.due_today ? "amber" : "green"} />
           <span className="min-w-0 flex-1 truncate">{p.name}</span>
           <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
             every {p.every_days}d · watered {p.last_watered}
           </span>
           <span
-            className="w-16 flex-none text-right text-xs tabular-nums"
-            style={{ color: p.overdue_days >= 0 ? "var(--warn)" : "var(--mute)" }}
+            className="w-24 flex-none text-right text-xs tabular-nums"
+            style={{ color: p.due_today ? "var(--warn)" : "var(--mute)" }}
           >
-            {p.overdue_days > 0 ? `${p.overdue_days}d over` : p.overdue_days === 0 ? "due today" : `in ${-p.overdue_days}d`}
+            {p.due_today ? "due today" : `next ${p.next_due}`}
           </span>
         </div>
       ))}
       <p className="mt-2 text-xs" style={{ color: "var(--mute)" }}>
-        watering data as of {life.plants.as_of ?? "unknown"} · tell Alex &quot;watered&quot; and the sheet gets stamped
+        only plants due today are flagged · next watering date shown per plant · data as of {life.plants.as_of ?? "unknown"} · tell Alex &quot;watered&quot; and the sheet gets stamped
       </p>
     </div>
   );
@@ -952,7 +963,8 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
   if (airbnbTile && nextBooking) airbnbTile.sub = `next: ${clean(nextBooking.value_text) || clean(nextBooking.headline) || "no booking"}`;
 
   const radarTile = simple("radar", "Radar · shipped 30d", "radar", "shipped_30d", { spark: false });
-  if (radarTile) radarTile.stamp = `last run ${fmtDateTime(m("radar", "shipped_30d")?.ts)}`;
+  // weekly producer (Mon sweep): label the cadence so a 6-day-old stamp reads as "on schedule", not "stuck"
+  if (radarTile) radarTile.stamp = `weekly · last run ${fmtDateTime(m("radar", "shipped_30d")?.ts)}`;
 
   const buildTile = simple("build", "Build tasks · done this week", "sprint", "velocity", { spark: false });
   if (buildTile) buildTile.stamp = `last run ${fmtDateTime(m("sprint", "velocity")?.ts)}`;
@@ -961,16 +973,27 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
     spark: false,
     metricKeys: ["sleep_score_today"],
   });
-  if (sleepTile) sleepTile.stamp = `pushed ${fmtDateTime(m("health", "sleep_score_today")?.ts)}`;
+  if (sleepTile) {
+    sleepTile.stamp = `pushed ${fmtDateTime(m("health", "sleep_score_today")?.ts)}`;
+    // red here = the daily iPhone push didn't land a real night; say so, don't show a stale number as if fresh
+    if (m("health", "sleep_score_today")?.status === "red")
+      sleepTile.sub = "phone sync stalled · no fresh sleep from the iPhone · fix the Shortcut";
+  }
 
   const stepsTile = simple("health-steps", "Body · steps yesterday", "health", "steps_today", {
     metricKeys: ["steps_today"],
   });
-  if (stepsTile) stepsTile.stamp = `pushed ${fmtDateTime(m("health", "steps_today")?.ts)}`;
+  if (stepsTile) {
+    stepsTile.stamp = `pushed ${fmtDateTime(m("health", "steps_today")?.ts)}`;
+    if (m("health", "steps_today")?.status === "red")
+      stepsTile.sub = "phone sync stalled · no fresh steps from the iPhone · fix the Shortcut";
+  }
 
   const expensesTile = simple("expenses", "Expenses · MTD kr", "expenses", "mtd_total_kr");
   const mtdCat = m("expenses", "mtd_by_category");
   if (expensesTile && mtdCat && mtdCat.value_text) expensesTile.sub = clean(mtdCat.value_text);
+  // monthly producer (runs month-end): label the cadence so a mid-month 0 reads as "not captured yet", not "broken"
+  if (expensesTile) expensesTile.stamp = "monthly · updates at month-end";
 
   // To-Do: the open build-board items (client-fetched todos.json, sprint snapshot)
   const openTodos = todos && todos !== "failed" ? todos.items : null;
@@ -1004,7 +1027,8 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
   };
   if (life && life !== "failed") {
     const all = plantsDue(life, now);
-    const due = all.filter((p) => p.overdue_days >= 0);
+    // only what's due TODAY — no overdue carry-over (Shaheen 2026-07-08)
+    const dueToday = all.filter((p) => p.due_today);
     const sourceDead = all.length > 0 && all.every((p) => p.overdue_days > p.every_days);
     if (sourceDead) {
       // every plant past 2x its cadence = the log is stale, not the plants dying — say so
@@ -1013,10 +1037,10 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
       plantsTile.status = "amber";
       plantsTile.sub = `watering log stale since ${oldest} · tell Alex when you water`;
     } else {
-      plantsTile.big = <CountUp value={due.length} />;
-      plantsTile.dim = due.length === 0;
-      plantsTile.status = due.length > 0 ? "amber" : "green";
-      plantsTile.sub = due.length > 0 ? `need water: ${due.map((p) => p.name).join(", ")}` : "none need water";
+      plantsTile.big = <CountUp value={dueToday.length} />;
+      plantsTile.dim = dueToday.length === 0;
+      plantsTile.status = dueToday.length > 0 ? "amber" : "green";
+      plantsTile.sub = dueToday.length > 0 ? `due today: ${dueToday.map((p) => p.name).join(", ")}` : "none due today";
       plantsTile.stamp = `watering data as of ${life.plants.as_of ?? "unknown"}`;
     }
   }
