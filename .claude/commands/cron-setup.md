@@ -1,90 +1,81 @@
 # /cron-setup - Manage System Schedules
 
-Three modes: on, off, or update.
+Manage the local scheduled jobs. On this machine that means **Windows Task Scheduler**, one job per
+entry in `scheduler/schedule.md`, named `PersonalOS-{name}`, each running a **hardened wrapper**
+`scripts/run-{name}.ps1` (never a bare `claude -p`). Modes: on, off, update.
 
 ## Usage
-- `/cron-setup` or `/cron-setup on` - Activate all schedules
-- `/cron-setup off` - Turn off ALL jobs
-- `/cron-setup off morning-brief` - Turn off a specific job
-- `/cron-setup off morning-brief market-pulse` - Turn off multiple
+- `/cron-setup` or `/cron-setup on` - Register/refresh every job in scheduler/schedule.md
+- `/cron-setup off` - Disable ALL PersonalOS jobs
+- `/cron-setup off morning-brief` - Disable one job
+- `/cron-setup off morning-brief personal-crm` - Disable several
+- `/cron-setup on morning-brief` - Re-enable a specific job
 
-## Prerequisites (smart check)
+## Reality on this machine (read first)
+- **No auth token.** Tasks run as the logged-in user and reuse the existing Claude Code login. The old
+  `CLAUDE_CODE_OAUTH_TOKEN` / `claude setup-token` flow is gone - do NOT ask for a token.
+- **Source of truth:** `scheduler/schedule.md` (the `### ` entries carry the job name + frequency). The
+  unified generator `node scripts/generate-alex.js` CREATES MISSING tasks from it (create-missing-only,
+  never touching an existing job's hardening). `/cron-setup` is for the manual on/off/enable/disable and
+  for re-applying hardening after a task is re-created. Both read the same schedule.md.
+- **Validation couples them:** `scripts/validate-alex.js` check V2 compares schedule.md against the live
+  `schtasks` set. A job documented in schedule.md with no live task (or a live PersonalOS job absent from
+  schedule.md) fails V2 and blocks commits. So schedule.md and Task Scheduler must always agree.
+- **Check state:** `schtasks /query /fo csv | findstr PersonalOS`. Logs: `outputs/logs/{name}.log`.
 
-1. **Auth token**: First, check if personal-os cron entries already exist in crontab (`crontab -l | grep personal-os`). If entries exist, the token is already embedded in them. Extract it. Do NOT ask the user again.
-   - Only if NO existing entries AND no token found: tell the user "Open a new terminal tab. Run `claude setup-token`. Paste the token here."
-   - Save the token in vault/projects/cron-token.md (encrypted reference, not the raw token) so the agent knows it's been set up before.
+## How "On" works
+1. Read `scheduler/schedule.md` for every `### ` entry (name, command, frequency).
+2. For each entry, confirm a hardened wrapper `scripts/run-{name}.ps1` exists (dot-sources
+   `scripts/lib/close-out.ps1`; a wrapper that runs a real automation ends with `Invoke-CloseOutCheck`).
+   If the wrapper is missing, create it from the pattern (see run-alex-radar.ps1 / run-landscape-monitor.ps1)
+   BEFORE registering the task - never schedule a bare `claude -p`.
+3. Register any missing task (either `node scripts/generate-alex.js` for the whole set, or
+   `Register-ScheduledTask` directly for one), then apply the hardening for its class (below).
+4. Report what was registered and what already existed.
 
-2. **Binary paths**: Run `which claude` and `which python3`. Cache in vault/projects/cron-paths.md so you don't re-check every time.
-
-3. **Log directory**: `mkdir -p outputs/logs`
-
-## How "On" Works
-
-1. Read scheduler/schedule.md for all active schedules
-2. Detect OS (macOS/Linux/Windows)
-3. Check existing crontab for personal-os entries
-4. If entries exist: compare with schedule.md. Add new ones, update changed ones, skip unchanged.
-5. If no entries exist: first-time setup. Need token and paths.
-6. For each entry in schedule.md: create or update the cron line
-7. Report what was activated
-
-### Cron Entry Format (macOS and Linux)
-
-Each job is one crontab line. ALL env vars inline. Full paths. No shell profile.
-
-**CRITICAL: The `cd` MUST come first.** Cron runs from `/`. Without `cd`, claude can't find soul.md, vault/, or any project files. This is the #1 cron failure.
-
-```
-CRON_EXPRESSION cd /full/path/to/personal-os && export CLAUDE_CODE_OAUTH_TOKEN=TOKEN && export PATH=/path/to/claude/dir:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin && export HOME=/Users/username && claude -p "Run /command-name" --dangerously-skip-permissions >> outputs/logs/command-name.log 2>&1 # personal-os:command-name
-```
-
-**After writing the cron entry, verify it starts with `cd /absolute/path &&`.** If the `cd` is missing, the job WILL fail silently.
-
-The `# personal-os:command-name` comment tags the entry so we can find/update/remove it later.
-
-### Windows (Task Scheduler)
-
-For each job, create a PowerShell script and register it:
+### Registering one task (PowerShell, current user, no password prompt)
 ```powershell
-$env:CLAUDE_CODE_OAUTH_TOKEN = "TOKEN"
-Set-Location "C:\path\to\personal-os"
-claude -p "Run /command-name" --dangerously-skip-permissions | Out-File -Append "outputs\logs\command-name.log"
+$repo = "C:\Users\Thinkpad\Desktop\personal-os"
+$a = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$repo\scripts\run-{name}.ps1`""
+$t = New-ScheduledTaskTrigger -Daily -At 8:00am   # or -Weekly -DaysOfWeek Monday -At 7:30am, etc.
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2) -RestartCount 4 -RestartInterval (New-TimeSpan -Minutes 90)
+Register-ScheduledTask -TaskName "PersonalOS-{name}" -Action $a -Trigger $t -Settings $s -Force
 ```
-Register: `schtasks /create /tn "PersonalOS-command-name" /tr "powershell -File scripts\command-name.ps1" /sc daily /st 08:00`
 
-## How "Off" Works
+### Hardening classes (canonical list: scheduler/schedule.md "Task Hardening")
+- **Standard (daily/weekly/monthly claude jobs):** RestartCount 4 / RestartInterval 90 min / ExecutionTimeLimit 2h.
+- **Light (probes + zero-token scripts, e.g. git-backup, vault-index, landscape-monitor):** RestartCount 2 / 30 min / ExecutionTimeLimit 30 min.
+- All jobs: `StartWhenAvailable`, `WakeToRun`, battery-safe, `MultipleInstances IgnoreNew`.
+- **The real retry is NOT RestartCount.** Task Scheduler's RestartCount only fires on a LAUNCH failure,
+  not on a wrapper that runs and exits 1 (proven 2026-07-06). The working retry is the close-out lib's
+  self-scheduled one-shot `PersonalOS-retry-{wrapper}-{n}` (+90 min, attempts 2-5, auto-deletes). The
+  RestartCount ladders stay as belt-and-suspenders for launch failures.
 
-If `/cron-setup off` (no name):
-- List all personal-os entries in crontab
-- Ask: "Turn off all, or specific ones?"
-- Remove matching lines from crontab
-- "All schedules paused. Run /cron-setup to re-enable."
+## How "Off" works
+- `/cron-setup off` (no name): list the live PersonalOS jobs, confirm, then
+  `Disable-ScheduledTask -TaskName PersonalOS-{name}` for each. Disable, don't delete - a disabled job
+  keeps its hardening and stays documented in schedule.md, so V2 still sees it (mark it disabled in
+  schedule.md, as whatsapp-harvest is).
+- `/cron-setup off {name}`: `Disable-ScheduledTask -TaskName PersonalOS-{name}` for that one.
+- Re-enable: `Enable-ScheduledTask -TaskName PersonalOS-{name}`.
 
-If `/cron-setup off {name}`:
-- Remove only the line with `# personal-os:{name}`
-- "{name} paused. Others still running."
+## Changing an existing task - NEVER `schtasks /change`
+`schtasks /change` hangs on a password prompt in this environment. Mutate in place instead, which
+preserves every other setting:
+```powershell
+$t = Get-ScheduledTask -TaskName "PersonalOS-{name}"; $s = $t.Settings
+$s.RestartCount = 4; $s.RestartInterval = 'PT90M'; $s.ExecutionTimeLimit = 'PT2H'; $s.WakeToRun = $true
+Set-ScheduledTask -TaskName "PersonalOS-{name}" -Settings $s
+```
 
-## Mandatory Test
+## After setup
+- Report: jobs registered/enabled/disabled, their schedules, `schtasks /query /fo csv | findstr PersonalOS`.
+- If schedule.md changed, run `node scripts/generate-alex.js` so the docs regenerate and V2 re-checks
+  schedule.md against the live set.
+- Append the change to `vault/log.md`; update `scheduler/schedule.md` if a job was added/removed/retimed.
 
-After adding cron entries, run a self-test:
-1. Add a test entry for 2-3 minutes from now that writes `echo "CRON_TEST_OK" > outputs/logs/cron-test.txt`
-2. Wait for it to fire
-3. Check the file exists
-4. If it fails: check PATH, auth token, cd, permissions
-5. Only after test passes, confirm the permanent schedule
-6. Clean up test entries and test files
-
-## Important Notes
-- Cron has NO shell profile. Every env var must be exported inline.
-- Always use full paths for binaries (`which claude` to find it)
-- Always `cd` to personal-os directory first
-- Always include `--dangerously-skip-permissions`
-- Always redirect stdout AND stderr: `>> log 2>&1`
-- macOS first run may show a permission popup. Click Allow.
-- Tag every entry with `# personal-os:{name}` for management
-
-## After Setup
-- Report: what jobs were created, their schedules, how to check logs
-- Show: `crontab -l | grep personal-os` to see all entries
-- Show: `cat outputs/logs/{name}.log` to check output
-- Update vault/log.md
+## Other platforms (portability note)
+This command is Windows-first because that is where Alex runs. On macOS/Linux the equivalent is a per-job
+`crontab` line that `cd`s into the repo first and runs the same wrapper; the schedule.md contract and the
+generator's create-missing behavior are the same. Do not reintroduce an OAuth token - reuse the logged-in
+session.
