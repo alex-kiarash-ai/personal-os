@@ -51,6 +51,8 @@ Nothing runs until you schedule it. On this machine the scheduler is Windows Tas
 
 ### The scheduled jobs (from scheduler/schedule.md)
 
+| Job | Command | Frequency |
+|---|---|---|
 {{SCHEDULED_JOBS}}
 
 ## 7. Backup and recovery, in one paragraph

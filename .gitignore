@@ -78,5 +78,9 @@ work/06-meeting-intel/processed/
 # live job-hunt data: real target companies, titles, application URLs
 work/03-application-engine/powerbi/*.xlsx
 
-# n8n workflow backups written by scripts/sync-soul-to-n8n.js (embed CV + soul voice samples) - LOCAL ONLY
+# n8n workflow backups written by the soul-voice sync (embed CV + soul voice samples) - LOCAL ONLY
 scripts/n8n-backups/
+
+# unified generator staging (atomic generate-then-swap, refactor 2026-07-08) - never committed
+.staging/
+.staging-backup/
