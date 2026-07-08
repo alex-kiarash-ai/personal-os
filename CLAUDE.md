@@ -246,9 +246,9 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 
 ## Routing Table
 
-**GENERATED since 2026-07-06 (audit step 3+5).** The source of truth is the project registry `work/18-recovery-layer/manifest.json` (states, triggers, one-liners, docs pointers, schedule jobs). Edit the registry, then run `scripts/generate-surfaces.ps1` (also regenerates docs/projects/README.md); never hand-edit between the markers. /new writes its registry entry FIRST, then scaffolds. Per-project detail: vault/identity.md §3 + each work/{NN}/CLAUDE.md; the last hand-written table is archived at docs/projects/routing-table-detail-2026-07-06.md. Lifecycle states: LIVE · ON-DEMAND · EVENT · DORMANT · PARKED · RETIRED (rules in the registry's `states_doc`; DORMANT/PARKED carry a revisit date, two unchanged revisits force activate-or-retire).
+**GENERATED since 2026-07-06 (audit step 3+5).** The source of truth is the project registry `system/manifest.json` (moved from work/18-recovery-layer 2026-07-08; states, triggers, one-liners, docs pointers, schedule jobs). Edit the registry, then run `scripts/generate-surfaces.ps1` (also regenerates docs/projects/README.md); never hand-edit between the markers. /new writes its registry entry FIRST, then scaffolds. Per-project detail: vault/identity.md §3 + each work/{NN}/CLAUDE.md; the last hand-written table is archived at docs/projects/routing-table-detail-2026-07-06.md. Lifecycle states: LIVE · ON-DEMAND · EVENT · DORMANT · PARKED · RETIRED (rules in the registry's `states_doc`; DORMANT/PARKED carry a revisit date, two unchanged revisits force activate-or-retire).
 
-<!-- ROUTING-TABLE:BEGIN (generated from work/18-recovery-layer/manifest.json by scripts/generate-surfaces.ps1 - edit the registry, then regenerate; do NOT hand-edit) -->
+<!-- ROUTING-TABLE:BEGIN (generated from system/manifest.json by scripts/generate-surfaces.ps1 - edit the registry, then regenerate; do NOT hand-edit) -->
 | # | Command | State | Trigger | One line | Spec + status |
 |---|---------|-------|---------|----------|---------------|
 | 01 | /sprint-tracker | LIVE | weekdays 9:00 | Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it. | work/01-sprint-tracker - vault/projects/sprint-tracker/status.md |

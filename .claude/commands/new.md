@@ -10,7 +10,7 @@ If the user just described something briefly, ask clarifying questions: "What sh
 
 ## Step 2: Register FIRST, then scaffold (registry-first, audit step 3, 2026-07-06)
 
-0. **Write the registry entry BEFORE creating anything.** Add the project to `work/18-recovery-layer/manifest.json` `projects[]` (num, name, title, state, trigger, one_liner, docs, schedule_jobs, work_dir, commands, status_md, cadence_days, n8n), then run `scripts/generate-surfaces.ps1` - that generates the routing-table row (root CLAUDE.md) and the docs/projects/README.md row automatically. Do NOT hand-edit those tables. After the build, re-run `work/18-recovery-layer/check.ps1 -Init` to re-baseline.
+0. **Write the registry entry BEFORE creating anything.** Add the project to `system/manifest.json` `projects[]` (num, name, title, state, trigger, one_liner, docs, schedule_jobs, work_dir, commands, status_md, cadence_days, n8n), then run `scripts/generate-surfaces.ps1` - that generates the routing-table row (root CLAUDE.md) and the docs/projects/README.md row automatically. Do NOT hand-edit those tables. After the build, re-run `work/18-recovery-layer/check.ps1 -Init` to re-baseline.
 
 1. Find the next available number in work/ (if nothing exists, start with 01)
 

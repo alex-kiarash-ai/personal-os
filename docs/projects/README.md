@@ -1,10 +1,10 @@
 # The Projects - Plain-Language Guide
 
-One file per project in the Personal OS: **what it actually does, why it exists, and which other projects it works with.** Written for a non-technical reader. The table below is GENERATED from the project registry (`work/18-recovery-layer/manifest.json`) by `scripts/generate-surfaces.ps1`, so it cannot drift by hand (since 2026-07-06).
+One file per project in the Personal OS: **what it actually does, why it exists, and which other projects it works with.** Written for a non-technical reader. The table below is GENERATED from the project registry (`system/manifest.json`) by `scripts/generate-surfaces.ps1`, so it cannot drift by hand (since 2026-07-06).
 
 The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that operates a markdown knowledge base (the vault), twenty-plus automations, a phone dashboard, and two job-hunting robots on a rented server. The automations feed each other: everything reports its numbers to the dashboard, everything writes what it learns into the vault, and a weekly report reads all of it. The technical specs live in `work/{NN}/CLAUDE.md`; the live n8n workflows are explained in [`docs/n8n/`](../n8n/); the whole-system map is `vault/identity.md`.
 
-<!-- PROJECT-TABLE:BEGIN (generated from work/18-recovery-layer/manifest.json by scripts/generate-surfaces.ps1) -->
+<!-- PROJECT-TABLE:BEGIN (generated from system/manifest.json by scripts/generate-surfaces.ps1) -->
 | # | Project | State | One line |
 |---|---------|-------|----------|
 | 01 | [Sprint Tracker](01-sprint-tracker.md) | LIVE | Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it. |

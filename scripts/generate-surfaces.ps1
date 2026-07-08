@@ -1,5 +1,5 @@
 # generate-surfaces.ps1 (audit step 3+5, 2026-07-06)
-# Reads THE project registry (work/18-recovery-layer/manifest.json) and regenerates the derived surfaces:
+# Reads THE project registry (system/manifest.json; moved from work/18-recovery-layer 2026-07-08) and regenerates the derived surfaces:
 #   1. The Routing Table in root CLAUDE.md (slim generated rows between markers)
 #   2. The project table in docs/projects/README.md (between markers)
 # Direction of truth: edit the registry, run this script. Never hand-edit between the markers.
@@ -21,10 +21,10 @@ function WriteFile($p, $t) {
     [IO.File]::WriteAllText((Join-Path $repo $p), $t, $utf8)
 }
 
-$m = (ReadFile 'work/18-recovery-layer/manifest.json') | ConvertFrom-Json
+$m = (ReadFile 'system/manifest.json') | ConvertFrom-Json
 
 # ---------- 1. CLAUDE.md routing table ----------
-$B = '<!-- ROUTING-TABLE:BEGIN (generated from work/18-recovery-layer/manifest.json by scripts/generate-surfaces.ps1 - edit the registry, then regenerate; do NOT hand-edit) -->'
+$B = '<!-- ROUTING-TABLE:BEGIN (generated from system/manifest.json by scripts/generate-surfaces.ps1 - edit the registry, then regenerate; do NOT hand-edit) -->'
 $E = '<!-- ROUTING-TABLE:END -->'
 
 $rows = @()
@@ -64,7 +64,7 @@ if ($claude.Contains($B)) {
     }
     if ($start -lt 0) { throw 'CLAUDE.md: neither markers nor a legacy routing table found' }
     $legacy = $lines[$start..$end] -join "`n"
-    $archive = "# Routing Table - archived detail (pre-registry, snapshot 2026-07-06)`n`nThis is the last hand-written routing table from root CLAUDE.md, archived verbatim when the table became GENERATED from the project registry (work/18-recovery-layer/manifest.json via scripts/generate-surfaces.ps1). Living detail: vault/identity.md section 3 + each work/{NN}/CLAUDE.md. This file is history, not truth.`n`n" + $legacy + "`n"
+    $archive = "# Routing Table - archived detail (pre-registry, snapshot 2026-07-06)`n`nThis is the last hand-written routing table from root CLAUDE.md, archived verbatim when the table became GENERATED from the project registry (system/manifest.json via scripts/generate-surfaces.ps1). Living detail: vault/identity.md section 3 + each work/{NN}/CLAUDE.md. This file is history, not truth.`n`n" + $legacy + "`n"
     WriteFile 'docs/projects/routing-table-detail-2026-07-06.md' $archive
     $newLines = @()
     if ($start -gt 0) { $newLines += $lines[0..($start-1)] }
@@ -75,7 +75,7 @@ if ($claude.Contains($B)) {
 }
 
 # ---------- 2. docs/projects/README.md table ----------
-$B2 = '<!-- PROJECT-TABLE:BEGIN (generated from work/18-recovery-layer/manifest.json by scripts/generate-surfaces.ps1) -->'
+$B2 = '<!-- PROJECT-TABLE:BEGIN (generated from system/manifest.json by scripts/generate-surfaces.ps1) -->'
 $E2 = '<!-- PROJECT-TABLE:END -->'
 $rows2 = @()
 $rows2 += '| # | Project | State | One line |'

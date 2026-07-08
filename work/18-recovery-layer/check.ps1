@@ -28,7 +28,7 @@ New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\recovery-check.log"
 function Say($m) { "$m" | Out-File -Append -Encoding utf8 $log }
 
-$manifest = Get-Content (Join-Path $here "manifest.json") -Raw | ConvertFrom-Json
+$manifest = Get-Content (Join-Path $repo "system\manifest.json") -Raw | ConvertFrom-Json   # registry moved to system/ 2026-07-08 (refactor A2)
 $baselineFile = Join-Path $stateDir "baseline.json"
 $hwFile       = Join-Path $stateDir "log-highwater.json"
 

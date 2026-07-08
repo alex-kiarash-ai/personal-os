@@ -1,5 +1,5 @@
 // Alex HQ - project registry -> projects.json (the Automation Health board's roster)
-// Source of truth: work/18-recovery-layer/manifest.json (THE project registry).
+// Source of truth: system/manifest.json (THE project registry; moved from work/18-recovery-layer 2026-07-08).
 // HQ's health board used to discover projects only from who pushed a metric to alex_metrics,
 // so ON-DEMAND/EVENT/DORMANT/PARKED projects (and LIVE ones never retrofitted with a push)
 // were invisible. This ships the FULL registered roster; the frontend merges live metrics
@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-const SRC = process.argv[2] ?? "C:/Users/Thinkpad/Desktop/personal-os/work/18-recovery-layer/manifest.json";
+const SRC = process.argv[2] ?? "C:/Users/Thinkpad/Desktop/personal-os/system/manifest.json";
 const OUT = process.argv[3] ?? "C:/Users/Thinkpad/Desktop/personal-os/work/16-alex-hq/app/public/data/projects.json";
 
 const m = JSON.parse(readFileSync(SRC, "utf8"));

@@ -8,7 +8,7 @@ tools, loaded once and kept alive across the conversation). English, Arabic, Swe
 
 **State: ON-DEMAND - the adopted voice solution (2026-07-07).** This is `alex_voice.py`; it replaced
 v1 (OpenAI TTS, push-to-talk) and the abandoned Kokoro/faster-whisper plan. Human overview:
-`docs/projects/voice.md`. Registry: `work/18-recovery-layer/manifest.json` (`meta.unnumbered[0]`).
+`docs/projects/voice.md`. Registry: `system/manifest.json` (`meta.unnumbered[0]`).
 
 ## Run it
 Three ways, same loop:
