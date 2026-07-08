@@ -1,5 +1,7 @@
 # Brand File: Color System
 
+**LAW — on conflict, this file wins.** (Hierarchy formalized 2026-07-08: this file is the single source of color law — palette, hexes, tokens, ratios, contrast pairings, usage rules. `brand-config.md` is application only.)
+
 **Owner:** Shaheen Kiarash
 **Version:** 1.0 (July 2026)
 **Audience:** This document is written for Alex. It defines the official brand palette, what each color means, exactly where each color is allowed to be used, and where it is not. Follow it as a specification, not as inspiration.

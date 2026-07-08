@@ -1,20 +1,12 @@
 # Brand Configuration - ALEX (Shaheen Kiarash)
 
+**APPLICATION — on conflict, `color-system.md` wins.** (Hierarchy formalized 2026-07-08: `brand/config/color-system.md` is the single source of color law — palette, hexes, tokens, ratios, contrast pairings, usage rules. This page holds only how to APPLY the brand in Excel, decks, PDFs, web, plus logo, fonts, and tone. Rules stated in both files were deleted from this one.)
+
 **Rebrand 2026-07-03:** the STEMPLICITY identity (navy #0C1651 / cyan #12CCDD / coral #F09063 + wordmark) is retired. Everything that carried it now uses the ALEX brand below. Old assets: `brand/archive/stemplicity/`.
 
-**Source of law: `brand/config/color-system.md`** (Brand File v1.0, July 2026, written by Shaheen for Alex). That file is the specification - exact hexes, usage rules, contrast pairings, do/don't. This page is the operational quick layer; when in doubt, the Brand File wins.
-
-## Colors (core palette)
-- **Ink Black `#001219`** - dark canvas (default for hero/slides/social), primary text on light
-- **Dark Teal `#005f73`** - PRIMARY brand: headers, cards, nav, structure; headings on light
-- **Dark Cyan `#0a9396`** - secondary brand: links, active states, success
-- **Pearl Aqua `#94d2bd`** - highlights, secondary text on dark, soft surfaces
-- **Vanilla Custard `#e9d8a6`** - warm neutral: callout tints, dividers, tertiary text on dark (never a full-page background)
-- **Golden Orange `#ee9b00`** - THE accent: primary CTA, key numbers. **One per view.** Dark text `#001219` on it, never white.
-- **Burnt Caramel `#ca6702`** - CTA hover / pressed only
-- **Reds = alarm only, never decoration:** Rusty Spice `#bb3e03` (warning) · Oxidized Iron `#ae2012` (error/critical) · Brown Red `#9b2226` (deep error / destructive hover)
-
-**60-30-10:** 60% canvas (`#001219` dark or white light) · 30% teal family · 10% Golden Orange. A healthy screen has no red. Elevated dark surface: `#00232e`. Light elevated / soft tint: `#fff5e1`.
+## Color tokens (lookup only)
+Names + hexes for quick reference while building. Semantics, ratios (60-30-10), contrast pairings, and every do/don't live in `color-system.md` — read it, don't work from this list alone.
+Ink Black `#001219` · Dark Teal `#005f73` · Dark Cyan `#0a9396` · Pearl Aqua `#94d2bd` · Vanilla Custard `#e9d8a6` · Golden Orange `#ee9b00` · Burnt Caramel `#ca6702` · Rusty Spice `#bb3e03` · Oxidized Iron `#ae2012` · Brown Red `#9b2226` · elevated dark `#00232e` · light elevated `#fff5e1`
 
 ## Fonts (Type System v1.1, adopted by Shaheen 2026-07-06)
 **Generated documents (Word/Excel/PDF/HTML reports): Calibri.**
@@ -35,10 +27,7 @@
 - Nice-to-have someday: vector SVG from the original design file.
 
 ## Charts / Data Visualization
-- Series order: `#0a9396`, `#ee9b00`, `#005f73`, `#94d2bd`, `#ca6702`.
-- Reds only for negative values, thresholds, alerts in the data itself.
-- Gridlines/axes: `#94d2bd` at 20–30% opacity on dark; `#001219` at 15% on light.
-- Allowed gradients (sparing): `#001219→#005f73`, `#005f73→#0a9396`, `#ee9b00→#ca6702` (small elements). Never teal into red.
+Follow `color-system.md` §4.5 (series order, reds for data alarms only, gridline opacities) and §4.6 (allowed gradients). No local copy here — the duplicate was deleted 2026-07-08 (D9); the law file is the only place these rules live.
 
 ## Presentations
 - Build decks with **Claude Design (DesignSync)** on claude.ai/design, then export PDF (standing rule 2026-06-15). NOT .pptx / python-pptx.
