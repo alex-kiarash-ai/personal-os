@@ -74,9 +74,10 @@ const want = name => !ONLY || ONLY.includes(name);
       for (const o of outputs) { aw.stage(o.rel, o.content); log.step(`  staged ${o.rel}`); }
     }
 
-    // 3. Validate the staged set + live systems (Phase 3 grows this; structural guards today).
-    log.step('[3/5] validate');
-    const result = validate({ stagedDir: aw.STAGING });
+    // 3. Validate the staged set + live systems (G1-G4 + V1-V6; async since Phase 3 - V6 checks
+    //    the live n8n API, the live half of V2 queries Task Scheduler).
+    log.step('[3/5] validate (G1-G4 + V1-V6, context=generator)');
+    const result = await validate({ stagedDir: aw.STAGING });
     if (!result.ok) throw new Error(`validation failed:\n${result.failures.join('\n')}`);
 
     // 4. External integrations. Dry-run reports; full run applies. n8n is idempotent (an unchanged
@@ -99,12 +100,12 @@ const want = name => !ONLY || ONLY.includes(name);
       log.step(`[5/5] swapped ${swapped.length} file(s): ${swapped.join(', ')}`);
     }
     log.flush();
-    process.exit(0);
+    process.exitCode = 0; // not process.exit(): a hard exit after fetch trips a libuv teardown assertion on Windows
   } catch (e) {
     // Any failure: delete staging, touch nothing real, name the reason, exit 1.
     try { aw.reset(); } catch { /* staging cleanup is best-effort */ }
     log.step(`FAILED: ${e.message}`);
     log.flush();
-    process.exit(1);
+    process.exitCode = 1;
   }
 })();

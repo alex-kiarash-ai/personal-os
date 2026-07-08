@@ -1,24 +1,41 @@
 #!/usr/bin/env node
-// validate-alex.js - the validation layer (Layer 6). PHASE 3 DELIVERABLE.
+// validate-alex.js - the validation layer (Layer 6). PHASE 3 DELIVERABLE (P3-S1).
 //
-// PHASE 1 STATE: working SKELETON. It runs the structural guards only and prints
-// "V1-V6 pending Phase 3". The six real checks (V1 automation count, V2 scheduled jobs vs live
-// Task Scheduler, V3 no retired-as-live, V4 MCP consistency, V5 tokens-not-stray-hexes softened
-// per A5, V6 model routing vs the live n8n API per A3) land in Phase 3 in THIS file, behind the
-// same runAll() entry point, so the generate-alex.js wiring does not change.
+// Runs as the final step of every generate-alex.js run, standalone on the CLI, and from the git
+// pre-commit hook (P3-S3). Six checks (V1-V6, spec table + amendments A3/A5) plus the structural
+// guards G1-G4 from Phase 1. Any failure exits 1 and names exactly what drifted and where.
 //
-// Contract with generate-alex.js (the orchestration contract, step 3):
+// Contract with generate-alex.js (orchestration step 3):
 //   const { runAll } = require('./validate-alex');
-//   const result = runAll({ stagedDir });   // stagedDir = .staging/ (absolute)
-//   result = { ok: boolean, failures: [ 'FAILED Gx: ...' ] }
+//   const result = await runAll({ stagedDir });          // ASYNC since Phase 3 (V6 does live HTTP)
+//   result = { ok: boolean, failures: ['FAILED Vx: ...'], warnings: ['WARNING ...'] }
 // A file present in stagedDir is validated as the ABOUT-TO-SHIP version; for files not staged the
 // current repo copy is checked. Any failure -> the caller deletes staging and touches nothing real.
 //
-// Standalone CLI:  node scripts/validate-alex.js [--staged=DIR]
-// Exit 0 = pass, 1 = fail (names exactly what is wrong and where).
+// Parse contracts are REUSED from scripts/lib/read-sources.js and scripts/lib/gen-docs.js /
+// gen-scheduler.js, so the generator and the validator can never disagree about how a source or a
+// surface is read (Phase 1 handoff requirement).
+//
+// Contexts (P3-S3 pre-commit design):
+//   context: 'generator'  (default) - reality checks are STRICT: missing env creds, an unreachable
+//            n8n API, or a failing schtasks query are hard FAILs (ground rule 7: fail loudly).
+//   context: 'pre-commit' - same checks, but V6 (n8n) and the live half of V2 (schtasks) degrade to
+//            a LOUD WARNING SKIP when creds/network/schtasks are unavailable, so an offline machine
+//            or the nightly headless git-backup commit is never blocked by a remote outage.
+//            A REAL mismatch (rule model != live model, doc drift, job drift) still blocks in both
+//            contexts. The hook wrapper (scripts/hooks/pre-commit) loads the n8n key from the local
+//            key file into env when absent, so V6 normally runs for real at commit time too.
+//
+// Standalone CLI:  node scripts/validate-alex.js [--staged=DIR] [--context=generator|pre-commit]
+// Exit 0 = pass (warnings allowed), 1 = fail.
 'use strict';
 const fs = require('fs');
 const path = require('path');
+
+const { parseScheduleJobs, parseMcpList, parseColorTokens, computeCounts } = require('./lib/read-sources');
+const { scheduledJobsRows } = require('./lib/gen-docs');
+const { liveJobs } = require('./lib/gen-scheduler');
+const { TARGETS, NODE } = require('./lib/sync-n8n-voice');
 
 const REPO = path.join(__dirname, '..');
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -28,6 +45,8 @@ const CZ_START = '<!-- CUSTOM_START -->';
 const CZ_END = '<!-- CUSTOM_END -->';
 const PT_BEGIN = '<!-- PROJECT-TABLE:BEGIN';
 const PT_END = '<!-- PROJECT-TABLE:END -->';
+
+const pad = n => String(n).padStart(2, '0');
 
 function listFiles(dir) {
   const out = [];
@@ -52,9 +71,30 @@ function effective(stagedDir, rel) {
 
 function countOf(text, marker) { return text.split(marker).length - 1; }
 
-function runAll({ stagedDir } = {}) {
-  const failures = [];
+// Slice a "## ..." section (heading line matching headingRe) up to the next "## " heading or EOF.
+function mdSection(text, headingRe) {
+  const m = text.match(headingRe);
+  if (!m) return null;
+  const start = m.index + m[0].length;
+  const rest = text.slice(start);
+  const next = rest.search(/^## /m);
+  return next < 0 ? rest : rest.slice(0, next);
+}
 
+async function fetchJson(url, headers, ms = 15000) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  try {
+    const r = await fetch(url, { headers, signal: ac.signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+// ---------------------------------------------------------------------------------------------
+// G1-G4 - structural guards (Phase 1, unchanged behavior)
+// ---------------------------------------------------------------------------------------------
+function structuralGuards({ stagedDir }, failures) {
   // G1 - no unresolved {{PLACEHOLDER}} in any staged output.
   if (stagedDir && fs.existsSync(stagedDir)) {
     for (const f of listFiles(stagedDir)) {
@@ -89,18 +129,369 @@ function runAll({ stagedDir } = {}) {
     if (b !== 1 || e !== 1) failures.push(`FAILED G4: docs/projects/README.md (${proj.from}) must contain exactly one PROJECT-TABLE BEGIN/END pair - found BEGIN=${b}, END=${e}`);
     else if (proj.text.indexOf(PT_END) < proj.text.indexOf(PT_BEGIN)) failures.push(`FAILED G4: docs/projects/README.md (${proj.from}) project-table markers out of order`);
   }
+}
 
+// ---------------------------------------------------------------------------------------------
+// V1 - automation count: generated GETTING-STARTED.md (and docs/README.md quick start) vs the
+//      count of non-retired NUMBERED entries in system/manifest.json (computeCounts contract).
+// ---------------------------------------------------------------------------------------------
+function v1AutomationCount({ stagedDir, manifest }, failures) {
+  const counts = computeCounts(manifest);
+  const gs = effective(stagedDir, 'docs/GETTING-STARTED.md');
+  if (!gs) { failures.push('FAILED V1: docs/GETTING-STARTED.md not found (staged or repo)'); return; }
+
+  const h = gs.text.match(/^## \d+\. The automations \((\d+) registered, non-retired\)\s*$/m);
+  if (!h) {
+    failures.push('FAILED V1: docs/GETTING-STARTED.md has no "## N. The automations (<count> registered, non-retired)" heading - the count contract is broken');
+  } else if (parseInt(h[1], 10) !== counts.automationCount) {
+    const names = manifest.projects.filter(p => p.state !== 'RETIRED').map(p => p.work_dir);
+    failures.push(`FAILED V1: automation count mismatch - docs/GETTING-STARTED.md (${gs.from}) says ${h[1]}, system/manifest.json says ${counts.automationCount}; manifest non-retired: ${names.join(', ')}`);
+  }
+
+  // The list itself: one "- **NN Title**" row per non-retired numbered project.
+  const sec = mdSection(gs.text, /^## \d+\. The automations[^\n]*$/m);
+  if (sec) {
+    const rows = sec.match(/^- \*\*\d{2} /gm) || [];
+    if (rows.length !== counts.automationCount)
+      failures.push(`FAILED V1: docs/GETTING-STARTED.md (${gs.from}) automation list has ${rows.length} numbered rows but system/manifest.json has ${counts.automationCount} non-retired numbered projects`);
+  }
+
+  // docs/README.md quick-start counts (same generation run, same source).
+  const rd = effective(stagedDir, 'docs/README.md');
+  if (rd) {
+    const m = rd.text.match(/\*\*(\d+) non-retired automations\*\* \((\d+) LIVE\)/);
+    if (!m) failures.push('FAILED V1: docs/README.md quick start has no "**<n> non-retired automations** (<n> LIVE)" line - the count contract is broken');
+    else {
+      if (parseInt(m[1], 10) !== counts.automationCount)
+        failures.push(`FAILED V1: automation count mismatch - docs/README.md (${rd.from}) says ${m[1]}, system/manifest.json says ${counts.automationCount}`);
+      if (parseInt(m[2], 10) !== counts.liveCount)
+        failures.push(`FAILED V1: LIVE count mismatch - docs/README.md (${rd.from}) says ${m[2]}, system/manifest.json says ${counts.liveCount}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// V2 - scheduled jobs, reality-aware (A3):
+//      (a) doc side: the jobs table in generated GETTING-STARTED.md must equal the rows the
+//          generator derives from scheduler/schedule.md (scheduledJobsRows contract);
+//      (b) reality side: every documented PersonalOS-* job (parseScheduleJobs contract, retry-*
+//          excluded by convention) must exist in live Windows Task Scheduler, and every live
+//          PersonalOS-* job must be documented. schtasks unavailable: FAIL in generator context,
+//          LOUD SKIP in pre-commit context (a clone on another machine can still commit).
+// ---------------------------------------------------------------------------------------------
+function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
+  // (a) docs vs source
+  const gs = effective(stagedDir, 'docs/GETTING-STARTED.md');
+  if (!gs) failures.push('FAILED V2: docs/GETTING-STARTED.md not found (staged or repo)');
+  else {
+    const expected = scheduledJobsRows(schedule).split('\n');
+    const secStart = gs.text.indexOf('### The scheduled jobs');
+    if (secStart < 0) failures.push(`FAILED V2: docs/GETTING-STARTED.md (${gs.from}) has no "### The scheduled jobs" table`);
+    else {
+      const sec = gs.text.slice(secStart).split(/^## /m)[0];
+      const actual = sec.split(/\r?\n/).filter(l => l.startsWith('| ') && !l.startsWith('| Job |') && !/^\|-+/.test(l.replace(/\s/g, '')) && !l.startsWith('|---'));
+      const firstCol = r => r.split(' | ')[0].replace(/^\| /, '').trim();
+      const expNames = expected.map(firstCol), actNames = actual.map(firstCol);
+      const missing = expNames.filter(n => !actNames.includes(n));
+      const extra = actNames.filter(n => !expNames.includes(n));
+      if (missing.length || extra.length)
+        failures.push(`FAILED V2: scheduled-jobs table drift - scheduler/schedule.md entries missing from docs/GETTING-STARTED.md (${gs.from}): [${missing.join('; ') || 'none'}]; rows in the doc with no schedule.md entry: [${extra.join('; ') || 'none'}]`);
+      else {
+        for (let i = 0; i < expected.length; i++) {
+          if (actual[i] !== expected[i]) {
+            failures.push(`FAILED V2: scheduled-jobs table row for '${expNames[i]}' in docs/GETTING-STARTED.md (${gs.from}) does not match scheduler/schedule.md (command/frequency drift)`);
+            break; // one named row is enough to act on; regenerate fixes all
+          }
+        }
+      }
+    }
+  }
+
+  // (b) live Task Scheduler
+  let live;
+  try {
+    live = liveJobs();
+  } catch (e) {
+    const msg = `V2 (live half): schtasks query unavailable - ${e.message}`;
+    if (context === 'pre-commit') { warnings.push(`WARNING V2 SKIPPED (live half, pre-commit): ${msg}`); return; }
+    failures.push(`FAILED V2: ${msg}`);
+    return;
+  }
+  const liveSet = new Set(live), docSet = new Set(schedule.allJobNames);
+  const notRegistered = schedule.allJobNames.filter(j => !liveSet.has(j));
+  const unknown = live.filter(j => !docSet.has(j));
+  if (notRegistered.length)
+    failures.push(`FAILED V2: job(s) documented in scheduler/schedule.md but MISSING from live Windows Task Scheduler: ${notRegistered.join(', ')}`);
+  if (unknown.length)
+    failures.push(`FAILED V2: live Task Scheduler job(s) not documented in scheduler/schedule.md: ${unknown.join(', ')}`);
+}
+
+// ---------------------------------------------------------------------------------------------
+// V3 - no retired-as-live: every RETIRED manifest entry must be absent from the GETTING-STARTED
+//      automation list entirely, and carry the RETIRED state wherever a row for it exists
+//      (CLAUDE.md routing region, docs/projects/README.md table).
+// ---------------------------------------------------------------------------------------------
+function v3NoRetiredAsLive({ stagedDir, manifest }, failures) {
+  const retiredNumbered = manifest.projects.filter(p => p.state === 'RETIRED');
+  const retiredUnnumbered = (manifest.meta.unnumbered || []).filter(u => u.state === 'RETIRED');
+  if (retiredNumbered.length + retiredUnnumbered.length === 0) return;
+
+  const gs = effective(stagedDir, 'docs/GETTING-STARTED.md');
+  if (gs) {
+    for (const p of retiredNumbered)
+      if (gs.text.includes(`- **${pad(p.num)} `))
+        failures.push(`FAILED V3: retired project ${pad(p.num)} ${p.title} (system/manifest.json state=RETIRED) appears in the docs/GETTING-STARTED.md (${gs.from}) automation list`);
+    for (const u of retiredUnnumbered)
+      if (gs.text.includes(`- **${u.title}**`))
+        failures.push(`FAILED V3: retired system '${u.title}' (system/manifest.json state=RETIRED) appears in the docs/GETTING-STARTED.md (${gs.from}) automation list`);
+  }
+
+  const claude = effective(stagedDir, 'CLAUDE.md');
+  if (claude && claude.text.includes(RT_BEGIN) && claude.text.includes(RT_END)) {
+    const region = claude.text.slice(claude.text.indexOf(RT_BEGIN), claude.text.indexOf(RT_END));
+    for (const p of retiredNumbered) {
+      const row = region.split(/\r?\n/).find(l => l.startsWith(`| ${pad(p.num)} |`));
+      if (row && !row.includes('RETIRED'))
+        failures.push(`FAILED V3: retired project ${pad(p.num)} ${p.title} listed WITHOUT the RETIRED state in the CLAUDE.md (${claude.from}) routing region`);
+    }
+  }
+
+  const proj = effective(stagedDir, 'docs/projects/README.md');
+  if (proj) {
+    for (const p of retiredNumbered) {
+      const row = proj.text.split(/\r?\n/).find(l => l.startsWith(`| ${pad(p.num)} |`));
+      if (row) {
+        const state = row.split('|')[3];
+        if (!state || state.trim() !== 'RETIRED')
+          failures.push(`FAILED V3: retired project ${pad(p.num)} ${p.title} listed with state '${(state || '').trim()}' instead of RETIRED in docs/projects/README.md (${proj.from})`);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// V4 - MCP consistency: the MCP surfaces named in generated docs (ARCHITECTURE.md embedded
+//      MCP Reference, GETTING-STARTED.md section 5 list) vs the MCP Reference section of
+//      CLAUDE.md, all read with the SAME parseMcpList contract. Any set difference fails.
+// ---------------------------------------------------------------------------------------------
+function v4McpConsistency({ stagedDir }, failures) {
+  const claude = effective(stagedDir, 'CLAUDE.md');
+  if (!claude) { failures.push('FAILED V4: CLAUDE.md not found (staged or repo)'); return; }
+  let canonical;
+  try { canonical = parseMcpList(claude.text); }
+  catch (e) { failures.push(`FAILED V4: cannot parse the MCP Reference of CLAUDE.md (${claude.from}): ${e.message}`); return; }
+  const canonSet = new Set(canonical);
+
+  const diff = (list, whereName) => {
+    const set = new Set(list);
+    const missing = canonical.filter(n => !set.has(n));
+    const extra = list.filter(n => !canonSet.has(n));
+    if (missing.length || extra.length)
+      failures.push(`FAILED V4: MCP set difference between CLAUDE.md and ${whereName} - in CLAUDE.md but not there: [${missing.join(', ') || 'none'}]; there but not in CLAUDE.md: [${extra.join(', ') || 'none'}]`);
+  };
+
+  const arch = effective(stagedDir, 'docs/ARCHITECTURE.md');
+  if (!arch) failures.push('FAILED V4: docs/ARCHITECTURE.md not found (staged or repo)');
+  else {
+    try { diff(parseMcpList(arch.text), `docs/ARCHITECTURE.md (${arch.from})`); }
+    catch (e) { failures.push(`FAILED V4: cannot parse the embedded MCP Reference of docs/ARCHITECTURE.md (${arch.from}): ${e.message}`); }
+  }
+
+  const gs = effective(stagedDir, 'docs/GETTING-STARTED.md');
+  if (!gs) failures.push('FAILED V4: docs/GETTING-STARTED.md not found (staged or repo)');
+  else {
+    const sec = mdSection(gs.text, /^## \d+\. The tools Alex reaches \(MCP\)\s*$/m);
+    if (!sec) failures.push(`FAILED V4: docs/GETTING-STARTED.md (${gs.from}) has no "The tools Alex reaches (MCP)" section`);
+    else diff((sec.match(/^- (.+)$/gm) || []).map(l => l.replace(/^- /, '').trim()), `docs/GETTING-STARTED.md section 5 (${gs.from})`);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// V5 - tokens, not stray hexes (softened per A5): any hex value found OUTSIDE the law file
+//      (brand/config/color-system.md) must match a hex the law file defines (parseColorTokens
+//      allHexes contract: palette + extended palette + the law file's own semantic values).
+//
+// SCOPE (deliberate, documented for the architect):
+//   Scanned surfaces = the identity-carrying documentation the refactor owns:
+//     - CLAUDE.md (the constitution; S1.6 removed its inline hexes)
+//     - docs/**/*.md (generated docs + hand docs; .md only, so the gitignored local-only
+//       docs/n8n/*/workflow.json exports - mirrors of live n8n state, not brand surfaces - are out)
+//     - templates/**/*.md (generation inputs)
+//     - brand/**/*.md EXCEPT brand/config/color-system.md (the law file itself)
+//     - system/manifest.json + scheduler/schedule.md (hand-edited sources)
+//     - every file in .staging/ (any generated output about to ship)
+//   NOT scanned: work/** (application code and the LOCKED Building-Alex diagram design system in
+//   work/12-linkedin-series, which is explicitly allowed its own palette), vault/** (personal,
+//   local-only), outputs/**, scripts/** (code), refactor/** (working notes), node_modules.
+//   3-digit shorthand hexes are normalized (#fff -> #ffffff) before the token match.
+// ---------------------------------------------------------------------------------------------
+const HEX_RE = /#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g;
+const LAW_FILE = 'brand/config/color-system.md';
+
+function normalizeHex(h) {
+  const x = h.toLowerCase();
+  if (x.length === 4) return '#' + x[1] + x[1] + x[2] + x[2] + x[3] + x[3];
+  return x;
+}
+
+function v5HexTokens({ stagedDir, allHexes }, failures) {
+  const rels = new Set(['CLAUDE.md', 'system/manifest.json', 'scheduler/schedule.md']);
+  for (const dir of ['docs', 'templates', 'brand']) {
+    const abs = path.join(REPO, dir);
+    if (!fs.existsSync(abs)) continue;
+    for (const f of listFiles(abs)) {
+      const rel = path.relative(REPO, f).split(path.sep).join('/');
+      if (rel.toLowerCase().endsWith('.md')) rels.add(rel);
+    }
+  }
+  if (stagedDir && fs.existsSync(stagedDir))
+    for (const f of listFiles(stagedDir)) rels.add(path.relative(stagedDir, f).split(path.sep).join('/'));
+  rels.delete(LAW_FILE);
+
+  for (const rel of [...rels].sort()) {
+    const eff = effective(stagedDir, rel);
+    if (!eff) continue;
+    const bad = new Map(); // hex -> first line number
+    const lines = eff.text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].match(HEX_RE) || []) {
+        const hex = normalizeHex(m);
+        if (!allHexes.has(hex) && !bad.has(m)) bad.set(m, i + 1);
+      }
+    }
+    if (bad.size) {
+      const detail = [...bad.entries()].map(([h, ln]) => `${h} (line ${ln})`).join(', ');
+      failures.push(`FAILED V5: hex value(s) outside ${LAW_FILE} matching no defined token in ${rel} (${eff.from}): ${detail}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// V6 - model routing, reality-aware (A3): the prose-model rule in CLAUDE.md ("Text-generation
+//      nodes use <model>") vs the model id actually deployed in the live n8n 'Build Writer
+//      Request' nodes of the production engines (the sync-n8n-voice TARGETS that are registered
+//      in system/manifest.json - i.e. #03 and #14; the Writer Voice Eval is a harness, not a
+//      production engine, and is out of scope per the Phase 3 handoff).
+//      Credentials come ONLY from env (N8N_API_URL, N8N_API_KEY). Missing creds or an unreachable
+//      API: hard FAIL in generator context (ground rule 7), LOUD SKIP in pre-commit context.
+//      A real mismatch fails in every context.
+// ---------------------------------------------------------------------------------------------
+function ruleModel(claudeText) {
+  const sec = mdSection(claudeText, /^## Model Routing in n8n Workflows[^\n]*$/m);
+  if (!sec) return null;
+  const m = sec.match(/Text-generation nodes use \**([A-Za-z0-9._-]+)/);
+  if (!m) return null;
+  return m[1].replace(/[.*]+$/, ''); // strip sentence period / closing bold
+}
+
+async function v6ModelRouting({ stagedDir, manifest, context }, failures, warnings) {
+  const claude = effective(stagedDir, 'CLAUDE.md');
+  if (!claude) { failures.push('FAILED V6: CLAUDE.md not found (staged or repo)'); return; }
+  const rule = ruleModel(claude.text);
+  if (!rule) {
+    failures.push(`FAILED V6: cannot parse the prose-model rule from the "Model Routing in n8n Workflows" section of CLAUDE.md (${claude.from}) - expected "Text-generation nodes use <model>"`);
+    return;
+  }
+
+  const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
+  if (!base || !key) {
+    const msg = 'V6: N8N_API_URL and/or N8N_API_KEY env vars missing - the live model-routing check cannot run (credentials never live in code)';
+    if (context === 'pre-commit') { warnings.push(`WARNING V6 SKIPPED (pre-commit): ${msg}`); return; }
+    failures.push(`FAILED ${msg}`);
+    return;
+  }
+
+  const registered = new Set(manifest.projects.map(p => p.n8n).filter(Boolean));
+  const engines = TARGETS.filter(t => registered.has(t.id));
+  if (engines.length === 0) { failures.push('FAILED V6: no sync-n8n-voice target workflow is registered in system/manifest.json - nothing to verify'); return; }
+
+  for (const t of engines) {
+    let wf;
+    try {
+      wf = await fetchJson(`${base.replace(/\/$/, '')}/workflows/${t.id}`, { 'X-N8N-API-KEY': key });
+    } catch (e) {
+      const msg = `V6: live n8n workflow ${t.id} (${t.name}) unreachable - ${e.message}`;
+      if (context === 'pre-commit') { warnings.push(`WARNING V6 SKIPPED (pre-commit): ${msg}`); continue; }
+      failures.push(`FAILED ${msg}`);
+      continue;
+    }
+    const node = (wf.nodes || []).find(n => n.name === NODE);
+    if (!node || typeof (node.parameters || {}).jsCode !== 'string') {
+      failures.push(`FAILED V6: live workflow ${t.id} (${t.name}) has no '${NODE}' code node - the live pipeline no longer matches what CLAUDE.md describes`);
+      continue;
+    }
+    const models = [...new Set([...node.parameters.jsCode.matchAll(/\bmodel\s*:\s*["']([A-Za-z0-9._-]+)["']/g)].map(m => m[1]))];
+    if (models.length === 0) {
+      failures.push(`FAILED V6: no model id found in the '${NODE}' node of live workflow ${t.id} (${t.name})`);
+      continue;
+    }
+    for (const m of models) {
+      if (m !== rule)
+        failures.push(`FAILED V6: model routing mismatch - CLAUDE.md (${claude.from}) rule says ${rule}, live workflow ${t.id} (${t.name}) '${NODE}' runs ${m}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// runAll - the single entry point (async since Phase 3: V6 talks to the live n8n API).
+// ---------------------------------------------------------------------------------------------
+async function runAll({ stagedDir, context = 'generator' } = {}) {
+  const failures = [];
+  const warnings = [];
+
+  structuralGuards({ stagedDir }, failures);
+
+  // Shared sources for V1-V6 (staged copy wins; sources are never staged today but effective()
+  // keeps that true by construction if they ever are).
+  let manifest = null, schedule = null, allHexes = null;
+  const mfRaw = effective(stagedDir, 'system/manifest.json');
+  if (!mfRaw) failures.push('FAILED V1: system/manifest.json not found - the registry is required');
+  else {
+    try { manifest = JSON.parse(mfRaw.text); }
+    catch (e) { failures.push(`FAILED V1: system/manifest.json is not valid JSON: ${e.message}`); }
+  }
+  const schedRaw = effective(stagedDir, 'scheduler/schedule.md');
+  if (!schedRaw) failures.push('FAILED V2: scheduler/schedule.md not found');
+  else {
+    try { schedule = parseScheduleJobs(schedRaw.text); }
+    catch (e) { failures.push(`FAILED V2: cannot parse scheduler/schedule.md: ${e.message}`); }
+  }
+  const lawRaw = effective(stagedDir, LAW_FILE);
+  if (!lawRaw) failures.push(`FAILED V5: ${LAW_FILE} not found - the color law file is required`);
+  else {
+    try { allHexes = parseColorTokens(lawRaw.text).allHexes; }
+    catch (e) { failures.push(`FAILED V5: cannot parse the token table of ${LAW_FILE}: ${e.message}`); }
+  }
+
+  if (manifest) v1AutomationCount({ stagedDir, manifest }, failures);
+  if (schedule) v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings);
+  if (manifest) v3NoRetiredAsLive({ stagedDir, manifest }, failures);
+  v4McpConsistency({ stagedDir }, failures);
+  if (allHexes) v5HexTokens({ stagedDir, allHexes }, failures);
+  if (manifest) await v6ModelRouting({ stagedDir, manifest, context }, failures, warnings);
+
+  for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
-  if (failures.length === 0) console.log('validate-alex: structural guards G1-G4 PASS');
-  console.log('validate-alex: V1-V6 pending Phase 3');
-  return { ok: failures.length === 0, failures };
+  if (failures.length === 0)
+    console.log(`validate-alex: G1-G4 + V1-V6 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+  return { ok: failures.length === 0, failures, warnings };
 }
 
 if (require.main === module) {
   const stagedArg = process.argv.find(a => a.startsWith('--staged='));
+  const ctxArg = process.argv.find(a => a.startsWith('--context='));
+  const context = ctxArg ? ctxArg.split('=')[1] : 'generator';
+  if (!['generator', 'pre-commit'].includes(context)) {
+    console.error(`validate-alex: unknown --context '${context}' (valid: generator, pre-commit)`);
+    process.exit(1);
+  }
   const stagedDir = stagedArg ? path.resolve(stagedArg.split('=')[1]) : path.join(REPO, '.staging');
-  const { ok } = runAll({ stagedDir: fs.existsSync(stagedDir) ? stagedDir : undefined });
-  process.exit(ok ? 0 : 1);
+  // process.exitCode (not process.exit()): a hard exit right after fetch trips a libuv teardown
+  // assertion on Windows (uv async handle still closing). Letting the loop drain is safe and the
+  // exit code is identical for the caller.
+  runAll({ stagedDir: fs.existsSync(stagedDir) ? stagedDir : undefined, context })
+    .then(({ ok }) => { process.exitCode = ok ? 0 : 1; })
+    .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }
 
 module.exports = { runAll };

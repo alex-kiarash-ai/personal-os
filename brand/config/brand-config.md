@@ -2,7 +2,7 @@
 
 **APPLICATION — on conflict, `color-system.md` wins.** (Hierarchy formalized 2026-07-08: `brand/config/color-system.md` is the single source of color law — palette, hexes, tokens, ratios, contrast pairings, usage rules. This page holds only how to APPLY the brand in Excel, decks, PDFs, web, plus logo, fonts, and tone. Rules stated in both files were deleted from this one.)
 
-**Rebrand 2026-07-03:** the STEMPLICITY identity (navy #0C1651 / cyan #12CCDD / coral #F09063 + wordmark) is retired. Everything that carried it now uses the ALEX brand below. Old assets: `brand/archive/stemplicity/`.
+**Rebrand 2026-07-03:** the STEMPLICITY identity (navy / cyan / coral + wordmark) is retired. Everything that carried it now uses the ALEX brand below. Old assets: `brand/archive/stemplicity/`. (Raw hexes of the dead palette removed from this file 2026-07-08 - validation check V5 allows only `color-system.md` tokens outside the law file; the retired values live in git history if ever needed.)
 
 ## Color tokens (lookup only)
 Names + hexes for quick reference while building. Semantics, ratios (60-30-10), contrast pairings, and every do/don't live in `color-system.md` — read it, don't work from this list alone.
@@ -33,7 +33,7 @@ Follow `color-system.md` §4.5 (series order, reds for data alarms only, gridlin
 - Build decks with **Claude Design (DesignSync)** on claude.ai/design, then export PDF (standing rule 2026-06-15). NOT .pptx / python-pptx.
 - Brand the components from THIS file + color-system.md: `#001219` canvas, teal structure, one Golden Orange accent, Calibri, ALEX logo block on dark.
 - **"Building Alex" series diagrams keep their LOCKED design system** (`work/12-linkedin-series/screenshots/DIAGRAM-DESIGN-SYSTEM.md`, EP2 palette). Out of the 2026-07-03 rebrand scope by Shaheen's instruction (STEMPLICITY surfaces only).
-- The pre-rebrand deep-space personal deck aesthetic (#070A1C, cyan→violet gradients, outputs/building-alex/2026-06-15/) is historical; new non-series decks default to the ALEX brand above.
+- The pre-rebrand deep-space personal deck aesthetic (near-black navy canvas, cyan→violet gradients, outputs/building-alex/2026-06-15/) is historical; new non-series decks default to the ALEX brand above.
 - No live templates: the STEMPLICITY .pptx/.xlsx templates are archived. Rebuild in the ALEX brand on first real need.
 
 ## Excel Formatting
