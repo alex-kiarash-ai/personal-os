@@ -29,7 +29,7 @@ Never applies identity-file changes (`soul.md`, any `CLAUDE.md`) without explici
 The existing two-way inbox (`alex_inbox` table, n8n wf `701jclfh3q4d8l1q`, typed + voice via local Whisper), Alex HQ, the vault, Notion. Almost nothing new externally; this rides infrastructure already shipped (#16).
 
 ## Model Routing
-Claude to classify the correction and choose the target file. OpenAI gpt-4.1-mini fed from soul.md for the confirmation reply so it reads as Alex.
+Claude to classify the correction and choose the target file. claude-sonnet-4-6 fed from soul.md for the confirmation reply so it reads as Alex (prose model per the model-routing rule, corrected 2026-07-08).
 
 ## Vault Structure
 - **Tier 1:** `vault/projects/teach-alex/status.md`.

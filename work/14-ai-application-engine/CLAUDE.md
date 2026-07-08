@@ -10,7 +10,7 @@ Daily 07:30 Stockholm: discover LinkedIn AI/automation jobs per location via Bri
 1. **Embedded CV** in `Build Match Request` + `Build Writer Request` code nodes → swapped from the combined master to `master_cv_ai.md` (AI-direction CV).
 2. **Match system prompt** (`Build Match Request`) → scores fit against AI/automation roles. `target_role` ∈ {"ai", "neither"} (was powerbi/consultant/neither). `interest_score` = how central AI/agents/automation are to the role (now the headline signal).
 3. **Gate** (`Stage 3 Gate`) → allowed `target_role` = ['ai'] (plus 'consultant' back-compat). `INTEREST_WEIGHT` left at 0.4 for launch (tuning knob; AI-centrality may warrant 0.5 later). `FIT_THRESHOLD` 70 unchanged.
-4. **Writer prompt** (`Build Writer Request`) → AI positioning, leads with Building Alex + automation; data/BI is supporting credibility. (Model: still Claude Writer, mirroring the live BI pipeline. SHARED TODO: migrate both writers to OpenAI gpt-4.1-mini + soul.md per the model-routing rule.)
+4. **Writer prompt** (`Build Writer Request`) → AI positioning, leads with Building Alex + automation; data/BI is supporting credibility. (Model: claude-sonnet-4-6, mirroring the live BI pipeline and matching the model-routing rule since its 2026-07-08 correction. The old "migrate to gpt-4.1-mini" TODO is dead: the rule now follows production.)
 5. **External IDs + schedule** → new sheet, new Drive folder, cron `30 7 * * *`.
 
 ## External IDs (bake into the clone)

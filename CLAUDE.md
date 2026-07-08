@@ -192,18 +192,17 @@ When an MCP call fails:
 3. If new error, fix it, then log: date, MCP, what went wrong, fix
 4. Do NOT retry the same wrong approach
 
-## Model Routing in n8n Workflows (standing rule, set 2026-06-13)
+## Model Routing in n8n Workflows (standing rule, set 2026-06-13; prose model corrected 2026-07-08)
 
 Applies to every n8n workflow, this project or any other.
-- **Text-generation nodes use OpenAI.** Any node whose job is to PRODUCE human-facing written content (LinkedIn posts, emails, cover letters, captions, report prose, message drafts) calls the OpenAI API with model **gpt-4.1-mini**, and its system/instructions MUST be fed from soul.md so the output is in Shaheen's voice.
-- **Every other node uses a Claude model.** Scoring, fit/match reasoning, gating, classification, extraction, parsing, routing, data transforms, decisions, internal summaries: Claude.
-- **Boundary test:** "Is this node's output meant to be read by a human as finished prose?" Yes -> OpenAI + soul.md. No (it feeds a gate, score, branch, or field) -> Claude. Match/fit scoring is reasoning, so Claude even though it emits text.
+- **Text-generation nodes use claude-sonnet-4-6.** Any node whose job is to PRODUCE human-facing written content (LinkedIn posts, emails, cover letters, captions, report prose, message drafts) runs **claude-sonnet-4-6**, and its system/instructions MUST be fed from soul.md (the injected voice block) so the output is in Shaheen's voice. *(Rule updated 2026-07-08 to match production; the gpt-4.1-mini switch was never applied.)*
+- **Every other node is also Claude, without the voice block.** Scoring, fit/match reasoning, gating, classification, extraction, parsing, routing, data transforms, decisions, internal summaries: Claude, NOT voice-injected.
+- **Boundary test:** "Is this node's output meant to be read by a human as finished prose?" Yes -> claude-sonnet-4-6 + the soul.md voice block. No (it feeds a gate, score, branch, or field) -> Claude without the voice block. Match/fit scoring is reasoning, so no voice block even though it emits text.
 - **soul.md delivery (WIRED 2026-07-07):** content nodes on the remote n8n need Shaheen's voice injected. `scripts/sync-soul-to-n8n.js --apply` does it: builds a voice block FROM soul.md (Voice Rules + Detection-proofing + real My Words samples), injects it between idempotent `<<<SOUL_VOICE>>>` markers into the `Build Writer Request` node of BOTH active engines (`9XuIEfxS71DEetVR` + `9x9M3EnEEeX3O8dy`), backup-first + GET-verified. **RE-SYNC TRIGGER: whenever soul.md changes (Voice Rules or My Words), re-run it** so automated prose gets the same voice + anti-detection treatment as on-machine output (it's in the Close-Out Change-Propagation surface). History: discovery 2026-07-07 found soul was never actually injected (writers used a generic SYSTEM+TONE); this closed that gap. Match/scoring nodes stay reasoning (Claude), NOT voice-injected. Never let a content node run on generic instructions.
-- **OpenAI key:** lives ONLY as an n8n credential. Never in the vault, repo, or logs.
-- **Switching a node Claude->OpenAI:** re-test the no-dash sanitizer + voice (new model, different dash habits).
+- **OpenAI key:** lives ONLY as an n8n credential (kept for any future OpenAI node). Never in the vault, repo, or logs.
+- **Switching a prose node to any other model:** re-test the no-dash sanitizer + voice (new model, different dash habits).
 - **No-dash sanitizer is now REAL CODE (2026-07-07):** the `Parse Writer` node of #03 + #14 (+ the Writer Voice Eval) runs a deterministic dash pass over the prose fields (em-dash -> comma always; en-dash -> comma in cover_letter/profile/role_line with numeric ranges protected; experience/skills keep date en-dashes). Proven by the Writer Voice Eval (`grMqmGzzbTXTEdKr`): 4/6 -> 6/6 after adding it. So "re-test the no-dash sanitizer" now means: run that eval.
-- **Reality check (2026-07-07):** the live application-engine `Build Writer Request` actually calls **`claude-sonnet-4-6`**, NOT the gpt-4.1-mini this rule specifies below - the OpenAI switch was never applied (or was reverted). OPEN: reconcile (switch the writer to gpt-4.1-mini per the rule, or update the rule to say Sonnet). The match node is correctly Claude.
-- Affected now: application-engine `Build Writer Request` -> OpenAI gpt-4.1-mini; `Build Match Request` stays Claude (reasoning).
+- Live state: both engines' `Build Writer Request` run claude-sonnet-4-6 with the injected voice block (API-verified 2026-07-08); `Build Match Request` is Claude reasoning, no voice block. Rule and production agree.
 
 ## Project Discovery
 - Each work/ folder is an automation or project

@@ -54,7 +54,8 @@ eval's writer node too. Costs ~6 Sonnet calls per run (occasional, only after a 
 - **Re-run after the fix: 6/6 ALL PASS.** Proves the sanitizer works on real writer output. Because
   this eval's Parse Writer is sanitized too, it now grades the SHIPPED (post-sanitize) artifact - a
   dash appearing here would mean a sanitizer edge-case miss, not a routine model slip.
-- Still open: the live writer runs `claude-sonnet-4-6`, not the `gpt-4.1-mini` the model-routing rule
-  specifies (a drift to reconcile).
+- Resolved 2026-07-08: the model-routing rule now says prose nodes run `claude-sonnet-4-6`, matching
+  what this writer actually runs (the rule was corrected to production; the gpt-4.1-mini switch was
+  never applied).
 
 _Latest JSON export: `workflow.json` in this folder (gitignored; local-only)._
