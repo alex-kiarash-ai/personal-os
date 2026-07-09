@@ -119,6 +119,20 @@ Alex HQ.
 - Eval run: digest saved to `outputs/evolution/YYYY-MM-DD/`, path in status.md; GitHub issue opened OR
   the local-only fallback is logged with the reason (gh absent).
 
+## Known limitations / tuning backlog (from the first live runs, 2026-07-09)
+- **Log the box's OWN running versions (highest-value fix).** The first eval guessed which n8n line the
+  box runs - it logs public release tags, not deployed versions - and guessed wrong (said 1.x; the box
+  is on 2.21.7). Fix: have the monitor also record the live versions of Alex's own stack (n8n on the
+  Hetzner box, the Claude model in the writer nodes) into landscape-log.jsonl, so the eval compares
+  "what's released" against "what we actually run" instead of inferring it.
+- **Two noisy feeds.** `anthropic-sdk-python releases` surfaces SDK point bumps, not model launches;
+  `MCP servers commits` surfaces CI/docs commits, not new servers (~2 useful of 58, both runs). If it
+  stays that way, swap them in the SOURCES array (Anthropic models list/news for models; the MCP
+  registry for servers).
+- **Eval output contract (DONE 2026-07-09).** The nested claude -p ran as full Alex and emitted a
+  conversational reply + Close-Out Report + ran Change Propagation instead of a clean digest. Fixed by
+  the read-only / digest-only output contract now in scripts/landscape-eval.js.
+
 ## Guardrails (from soul.md)
 - Alex proposes, Shaheen decides. The eval never installs, edits, or schedules anything - it writes a
   digest.
