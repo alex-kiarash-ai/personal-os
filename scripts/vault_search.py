@@ -26,10 +26,20 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-VAULT = REPO / "vault"
-DB = REPO / "scripts" / "vault-index" / "vault-search.db"
+# Paths are env-overridable so the freshness gate can be exercised against a sandbox vault
+# (scripts/tests/test_vault_search_freshness.py) without touching the real index.
+VAULT = Path(os.environ.get("ALEX_VAULT_DIR", str(REPO / "vault")))
+DB = Path(os.environ.get("ALEX_INDEX_DB", str(REPO / "scripts" / "vault-index" / "vault-search.db")))
 
 HEADING = re.compile(r"^(#{1,3})\s+(.*)$")
+
+
+def _disp(p):
+    """Repo-relative path for display, or the plain path if p is outside the repo."""
+    try:
+        return p.relative_to(REPO).as_posix()
+    except ValueError:
+        return p.as_posix()
 
 
 def iter_md():
@@ -87,7 +97,11 @@ def build():
             text = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        rel = p.relative_to(REPO).as_posix()
+        try:
+            rel = p.relative_to(REPO).as_posix()
+        except ValueError:
+            # Vault outside the repo (env override / symlinked restore): store the plain path.
+            rel = p.as_posix()
         n_files += 1
         for head, body, start in chunk_file(text):
             rows.append((rel, head, body, str(start)))
@@ -97,6 +111,10 @@ def build():
     )
     con.execute("INSERT OR REPLACE INTO meta VALUES('built_at', ?)",
                 (time.strftime("%Y-%m-%d %H:%M:%S"),))
+    # built_epoch is the freshness boundary the search-time gate compares vault mtimes against.
+    # Use the build START time (t0), the conservative choice: a file touched mid-build is treated
+    # as newer next search rather than silently missed.
+    con.execute("INSERT OR REPLACE INTO meta VALUES('built_epoch', ?)", (repr(t0),))
     con.execute("INSERT OR REPLACE INTO meta VALUES('files', ?)", (str(n_files),))
     con.execute("INSERT OR REPLACE INTO meta VALUES('chunks', ?)", (str(n_chunks),))
     con.commit()
@@ -104,7 +122,7 @@ def build():
     con.commit()
     con.close()
     dt = time.time() - t0
-    print(f"indexed {n_files} files -> {n_chunks} chunks in {dt:.2f}s -> {DB.relative_to(REPO).as_posix()}")
+    print(f"indexed {n_files} files -> {n_chunks} chunks in {dt:.2f}s -> {_disp(DB)}")
     return 0
 
 
@@ -115,14 +133,55 @@ def _fts_query(raw):
     return " ".join(f'"{t}"' for t in terms)
 
 
-def search(query, n):
+def _newest_source_mtime():
+    """Max mtime across indexed vault files; -1.0 if the vault is empty/unreadable."""
+    newest = -1.0
+    for p in iter_md():
+        try:
+            m = p.stat().st_mtime
+        except OSError:
+            continue
+        if m > newest:
+            newest = m
+    return newest
+
+
+def _index_is_stale():
+    """True if any vault file changed at/after the index was built, or the freshness marker
+    is missing (a pre-gate index rebuilds once to gain it). This is what makes silently-stale
+    results impossible: the caller rebuilds before querying when this returns True."""
     if not DB.exists():
-        print("no index yet - run: python scripts/vault_search.py build", file=sys.stderr)
-        return 2
+        return True
+    con = sqlite3.connect(DB)
+    try:
+        row = con.execute("SELECT val FROM meta WHERE key='built_epoch'").fetchone()
+    except sqlite3.OperationalError:
+        return True
+    finally:
+        con.close()
+    if not row:
+        return True
+    try:
+        built = float(row[0])
+    except (TypeError, ValueError):
+        return True
+    return _newest_source_mtime() > built
+
+
+def search(query, n):
     q = _fts_query(query)
     if not q:
         print("empty query", file=sys.stderr)
         return 2
+    # Freshness gate (P1.5 fix). The nightly 21:35 rebuild otherwise leaves an inverted staleness
+    # window: a fact captured after the rebuild is grep-able and index-able immediately but invisible
+    # to BM25 until the next night, so the better tool is the staler one. Rather than return silently
+    # stale results, rebuild whenever any vault file is newer than the index (a full rebuild over the
+    # whole vault is sub-second). The nightly job stays only as a scheduled reconciler.
+    if _index_is_stale():
+        print("index stale (vault changed since last build) - rebuilding before search...",
+              file=sys.stderr)
+        build()
     con = sqlite3.connect(DB)
     try:
         cur = con.execute(
@@ -159,7 +218,7 @@ def stats():
     meta = dict(con.execute("SELECT key, val FROM meta").fetchall())
     con.close()
     size_kb = DB.stat().st_size / 1024
-    print(f"db:      {DB.relative_to(REPO).as_posix()} ({size_kb:.0f} KB)")
+    print(f"db:      {_disp(DB)} ({size_kb:.0f} KB)")
     print(f"files:   {meta.get('files', '?')}")
     print(f"chunks:  {meta.get('chunks', '?')}")
     print(f"built:   {meta.get('built_at', '?')}")
