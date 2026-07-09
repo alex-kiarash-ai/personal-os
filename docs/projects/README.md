@@ -10,7 +10,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 01 | [Sprint Tracker](01-sprint-tracker.md) | LIVE | Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it. |
 | 02 | [Morning Brief](02-morning-brief.md) | LIVE | The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags. |
 | 03 | [Application Engine (BI)](03-application-engine.md) | LIVE | Job pipeline, Power BI track: source, score, gate, draft, render daily; also an MCP server. |
-| 04 | [Research Team](04-research-team.md) | ON-DEMAND | Adaptive multi-agent research squads; also the QA engine for new builds. |
+| 04 | [Research Team](04-research-team.md) | ON-DEMAND | Adaptive multi-agent research squads. Gathers EXTERNAL evidence; it is not an independent check of Alex's own conclusions (same model, Alex synthesizes). |
 | 05 | [Personal CRM](05-personal-crm.md) | LIVE | Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate. |
 | 06 | [Meeting Intel](06-meeting-intel.md) | ON-DEMAND | Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after. |
 | 07 | [Email Triage](07-email-triage.md) | LIVE | Inbox triage three times a day + voice-matched reply drafts; learns from Shaheen's edits. |

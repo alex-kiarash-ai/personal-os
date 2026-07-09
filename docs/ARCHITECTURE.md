@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-08. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-09. -->
 
 # Architecture: how Alex works
 
@@ -72,7 +72,8 @@ The vault is a persistent, compounding wiki. You maintain it. The user reads it 
 ### Operations
 **Ingest** (/ingest or during any interaction): Read source, create/update wiki pages, add [[links]], flag contradictions, update log and index. A single source might touch 10-15 pages.
 
-**Query**: Read vault/index.md first, drill into relevant pages, synthesize answer. File valuable answers as new wiki pages.
+**Query**: Run `python scripts/vault_search.py search "<query>"` FIRST (BM25 over every chunk; it auto-rebuilds if the vault changed since the last index, so results are never stale). Drill into the files it returns. Fall back to eyeballing vault/index.md only when search returns nothing useful. File valuable answers as new wiki pages.
+- **Supersession convention:** when a fact changes, write the correction INLINE in the same heading block as the fact it replaces (e.g. "**Superseded 2026-07-09:** ..."), never in a separate section. The search index chunks by heading, so an inline correction rides in the same chunk as the fact and can never be retrieved without it.
 
 **Lint** (/lint): Check for orphan pages, stale pages, contradictions, missing cross-references, data gaps.
 
@@ -279,7 +280,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 01 | /sprint-tracker | LIVE | weekdays 9:00 | Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it. | work/01-sprint-tracker - vault/projects/sprint-tracker/status.md |
 | 02 | /morning-brief | LIVE | daily 8:00 | The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags. | work/02-morning-brief - vault/projects/morning-brief/status.md |
 | 03 | /application-engine | LIVE | n8n 07:00 + watch 8:30 | Job pipeline, Power BI track: source, score, gate, draft, render daily; also an MCP server. | work/03-application-engine - vault/projects/job-pipeline/status.md |
-| 04 | /research-team | ON-DEMAND | on-demand | Adaptive multi-agent research squads; also the QA engine for new builds. | work/04-research-team - vault/projects/research-team/status.md |
+| 04 | /research-team | ON-DEMAND | on-demand | Adaptive multi-agent research squads. Gathers EXTERNAL evidence; it is not an independent check of Alex's own conclusions (same model, Alex synthesizes). | work/04-research-team - vault/projects/research-team/status.md |
 | 05 | /personal-crm | LIVE | Mon 8:30 | Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate. | work/05-personal-crm - vault/projects/personal-crm/status.md |
 | 06 | /meeting-intel | ON-DEMAND | on-demand | Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after. | work/06-meeting-intel - vault/projects/meeting-intel/status.md |
 | 07 | /email-triage | LIVE | 9:00 / 13:00 / 17:00 | Inbox triage three times a day + voice-matched reply drafts; learns from Shaheen's edits. | work/07-email-triage - vault/projects/email-triage/status.md |
@@ -353,7 +354,7 @@ Before presenting results:
 
 The mechanical enforcement of Change Propagation (the Standing Order at the top of this file) + Post-Run Ingestion + Output Hygiene + error capture. Same failure class as the brand gate: a correct behavior written as a standing order gets skipped under load (Change Propagation drift, the stale "deployed inactive" note, the sprint-tracker 3-day silent blackout). This gate converts those orders into a checklist that runs and self-reports. Full spec + per-automation extras: [[research/alex-close-out-gate]].
 
-**Scope (Shaheen 2026-07-03):** BOTH - every one of the automations (01-19) at end-of-run, AND every interactive session before any `/clear` or at the end of any session that changed something real (hand-edits included). If unsure whether the session changed something real, run it.
+**Scope (Shaheen 2026-07-03):** BOTH - every one of the numbered automations at end-of-run, AND every interactive session before any `/clear` or at the end of any session that changed something real (hand-edits included). If unsure whether the session changed something real, run it.
 
 **Enforcement (hybrid, Shaheen 2026-07-03):** mechanical items are script-verified in the scheduled wrapper (extends the sprint-tracker pattern: wrote a vault entry? HQ push OK? exit non-zero on failure?) and push RED on a miss. Judgment items are Alex-certified, with a printed **Close-Out Report** as the audit line - no report = gate skipped = protocol violation, log it to error-log.md. Interactive sessions have no wrapper, so the printed report is the whole mechanism there.
 

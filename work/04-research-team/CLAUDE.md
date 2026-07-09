@@ -86,3 +86,6 @@ No new database. One page per research run under the Personal OS parent page (`3
 - Built as spec + command + pattern library scaffold. No live run yet (on-demand; first question starts the pattern library for real).
 - patterns/ seeded with index.md and the format spec only - no padding with invented patterns.
 - Guardrails carried from soul.md: no invented facts (unknown stays "unknown"), no model-verifier chains - sub-agents gather, deterministic checks + one synthesizer conclude.
+
+## What this is NOT
+The research team is a real research tool because its evidence is external. It is NOT a validator of Alex's own reasoning: same model, hub-and-spoke authority, and the synthesizer is the same Alex being checked. Treating its agreement as corroboration of an Alex conclusion is consensus laundering. Use it to gather external facts, not to certify that an Alex conclusion was right.

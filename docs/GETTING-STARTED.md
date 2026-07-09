@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-08. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-09. -->
 
 # Getting Started: set up and run the Personal OS
 
@@ -32,7 +32,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **01 Sprint Tracker** (LIVE; trigger: weekdays 9:00) - Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it.
 - **02 Morning Brief** (LIVE; trigger: daily 8:00) - The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags.
 - **03 Application Engine (BI)** (LIVE; trigger: n8n 07:00 + watch 8:30) - Job pipeline, Power BI track: source, score, gate, draft, render daily; also an MCP server.
-- **04 Research Team** (ON-DEMAND; trigger: on-demand) - Adaptive multi-agent research squads; also the QA engine for new builds.
+- **04 Research Team** (ON-DEMAND; trigger: on-demand) - Adaptive multi-agent research squads. Gathers EXTERNAL evidence; it is not an independent check of Alex's own conclusions (same model, Alex synthesizes).
 - **05 Personal CRM** (LIVE; trigger: Mon 8:30) - Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate.
 - **06 Meeting Intel** (ON-DEMAND; trigger: on-demand) - Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after.
 - **07 Email Triage** (LIVE; trigger: 9:00 / 13:00 / 17:00) - Inbox triage three times a day + voice-matched reply drafts; learns from Shaheen's edits.

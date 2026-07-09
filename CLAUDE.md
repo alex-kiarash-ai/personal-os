@@ -47,7 +47,8 @@ The vault is a persistent, compounding wiki. You maintain it. The user reads it 
 ### Operations
 **Ingest** (/ingest or during any interaction): Read source, create/update wiki pages, add [[links]], flag contradictions, update log and index. A single source might touch 10-15 pages.
 
-**Query**: Read vault/index.md first, drill into relevant pages, synthesize answer. File valuable answers as new wiki pages.
+**Query**: Run `python scripts/vault_search.py search "<query>"` FIRST (BM25 over every chunk; it auto-rebuilds if the vault changed since the last index, so results are never stale). Drill into the files it returns. Fall back to eyeballing vault/index.md only when search returns nothing useful. File valuable answers as new wiki pages.
+- **Supersession convention:** when a fact changes, write the correction INLINE in the same heading block as the fact it replaces (e.g. "**Superseded 2026-07-09:** ..."), never in a separate section. The search index chunks by heading, so an inline correction rides in the same chunk as the fact and can never be retrieved without it.
 
 **Lint** (/lint): Check for orphan pages, stale pages, contradictions, missing cross-references, data gaps.
 
@@ -254,7 +255,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 01 | /sprint-tracker | LIVE | weekdays 9:00 | Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it. | work/01-sprint-tracker - vault/projects/sprint-tracker/status.md |
 | 02 | /morning-brief | LIVE | daily 8:00 | The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags. | work/02-morning-brief - vault/projects/morning-brief/status.md |
 | 03 | /application-engine | LIVE | n8n 07:00 + watch 8:30 | Job pipeline, Power BI track: source, score, gate, draft, render daily; also an MCP server. | work/03-application-engine - vault/projects/job-pipeline/status.md |
-| 04 | /research-team | ON-DEMAND | on-demand | Adaptive multi-agent research squads; also the QA engine for new builds. | work/04-research-team - vault/projects/research-team/status.md |
+| 04 | /research-team | ON-DEMAND | on-demand | Adaptive multi-agent research squads. Gathers EXTERNAL evidence; it is not an independent check of Alex's own conclusions (same model, Alex synthesizes). | work/04-research-team - vault/projects/research-team/status.md |
 | 05 | /personal-crm | LIVE | Mon 8:30 | Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate. | work/05-personal-crm - vault/projects/personal-crm/status.md |
 | 06 | /meeting-intel | ON-DEMAND | on-demand | Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after. | work/06-meeting-intel - vault/projects/meeting-intel/status.md |
 | 07 | /email-triage | LIVE | 9:00 / 13:00 / 17:00 | Inbox triage three times a day + voice-matched reply drafts; learns from Shaheen's edits. | work/07-email-triage - vault/projects/email-triage/status.md |
