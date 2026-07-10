@@ -35,7 +35,7 @@ unavailable can never fail one of the 15 scheduled jobs. It is a judgment aid fo
 until it earns promotion. Do not add it to close-out.ps1.
 
 ## Verified 2026-07-07
-Run against a reconstructed 2026-07-03-style violating artifact (STEMPLICITY navy #0C1651 + Arial +
+Run against a reconstructed 2026-07-03-style violating artifact (retired-brand navy #0C1651 + Arial +
 em-dashes + "it's important to note" corporate voice) and a compliant one. The grader FAILED the
 violator on the brand + voice criteria and PASSED the compliant artifact. Evidence in
 [[projects/self-review/status]] and the session log.

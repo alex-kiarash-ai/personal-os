@@ -15,7 +15,7 @@ Turns research, products, and ideas into deeply-researched, platform-native cont
 
 ## Context-first rule (both commands)
 ALWAYS pull vault context BEFORE asking the user anything:
-- vault/me/goals.md (content must serve the 5 goals - esp. job-hunt visibility, STEMPLICITY, teaching n8n).
+- vault/me/goals.md (content must serve the 5 goals - esp. job-hunt visibility, the Alex product, teaching n8n).
 - vault/business/brand.md + vault/business/ (positioning, tone, what we never say).
 - vault/research/ (source material + supporting insight).
 - vault/people/ (audience + competitors).
@@ -73,7 +73,7 @@ goals.md, business/ + brand.md, research/, people/, competitors/ (if present), s
 
 ## Connections
 - **Fed by:** Research Team (vault/research/), business/brand, Market Pulse competitors/ (not built - skip gracefully).
-- **Feeds into:** vault/me/writing-style-notes.md (shared voice learning), the modeling + STEMPLICITY go-to-market, job-hunt visibility. Reports Done to the sprint board.
+- **Feeds into:** vault/me/writing-style-notes.md (shared voice learning), the modeling + Alex-product go-to-market, job-hunt visibility. Reports Done to the sprint board.
 
 ## Post-Run (mandatory)
 1. New people → vault/people/, new companies → vault/business/.

@@ -64,7 +64,7 @@ Bootstrap on first run per the root **Bootstrap Protocol** (Notion creation sequ
 - **Tool** (title)
 - **Type** (select: MCP, Model, Library, Technique, Product)
 - **What it does** (text)
-- **Improves** (select: Alex, Personal OS, Job Pipeline, Modeling, STEMPLICITY, Content)
+- **Improves** (select: Alex, Personal OS, Job Pipeline, Modeling, Content)
 - **Source** (url)
 - **Corroboration** (number - count of INDEPENDENT sources after dedup, Run Check 1)
 - **Fit score** (number - rubric total, see Scoring)
@@ -106,7 +106,7 @@ work/ holds this spec + config only. All knowledge is in the vault.
   - `vault/projects/alex-ai-radar/sources.md` - free-feed source list + endpoints (config that reads as knowledge).
 
 ## Vault Reads
-- **soul.md** (voice + priorities: rent-moving work first, job pivot > STEMPLICITY > curiosities; the "My Words" corpus for any human-facing prose; the Building Alex never-share list before any content-tap suggestion).
+- **soul.md** (voice + priorities: rent-moving work first, job pivot > curiosities; the "My Words" corpus for any human-facing prose; the Building Alex never-share list before any content-tap suggestion).
 - `taste-profile.md`, `landscape-memory.md`, `decisions.md` (the compounding memory - read every run).
 - `friction-list.md` (the demand side - matched against every sweep's survivors before generic scoring).
 - `vault/projects/error-log.md` + `outputs/logs/*.log` (first-Monday flywheel retro only).
@@ -149,7 +149,7 @@ High-conviction items get researched automatically, no manual greenlight, becaus
 - `vault/log.md` entry; `vault/index.md` on first run / new pages.
 
 ## Connections
-- **Feeds into:** [[projects/morning-brief/status|Morning Brief]] (weekly Radar section - the delivery surface, no separate ritual); the [[projects/linkedin-series/status|Building Alex series]] (Tap 2 content angles; Content Machine retired into #12 on 2026-07-06); the job pivot / STEMPLICITY demo (the taste-learning memory IS the portfolio artifact).
+- **Feeds into:** [[projects/morning-brief/status|Morning Brief]] (weekly Radar section - the delivery surface, no separate ritual); the [[projects/linkedin-series/status|Building Alex series]] (Tap 2 content angles; Content Machine retired into #12 on 2026-07-06); the job pivot / Alex-product demo (the taste-learning memory IS the portfolio artifact).
 - **Fed by:** free feeds (HN, GitHub, Product Hunt, OpenAI/Google RSS, MCP registry); soul.md + the vault (taste seed); Phase 2 n8n + Bright Data (X).
 - **Reuses:** the [[projects/application-engine/status|Application Engine]] n8n + Bright Data muscle pattern for Phase 2 (already in production, do not rebuild).
 - **Auto-invokes:** [[projects/research-team/status|Research Team]] (#04) for the auto deep-dive on high-conviction items → concept PDF (see Auto deep-dive). Shared surfaces: `vault/research/` + Notion.
@@ -184,7 +184,7 @@ High-conviction items get researched automatically, no manual greenlight, becaus
 ## Implementation Notes (as specced 2026-07-01, not yet built)
 - Design source of truth: [[research/alex-ai-radar-validation]] (3-lane research run) + the v0.1 pilot spec Shaheen drafted. This file supersedes the v0.1 draft.
 - **Corrections baked in from research:** Bright Data is cheap and low-risk (was wrongly flagged expensive/fragile); free feeds are the backbone, not X; the taste model does NOT compound on autopilot (cold-start/drift/echo), so Run Checks 1/4/5 are mandatory, not optional; Stream A is a real personal gap but weak product, so it ships last behind the drop-rule.
-- **Decisions locked with Shaheen (2026-07-01):** all three taps wanted, but as ONE engine with three taps, sequenced B → content → A. Build for use, keep clean enough to screen-record as a STEMPLICITY / interview artifact ("both, use-first"). Memory is the hero feature.
+- **Decisions locked with Shaheen (2026-07-01):** all three taps wanted, but as ONE engine with three taps, sequenced B → content → A. Build for use, keep clean enough to screen-record as an Alex-product / interview artifact ("both, use-first"). Memory is the hero feature.
 - **Open:** confirm the ~20-40 X account list (Phase 2 only, not needed for Stream B start). Monday slot CONFIRMED + scheduled 2026-07-02 (Mondays 07:30).
 - **Pending wiring (done when Shaheen runs it as a new project):** add row 15 to the Routing Table in the root CLAUDE.md and register `/alex-radar`; create the `vault/projects/alex-ai-radar/` folder + `status.md`; add the "Alex AI Radar" row to the Sprint board.
 - Standup/output voice: Alex (soul.md). Lead with the one item that clears the bar (or "nothing cleared the bar today"), then the memory update, then any theme that is genuinely accelerating (after dedup). No digest-speak.

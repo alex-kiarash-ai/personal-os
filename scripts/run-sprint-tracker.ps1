@@ -1,7 +1,20 @@
-# Sprint Tracker scheduled wrapper (Close-Out Gate; folded onto shared mechanism scripts/lib/close-out.ps1 on 2026-07-03).
-# Keeps -ClaudeCmd (swap the claude binary for stub-testing) and -DryRun (log the would-be HQ push instead of
-# sending). The failure detection + RED sprint/run_status push + exit 1 now live in the shared lib, so there is
-# ONE implementation across every wrapper. Success exits 0; the GREEN push happens inside the /sprint-tracker post-run.
+# Sprint Tracker scheduled wrapper (rebuilt 2026-07-10: deterministic-core-first architecture).
+#
+# ORDER MATTERS. The zero-token Node core runs FIRST and is the must-succeed part: it reads the
+# board, computes counts/velocity/stale/missed/contract, writes velocity.md + board-state.json +
+# decisions-pending.md + last-run.json, and pushes sprint/velocity + run_status GREEN to Alex HQ.
+# Because it needs no Claude tokens, a 9:00 quota/auth blackout can no longer make the tracker dark:
+# the numbers land and HQ goes green regardless. If the CORE fails, that is a real failure -> the
+# shared close-out check pushes RED, schedules the retry, and exits 1 (the old behaviour, now gated
+# on the core rather than on a whole LLM session).
+#
+# The Claude prose pass runs SECOND and is OPTIONAL. It reads last-run.json and writes the standup
+# narrative + "one thing" lever + the Notion standup page. If it dies on the cap/login, the run is
+# DEGRADED (no prose), never dark: numbers already written, HQ already green, so it is logged PARTIAL
+# and the wrapper still exits 0.
+#
+# Flags: -ClaudeCmd {stub} swaps the claude binary for stub-testing; -DryRun runs the core with
+# --dry-run (no writes / no HQ push) and skips the prose pass.
 param(
     [string]$ClaudeCmd = "$env:APPDATA\npm\claude.ps1",
     [switch]$DryRun
@@ -14,13 +27,46 @@ New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\sprint-tracker.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
 
-$out = ''
+# ---- 1. Deterministic core (must succeed; greens HQ) ----
+$coreArgs = @("scripts\sprint-tracker-core.js")
+if ($DryRun) { $coreArgs += "--dry-run" }
+$coreOut = ''
 try {
-    $out = (& $ClaudeCmd -p "Run /sprint-tracker" --dangerously-skip-permissions 2>&1 | Out-String)
-    $code = $LASTEXITCODE
+    $coreOut = (& node @coreArgs 2>&1 | Out-String)
+    $coreCode = $LASTEXITCODE
 } catch {
-    $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1
+    $coreOut = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $coreCode = 1
 }
-$out | Out-File -Append -Encoding utf8 $log
+"--- core ---`n$coreOut" | Out-File -Append -Encoding utf8 $log
 
-Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'sprint' -DryRun:$DryRun
+if ($coreCode -ne 0) {
+    # Core failure = real failure. This pushes sprint/run_status RED, schedules the +90m retry, exits 1.
+    Invoke-CloseOutCheck -Out $coreOut -Code $coreCode -Log $log -Project 'sprint' -DryRun:$DryRun
+}
+
+if ($DryRun) { "DRYRUN: core ran with --dry-run; prose pass skipped." | Out-File -Append -Encoding utf8 $log; exit 0 }
+
+# ---- 2. Optional Claude prose pass (non-fatal; numbers + HQ green already done) ----
+$proseOut = ''
+try {
+    $proseOut = (& $ClaudeCmd -p "Run /sprint-tracker --prose-only" --dangerously-skip-permissions 2>&1 | Out-String)
+    $proseCode = $LASTEXITCODE
+} catch {
+    $proseOut = "PROSE EXCEPTION: $($_.Exception.Message)"; $proseCode = 1
+}
+"--- prose ---`n$proseOut" | Out-File -Append -Encoding utf8 $log
+
+$proseShort = ($proseOut -replace '\s', '').Length -lt 500
+if (($proseOut -replace '\s', '').Length -eq 0) { $proseReason = 'blank output' }
+elseif ($proseOut -match 'PROSE EXCEPTION') { $proseReason = 'prose exception' }
+elseif ($proseShort -and $proseOut -match 'Not logged in|Please run /login') { $proseReason = 'not logged in' }
+elseif ($proseShort -and $proseOut -match 'session limit|usage limit|API usage limits') { $proseReason = 'usage/session limit' }
+elseif ($proseCode -ne 0) { $proseReason = "claude exit $proseCode" }
+else { $proseReason = $null }
+
+if ($proseReason) {
+    "PARTIAL: standup prose skipped ($proseReason). Numbers written + HQ green by the core; run is degraded, not dark." | Out-File -Append -Encoding utf8 $log
+} else {
+    "OK: core + prose complete." | Out-File -Append -Encoding utf8 $log
+}
+exit 0

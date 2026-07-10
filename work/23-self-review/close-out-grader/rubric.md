@@ -25,7 +25,7 @@ off-brand styling because the brand file was never read.
   (captions/dates/secondary text on light surfaces; sanctioned by brand-config.md Fonts +
   color-system.md `[data-theme="light"] --text-tertiary`; rubric gap found by the 2026-07-07
   CV grade). **FAIL** on any off-brand color, and specifically
-  on the RETIRED STEMPLICITY palette (navy `#0C1651`, cyan `#12CCDD`, coral `#F09063`).
+  on the RETIRED brand palette (navy `#0C1651`, cyan `#12CCDD`, coral `#F09063`).
 - **BV2 Accent discipline.** At most ONE Golden Orange accent per view/page. FAIL if orange is used
   as a general fill or on multiple competing elements in one view.
 - **BV3 Typography.** Calibri for generated documents, or the `"Segoe UI", system-ui` stack for

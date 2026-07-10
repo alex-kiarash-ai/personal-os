@@ -43,7 +43,7 @@ At the START of each run, ask via AskUserQuestion: **"Claude Design deck, PDF su
 4. **Market Intel** - competitor moves (or "Market Pulse not built yet - no intel this week").
 5. **Relationships** - who you interacted with, follow-ups due, new contacts (from CRM).
 6. **Blockers** - what's stuck and why (Blocked sprint items, gated drafts, unanswered threads).
-7. **Next Week Priorities** - the levers for next week, priority-filtered by soul.md (rent-moving first: job pipeline > learning > modeling > STEMPLICITY).
+7. **Next Week Priorities** - the levers for next week, priority-filtered by soul.md (rent-moving first: job pipeline > learning > modeling).
 Brand: ALEX (brand-config.md, since 2026-07-03): canvas #001219, Dark Teal #005f73 / Dark Cyan #0a9396 structure, ONE Golden Orange #ee9b00 accent, Calibri, ALEX logo block every slide. Title + closing dark (#001219), content light.
 
 ## Notion weekly summary page

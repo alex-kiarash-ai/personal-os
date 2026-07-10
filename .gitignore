@@ -24,6 +24,10 @@ __pycache__/
 # Recovery checker runtime state (regenerable via check.ps1 -Init; machine-local baseline)
 work/18-recovery-layer/state/
 
+# Email-triage runtime state (staged-draft ledger, sender tally, job-thread tracker; local-only, holds
+# raw draft text for the sent-vs-draft learning loop, pruned each run - never on GitHub, never the vault)
+work/07-email-triage/state/
+
 # Vault-search FTS5 index (derived from vault/**/*.md, regenerable via scripts/vault_search.py build;
 # gitignored so it stays off GitHub but IS inside the repo tree, so the encrypted vault backup covers it)
 scripts/vault-index/

@@ -18,7 +18,7 @@ Spec: work/10-weekly-exec-report/CLAUDE.md (read it first). Aggregates all 9 aut
 5. **metrics-history**: append vault/projects/weekly-exec-report/metrics-history/YYYY-MM-DD.md (shipped, velocity, meetings, emails, spend, drafts) for trends.
 
 ## Tone
-soul.md / Alex: lead with the single biggest lever, no filler, priority-filter next-week by rent-first (job pipeline > learning > modeling > STEMPLICITY).
+soul.md / Alex: lead with the single biggest lever, no filler, priority-filter next-week by rent-first (job pipeline > learning > modeling).
 
 ## Post-Run
 - status.md (last run, deck path) + vault/index.md + vault/log.md. Clean temp (recalc/JPGs); keep only the deliverable. Do NOT re-mark the sprint row (Done at build).

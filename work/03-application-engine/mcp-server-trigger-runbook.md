@@ -55,7 +55,7 @@ Ask Claude: **"What's my job pipeline status today?"**
 1. **Does the round-trip work?** Claude → n8n MCP → Sheet → answer. Y/N.
 2. **Wiring cost to expose one capability.** 3 nodes + 1 credential + 1 client line. Compare to standing up a bespoke API + auth for the same thing.
 3. **Maintenance surface.** Auth rotation, endpoint stability on `:latest` pulls, tool-description drift.
-4. **Verdict gate.** Clean + genuinely useful → expand to `search_jobs` (parameterized city/keyword slice) and `needs_review_list`, then screen-record for the Building Alex episode + STEMPLICITY demo. Flaky or pointless → park, keep as portfolio-research.
+4. **Verdict gate.** Clean + genuinely useful → expand to `search_jobs` (parameterized city/keyword slice) and `needs_review_list`, then screen-record for the Building Alex episode + Alex-product demo. Flaky or pointless → park, keep as portfolio-research.
 
 ## How this lands on the box (corrected 2026-07-01)
 Alex builds it **directly via the n8n public REST API** - same access `work/14/config/*.js` already uses. No Chrome, no manual import.
@@ -99,7 +99,7 @@ Origin: Alex AI Radar run-4 deep-dive on the MCP 2026-07-28 spec ([[research/mcp
 - **Rollback:** PUT the backup JSON back (restores typeVersion 1 / SSE) - one API call.
 - Remaining (needs the token, held with Shaheen): register in Claude with the http command above, then an authenticated `tools/list` + `pipeline_status` round-trip. NOTE: the token is NOT in `/opt/n8n/.env` (checked 2026-07-02, key names only) - the "belongs in .env" line above never happened.
 
-**Measurement verdict:** PROVEN + EXPANDED to 3 tools, all returning real data (search_jobs → 20 scored jobs; needs_review_list → 113-row queue). Cost to expose a capability: ~1 small worker + 1 tool node each. Ready to screen-record for the Building Alex episode + STEMPLICITY demo.
+**Measurement verdict:** PROVEN + EXPANDED to 3 tools, all returning real data (search_jobs → 20 scored jobs; needs_review_list → 113-row queue). Cost to expose a capability: ~1 small worker + 1 tool node each. Ready to screen-record for the Building Alex episode + Alex-product demo.
 
 **Demo queries (ask your Claude once the MCP server is registered):**
 - "What's my job pipeline status today?" → `pipeline_status`

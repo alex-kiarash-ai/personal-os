@@ -120,7 +120,7 @@ Write knowledge to vault/. Write deliverables to outputs/{automation-name}/YYYY-
 - Update work/{number}-{name}/CLAUDE.md with what was actually built (implementation details)
 - Confirm the command works: "/{name} is now available."
 - If scheduled, add to scheduler/schedule.md
-- If sprint board exists, mark as Done and report progress: "{N} of 10 done. Next: {next automation}."
+- **Progress Tracker row (CONTRACT, hardened 2026-07-10):** create the automation's board row NOW, at activation, not next morning. Use `scripts/lib/notion-board.js` `upsertRow({task, status, project, order, notes})` (needs the sprint-tracker Notion token at work/01-sprint-tracker/config/notion-token.txt) with Status per its real state, Project select, the next Order, and a content body. This closes the recurring "live automation, no board row" miss (#16 / #24 / #25 / the seven on 07-06). If the token isn't configured yet, explicitly note the row as owed - the sprint core's contract sweep is the safety net that flags it next run, but the fix is to plant it here so the tracker never has to backfill.
 
 ## Cross-Automation Connections
 

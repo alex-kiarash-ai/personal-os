@@ -5,6 +5,10 @@
 //     BOTH active engines + the Writer Voice Eval (append once, replace on re-sync, never duplicate)
 //   - backup-first (scripts/n8n-backups/, gitignored), PUTs only {name,nodes,connections,settings},
 //     GET-verifies marker + sample phrase + node count + active flag before declaring green.
+//     The active flag is a HARD gate since 2026-07-10: n8n's public-API PUT dropped activation on
+//     both live engines (crons deregistered, 07:00 runs silently never fired) and the old check only
+//     printed the flag. The sync now re-activates a workflow the PUT deactivated and fails loudly if
+//     it cannot restore the pre-write state.
 // Changes vs the standalone script (per the refactor ground rules):
 //   - credentials come ONLY from env: N8N_API_URL + N8N_API_KEY; fails loudly if missing (rule 7)
 //   - soul.md text comes from the shared source model (read-sources), one read for the whole run
@@ -132,7 +136,17 @@ async function run({ soul, apply, log }) {
     const w = v.nodes.find(n => n.name === NODE).parameters.jsCode;
     const ok = w.includes(START) && w.includes(END) && (!sampleMark || w.includes(sampleMark)) && v.nodes.length === before;
     if (!ok) throw new Error(`sync-n8n-voice: ${t.name}: post-write verification failed (marker/phrase/nodecount)`);
-    log(`  [${t.name}] GREEN: voice block live in "${NODE}"; nodes ${before}->${v.nodes.length}; active=${v.active}`);
+
+    // n8n's PUT can drop activation (2026-07-10: both engines deactivated by the overnight sync,
+    // crons deregistered, next-morning runs never fired). Restore it, then GATE green on it.
+    let active = v.active;
+    if (wf.active && !active) {
+      const ra = await fetch(`${base}/workflows/${t.id}/activate`, { method: 'POST', headers: hdrs });
+      if (ra.ok) active = (await ra.json()).active === true;
+    }
+    if (active !== wf.active)
+      throw new Error(`sync-n8n-voice: ${t.name}: active flag ${wf.active} -> ${active} after sync and re-activation could not restore it - workflow left DEACTIVATED, fix by hand (POST /workflows/${t.id}/activate)`);
+    log(`  [${t.name}] GREEN: voice block live in "${NODE}"; nodes ${before}->${v.nodes.length}; active=${active}${wf.active && !v.active ? ' (re-activated: PUT had dropped it)' : ''}`);
     results.push({ target: t.name, status: 'synced' });
   }
   return results;

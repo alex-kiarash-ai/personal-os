@@ -15,7 +15,7 @@ Turn Shaheen's real Personal OS history into a 10-episode LinkedIn series in his
 2. **No em-dashes or en-dashes anywhere.** After drafting, run a deterministic scan for - and –. Any hit = failed output, rewrite the sentence.
 3. **Never the "Geoffrey/RL" framing.** The honest line is: "every correction becomes a rule he never breaks again, my mistakes are his training data."
 4. Sensitive personal topics appear at most once, plainly, and are never relitigated.
-5. STEMPLICITY is invisible in the series.
+5. The commercial offer (Alex as a product) is invisible in the series.
 6. The job-pipeline episode includes verbatim: "removes hours of tailoring, not the 60 seconds of clicking submit."
 7. Every real number is real (cost, count, hours) and traceable to the vault. Never invented.
 8. Images: real screenshots only (n8n canvas, Obsidian graph, Task Scheduler, Power BI dashboard), stored in screenshots/, picked by Shaheen. NEVER AI-generated.

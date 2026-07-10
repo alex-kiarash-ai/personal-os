@@ -16,7 +16,7 @@ Two things to know before you read anything else:
 Start with GETTING-STARTED if you want to run it, ARCHITECTURE if you want to understand it.
 <!-- CUSTOM_END -->
 
-<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-07-09. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
+<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-07-10. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
 
 ## Quick start
 

@@ -4,7 +4,7 @@
 Automation
 
 ## Purpose
-Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calendar, and relevant Notion/vault project context, filtered hard through soul.md priorities (priority order: job pipeline > learning > modeling > STEMPLICITY; personal flagged warmly). Output is scannable in under 3 minutes: Urgent / Today's Calendar / Key Context / FYI. Noise (newsletters, promos) is counted, not listed.
+Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calendar, and relevant Notion/vault project context, filtered hard through soul.md priorities (priority order: job pipeline > learning > modeling; personal flagged warmly). Output is scannable in under 3 minutes: Urgent / Today's Calendar / Key Context / FYI. Noise (newsletters, promos) is counted, not listed.
 
 ## Entry Points
 - **Scheduled:** daily at 8:00 AM via system scheduler (`claude -p "Run /morning-brief"`)
@@ -35,6 +35,7 @@ Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calen
 - vault/business/ (context on companies)
 - vault/projects/*/status.md (active project context for the Key Context section)
 - vault/people/_inbox.md (People Intake review queue; if non-empty, surface a short "people to confirm" line in Key Context so Shaheen can clear it)
+- vault/projects/sprint-tracker/decisions-pending.md (stale board rows the sprint-tracker core flagged; if non-empty, surface each as a one-tap keep/drop line in Key Context - "{task} has sat {N} weekdays, keep or drop?" - and call out any **[auto-drop candidate]** plainly so a dead row gets decided, not silently repeated)
 - vault/projects/alex-ai-radar/radars/ (newest file; Mondays, see the Radar section rule below)
 - brand/config/brand-config.md (only if a file deliverable is requested; the daily brief itself is markdown + Notion)
 
@@ -50,6 +51,8 @@ Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calen
 **Missed-run detection.** Compare today's date against the newest file in vault/projects/morning-brief/history/. If one or more days were skipped, the brief MUST open with "Missed N brief(s) since YYYY-MM-DD" and widen the Gmail window to cover the gap (newer_than the missed span, not just 1d) so nothing urgent from the dead days is silently dropped. If the gap is 3+ days, also suggest checking `schtasks /query /fo csv | findstr PersonalOS` and `outputs/logs/morning-brief.log`. A missing brief must never look like a calm morning.
 
 **Pipeline-health check (added 2026-06-30).** Every brief, read the **Pipeline Alerts** Notion DB (db_id `08504afe-ba13-4691-9e67-0ed9a00c8e8c`, data_source_id `801e9271-9035-4976-b32a-747edcafa9b3`, under Personal OS) for rows with `Status = Open`. Any open alert is **Urgent**: name the pipeline, failed node, and error in one line, with the action. This is how the n8n engines report failures - the "Pipeline Error Alert" n8n workflow auto-writes a row here whenever a workflow errors. **Coverage widened 2026-07-06:** ALL active workflows on the box now nominate this handler (13/14, not just #03/#14/LinkedIn), so a failure in health ingest, life-ops, or any HQ workflow surfaces here too. The morning brief is the human notification surface; do not let a silent multi-day pipeline outage recur (it cost 5 dark days, 06-26→06-30, before alerting existed). The same break also shows live on Alex HQ's "Broken n8n today" card (the brief is the ≤24h backstop; the card is the instant one). When a previously-open alert's underlying run is confirmed green again, flip its row to `Resolved`.
+
+**Scheduled-run staleness watch (added 2026-07-10).** For LIVE scheduled automations, read their status.md `last_run` and flag any whose age exceeds its cadence + slack. Seeded with **Personal CRM (#05): flag if `last_run` is older than 8 days** (its Monday run + one week of slack; the 07-06 usage-limit skip lost three weeks silently). On a hit: one Urgent line ("CRM hasn't run since {date}, {N}d - check outputs/logs/personal-crm.log") AND push AMBER/RED to HQ `run_status` for that project (project=`crm`), so a missed run can't go quiet. Read-only; unreachable HQ = one FYI line, never a failed brief.
 
 **HQ inbox check (every brief, added 2026-07-02).** The Alex HQ PWA has a two-way notes card (typed + voice). Every brief run fetches `GET /webhook/alex-inbox` (X-Alex-Token) and files every `new` note per the standing vault protocols, transcribing voice notes with local Whisper first (full mechanics: work/16-alex-hq/CLAUDE.md "Inbox Contract" + step 4b in the command file). Correction-type notes additionally route to #22 Teach-Alex (classified + appended to vault/projects/teach-alex/corrections-log.md; identity files confirm before applying). The brief gets a short **"Notes you dropped"** block showing each note → destination. Unreachable inbox = one FYI line, never a failed brief.
 

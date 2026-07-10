@@ -11,26 +11,47 @@ A personal relationship manager backed by a Notion "Personal CRM" database. It k
 - **On-demand:** `/personal-crm` (full sync + follow-up list), `/personal-crm sync` (DB sync only, no drafts).
 
 ## Tools Used
-- Notion MCP: notion-create-pages / notion-update-page (CRM rows), notion-fetch (read rows by page ID).
-- Gmail MCP: search_threads (find last-contact date + email addresses by name), gmail_create_draft (stage follow-up drafts). NEVER Chrome for Gmail.
-- Google Calendar MCP: list_events (attendees as contact + l1
+- Notion MCP: notion-create-pages / notion-update-page (CRM rows), notion-fetch (read rows by page ID), notion-update-data-source (schema).
+- Gmail MCP: search_threads (last-contact date, 90-day message counts, email addresses by name), list_drafts (draft dedup), gmail_create_draft (stage follow-up drafts). NEVER Chrome for Gmail.
+- Google Calendar MCP: list_events (attendees as contact + last-met context, 90-day sweep).
+
+## Notion Integration
+**Personal CRM** database under the Personal OS parent page. db_id `0da7196d-f52b-435b-8692-76dd75a0dc24`, data_source `746bc5bf-8ab3-4e34-911d-00b9d180e350`. Properties (live schema, verified 2026-07-10):
+- **Name** (title)
+- **Company** (select: UC AB, Finansförbundet, FFA, LinkedIn, Family, Flow Studio, Other)
+- **Role** (text)
+- **Email** (email) - never guessed or constructed
+- **Last Contact** (date)
+- **Follow-Up Date** (date)
 - **Relationship Score** (number, 1-10)
 - **Status** (select: Active, Warm, Cold, New)
-- **Tags** (multi-select: hr, recruiter, family, personal, job-hunt, prospect, do-not-contact, data-gap)
+- **Tags** (multi-select: layoff, hr, union, insurance, recruiter, family, personal, job-hunt, prospect, data-gap)
 - **Notes** (text)
+- **Days Since Contact** (number) - today minus Last Contact, computed + stored each run (deterministic scoring, added 2026-07-10).
+- **Msgs 90d** (number) - Gmail thread message count over the last 90 days.
+- **Cadence Days** (number) - target silence window before a nudge, defaulted by Status (see step 3).
+- **Score Basis** (text) - one-line audit of how the score was formed, so a score is explainable run-to-run.
+
+**Tag note:** the DB has no literal `do-not-contact` tag. The never-draft set is keyed off `layoff` (layoff counterparties), `personal`, and `family`; "do-not-contact" is the conceptual umbrella used in the Draft Gate below, not a literal option.
 
 Views:
 - **All Contacts** (table, sort by Relationship Score desc)
-- **Follow-Up This Week** (table, filter Follow-Up Date on-or-before end of current week)
+- **Follow-Up This Week** (table, Follow-Up Date is-not-empty AND Status is-not Cold, soonest first; the real "due this week" cut is applied at runtime).
 - **By Company** (board, group by Company)
 
 Every row carries full readable context in the page **content**, not just properties.
 
 ## The Runtime Flow (per run)
 1. **Sync contacts.** Read every vault/people/*.md (skip _example-contact). For each, upsert a CRM row: name, company, role, email (if known), tags, a relationship score, a status, and Notes. Match existing rows by Name (page IDs cached in status.md) to avoid duplicates.
-2. **Enrich.** Pull recent Gmail senders + Calendar attendees (last 90 days). If a known contact's email or a real last-contact date surfaces, fill it. New people worth tracking get a new row + a vault/people/ page (post-run ingestion). Timebox: if enrichment turns up nothing for a contact, leave the field blank, don't dig.
-3. **Score + status.** Relationship Score 1-10 (frequency + recency + importance to current goals; job-hunt and venture contacts weigh up). Status: Active (ongoing exchange), Warm (real but quiet), Cold (fading/closed), New (just appeared, unqualified).
-4. **Follow-up list.** Select rows whose Follow-Up Date is due this week, OR Warm/Active rows gone quiet past their cadence. Write the list to status.md and the Monday section.
+2. **Enrich (thin backfill since 2026-07-10).** Email Triage (#07) now writes Last Contact + Email onto CRM rows on every sweep (9/13/17), so most rows arrive already fresh. This step is a backfill for contacts #07 never sees: Calendar-only attendees and LinkedIn-only names. Pull Gmail senders + Calendar attendees (last 90 days); fill a missing email or a real last-contact date; new people worth tracking get a new row + a vault/people/ page (post-run ingestion). Timebox: turns up nothing, leave it blank, don't dig.
+3. **Score + status (deterministic, since 2026-07-10).** The recency/frequency half is COMPUTED, not guessed:
+   - Compute + store **Days Since Contact** (today minus Last Contact) and **Msgs 90d** (Gmail thread count last 90 days).
+   - Map them to a base band 0-6 (recent + frequent = high, silent + rare = low).
+   - The model adds only a **goal-importance overlay 0-4** from vault/me/goals.md (job-hunt + Alex-product + active-interview contacts weigh up).
+   - **Relationship Score = base + overlay** (clamp 1-10), written with a one-line **Score Basis** (e.g. "base 4 [12d, 6 msgs] + overlay 3 [active recruiter] = 7"). Same inputs give the same score across runs.
+   - Status: Active (ongoing exchange), Warm (real but quiet), Cold (fading/closed), New (just appeared, unqualified).
+   - **Cadence Days** defaulted by Status: Active 14, Warm 30, New/prospect while job-hunt is live 7, Cold none. Active-interview contacts (Track 6) override to 7. When a row has no explicit Follow-Up Date, auto-set Follow-Up Date = Last Contact + Cadence Days.
+4. **Follow-up list.** Select rows due this week (Follow-Up Date on-or-before end of this week) OR rows past cadence (Days Since Contact > Cadence Days) that are Active/Warm. "Gone quiet past cadence" is now a computed comparison, not a weekly judgment call. Write the list to status.md and the Monday section.
 5. **Draft gate (HARD RULES - see below).** For each eligible follow-up, draft an email in soul.md voice and stage via gmail_create_draft. Log every draft in status.md. NEVER auto-send.
 
 ## Draft Gate (non-negotiable)
@@ -42,6 +63,25 @@ A contact is drafted to ONLY IF all are true:
 - Drafting is the ceiling. The draft sits in Gmail for Shaheen to read, edit, and send or bin. The brief always says how many drafts were staged and to whom.
 If a contact would be a useful follow-up but fails a gate (e.g. no email), list them in the follow-up list as "needs your call" with the reason, and draft nothing.
 
+### Draft lifecycle (since 2026-07-10, kills the pile-up)
+The 4-stale-drafts-to-one-contact mess (07-06) is now real behavior, not a manual note:
+- **Refresh-in-place.** Before staging a nudge, `list_drafts` for the thread. If an unsent Alex draft already exists there, DELETE the stale one(s) and stage a single current draft. Never a 2nd/5th draft on the same thread.
+- **Auto-expire.** A staged draft older than N days (default 14) with no send is not silently kept: surface it as one HQ decision card ("send / bin") via the metrics push, and stop re-staging it until Shaheen acts.
+
+## Phone Actions (two-way notes via Alex HQ, since 2026-07-10)
+The Monday "needs your call" list used to stall until Shaheen was at the keyboard. Now he can action it from his phone through the Alex HQ note inbox (Inbox Contract in work/16-alex-hq/CLAUDE.md; notes are already read at every #05 run). At run start (command step 1b) the run GETs `/webhook/alex-inbox`, and for any note that matches a CRM contact it recognises a small verb grammar:
+- **`send <name>`** - send the existing staged, gate-passed Gmail draft on that contact's thread. This is the ONLY action that dispatches mail, and it only ever sends a draft that was already staged and passed the hard gate and that Shaheen named by hand. It never auto-composes-and-sends.
+- **`close <name>`** - set Status -> Cold, drop from the follow-up list.
+- **`snooze <name> to <date>`** - set Follow-Up Date to that date.
+- **`draft <name>`** - stage a fresh nudge IF it passes the hard gate (otherwise report why it can't).
+
+Execute the action, then mark the note filed: POST `/webhook/alex-inbox-mark` with `filed_to: "crm/<action>"` and the required `note` field. Hard rules inherited from the contract: never print the token; an unreachable inbox is one line then continue, never fails the run; a note is filed, never deleted.
+
+## Reliability SLA (since 2026-07-10)
+The Monday run is a local `claude -p` job and CAN silently miss (the 07-06 usage-limit skip lost three weeks of drift). Two guards:
+- The scheduled wrapper already routes through `Invoke-CloseOutCheck` (scripts/lib/close-out.ps1): a blocked/degraded run pushes RED `run_status` to HQ, and a clean run pushes GREEN so there is always a fresh timestamp to age against.
+- **Staleness watch (external, zero-token):** the morning brief (#02) / recovery drift checker (#18) flags when this status.md `last_run` age exceeds **8 days** (one missed Monday + slack) and pushes AMBER/RED to HQ. A missed run can no longer go quiet for weeks.
+
 ## Vault Structure
 - **Tier 1:** vault/projects/personal-crm/status.md - DB IDs, row→pageID map, last run, current follow-up list, drafts staged.
 - **Tier 2:** vault/projects/personal-crm/history/YYYY-MM-DD.md - one snapshot per run (follow-up list + drafts that week).
@@ -50,7 +90,7 @@ If a contact would be a useful follow-up but fails a gate (e.g. no email), list 
 - soul.md (email voice - terse, systems-led, no AI slop, no em-dashes).
 - vault/people/ (the contact source of truth).
 - vault/meetings/ (last-met context). NOTE: not built yet - skip gracefully if absent.
-- vault/me/goals.md (to weight scores toward job-hunt + STEMPLICITY goals).
+- vault/me/goals.md (to weight scores toward job-hunt + Alex-product goals).
 - vault/business/ (company context for the Company select).
 
 ## Vault Writes
@@ -60,8 +100,8 @@ If a contact would be a useful follow-up but fails a gate (e.g. no email), list 
 - vault/index.md (new pages), vault/log.md (every run).
 
 ## Connections
-- **Fed by:** Morning Brief (enriches vault/people/), Calendar, Gmail.
-- **Feeds into:** Morning Brief (follow-up reminders), future Email Triage. Reports Done to the sprint board.
+- **Fed by:** Morning Brief (enriches vault/people/), Calendar, Gmail. Email Triage (#07 - LIVE: continuously writes Last Contact + Email onto CRM rows on every sweep, so Monday is a scoring pass over fresh data, 2026-07-10). Interview Copilot (#21) - when a CRM recruiter enters an active interview, #05 overrides that contact's Cadence Days to 7 and bumps the goal-overlay so the follow-up engine prioritises the thread (Track 6). Alex HQ (#16) notes inbox - phone actions (send/close/snooze/draft), Inbox Contract.
+- **Feeds into:** Morning Brief (follow-up reminders + staleness watch), Email Triage (#07 - supplies sender context + receives new senders; #07's job-loop cross-checks CRM last-contact to nudge stale recruiter threads, 2026-07-10 v2), Interview Copilot (#21 - recruiter contact context). Reports Done to the sprint board.
 
 ## Post-Run (mandatory)
 1. vault/people/ pages for new contacts.

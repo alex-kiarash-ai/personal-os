@@ -17,7 +17,7 @@ How the wrangler classifies an expense. One category per row. Tax-deductible def
 3. Ambiguous or unusually large → Status = Flagged for human review.
 
 ## Tax-deductible
-STEMPLICITY / job-hunt / freelance-related = deductible. Personal = not. When unclear, default the safer answer (No) and flag. Never assert deductibility on a guess.
+Alex product / job-hunt / freelance-related = deductible. Personal = not. When unclear, default the safer answer (No) and flag. Never assert deductibility on a guess.
 
 ## Currency
 SEK (kr) throughout. Excel uses `#,##0.00 "kr"`; Notion Amount uses `number_with_commas` (no symbol - Notion has no native SEK format). All amounts are kronor.

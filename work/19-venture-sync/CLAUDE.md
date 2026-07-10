@@ -12,7 +12,7 @@ Mirror high-value markdown from each external venture's own repo into `vault/ven
 - **Suggested by /lint** when a synced doc's `git_sha` is >14 days behind source.
 
 ## Config
-`vault/ventures/_sync-config.md` - YAML whitelist of `{code_path, sync_files, project_source}` per venture. Currently 5 ventures: **brandmodal, alphastar, insightai, finance-us, stemplicity** (all `~/Desktop/{name}`). Auto-skips sysprompts/boilerplate (CLAUDE.md, AGENTS.md, README.md, oversized CHANGELOG). Edit this file to add/drop docs; do NOT hardcode paths in the command.
+`vault/ventures/_sync-config.md` - YAML whitelist of `{code_path, sync_files, project_source}` per venture. Currently 4 ventures: **brandmodal, alphastar, insightai, finance-us** (all `~/Desktop/{name}`). Auto-skips sysprompts/boilerplate (CLAUDE.md, AGENTS.md, README.md, oversized CHANGELOG). Edit this file to add/drop docs; do NOT hardcode paths in the command.
 
 ## Tools Used
 Local filesystem (read external repos, write vault), git (read `git_sha` of source), the command's own LLM synthesis for `brief.md`. No MCP, no n8n. Read-only against the venture repos.
@@ -33,10 +33,10 @@ The external venture repos named in `_sync-config.md` (read-only); soul.md (voic
 
 ## Connections
 - **Feeds:** venture context into the vault for any Alex reasoning; scaffolds new `projects/{name}.md` pages.
-- **Related:** [[me/situation]] (STEMPLICITY is Shaheen's live venture); /lint (staleness nudge); [[projects/recovery/status]] (registered here after the sweep).
+- **Related:** [[me/situation]]; /lint (staleness nudge); [[projects/recovery/status]] (registered here after the sweep).
 
 ## Status (2026-07-04)
-- **VESTIGIAL / PARKED** (stronger than dormant). Command + config exist and no `vault/ventures/{name}/docs/` output has ever been produced. The 5 `code_path`s (`~/Desktop/{brandmodal,AlphaStar,insightai,finance-us,stemplicity}`) were **confirmed ABSENT on this machine 2026-07-04** (QA-verified), and stemplicity's config is empty (`sync_files: []`), so a run today produces nothing for any venture. This is a deliberate parked state, not a ready-to-run one.
+- **VESTIGIAL / PARKED** (stronger than dormant). Command + config exist and no `vault/ventures/{name}/docs/` output has ever been produced. The 4 `code_path`s (`~/Desktop/{brandmodal,AlphaStar,insightai,finance-us}`) were **confirmed ABSENT on this machine 2026-07-04** (QA-verified), so a run today produces nothing for any venture. This is a deliberate parked state, not a ready-to-run one.
 - Registered in the manifest (#19) + routing table so the recovery checker stops flagging the command as an orphan. Registration does not activate it.
 
 ## Post-Run (when first activated)

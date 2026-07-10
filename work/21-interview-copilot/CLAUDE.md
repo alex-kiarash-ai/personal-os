@@ -46,8 +46,8 @@ Drafts only. Never replies to a recruiter, never accepts or declines, never auto
 Claude: dossier, question prep, fit reasoning, note extraction. OpenAI + soul.md: the draft reply and the negotiation message (human-facing prose in Shaheen's voice).
 
 ## Connections
-- **Fed by:** #03 BI pipeline + #14 AI pipeline (the applications that lead to interviews), Gmail/Calendar, Meeting Intel (#06), Research Team (#04), Personal CRM (#05), Runway (#20).
-- **Feeds into:** `vault/meetings/`, Personal CRM, the sprint board, the morning brief (interview flags), soul.md My Words.
+- **Fed by:** #03 BI pipeline + #14 AI pipeline (the applications that lead to interviews), Gmail/Calendar, Meeting Intel (#06), Research Team (#04), Personal CRM (#05), Runway (#20), Email Triage (#07 - its job-loop flags recruiter replies + interview invites and escalates them here, 2026-07-10 v2).
+- **Feeds into:** `vault/meetings/`, Personal CRM (an active interview signals #05 to override that recruiter contact's Cadence Days to 7 + bump the goal-overlay, so the follow-up engine prioritises the live opportunity, 2026-07-10), the sprint board, the morning brief (interview flags), soul.md My Words.
 
 ## Close-Out Extras
 - Every dossier/prep run cites its sources; unknowns flagged, nothing invented.

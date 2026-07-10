@@ -88,7 +88,7 @@ The `Reduce To Summary` node builds the `health` project by a **field-level merg
 
 ## Connections
 - **Fed by:** every automation (post-run POST), /alex-hq local harvest (MCP count, vault size, scheduler, n8n workflow liveness), **Shaheen's notes** (typed + voice via the PWA card, Inbox Contract)
-- **Feeds into:** Shaheen's phone/PC (the UI), the vault (filed notes → calendar/people/me/meetings/projects), morning-brief ("Notes you dropped" block + may quote HQ health), Building Alex episode ("I gave Alex a face"), STEMPLICITY demo
+- **Feeds into:** Shaheen's phone/PC (the UI), the vault (filed notes → calendar/people/me/meetings/projects), morning-brief ("Notes you dropped" block + may quote HQ health), Building Alex episode ("I gave Alex a face"), Alex-product demo
 
 ## Post-Run (mandatory)
 1. No people/companies expected (metrics only); if any appear in headlines, standard intake applies

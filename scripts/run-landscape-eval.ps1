@@ -36,15 +36,16 @@ if ($asmCode -ne 0 -or -not (Test-Path $promptPath)) {
     Invoke-CloseOutCheck -Out $msg -Code 1 -Log $log -Project 'evolution'
 }
 
-# 2. The ONE model call: feed the assembled prompt to claude via stdin (non-interactive print mode).
-#    NOTE (confirm on first real run): the prompt is piped to `claude -p` on stdin. If this CLI build
-#    needs the prompt as a positional arg instead, pass it as the -p argument here.
+# 2. The ONE model call: pass the assembled prompt to claude -p as a positional arg (the proven house
+#    pattern, same as run-alex-radar.ps1). The prompt is a bounded ~15-20KB, well within the arg limit;
+#    if it ever grows near the limit, switch to a --prompt-file/stdin form and re-verify.
 $stamp = Get-Date -Format 'yyyy-MM-dd'
 $outDir = "outputs\evolution\$stamp"; New-Item -ItemType Directory -Force $outDir | Out-Null
 $digestPath = Join-Path $outDir 'digest.md'
 $out = ''
 try {
-    $out = (Get-Content $promptPath -Raw | & "$env:APPDATA\npm\claude.ps1" -p --dangerously-skip-permissions 2>&1 | Out-String)
+    $prompt = Get-Content $promptPath -Raw
+    $out = (& "$env:APPDATA\npm\claude.ps1" -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

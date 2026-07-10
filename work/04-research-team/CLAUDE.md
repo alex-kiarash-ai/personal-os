@@ -60,7 +60,7 @@ No new database. One page per research run under the Personal OS parent page (`3
 - Patterns live in work/04-research-team/patterns/ (architecture = config, not knowledge)
 
 ## Vault Reads
-- soul.md (voice + priorities: research serving job hunt or STEMPLICITY outranks curiosities)
+- soul.md (voice + priorities: research serving job hunt or the Alex product outranks curiosities)
 - vault/research/ (don't re-research what's answered; link instead)
 - vault/business/ (market/competitor context). NOTE: vault/business/competitors/ is fed by Market Pulse, which is NOT BUILT yet - if absent, skip gracefully, never error.
 - vault/people/, vault/projects/ for context on names that appear
@@ -72,7 +72,7 @@ No new database. One page per research run under the Personal OS parent page (`3
 
 ## Connections
 - Fed by: Market Pulse (vault/business/competitors/) once built; Notion internal docs.
-- Feeds into: vault/research/ (consumed by everything), STEMPLICITY decisions, job-hunt targeting.
+- Feeds into: vault/research/ (consumed by everything), Alex-product decisions, job-hunt targeting.
 
 ## Post-Run (mandatory)
 1. vault/people/ pages for new people
