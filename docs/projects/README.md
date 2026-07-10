@@ -17,7 +17,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 08 | [Expense Wrangler](08-expense-wrangler.md) | LIVE | Receipts to the Notion Expenses DB + an all-formula branded monthly Excel. |
 | 09 | [Content Machine](09-content-machine.md) | RETIRED | Retired 2026-07-06: folded into #12 (one content system, same Content Library DB). |
 | 10 | [Weekly Exec Report](10-weekly-exec-report.md) | LIVE | The Friday capstone: every automation + mail + calendar into one branded deck + Notion page. |
-| 11 | [WhatsApp Harvest](11-whatsapp-harvest.md) | PARKED | Voice-corpus + people harvest. Parked: screen automation is a dead end; revisit = Phase 2 (iPhone backup) build-or-retire. |
+| 11 | [WhatsApp Harvest](11-whatsapp-harvest.md) | ON-DEMAND | Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer. |
 | 12 | [LinkedIn Series](12-linkedin-series.md) | LIVE | Building Alex in public: locked ~150-word template, hard gates, real numbers; n8n stages, Shaheen posts. |
 | 13 | [Airbnb Host](13-airbnb-host.md) | LIVE | Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway. |
 | 14 | [AI Application Engine](14-ai-application-engine.md) | LIVE | Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate. |
