@@ -42,16 +42,19 @@ Views:
 Every row carries full readable context in the page **content**, not just properties.
 
 ## The Runtime Flow (per run)
-1. **Sync contacts.** Read every vault/people/*.md (skip _example-contact). For each, upsert a CRM row: name, company, role, email (if known), tags, a relationship score, a status, and Notes. Match existing rows by Name (page IDs cached in status.md) to avoid duplicates.
+1. **Sync contacts.** Read every vault/people/*.md (skip _example-contact). For each, upsert a CRM row: name, company, role, email (if known), tags, **Channel** (from the `channel:` frontmatter, default `email` if an email is on file else `unknown`), **Last Contact** (from the `last_contact:` frontmatter, skip if `unknown`), a relationship score, a status, and Notes. Match existing rows by Name (page IDs cached in status.md) to avoid duplicates.
 2. **Enrich (thin backfill since 2026-07-10).** Email Triage (#07) now writes Last Contact + Email onto CRM rows on every sweep (9/13/17), so most rows arrive already fresh. This step is a backfill for contacts #07 never sees: Calendar-only attendees and LinkedIn-only names. Pull Gmail senders + Calendar attendees (last 90 days); fill a missing email or a real last-contact date; new people worth tracking get a new row + a vault/people/ page (post-run ingestion). Timebox: turns up nothing, leave it blank, don't dig.
-3. **Score + status (deterministic, since 2026-07-10).** The recency/frequency half is COMPUTED, not guessed:
-   - Compute + store **Days Since Contact** (today minus Last Contact) and **Msgs 90d** (Gmail thread count last 90 days).
-   - Map them to a base band 0-6 (recent + frequent = high, silent + rare = low).
-   - The model adds only a **goal-importance overlay 0-4** from vault/me/goals.md (job-hunt + Alex-product + active-interview contacts weigh up).
-   - **Relationship Score = base + overlay** (clamp 1-10), written with a one-line **Score Basis** (e.g. "base 4 [12d, 6 msgs] + overlay 3 [active recruiter] = 7"). Same inputs give the same score across runs.
+3. **Score + status (deterministic + channel-aware, since 2026-07-10).** Read each contact's **Channel** (from the people-page `channel:` frontmatter, synced to the Notion `Channel` field; email / whatsapp / linkedin / in-person / mixed / unknown) and branch:
+   - **Email / mixed (the system can see them):** compute + store **Days Since Contact** (today minus Last Contact) and **Msgs 90d** (Gmail thread count last 90 days). Map to a base band 0-6 (recent + frequent = high, silent + rare = low).
+   - **Non-email (whatsapp / linkedin / in-person - the system is BLIND to the channel):** there is NO reliable recency signal. `Msgs 90d` = N/A. `Days Since Contact` is computed from the `last_contact` frontmatter but is treated as **"last logged, unverified"**, never as proven silence; if `last_contact: unknown`, recency is a data-gap. The recency band is HELD/soft, not scored as if the silence is real (this is what stops the frozen-June dates reading as "gone quiet, 29 days").
+   - The model adds only a **goal-importance overlay 0-4** from vault/me/goals.md (job-hunt + Alex-product + active-interview weigh up; on the personal side the dating thread + mother weigh up).
+   - **Relationship Score = base + overlay** (clamp 1-10), written with a one-line **Score Basis** that names the channel + whether recency is verified (e.g. "email: base 4 [12d, 6 msgs] + overlay 3 [active recruiter] = 7" · "whatsapp: recency unverified [last logged 29d] + overlay 2 [close friend] = soft 5"). Same inputs give the same score across runs.
    - Status: Active (ongoing exchange), Warm (real but quiet), Cold (fading/closed), New (just appeared, unqualified).
-   - **Cadence Days** defaulted by Status: Active 14, Warm 30, New/prospect while job-hunt is live 7, Cold none. Active-interview contacts (Track 6) override to 7. When a row has no explicit Follow-Up Date, auto-set Follow-Up Date = Last Contact + Cadence Days.
-4. **Follow-up list.** Select rows due this week (Follow-Up Date on-or-before end of this week) OR rows past cadence (Days Since Contact > Cadence Days) that are Active/Warm. "Gone quiet past cadence" is now a computed comparison, not a weekly judgment call. Write the list to status.md and the Monday section.
+   - **Cadence Days by channel, then status:**
+     - *Email / professional:* Active 14, Warm 30, New/prospect while job-hunt is live 7, Cold none. Active-interview (Track 6) override 7.
+     - *WhatsApp / personal + family:* a SOFT relationship-maintenance cadence, default 45. The goal-overlay tightens the few that matter (a dating contact ~14, a family member gentle-but-shorter ~30). NEVER the hard job-hunt cadence.
+   - When a row has no explicit Follow-Up Date, auto-set Follow-Up Date = Last Contact + Cadence Days (skip when `last_contact` is unknown).
+4. **Follow-up list.** Select rows due this week (Follow-Up Date on-or-before end of this week) OR rows past cadence (Days Since Contact > Cadence Days) that are Active/Warm. "Gone quiet past cadence" is now a computed comparison, not a weekly judgment call. **Non-email contacts get a GENTLE, reworded line** ("been a while since you logged contact with {name} (WhatsApp), ping them or tell me `talked {name}`"), never "gone quiet, reply", and never drafted (personal/family are gated out anyway). Write the list to status.md and the Monday section.
 5. **Draft gate (HARD RULES - see below).** For each eligible follow-up, draft an email in soul.md voice and stage via gmail_create_draft. Log every draft in status.md. NEVER auto-send.
 
 ## Draft Gate (non-negotiable)
@@ -74,6 +77,7 @@ The Monday "needs your call" list used to stall until Shaheen was at the keyboar
 - **`close <name>`** - set Status -> Cold, drop from the follow-up list.
 - **`snooze <name> to <date>`** - set Follow-Up Date to that date.
 - **`draft <name>`** - stage a fresh nudge IF it passes the hard gate (otherwise report why it can't).
+- **`talked <name> [date]`** - set that contact's `last_contact` = today (or the given date) on BOTH the people-page frontmatter and the Notion row; optional `talked <name> whatsapp` also confirms/sets Channel. This is the human-as-sensor bridge for WhatsApp and other channels the system can't see: after messaging Nour, a 2-second note keeps the ledger fresh. Clears the "recency unverified" staleness for that contact.
 
 Execute the action, then mark the note filed: POST `/webhook/alex-inbox-mark` with `filed_to: "crm/<action>"` and the required `note` field. Hard rules inherited from the contract: never print the token; an unreachable inbox is one line then continue, never fails the run; a note is filed, never deleted.
 

@@ -20,7 +20,7 @@ Apple Devices app -> **encrypted local backup** -> `wtsexporter` (whatsapp-chat-
    - prompts for the backup password to decrypt.
    - `--include <numbers>` to limit to key people, or full run for all history.
    - **NO MEDIA (hard rule):** do not extract/keep pictures/videos. If the tool copies a media folder, delete it after; keep only the text export.
-6. **Ingest** per the phase-1 rules: Shaheen's lines -> soul.md "My Words" per language register (EN/AR/SV), date-stamped; friends -> vault/people/ minimal context + last-contact; unanswered >48h -> Morning Brief flags; harvest report + review queue in status.md.
+6. **Ingest** per the phase-1 rules: Shaheen's lines -> soul.md "My Words" per language register (EN/AR/SV), date-stamped (then run `node scripts/generate-alex.js` for the voice re-sync); friends -> vault/people/ minimal context + `channel: whatsapp` + `last_contact` frontmatter (which #05 syncs to the Notion `Last Contact` + `Channel`, replacing the frozen June dates); unanswered >48h -> Morning Brief flags; harvest report + review queue in status.md. NO message bodies stored.
 7. **Cleanup / retention:** delete any extracted media immediately. Decide whether to keep or delete the raw iPhone backup (tens of GB, encrypted) - Shaheen's call.
 
 ## Open decisions for Shaheen (ask, allow skip)

@@ -40,8 +40,11 @@ Never invent relationship tags. The tag comes from Shaheen's note, observation f
 - WhatsApp window must not be minimized to tray-only; the scheduled run starts it via `Start-Process "whatsapp:"` if needed.
 - UI language/layout updates can break crops; on failure, log to vault/projects/error-log.md, do not retry blind.
 
-## Phase 2 (planned, weekend)
-Nightly iPhone backup to this PC (libimobiledevice idevicebackup2 over Wi-Fi/USB) + wtsexporter extraction of ChatStorage.sqlite = full history, no UI fragility. Needs: backup encryption password (store in vault/projects/whatsapp-harvest/), ~100GB free disk, phone on charger + same Wi-Fi.
+## Phase 2 (COMMITTED 2026-07-10, this weekend) - the zero-risk feed
+Encrypted iPhone backup + wtsexporter text-only extraction of the WhatsApp DB = full history, no UI fragility, ZERO ban risk. Runbook: `phase2-runbook.md`. Needs: backup encryption password (in Shaheen's PASSWORD MANAGER, NOT the vault - corrected 2026-07-10), ~100GB free disk, phone wired. **Feeds the CRM:** the ingest writes `channel: whatsapp` + real `last_contact` to each friend's people-page frontmatter, which #05 syncs to Notion `Last Contact` + `Channel`, replacing the frozen June dates. Shaheen's own lines -> soul.md corpus (then re-run `node scripts/generate-alex.js`).
+
+## Phase 3 (live gateway, DEFERRED - off until post-offer)
+Read-only **WAHA Core** gateway on the Hetzner box, webhook -> n8n -> CRM/corpus. Built-ready, switched OFF (~2-5%/yr ban risk unacceptable mid-hunt). Runbook: `waha-gateway-runbook.md`. Research + the full option comparison: [[research/whatsapp-access-2026]].
 
 ## Vault
 - Tier 1: vault/projects/whatsapp-harvest/status.md
@@ -49,5 +52,5 @@ Nightly iPhone backup to this PC (libimobiledevice idevicebackup2 over Wi-Fi/USB
 - Soul: soul.md "My Words" section (registers per language)
 
 ## Connections
-- Feeds into: soul.md (voice), vault/people/ (CRM seeds for /personal-crm Monday runs), /morning-brief (unanswered-message flags).
-- Fed by: WhatsApp Desktop (official linked device, synced from iPhone 17 Pro).
+- Feeds into: soul.md (voice corpus - Shaheen's own lines), vault/people/ + the **Personal CRM** (`channel` + `last_contact` frontmatter -> #05 sync to Notion, since 2026-07-10), /morning-brief (unanswered-message flags).
+- Fed by: an encrypted iPhone backup (Phase 2, zero-risk, the committed path); later a read-only WAHA gateway (Phase 3, deferred). Phase 1 WhatsApp Desktop screen-scrape is retired.

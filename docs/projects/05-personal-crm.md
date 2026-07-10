@@ -5,6 +5,8 @@ Every Monday at 08:30 it syncs a Notion contacts database from the vault's peopl
 
 **Upgraded 2026-07-10 (six tracks):** the warmth score is now computed from real numbers (days since last contact + message count) with an explainable one-line basis instead of a fresh guess each week; a cadence engine sets each contact's follow-up window by status (Active 14d, Warm 30d, live job-hunt 7d); Email Triage now keeps Last Contact and Email fresh on every sweep, so Monday is a scoring pass, not a from-scratch dig; the "needs your call" list is actionable from the phone (send / close / snooze / draft via the Alex HQ notes card); drafts refresh in place instead of piling up unsent; and a missed Monday now trips a staleness flag in the brief instead of going silent.
 
+**WhatsApp-aware (2026-07-10):** the CRM now knows which contacts it can actually see. WhatsApp-only friends and family are marked as such, scored without pretending it knows their real recency, and nudged gently ("ping on WhatsApp") instead of getting false "gone quiet" alarms. A quick "talked nour" note from the phone keeps their last-contact fresh. The real fix is a zero-risk iPhone backup (this weekend) that fills in the true history and Shaheen's own-words corpus; a live WhatsApp feed is built but deliberately switched off until he lands a role.
+
 ## Why it exists
 A career pivot makes the network the single most valuable asset Shaheen owns, and networks die of silence, not conflict. The CRM turns "I should really write to..." from a guilty feeling into a Monday list with drafts already written. The hard no-send gate exists because relationships are the one place where an automation mistake is expensive.
 
