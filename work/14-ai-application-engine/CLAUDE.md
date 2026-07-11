@@ -41,6 +41,9 @@ Locations locked by Shaheen 2026-06-16: Gulf (Dubai/Qatar/Saudi) on-site+hybrid 
 ## Config knobs
 `FIT_THRESHOLD=70`, `INTEREST_WEIGHT=0.4` in `Stage 3 Gate`. `cl_word_min/max` in `QA + Fill Templates`. `time_range="Past 24 hours"` in `Filter Active Rows`. Mirror any change here.
 
+## Skills (bindings, 2026-07-11)
+- Identical to #03: n8n-* skills MANDATORY for any workflow edit (n8n-workflow-patterns first); resume-ats-optimizer + resume-tailor advisory for writer-prompt work. See root CLAUDE.md "Skill Bindings".
+
 ## Vault Structure
 - Tier 1: vault/projects/ai-job-pipeline/status.md (create on first run)
 - Reuses [[me/cv-sources]] (AI CV), [[projects/job-pipeline/infrastructure]] (shared Hetzner/Bright Data/Gotenberg stack).

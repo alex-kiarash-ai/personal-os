@@ -15,6 +15,7 @@ Joins the three money signals Alex already holds into the one number that matter
 - `/xlsx` skill for the branded workbook (real formulas, never hardcoded).
 - Vault read/write (situation, status, history, log, index).
 - No Chrome. No outward actions. No money movement.
+- Skill: pdf (advisory, 2026-07-11) - parse bank/salary/a-kassa statements dropped as PDFs.
 
 ## Data Sources (all live, verified 2026-07-06)
 - **Burn:** a confirmed monthly number in the Inputs sheet. The Expenses DB total is shown only as a flagged cross-check because it understates real burn (one run, June = [local-only figure], excludes the Klarna aggregate statement, Bank Norwegian, and unmatched-FX rows).

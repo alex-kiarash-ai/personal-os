@@ -293,6 +293,30 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 - /brand - Set up or refresh brand config
 - /graphify - Turn any input into a knowledge graph (global skill)
 
+## Skill Bindings (installed 2026-07-11 from the skills.sh sweep; hand-curated)
+
+23 third-party skills live PROJECT-SCOPED at `.agents/skills/` (universal dir, real content) with symlinks in `.claude/skills/` - both in the repo, both git-backed nightly. `skills-lock.json` at repo root is the reproducibility record. The auto-injected description is the discovery layer; this table is the routing contract on top. **MANDATORY = do not start that task without consulting the skill. ADVISORY = consult when it plausibly helps.** Never run `npx skills update` blind - description rewrites (9 skills, 2026-07-11) would be clobbered; treat skill updates as #25 evolution landscape items. Full audit + install record: vault/research/skills-sh-sweep.md. On restore: symlinks may need recreating (`ln -s` per pair) if git checkout didn't preserve them.
+
+| Task trigger | Skill(s) | Strength |
+|---|---|---|
+| Build or edit ANY n8n workflow (REST API or editor) | n8n-workflow-patterns, then n8n-node-configuration | MANDATORY |
+| n8n validation errors / workflow won't validate | n8n-validation-expert | MANDATORY |
+| JS inside an n8n Code node | n8n-code-javascript | MANDATORY |
+| n8n work when n8n-mcp MCP tools are present (NOT plain REST) | n8n-mcp-tools-expert | MANDATORY |
+| n8n instance ops from shell (list/get/activate workflows, executions) | n8n-cli skill + `@n8n/cli` binary (installed; env N8N_URL + N8N_API_KEY, key at work/03-application-engine/config/) | ADVISORY |
+| Create or rework a skill (/new, #25 integration runbook) | skill-creator + skill-development | MANDATORY |
+| Design or edit a subagent | agent-development | ADVISORY |
+| Vault markdown structure, callouts, Bases, Obsidian features | obsidian-markdown / obsidian-bases / obsidian-cli | ADVISORY |
+| Extract from / create any PDF (receipts, statements, dossiers) | pdf | ADVISORY |
+| Verify a web-app change in a real browser (Alex HQ) | webapp-testing | ADVISORY |
+| Any bug that survives the first fix attempt | systematic-debugging | ADVISORY |
+| Power BI DAX / model design / performance work | power-bi-dax-optimization / -model-design-review / -performance-troubleshooting | ADVISORY |
+| CV tailoring or ATS work (#03/#14 prompts, #21) | resume-ats-optimizer + resume-tailor | ADVISORY |
+| Booked-interview prep (#21) | interview-prep (interviewer-side knowledge, used inverted) | ADVISORY |
+| CRM hygiene sweep (#05 Monday run) | crm-cleanup / crm-maintenance (HubSpot-written, applied to vault/Notion) | ADVISORY |
+
+Audit outcome note: n8n's official instance-ai skills (workflow-builder, debugging-executions, data-table-manager) were evaluated and SKIPPED - their bodies hard-depend on n8n's internal hosted-runtime tools (`executions(action=...)`, `data-tables(...)`, Daytona) that don't exist here. Only the self-contained n8n-cli skill was adopted from the official pack.
+
 ## Scheduling
 
 When user asks to schedule: add to scheduler/schedule.md, tell them to run /cron-setup.

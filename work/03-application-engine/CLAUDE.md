@@ -48,6 +48,10 @@ After creating the two Google credentials, select them on every Sheets/Drive nod
 ## Config knobs (doc §6)
 `fit_threshold=70` and `interest_weight=0.4` live in the Stage 3 Gate code node. `cl_word_min=100` / `cl_word_max=280` live in the QA + Fill Templates code node. `time_range="Past 24 hours"` lives in Filter Active Rows. Change them there; mirror any change into the doc.
 
+## Skills (bindings, 2026-07-11)
+- n8n work on this pipeline (nodes, expressions, Code-node JS, validation, the MCP server) is MANDATORY-gated on the n8n-* skills - see root CLAUDE.md "Skill Bindings". Consult n8n-workflow-patterns BEFORE touching workflow JSON; n8n-cli (+ `@n8n/cli` binary) for instance ops from shell.
+- resume-ats-optimizer + resume-tailor (advisory): check writer/CV prompt upgrades against their ATS + tailoring checklists.
+
 ## Cost instrumentation
 Compute Costs node: claude-sonnet-4-6 at $3/M input + $15/M output across stage2+stage4 tokens; Bright Data $0.00075/record (pay-as-you-go). Every drafted job appends a run_log row; every gate/QA failure appends a needs_review row; every scored job appends processed_jobs (dedup ground truth).
 

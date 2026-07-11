@@ -19,6 +19,7 @@ Carries the two job engines (#03 BI, #14 AI) past "draft sent" to the finish. Wh
 - Personal CRM (#05) for contact context and updates; the sprint board for action items.
 - Runway (#20) for the negotiation's runway awareness (the zero date + what an offer buys).
 - Claude for dossier / prep / fit reasoning; **claude-sonnet-4-6 fed from soul.md** for the voice-matched draft reply + negotiation message (prose model per the model-routing rule, corrected 2026-07-08).
+- Skills (advisory, 2026-07-11): interview-prep (interviewer-side knowledge used INVERTED: anticipate their questions, drill vs the answer bank); power-bi-dax-optimization / -model-design-review / -performance-troubleshooting (technical drill, Power BI track); resume-tailor + resume-ats-optimizer (role-specific CV tweaks).
 
 ## The answer bank (the seeded core, Phase 1)
 `vault/me/interview-answers.md` - Shaheen's real, reusable answers in his voice: positioning, Power BI depth, AI automation, the layoff story, the AI differentiator, ownership/behavioral, smart questions + the diplomatic summer-remote probe, honest gap-handling, salary/availability, negotiation stances. Seeded 2026-07-06 from the master CV (`vault/sources/CV- Shaheen Kiarash.md`) + soul.md My Words. **It grows after every interview.**

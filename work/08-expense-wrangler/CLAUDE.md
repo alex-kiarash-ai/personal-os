@@ -17,6 +17,7 @@ One command to capture expenses and produce a company-grade report. **Immediate 
 - Chrome: bank login + scrape transactions for cross-reference (batch mode only; verify each expense against a real bank line → Status Verified/Unmatched/Flagged). Never for Gmail/Notion.
 - Notion MCP: notion-create-pages / notion-update-page (Expenses rows).
 - /xlsx + /xlsx-manipulation skills available; the workbook is built with openpyxl for precise formula control (real formulas, brand styling).
+- Skill: pdf (advisory, 2026-07-11) - parse PDF receipts + bank PDFs with it (text/tables/OCR) before falling back to Read-tool vision.
 
 ## Receipt → expense extraction
 Per receipt/line: Vendor, Date, Amount, Category (via categories.md + vendors.md), Tax Deductible (default per category, human overrides), Notes, Status. OCR-low-confidence or unusually large → Status Flagged. Unknown vendor → infer + append to vendors.md, Status Unmatched until bank-matched.

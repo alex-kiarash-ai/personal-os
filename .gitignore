@@ -9,6 +9,12 @@ work/16-alex-hq/config/hq-basic-auth.txt
 *.key
 *.dpapi
 
+# Agent-skills symlink layer (machine-local; core.symlinks=false on Windows would
+# duplicate content). Canonical skill content is committed under .agents/skills/.
+# Rebuild on restore: recreate .claude/skills/<name> -> ../../.agents/skills/<name>
+# per pair (or re-run `npx skills add`). The symlink layer also rides the encrypted vault backup.
+.claude/skills/
+
 # Chrome user-data profile (cookies, session tokens) - airbnb-host headed browser
 **/.browser-profile/
 

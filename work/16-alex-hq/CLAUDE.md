@@ -40,6 +40,7 @@ Append-only history; the summary endpoint reduces to latest-per-(project, metric
 - Bash/curl (push + verify), PowerShell (local metric harvest: schtasks, file counts)
 - Frontend: Next.js + Tailwind + shadcn/ui + Recharts, official shadcn MCP server during builds, headless Chrome screenshot QA
 - Skills: frontend-design (visual direction), ui-ux-pro-max, ui-styling, design-system
+- Skill: webapp-testing (advisory, 2026-07-11) - after any HQ frontend/config change, drive the live PWA with Playwright and verify the change rendered before close-out.
 
 ## Notion Integration
 **None, by design** (decided 2026-07-02). The metrics store is the n8n data table; mirroring it to Notion would duplicate state the dashboard already renders. HQ READS nothing from Notion directly (producers do that in their own pipelines).

@@ -14,6 +14,7 @@ A personal relationship manager backed by a Notion "Personal CRM" database. It k
 - Notion MCP: notion-create-pages / notion-update-page (CRM rows), notion-fetch (read rows by page ID), notion-update-data-source (schema).
 - Gmail MCP: search_threads (last-contact date, 90-day message counts, email addresses by name), list_drafts (draft dedup), gmail_create_draft (stage follow-up drafts). NEVER Chrome for Gmail.
 - Google Calendar MCP: list_events (attendees as contact + last-met context, 90-day sweep).
+- Skills: crm-cleanup + crm-maintenance (advisory, 2026-07-11) - run their hygiene checklists (dupes, stale records, missing fields) against vault/people + the Notion CRM during the Monday sweep, before drafting follow-ups. They are HubSpot-written; apply the method, not the tool calls.
 
 ## Notion Integration
 **Personal CRM** database under the Personal OS parent page. db_id `0da7196d-f52b-435b-8692-76dd75a0dc24`, data_source `746bc5bf-8ab3-4e34-911d-00b9d180e350`. Properties (live schema, verified 2026-07-10):

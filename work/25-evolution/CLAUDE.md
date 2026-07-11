@@ -63,6 +63,10 @@ reasoning that produces a digest Shaheen reads, so per the model-routing rule it
 (`claude -p`, the on-machine plan), not the n8n OpenAI writer path. This is reasoning + a digest, not
 n8n prose generation.
 
+## Skills (bindings, 2026-07-11)
+- skill-creator + skill-development: MANDATORY when an approved digest item lands as a new or changed skill; agent-development advisory for subagent designs. Output still routes through the integration runbook like any other change.
+- Candidate source: the skills.sh search API (`https://www.skills.sh/api/search?q=`, free JSON with install counts; also skillsmp.com/api/v1/skills/search, 50 req/day anon) - zero-token discovery lanes, see vault/research/skills-sh-sweep.md.
+
 ## Integration (P2-S3) - the gated runbook the weekly digest links to
 For EVERY item Shaheen approves from a digest, same discipline as any other change - never a side door:
 1. **New MCP** -> add it to `system/manifest.json` (and its metric slug if it produces one) AND to the
