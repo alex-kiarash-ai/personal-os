@@ -6,8 +6,17 @@ handful of public feeds for three things that matter to how Alex is built: new C
 tools, and new automation patterns. Anything it has not seen before gets written to a running log. Once
 a week, Alex reads that log and writes one short digest: for each new thing, what it would add or
 replace, and whether it is worth Shaheen's time or not, ending in a plain recommend-or-skip. Alex only
-ever proposes. Shaheen reads the digest and decides. Nothing gets installed, changed, or scheduled
-without his yes.
+ever proposes, with one deliberate exception Shaheen switched on: agent skills.
+
+As of 2026-07-11 the daily check also scans the public skill directories (skills.sh, skillsmp, skillhub),
+the weekly digest matches what it finds against every running automation, and for the skills that clearly
+help AND pass a strict automatic safety check, Alex installs them on its own and wires them in, no yes
+needed. Everything else - new models, new tools, new patterns - still waits for Shaheen's yes. The skills
+exception has hard rails so "no yes needed" never means "anything goes": only skills from a trusted list
+of authors, only after an automatic audit that rejects anything shipping install hooks, process-spawning
+scripts, or calls to unknown servers, only a few per week, and every install is its own git commit so any
+one can be undone with a single revert. Anything that fails the audit is not installed - it goes into the
+digest for Shaheen to eyeball.
 
 ## Why it exists
 Left alone, a system like this quietly rots: the models it was built on get superseded, better tools

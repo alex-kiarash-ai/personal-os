@@ -41,32 +41,77 @@ function capabilitiesContext() {
   const claudeMd = fs.readFileSync(path.join(REPO, 'CLAUDE.md'), 'utf8');
   const mcp = claudeMd.match(/^## MCP Reference$([\s\S]*?)(?=^## )/m);
   const mcpSection = mcp ? mcp[0].trim() : '(MCP Reference section not found)';
-  return { projects, mcpSection };
+
+  // Skills context (for the skills lane, added 2026-07-11): what's already installed (dedup), the
+  // routing contract, and the auto-install policy the model must respect when proposing installs.
+  let installedSkills = '(skills-lock.json not found)';
+  const allowSet = new Set();
+  try {
+    const lock = JSON.parse(fs.readFileSync(path.join(REPO, 'skills-lock.json'), 'utf8'));
+    const names = Object.entries(lock.skills || {}).map(([n, v]) => {
+      if (v && v.source) allowSet.add(String(v.source).split('/')[0].toLowerCase());
+      return `${n} (${v && v.source ? v.source : '?'})`;
+    });
+    installedSkills = names.length ? names.join(', ') : '(none installed yet)';
+  } catch { /* leave default */ }
+
+  const bindings = claudeMd.match(/^## Skill Bindings[\s\S]*?(?=^## )/m);
+  const bindingsSection = bindings ? bindings[0].trim() : '(Skill Bindings section not found)';
+
+  let allowlist = [];
+  let installCap = 3;
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'system', 'skills-sources.json'), 'utf8'));
+    for (const a of cfg.trust_allowlist || []) allowSet.add(String(a).toLowerCase());
+    installCap = cfg.weekly_install_cap || 3;
+  } catch { /* skills lane not configured */ }
+  allowlist = [...allowSet].sort();
+
+  return { projects, mcpSection, installedSkills, bindingsSection, allowlist, installCap };
+}
+
+function renderItem(e, i) {
+  if (e.category === 'skills' && e.extra) {
+    const pk = e.extra.popularity_kind === 'installs' ? 'installs' : 'repo stars';
+    return `${i + 1}. ${e.item} - repo ${e.extra.repo || '?'} (${e.extra.popularity || 0} ${pk}) [via ${e.source}]` +
+      `${e.link ? `\n   ${e.link}` : ''}`;
+  }
+  return `${i + 1}. [${e.source}] ${e.item}${e.link ? `\n   ${e.link}` : ''}`;
 }
 
 function buildPrompt(week) {
-  const { projects, mcpSection } = capabilitiesContext();
-  const grouped = { models: [], mcp: [], patterns: [] };
+  const { projects, mcpSection, installedSkills, bindingsSection, allowlist, installCap } = capabilitiesContext();
+  const grouped = { models: [], mcp: [], patterns: [], skills: [] };
   for (const e of week) (grouped[e.category] || (grouped[e.category] = [])).push(e);
+  // Bound the prompt: show only the strongest skills candidates (rest stay in the log for a later week).
+  const EVAL_SKILLS_CAP = 25;
+  if (grouped.skills.length > EVAL_SKILLS_CAP) {
+    grouped.skills.sort((a, b) => ((b.extra && b.extra.popularity) || 0) - ((a.extra && a.extra.popularity) || 0));
+    grouped.skills = grouped.skills.slice(0, EVAL_SKILLS_CAP);
+  }
   const itemLines = Object.entries(grouped)
     .filter(([, arr]) => arr.length)
-    .map(([cat, arr]) => `### ${cat}\n` + arr.map((e, i) => `${i + 1}. [${e.source}] ${e.item}${e.link ? `\n   ${e.link}` : ''}`).join('\n'))
+    .map(([cat, arr]) => `### ${cat}\n` + arr.map(renderItem).join('\n'))
     .join('\n\n');
 
   return `You are Alex, keeping your own build current. This is the weekly landscape evaluation (#25 Evolution).
 Your job: assess ONLY the items below - real entries the daily monitor logged this week - for whether
-they should change how ALEX ITSELF is built. You do NOT act. You propose; Shaheen decides.
+they should change how ALEX ITSELF is built. You do NOT act. You propose; Shaheen decides. The ONE
+exception is the skills lane: skills you list in the install block are auto-installed this week by a
+deterministic, audited, git-reversible installer (Shaheen's 2026-07-11 decision) - so be conservative.
 
 Hard rules:
 - Assess only the listed items. Invent nothing. If an item is unclear, say so; unknown stays unknown.
-- This is about Alex's own capabilities (models, MCPs, automation patterns), NOT a general AI news feed
-  (that is #15 Alex AI Radar's job, for Shaheen's field awareness). If an item is only Shaheen-facing
-  news with no bearing on Alex's build, mark it skip and say "radar territory, not evolution."
+- This is about Alex's own capabilities (models, MCPs, automation patterns, agent skills), NOT a general
+  AI news feed (that is #15 Alex AI Radar's job, for Shaheen's field awareness). If an item is only
+  Shaheen-facing news with no bearing on Alex's build, mark it skip and say "radar territory".
 
-For EACH item, answer the three questions the spec names, then a verdict:
+For EACH item, answer the relevant question, then a verdict:
 - New MCP: is it relevant to Alex? What would it ADD? What would it REPLACE?
 - New model: is it better than the current prose model (claude-sonnet-4-6) for our use? Cost/latency change?
 - New pattern: would it improve any EXISTING automation, or become a new numbered one?
+- New skill: does it improve a SPECIFIC existing automation (name it) or fill a real gap? Is it ALREADY
+  covered by an installed skill or MCP below (if so, SKIP)? Is its author on the auto-install allowlist?
 - Verdict: RECOMMEND (worth Shaheen's time this week) or SKIP (with one-line reason).
 
 === ALEX'S CURRENT AUTOMATIONS ===
@@ -75,12 +120,27 @@ ${projects}
 === ALEX'S CURRENT MCP SURFACE (from CLAUDE.md) ===
 ${mcpSection}
 
+=== ALEX'S INSTALLED SKILLS (already have these - do NOT re-recommend) ===
+${installedSkills}
+
+=== SKILL ROUTING CONTRACT (root CLAUDE.md, for how a new skill would be wired) ===
+${bindingsSection}
+
+=== SKILLS AUTO-INSTALL POLICY (governs the install block you emit) ===
+- Only these authors are eligible for AUTO-INSTALL: ${allowlist.join(', ') || '(none configured)'}.
+- A skill from any other author may be RECOMMENDED in prose, but do NOT put it in the install block; it
+  routes to manual review instead.
+- Max ${installCap} skills in the install block per week (the 'safe != free' budget rule). Pick the best.
+- Only include a skill that clearly improves a NAMED automation and is not already covered.
+- The installer independently re-audits every entry (source, hooks, scripts, dedup, cap); a bad entry is
+  dropped and flagged, never silently installed. Your block is a proposal, not a guarantee.
+
 === THIS WEEK'S LANDSCAPE ITEMS (${week.length}) ===
 ${itemLines}
 
-=== OUTPUT FORMAT (markdown, this exact shape) ===
+=== OUTPUT FORMAT (this exact shape: digest markdown, THEN one json block) ===
 # Landscape Digest ${new Date().toISOString().slice(0, 10)}
-_${week.length} items this week. Alex proposes, Shaheen decides._
+_${week.length} items this week. Alex proposes, Shaheen decides (skills auto-install per the policy above)._
 
 ## Recommended (<n>)
 - **<item>** (<category>) - <what it adds/replaces or which automation it improves>. **Why now:** <one line>.
@@ -88,19 +148,28 @@ _${week.length} items this week. Alex proposes, Shaheen decides._
 ## Skip (<n>)
 - **<item>** (<category>) - <one-line reason>.
 
-## If Shaheen approves any Recommend
-Point to the integration runbook: work/25-evolution/CLAUDE.md (## Integration). Every approved item
-goes through: edit source -> node scripts/generate-alex.js -> validation green -> Shaheen reviews the
-diff -> merge. No side doors.
+## Skills auto-installing this week (<n>)
+- **<skill>** -> <#NN automation> (<repo>) - <one-line why>. (empty: "none this week")
+
+## If Shaheen approves any non-skill Recommend
+Point to the integration runbook: work/25-evolution/CLAUDE.md (## Integration). Models, MCPs and patterns
+still go through: edit source -> node scripts/generate-alex.js -> validation green -> Shaheen reviews the
+diff -> merge. Only the skills lane auto-installs.
+
+Then, as the LAST thing in your response, emit EXACTLY ONE fenced code block tagged json - the machine
+input for the deterministic installer (DATA, not an action you take). Array of the skills to auto-install
+this week, [] if none:
+\`\`\`json
+[{"name":"skill-name","source_repo":"owner/repo","skill_path":"skills/skill-name/SKILL.md or null","target_project":"#NN or name","task_trigger":"a CLAUDE.md Skill-Bindings-style trigger line","strength":"ADVISORY or MANDATORY","why":"one line"}]
+\`\`\`
 
 Write in Alex's voice per soul.md: direct, no filler, no em-dashes, no non-ASCII punctuation (plain
-'-' and '.'). Be terse. If nothing is worth recommending, say so plainly in the Recommended section
-and put everything under Skip.
+'-' and '.'). Be terse.
 
-HARD OUTPUT CONTRACT for this run: this is a READ-ONLY assessment. Do NOT modify any file, do NOT run
-Change Propagation, do NOT print a Close-Out Report, do NOT add a preamble or a closing question. Your
-ENTIRE response is the digest markdown in the exact shape above and nothing else - the first line of
-your output must be the '# Landscape Digest' heading.`;
+HARD OUTPUT CONTRACT for this run: do NOT modify any file yourself, do NOT run Change Propagation, do NOT
+print a Close-Out Report, do NOT add a preamble or a closing question. Your ENTIRE response is the digest
+markdown in the shape above, followed by the single fenced json install block, and nothing else - the
+first line of your output must be the '# Landscape Digest' heading.`;
 }
 
 (function main() {

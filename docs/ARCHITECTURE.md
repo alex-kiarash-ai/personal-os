@@ -301,7 +301,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 22 | /teach-alex | EVENT | inbox note + on-demand | Ten-second corrections from the phone: classified, filed, confirmed for identity files, logged for #23. | work/22-teach-alex - vault/projects/teach-alex/status.md |
 | 23 | /self-review | LIVE | Sun 20:00 | Alex reviews Alex weekly: clusters corrections, errors, INCOMPLETE close-outs; proposes upgrades behind approval. | work/23-self-review - vault/projects/self-review/status.md |
 | 24 | /flight-search | ON-DEMAND | on-demand | Cheapest + best flights across four sources in parallel (Kiwi, Turkish, Google Flights, Skyscanner); hybrid criteria intake, dedupe to the single cheapest, rank by Shaheen's rules, 30-min follow-up memory, fresh every search. | work/24-flight-search - vault/projects/flight-search/status.md |
-| 25 | (no command) | LIVE | daily monitor 07:10 + weekly eval Mon 07:50 | Keeps Alex current: a zero-token daily landscape monitor (new Claude models, MCPs, n8n patterns) appends to system/landscape-log.jsonl; a weekly Claude-assisted digest proposes/skips each item; a gated integration runbook routes every approval through the generator. Alex proposes, Shaheen decides. | work/25-evolution - vault/projects/evolution/status.md |
+| 25 | (no command) | LIVE | daily monitor 07:10 + weekly eval Mon 07:50 | Keeps Alex current: a zero-token daily monitor logs new Claude models, MCPs, n8n patterns AND agent skills (skills.sh/skillsmp/skillhub) to system/landscape-log.jsonl; a weekly Claude digest proposes/skips each; models/MCPs/patterns route through a human-gated integration runbook, while matching skills AUTO-INSTALL via a deterministic audited installer (git-reversible). Alex proposes; Shaheen decides, except the skills lane self-installs. | work/25-evolution - vault/projects/evolution/status.md |
 | - | Voice | ON-DEMAND | on-demand (desktop shortcut / Ctrl+Alt+A / talk.ps1) | Hands-free two-way voice: open-mic Whisper in, persistent Claude (sonnet) brain as the full Alex, Edge-TTS neural voice out with a never-mute Edge->SAPI floor. Free/local except the brain's Claude-plan usage. Adopted 2026-07-07 as THE voice solution (replaced v1's OpenAI TTS + the SAC-blocked Kokoro plan); latency + conversation tuning same day. | work/voice/README.md |
 | - | Alex Cost Tracker | ON-DEMAND | monthly (piggybacks expense slot) | What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate). | vault/projects/alex-costs/status.md |
 | - | Modeling | DORMANT (revisit 2026-10-01) | - | Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows). | vault/projects/modeling/status.md |
@@ -318,7 +318,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 - /brand - Set up or refresh brand config
 - /graphify - Turn any input into a knowledge graph (global skill)
 
-## Skill Bindings (installed 2026-07-11 from the skills.sh sweep; hand-curated)
+## Skill Bindings (hand-curated core from the 2026-07-11 skills.sh sweep + a #25-evolution auto-install region)
 
 23 third-party skills live PROJECT-SCOPED at `.agents/skills/` (universal dir, real content) with symlinks in `.claude/skills/` - both in the repo, both git-backed nightly. `skills-lock.json` at repo root is the reproducibility record. The auto-injected description is the discovery layer; this table is the routing contract on top. **MANDATORY = do not start that task without consulting the skill. ADVISORY = consult when it plausibly helps.** Never run `npx skills update` blind - description rewrites (9 skills, 2026-07-11) would be clobbered; treat skill updates as #25 evolution landscape items. Full audit + install record: vault/research/skills-sh-sweep.md. On restore: symlinks may need recreating (`ln -s` per pair) if git checkout didn't preserve them.
 
@@ -339,6 +339,13 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | CV tailoring or ATS work (#03/#14 prompts, #21) | resume-ats-optimizer + resume-tailor | ADVISORY |
 | Booked-interview prep (#21) | interview-prep (interviewer-side knowledge, used inverted) | ADVISORY |
 | CRM hygiene sweep (#05 Monday run) | crm-cleanup / crm-maintenance (HubSpot-written, applied to vault/Notion) | ADVISORY |
+
+**Auto-install lane (#25 evolution, 2026-07-11, Shaheen's call):** the weekly evolution eval now scans skills.sh + skillsmp.com + skillhub.club, matches finds against every running project, and AUTO-INSTALLS the ones that clear a deterministic audit (trust allowlist + no install-hooks/process-spawning/exfil scripts + dedup + a 3/week cap), wiring each into the auto-region below AND the target project's `work/NN/CLAUDE.md` `## Skills` line. No human gate before install; every install is its own git commit, so `git revert <sha>` is the undo. Skills that fail the audit route to the weekly digest for manual review. This is a deliberate, owner-approved exception to "Alex proposes, Shaheen decides" for the SKILLS lane only; models/MCPs/patterns still go through the human-gated #25 integration runbook. Config: `system/skills-sources.json`. Engine: `scripts/skills-installer.js`. Never run `npx skills update` blind (clobbers the curated description rewrites).
+
+<!-- ALEX-AUTO-SKILLS:BEGIN (rows auto-appended by scripts/skills-installer.js; do not hand-edit between the markers) -->
+| Task trigger (auto-added by #25 evolution) | Skill | Strength |
+|---|---|---|
+<!-- ALEX-AUTO-SKILLS:END -->
 
 Audit outcome note: n8n's official instance-ai skills (workflow-builder, debugging-executions, data-table-manager) were evaluated and SKIPPED - their bodies hard-depend on n8n's internal hosted-runtime tools (`executions(action=...)`, `data-tables(...)`, Daytona) that don't exist here. Only the self-contained n8n-cli skill was adopted from the official pack.
 

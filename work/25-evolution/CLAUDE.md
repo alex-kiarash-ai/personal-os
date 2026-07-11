@@ -55,7 +55,13 @@ as an open option for Shaheen, deliberately not built yet (no premature coupling
 - `scripts/run-landscape-eval.ps1` - hardened wrapper. Runs the assembler, feeds the prompt to a single
   `claude -p`, saves `outputs/evolution/YYYY-MM-DD/digest.md`, opens a GitHub issue tagged
   `ai-landscape-update` IF `gh` is installed (else keeps the digest local and says so), HQ push, close-out.
-- `system/landscape-log.jsonl` - append-only monitor memory `{date, category, source, item, link, id}`.
+- `system/landscape-log.jsonl` - append-only monitor memory `{date, category, source, item, link, id}`
+  (skills rows also carry `extra:{repo, author, popularity, ...}`).
+- `system/skills-sources.json` - DATA config for the skills lane (directories + portfolio_keywords +
+  trust_allowlist + weekly_install_cap + max_log_per_run + audit rules). Edit this, not code, to tune.
+- `scripts/skills-installer.js` - deterministic zero-token auto-install engine (audit + install + 4b
+  recall-architecture wiring + git commit per install). Reads the eval digest's json block; `--dry-run`
+  or `--manifest <file>` for safe testing.
 
 ## Model routing (house rule)
 The monitor is zero-token by design (no model call). The eval's single weekly call is human-facing
@@ -63,9 +69,27 @@ reasoning that produces a digest Shaheen reads, so per the model-routing rule it
 (`claude -p`, the on-machine plan), not the n8n OpenAI writer path. This is reasoning + a digest, not
 n8n prose generation.
 
-## Skills (bindings, 2026-07-11)
-- skill-creator + skill-development: MANDATORY when an approved digest item lands as a new or changed skill; agent-development advisory for subagent designs. Output still routes through the integration runbook like any other change.
-- Candidate source: the skills.sh search API (`https://www.skills.sh/api/search?q=`, free JSON with install counts; also skillsmp.com/api/v1/skills/search, 50 req/day anon) - zero-token discovery lanes, see vault/research/skills-sh-sweep.md.
+## Skills lane - discovery + auto-install (2026-07-11, Shaheen's decision: full auto-install)
+The weekly eval also evaluates AGENT SKILLS and auto-installs the good ones. Three stages:
+1. **Discover (daily monitor, zero-token):** scripts/landscape-monitor.js reads system/skills-sources.json
+   and scans skills.sh (real install counts) + skillsmp.com + skillhub.club (allowlisted authors ONLY -
+   their stars are whole-repo/mirror-bot noise) for the portfolio_keywords, logging up to max_log_per_run
+   new `category:'skills'` rows to system/landscape-log.jsonl.
+2. **Assess (weekly eval, one model call, READ-ONLY):** scripts/landscape-eval.js feeds the week's skills +
+   the installed set (skills-lock.json) + the Skill Bindings contract + the auto-install policy into the
+   prompt. The model dedups, matches each skill to a NAMED automation, and emits a fenced json install
+   block. It proposes; it never installs.
+3. **Install + wire (deterministic, zero-token):** scripts/skills-installer.js reads that json block and
+   per candidate runs the validation gate that stands in for the removed human gate: resolve GitHub source
+   -> trust_allowlist -> source audit (no install-hooks / process-spawning / exfil scripts, SCOPED to the
+   skill's own dir since `skills add` copies only that) -> dedup vs skills-lock -> weekly_install_cap.
+   Survivors: `npx -y skills add`, verify/recreate the .claude symlink, upsert skills-lock.json, WIRE into
+   the recall architecture (root CLAUDE.md auto-region row + the target work/NN/CLAUDE.md `## Skills` line),
+   run generate-alex.js, git-commit per install (git revert <sha> = undo). Off-allowlist authors, audit
+   failures, cap overflow, and un-targeted skills are reported as "Flagged, manual review", never installed.
+- skill-creator + skill-development stay MANDATORY when an approved item lands as a NEW/changed skill of
+  our own; agent-development advisory for subagent designs.
+- Only the skills lane auto-installs. Everything else keeps the human gate. See vault/research/skills-sh-sweep.md.
 
 ## Integration (P2-S3) - the gated runbook the weekly digest links to
 For EVERY item Shaheen approves from a digest, same discipline as any other change - never a side door:
@@ -122,6 +146,11 @@ Alex HQ.
 - Monitor run: `system/landscape-log.jsonl` grew (or "0 new" is logged), HQ heartbeat sent.
 - Eval run: digest saved to `outputs/evolution/YYYY-MM-DD/`, path in status.md; GitHub issue opened OR
   the local-only fallback is logged with the reason (gh absent).
+- Skills lane (eval run): scripts/skills-installer.js ran; its report is appended to the digest +
+  saved to `outputs/evolution/YYYY-MM-DD/skills-install-report.md`. If any skill installed, verify all of:
+  skills-lock.json changed, the root CLAUDE.md auto-region gained a row, the target `work/NN/CLAUDE.md`
+  `## Skills` line was added, one git commit per install exists, and the HQ headline names the count +
+  the revert path. Flagged skills are listed (not installed), so nothing half-integrated is left silent.
 
 ## Known limitations / tuning backlog (from the first live runs, 2026-07-09)
 - **Log the box's OWN running versions (highest-value fix).** The first eval guessed which n8n line the
@@ -138,7 +167,9 @@ Alex HQ.
   the read-only / digest-only output contract now in scripts/landscape-eval.js.
 
 ## Guardrails (from soul.md)
-- Alex proposes, Shaheen decides. The eval never installs, edits, or schedules anything - it writes a
-  digest.
+- Alex proposes, Shaheen decides - with ONE owner-approved exception (2026-07-11): the SKILLS lane
+  auto-installs. Even there the MODEL never acts - it writes a digest + a json proposal, fully read-only;
+  a separate deterministic, audited, git-reversible installer (scripts/skills-installer.js) does the
+  install with no human gate. Models, MCPs and patterns still get the human gate (## Integration).
 - No invented items: the eval may only assess what the monitor actually logged; unknown stays unknown.
-- No model-verifier chains: one deterministic monitor + one model call + a human gate.
+- No model-verifier chains: one deterministic monitor + one model call + deterministic audited action.

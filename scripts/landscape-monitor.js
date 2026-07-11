@@ -18,6 +18,7 @@ const path = require('path');
 
 const REPO = path.join(__dirname, '..');
 const LOG_FILE = path.join(REPO, 'system', 'landscape-log.jsonl');
+const SKILLS_CONFIG = path.join(REPO, 'system', 'skills-sources.json');
 const FETCH_TIMEOUT_MS = 15000;
 const MAX_PER_SOURCE_FIRST_RUN = 8; // don't dump a feed's entire history on the first ever run
 
@@ -83,6 +84,92 @@ function parseHn(jsonText, minPoints = 0) {
     }));
 }
 
+// ---- Skills lane (#25 evolution, 2026-07-11) --------------------------------------------------
+// Gated on system/skills-sources.json existing (feature flag by file presence). Scans agent-skill
+// directories (skills.sh / skillsmp.com / skillhub.club) for portfolio keywords and logs NEW skills as
+// category:'skills' rows. Zero-token, one fetch per (directory x keyword). Dedup key collapses the same
+// skill listed by multiple directories. The weekly eval assesses fit; the installer audits + installs.
+function getByPath(obj, dotted) {
+  return dotted.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+
+// Resolve an item to a clean GitHub "owner/repo" from whatever field the directory provides.
+function resolveRepo(item, map) {
+  if (map.repo && item[map.repo]) {
+    // skills.sh: source is already "owner/repo" (may carry extra path segments - keep first two).
+    const parts = String(item[map.repo]).split('/').filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]}/${parts[1]}`;
+  }
+  const url = (map.github_url && item[map.github_url]) || (map.repo_url && item[map.repo_url]);
+  if (url) {
+    const m = String(url).match(/github\.com\/([^/#?]+)\/([^/#?]+)/i);
+    if (m) return `${m[1]}/${m[2].replace(/\.git$/, '')}`;
+  }
+  return null; // no resolvable repo -> the installer will flag it, never install
+}
+
+async function scanSkills() {
+  if (!fs.existsSync(SKILLS_CONFIG)) return { rows: [], ok: 0, failed: [] };
+  let cfg;
+  try { cfg = JSON.parse(fs.readFileSync(SKILLS_CONFIG, 'utf8')); }
+  catch (e) { return { rows: [], ok: 0, failed: [`skills-sources.json parse (${e.message})`] }; }
+
+  const keywords = (cfg.portfolio_keywords || []).slice(0, 45);
+  const dirs = (cfg.directories || []).filter(d => d.enabled !== false);
+  const allow = new Set((cfg.trust_allowlist || []).map(a => a.toLowerCase()));
+  const maxPerRun = cfg.max_log_per_run || 60;
+  const date = today();
+  const rows = [];
+  const seenThisRun = new Set();
+  let ok = 0;
+  const failed = [];
+
+  for (const dir of dirs) {
+    for (const kw of keywords) {
+      const url = dir.url_template.replace('{q}', encodeURIComponent(kw));
+      let payload;
+      try { payload = JSON.parse(await fetchText(url)); ok++; }
+      catch (e) { failed.push(`${dir.name} "${kw}" (${e.message})`); continue; }
+      const items = getByPath(payload, dir.items_path) || [];
+      if (!Array.isArray(items)) continue;
+      for (const it of items) {
+        const map = dir.map || {};
+        const name = it[map.name];
+        if (!name) continue;
+        const repo = resolveRepo(it, map);
+        const author = repo ? repo.split('/')[0].toLowerCase() : String(it[map.author] || '').toLowerCase();
+        const pop = Number(it[map.popularity] || 0);
+        // Noise gate. Stars are whole-repo/mirror-bot noise (skillsmp/skillhub), so the ONLY reliable
+        // filter there is the trust allowlist -> log only skills we could actually install. skills.sh
+        // gives real install counts, so gate it on the install floor and let the eval judge new authors.
+        if ((dir.popularity_kind || 'installs') === 'stars') {
+          if (!author || !allow.has(author)) continue;
+        } else if (dir.min_popularity && pop < dir.min_popularity) {
+          continue;
+        }
+        // Dedup on the resolved skill identity so the same skill across directories logs once.
+        const id = `skills::${(repo || 'unknown').toLowerCase()}::${String(name).toLowerCase()}`;
+        if (seenThisRun.has(id)) continue;
+        seenThisRun.add(id);
+        const link = repo ? `https://github.com/${repo}` : (it[map.repo_url] ? it[map.repo_url] : null);
+        rows.push({
+          date, category: 'skills', source: dir.name, item: String(name), link, id,
+          extra: { repo, author: repo ? repo.split('/')[0] : (it[map.author] || null), popularity: pop, popularity_kind: dir.popularity_kind || 'installs', directory_role: dir.role || null },
+        });
+      }
+    }
+  }
+  // Hard safety cap: never dump more than max_log_per_run in one run. Prefer real install counts, then
+  // higher popularity, so the eval always sees the strongest candidates first.
+  rows.sort((a, b) => {
+    const ai = a.extra.popularity_kind === 'installs' ? 1 : 0;
+    const bi = b.extra.popularity_kind === 'installs' ? 1 : 0;
+    if (ai !== bi) return bi - ai;
+    return (b.extra.popularity || 0) - (a.extra.popularity || 0);
+  });
+  return { rows: rows.slice(0, maxPerRun), ok, failed };
+}
+
 function loadSeenIds() {
   const seen = new Set();
   let firstRun = true;
@@ -121,8 +208,19 @@ function loadSeenIds() {
     }
   }
 
+  // Skills lane (gated on system/skills-sources.json). Its fetches count toward okSources so a total
+  // network outage still hard-fails, but a missing config just means "no skills lane", not a failure.
+  const skills = await scanSkills();
+  okSources += skills.ok;
+  for (const f of skills.failed) failed.push(f);
+  for (const row of skills.rows) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    fresh.push(row);
+  }
+
   if (okSources === 0) {
-    console.error(`landscape-monitor: ALL ${SOURCES.length} sources failed - nothing fetched. Failures: ${failed.join('; ')}`);
+    console.error(`landscape-monitor: ALL sources failed - nothing fetched. Failures: ${failed.join('; ')}`);
     process.exitCode = 1;
     return;
   }
