@@ -107,6 +107,7 @@ Nothing runs until you schedule it. On this machine the scheduler is Windows Tas
 | Gated Monthly Lint (Recovery Phase 3) | scripts/run-lint.ps1 (checker first, then claude -p "/lint gated") | monthly, first Monday at 10:00 AM (Task Scheduler job PersonalOS-lint-monthly; after the 07:30 recovery sweep + radar and the 08:00 brief) |
 | Auth Freshness Probe | scripts/auth-check.ps1 (one micro claude -p probe, pattern detection, HQ push) | weekly, Sunday at 7:30 PM (Task Scheduler job PersonalOS-auth-check; before the 20:00 self-review, ahead of the Monday job train) |
 | Landscape Monitor (#25) | scripts/run-landscape-monitor.ps1 (pure Node, no claude call, zero tokens) | daily at 7:10 AM (Task Scheduler job PersonalOS-landscape-monitor; StartWhenAvailable + WakeToRun + battery-safe + ExecutionTimeLimit 30 min; RestartCount 2 / 30 min - light class, and the close-out lib self-schedules the real retry) |
+| Voice-audio orphan sweep (#16 inbox, upgrade P12) - box-side cron, NOT a Windows task | - | daily 04:17 - `find /opt/alex-inbox-audio -type f -mtime +30 -delete`. |
 | Landscape Eval (#25) | scripts/run-landscape-eval.ps1 (one claude -p call per week) | Monday at 7:50 AM (Task Scheduler job PersonalOS-landscape-eval; standard hardening RestartCount 4 / 90 min / ExecutionTimeLimit 2h, WakeToRun, battery-safe) |
 
 ## 7. Backup and recovery, in one paragraph

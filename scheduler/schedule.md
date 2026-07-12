@@ -162,6 +162,12 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: #25 Evolution monitoring layer. Fetches public keyless feeds (Claude models, MCPs, n8n patterns) and appends new items to system/landscape-log.jsonl. GREEN/RED run_status to Alex HQ (project evolution). Zero-token by design. Spec: work/25-evolution/CLAUDE.md.
 - Added: 2026-07-09 (activated with the v2 refactor merge)
 
+### Voice-audio orphan sweep (#16 inbox, upgrade P12) - box-side cron, NOT a Windows task
+- Where: the Hetzner box (`root@62.238.21.62`, host crontab, not Task Scheduler, not n8n).
+- Frequency: daily 04:17 - `find /opt/alex-inbox-audio -type f -mtime +30 -delete`.
+- Why a cron, not the n8n workflow the design suggested (2026-07-12 call): n8n `:latest` restricts file access (`N8N_RESTRICT_FILE_ACCESS_TO`, a documented box gotcha), so file deletion inside n8n fights the allowlist; a host cron is the robust, self-contained path. Filed voice-note audio is ALREADY deleted at mark-time by the Inbox Contract (`ssh n8n rm` after a successful `/webhook/alex-inbox-mark`), so this sweep only catches ORPHANS (a mark that failed, a note never filed) so audio never persists >30d (f7). Verify: `ssh n8n "crontab -l | grep alex-inbox-audio"`.
+- Added: 2026-07-12 (upgrade P12).
+
 ### Landscape Eval (#25)
 - Command: scripts/run-landscape-eval.ps1 (one claude -p call per week)
 - Frequency: Monday at 7:50 AM (Task Scheduler job PersonalOS-landscape-eval; standard hardening RestartCount 4 / 90 min / ExecutionTimeLimit 2h, WakeToRun, battery-safe)
