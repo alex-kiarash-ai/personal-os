@@ -9,6 +9,7 @@ Once a week Alex reads its own mistakes and learnings and proposes upgrades to i
 
 ## Steps the command executes
 1. **Gather** the diff since the last review: corrections in [[projects/teach-alex/corrections-log]] (#02), new `vault/projects/error-log.md` entries, INCOMPLETE close-outs in [[projects/self-review/close-out-log]], soul.md My Words additions (git diff), decisions.md changes, and the human-actions queue (`node scripts/human-actions.js list`, upgrade P2: items that aged another week get a standing weekly line).
+1b. **Corpus-growth stat (upgrade P12, 2026-07-12, design 3.4.2).** Compute and report this week's voice-corpus growth as a deterministic line: spoken lines added to `outputs/voice/transcripts/` (count `- [` bullets across the week's dated files, `[dictate:*]`-tagged ones are the local-whisper lane), typed lines added to `outputs/typed/transcripts/`, and My Words entries added to soul.md (git diff of the "## My Words" region). Thinness becomes a visible trend, not a vibe (the corpus is the input that keeps every voice output his). No forced harvesting; the corpus grows by usage.
 2. **Cluster** into themes.
 3. **Propose** each change concretely: exact file + old -> new text + one-line rationale + the correction/error it came from.
 4. **Write** `vault/projects/self-review/YYYY-MM-DD.md` and open the approval surface (Alex HQ card / Notion row).

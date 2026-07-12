@@ -172,8 +172,11 @@ def record_until_silence(threshold):
     return np.concatenate(frames).flatten() if frames else None
 
 
-def save_transcript(text):
-    """Raw spoken line -> outputs/voice/transcripts/YYYY-MM-DD.md (soul corpus source)."""
+def save_transcript(text, lang="?"):
+    """Raw spoken line -> outputs/voice/transcripts/YYYY-MM-DD.md (soul corpus source).
+    Tagged [dictate:{lang}] (upgrade P12, f5): this lane's AR/SV/EN lines are SPOKEN corpus, and the
+    marker makes their origin authoritative for the harvest (vs /voice HOLD lines) + carries the
+    detected language so the harvest can weight Shaheen's non-English registers."""
     try:
         day = time.strftime("%Y-%m-%d")
         d = os.path.join(REPO, "outputs", "voice", "transcripts")
@@ -183,7 +186,7 @@ def save_transcript(text):
             with open(path, "w", encoding="utf-8") as f:
                 f.write(f"# Voice transcript {day} (raw spoken lines, for soul.md My Words harvest)\n\n")
         with open(path, "a", encoding="utf-8") as f:
-            f.write(f"- [{time.strftime('%H:%M')}] {text}\n")
+            f.write(f"- [{time.strftime('%H:%M')}] [dictate:{lang}] {text}\n")
     except Exception as e:
         log(f"transcript save skipped ({e})")
 
@@ -237,7 +240,7 @@ def main():
     if not text:
         log("empty transcript; abort")
         return 0
-    save_transcript(text)
+    save_transcript(text, lang)
 
     if user32.GetForegroundWindow() != target_hwnd:
         clipboard_fallback(text)

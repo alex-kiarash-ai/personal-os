@@ -5,6 +5,8 @@ brain, no separate voice process. Built 2026-07-12 from [[research/alex-voice-in
 (research-team run 22, "ride the official surface"). v2 below stays as the on-demand
 walk-around tool; v3 cannibalizes its proven TTS chain + whisper code as organs.
 
+> **Not sure which mode? Read `CHEATSHEET.md` first** (one-page v2-vs-v3 decision tree, upgrade P12 2026-07-12). The two gotchas it saves you from: v3 never auto-submits (you press Enter yourself), and the VS Code integrated terminal swallows Space-HOLD (use a standalone terminal or `/voice tap`).
+
 ## How you use it (any Claude Code session in this repo)
 - **Talk to the session (EN/SV):** hold **Space** with the prompt empty (native `/voice`
   HOLD mode; run `/voice` once in a session to see status + trigger the mic check), speak,
