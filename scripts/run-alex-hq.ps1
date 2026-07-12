@@ -7,6 +7,8 @@ Set-Location "C:\Users\Thinkpad\Desktop\personal-os"
 New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\alex-hq.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
+# P3 quota gate (upgrade 2026-07-12): plan freshly capped + not a budget-priority winner -> skip this slot as visible-PARTIAL
+if (-not (Test-AlexQuotaGate -Log $log -Project 'alex-hq')) { exit 0 }
 
 # No connector preflight needed: /alex-hq uses local files, ssh and curl only.
 $out = ''

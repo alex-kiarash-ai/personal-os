@@ -46,6 +46,12 @@ if ($coreCode -ne 0) {
 
 if ($DryRun) { "DRYRUN: core ran with --dry-run; prose pass skipped." | Out-File -Append -Encoding utf8 $log; exit 0 }
 
+# ---- P3 quota gate (upgrade 2026-07-12): plan freshly capped -> skip the prose spawn entirely ----
+if (-not (Test-AlexQuotaGate -Log $log -Project 'sprint')) {
+    "PARTIAL: prose pass skipped by the quota gate (plan capped). Numbers written + HQ green by the core." | Out-File -Append -Encoding utf8 $log
+    exit 0
+}
+
 # ---- 2. Optional Claude prose pass (non-fatal; numbers + HQ green already done) ----
 $proseOut = ''
 try {
@@ -65,6 +71,7 @@ elseif ($proseCode -ne 0) { $proseReason = "claude exit $proseCode" }
 else { $proseReason = $null }
 
 if ($proseReason) {
+    if ($proseReason -eq 'usage/session limit') { Set-AlexQuotaCapped -Kind 'plan' -Log $log }
     "PARTIAL: standup prose skipped ($proseReason). Numbers written + HQ green by the core; run is degraded, not dark." | Out-File -Append -Encoding utf8 $log
 } else {
     "OK: core + prose complete." | Out-File -Append -Encoding utf8 $log

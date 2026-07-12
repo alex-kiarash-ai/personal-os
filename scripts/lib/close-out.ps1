@@ -15,6 +15,85 @@
 #   Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'crm'
 # Project '' (or omitted) = detect + exit only, no HQ push (for wrappers with no run_status tile).
 
+# --- P3 quota-state writer (upgrade 2026-07-12, design 1.7.1) -----------------------------------
+# One shared code path for flagging a detected cap. Kind 'plan' = the Claude subscription limit
+# (auto-resets in hours; the gate's 6h TTL handles recovery). Kind 'api' = the Anthropic Console
+# monthly cap (also auto-appends the Console-raise row to the human-actions queue, idempotent).
+# BOM-free write - node consumers choke on PS 5.1's utf8 BOM.
+function Set-AlexQuotaCapped {
+    param(
+        [Parameter(Mandatory)][ValidateSet('plan', 'api')][string]$Kind,
+        [Parameter(Mandatory)][string]$Log
+    )
+    try {
+        $qsPath = Join-Path (Get-Location) "system\quota-state.json"
+        $qs = Get-Content $qsPath -Raw | ConvertFrom-Json
+        $now = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
+        if ($Kind -eq 'api') {
+            $qs.anthropic_api.state = 'capped'; $qs.anthropic_api.detected = $now
+            & node scripts/human-actions.js add --id cap-raise-console --what "Raise the Anthropic API monthly limit in Console (cap re-detected by a wrapper)" --why "Console account access is yours alone" --severity critical 2>$null
+        } else {
+            $qs.claude_plan.state = 'capped'; $qs.claude_plan.detected = $now
+        }
+        [IO.File]::WriteAllText($qsPath, (($qs | ConvertTo-Json -Depth 4) + "`n"))
+        "quota-state updated: $Kind capped at $now" | Out-File -Append -Encoding utf8 $Log
+    } catch { "quota-state write failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $Log }
+}
+
+# --- P3 quota gate (upgrade 2026-07-12, design 1.7.2 / plan Phase 3 step 1) ---------------------
+# Called at the TOP of a wrapper, BEFORE spawning claude -p:
+#   if (-not (Test-AlexQuotaGate -Log $log -Project 'crm')) { exit 0 }
+# Returns $true  = proceed normally.
+# Returns $false = the Claude PLAN is freshly capped and this project is not a budget-priority
+#                  winner: the wrapper runs its deterministic core only (if it has one) and exits 0.
+#                  An amber "degraded: quota" run_status has already been pushed here (PARTIAL, not
+#                  RED - a degraded run is visible, never alarming, never silent).
+# Fail-open by design: missing/unreadable state file, missing manifest, or a capped flag older than
+# 6 hours (plan limits reset in hours; QC risk R4) all return $true.
+# budget_priority comes from system/manifest.json (matched on hq_project, then name); <=1 always runs.
+function Test-AlexQuotaGate {
+    param(
+        [Parameter(Mandatory)][string]$Log,
+        [string]$Project = ''
+    )
+    $stateFile = "system\quota-state.json"
+    if (-not (Test-Path $stateFile)) { return $true }
+    try { $q = Get-Content $stateFile -Raw | ConvertFrom-Json } catch { return $true }
+    $plan = $q.claude_plan
+    if (-not $plan -or $plan.state -ne 'capped') { return $true }
+    $detected = $null
+    try { $detected = [datetime]$plan.detected } catch {}
+    if (-not $detected -or ((Get-Date) - $detected).TotalHours -gt 6) { return $true }
+
+    $pri = 3
+    try {
+        $man = Get-Content "system\manifest.json" -Raw | ConvertFrom-Json
+        $row = $man.projects | Where-Object { ($Project -ne '') -and ($_.hq_project -eq $Project -or $_.name -eq $Project) } | Select-Object -First 1
+        if ($row -and $row.budget_priority) { $pri = [int]$row.budget_priority }
+    } catch {}
+    if ($pri -le 1) {
+        "quota gate: plan capped but budget_priority=$pri, proceeding" | Out-File -Append -Encoding utf8 $Log
+        return $true
+    }
+
+    "quota gate: claude_plan capped (detected $($plan.detected)), DEGRADED - core-only/skip (priority $pri)" | Out-File -Append -Encoding utf8 $Log
+    if ($Project -ne '') {
+        $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"
+        if (Test-Path $tokenFile) {
+            $token = (Get-Content $tokenFile -Raw).Trim()
+            $body = @{ project = $Project; metric_key = 'run_status'; value_num = 0
+                       headline = 'degraded: quota (plan limit) - deterministic core only this slot'
+                       status = 'amber' } | ConvertTo-Json -Compress
+            try {
+                Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
+                    -Headers @{ 'X-Alex-Token' = $token } -ContentType 'application/json' `
+                    -Body $body -TimeoutSec 10 | Out-Null
+            } catch { "quota gate: amber push failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $Log }
+        }
+    }
+    return $false
+}
+
 function Invoke-CloseOutCheck {
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$Out,  # captured claude output
@@ -43,6 +122,9 @@ function Invoke-CloseOutCheck {
         $line = ($Out -split "`r?`n" | Where-Object { $_ -match 'limit' } | Select-Object -First 1)
         $reason = if ($line) { $line.Trim() } else { 'usage/session limit' }
         if ($reason.Length -gt 140) { $reason = $reason.Substring(0, 140) }
+        # P3 quota writer (design 1.7.1): a detected limit updates the shared quota state so the
+        # pre-run gate degrades the NEXT wrappers instead of letting each one die the same death.
+        Set-AlexQuotaCapped -Kind $(if ($reason -match 'API usage limits') { 'api' } else { 'plan' }) -Log $Log
     } elseif ($Code -ne 0) {
         $reason = "claude exit code $Code"
     }

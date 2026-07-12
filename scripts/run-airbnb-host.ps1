@@ -5,6 +5,8 @@ Set-Location "C:\Users\Thinkpad\Desktop\personal-os"
 New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\airbnb-host.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
+# P3 quota gate (upgrade 2026-07-12): plan freshly capped + not a budget-priority winner -> skip this slot as visible-PARTIAL
+if (-not (Test-AlexQuotaGate -Log $log -Project 'airbnb')) { exit 0 }
 
 # Deterministic first (write-first discipline): harvest + rebuild the model even if the agent step fails.
 python "work\13-airbnb-host\scrape_airbnb.py"  2>&1 | Out-File -Append -Encoding utf8 $log

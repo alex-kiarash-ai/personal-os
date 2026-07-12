@@ -17,6 +17,8 @@ if (Test-Path $n8nKeyFile) {
 New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\landscape-eval.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
+# P3 quota gate (upgrade 2026-07-12): plan freshly capped + not a budget-priority winner -> skip this slot as visible-PARTIAL
+if (-not (Test-AlexQuotaGate -Log $log -Project 'evolution')) { exit 0 }
 
 function Push-HQ($status, $headline) {
     $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"

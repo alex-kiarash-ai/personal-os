@@ -5,6 +5,8 @@ Set-Location "C:\Users\Thinkpad\Desktop\personal-os"
 New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\email-triage.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
+# P3 quota gate (upgrade 2026-07-12): plan freshly capped + not a budget-priority winner -> skip this slot as visible-PARTIAL
+if (-not (Test-AlexQuotaGate -Log $log -Project 'email-triage')) { exit 0 }
 
 # Preflight: claude.ai connectors load non-blocking, so a cold `claude -p` acts before
 # Gmail finishes connecting. `mcp list` forces a synchronous connect + warms the token cache.
