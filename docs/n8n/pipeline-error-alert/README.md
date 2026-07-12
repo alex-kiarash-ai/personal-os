@@ -1,6 +1,6 @@
 # Pipeline Error Alert - the smoke alarm
 
-**Workflow ID:** `QlGy1BFzdKF852uR` · **Runs:** only when another workflow crashes · **Nodes:** 5 · **Export in this folder:** workflow.json (2026-07-06 version, latest)
+**Workflow ID:** `QlGy1BFzdKF852uR` · **Runs:** only when another workflow crashes · **Nodes:** 7 · **Export in this folder:** workflow.json (2026-07-12 version, latest - P3 cap metric)
 
 ## What it does
 
@@ -19,6 +19,8 @@ Bought with pain. In late June 2026, **both** job engines went dark for five day
 - **Notion: Create Alert** - writes the alert as a row in the Pipeline Alerts database in Notion (database `08504afe-ba13-4691-9e67-0ed9a00c8e8c`).
 - **Build HQ Metric** - branches off Build Alert Payload, shapes the same facts into an `alex_metrics` row (project `infra`, metric `n8n_broken_today`, status red, headline = which workflow failed and why). Added 2026-07-06.
 - **Insert HQ Metric** - writes that row straight into the `alex_metrics` data table on the same box (no HTTP, no token - the pipeline-stats sidecar pattern). The next liveness harvest overwrites the key with the true count, so the card self-heals to green exactly like sprint run_status.
+- **Detect API Cap** - added 2026-07-12 (P3): a third branch off Build Alert Payload that checks the error against the Anthropic API-cap signature (HTTP 400 + "you have reached your specified API usage limits" text - the exact error verified live in execution 655 while both engines were cap-dead). No match = it goes quiet. A match = one extra metric row: project `quota`, metric `anthropic_api`, value 0, status red, headline "API cap hit at <workflow> <time>". The June failure mode - cap trips, engines die silently - now names itself on the dashboard the moment it happens, distinct from a generic crash.
+- **Insert Cap Metric** - files that quota row into the same `alex_metrics` data table (same direct-insert pattern, no HTTP, no token).
 
 ## Connected to
 

@@ -93,6 +93,19 @@ Endpoint (streamable HTTP since 2026-07-02, bearer-gated): `https://n8n.shaheenk
 - Anthropic concurrency: batching (1 item / 1000ms) + retry-on-fail handles 429s.
 - SECURITY TODO (open): rotate the Bright Data API key exposed during setup; update `BRIGHTDATA_API_KEY` on the box and the n8n credential.
 
+## P3 write-first reorder (2026-07-12) - bank discoveries BEFORE Claude
+
+Context: both engines CAP-DEAD until 2026-08-01 (Anthropic monthly cap; every run dies at `Claude Match+Research` with HTTP 400 "You have reached your specified API usage limits"). The failure landed AFTER paid Bright Data discovery but BEFORE `Append Processed Job`, so every discovery burned into the void (audit flag a5): 13 jobs on 07-11 + 4 on 07-12 on this engine alone, ledger frozen at 259 rows both days. Applied via the REST API, backup-first (`scripts/n8n-backups/9XuIEfxS71DEetVR-pre-P3-20260712-1810.json`), GET-verified, active flag preserved. 37 -> 41 nodes. Mirrored identically to #14.
+
+**New Stage 2 flow:** `Dedup Against Log -> Format Sourced Row -> Anything To Bank? -> [true] Bank Sourced Jobs -> Rehydrate Batch -> Build Match Request` (the `[false]` branch = drain-only batch, skips banking straight to Rehydrate Batch; no junk rows).
+
+- **Bank:** every NEW deduped job is appended to `processed_jobs` with `gate_status=sourced_unscored` plus a `payload_json` column (the full job object; column auto-created via autoMapInputData + `handlingExtraData=insertInNewColumn`) BEFORE any Claude call. The bank row doubles as mark-seen, so re-runs never re-source or re-pay.
+- **Drain:** `Dedup Against Log` no longer treats `sourced_unscored` rows as done - their jobs (rebuilt from `payload_json`) rejoin every batch for Match until a completed row exists for that id. **Mechanism chosen: completed row APPENDED, bank row superseded** - append-only, because the whole engine has no update-row nodes anywhere and the sheet pattern is append-only; "done" = the id has any row with `gate_status != sourced_unscored`.
+- **Edges (by design):** a bank row without payload_json is skipped by the drain (and would re-bank with payload if ever re-sourced); the internal `_banked` flag is stripped by Rehydrate Batch and never reaches the sheet or Claude; `Format Processed Row` needed no change (missing payload_json just leaves the cell empty).
+- **Expected until 2026-08-01:** runs still die at Match on the cap, but AFTER banking - the ledger accumulates `sourced_unscored` rows daily and the whole backlog drains into Match on the first post-cap run. Live-fire proof = the next 07:00 run.
+- **Companion change:** the Pipeline Error Alert (`QlGy1BFzdKF852uR`) now detects the cap signature and pushes a `quota/anthropic_api` red metric to alex_metrics (see docs/n8n/pipeline-error-alert/).
+- **Untouched:** trigger, gates, sanitizer, voice block, Writer nodes - no other behavior changed.
+
 ## Post-Run (first import session)
 1. No people/companies generated at build time.
 2. Update vault/projects/job-pipeline/status.md and vault/log.md.

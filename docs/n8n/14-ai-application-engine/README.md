@@ -1,6 +1,6 @@
 # AI Application Engine - the job-hunting robot, aimed at AI roles
 
-**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** every day, 07:30 Stockholm (30 min after its twin) · **Nodes:** 37 · **Export in this folder:** workflow.json (2026-06-30 version, latest)
+**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** every day, 07:30 Stockholm (30 min after its twin) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-12 version, latest - P3 write-first reorder)
 
 ## What it does
 
@@ -12,7 +12,7 @@ Shaheen's pivot is FROM senior Power BI TO AI automation engineering. One CV can
 
 ## The steps, node by node
 
-The 37 nodes are identical in shape to the BI engine's - same five stages. Full plain-language walkthrough of every node: see [03-application-engine/README.md](../03-application-engine/README.md#the-steps-node-by-node). What's **different** inside this copy:
+The 41 nodes are identical in shape to the BI engine's - same five stages, including the P3 write-first reorder of 2026-07-12 (new discoveries are banked to the ledger as `sourced_unscored` BEFORE any Claude call, and banked rows drain back into later batches until they complete - see the twin's Stage 2 walkthrough). Full plain-language walkthrough of every node: see [03-application-engine/README.md](../03-application-engine/README.md#the-steps-node-by-node). What's **different** inside this copy:
 
 1. **Read Search Config** reads its own sheet ("AI Job Search Pipeline", ID `11lvksV5NmLK7vWvt4oHIPTXZ1pwRVi67UrWVI3lrAHQ`) with AI-role search rows.
 2. **Build Match Request / Build Writer Request** embed the AI CV (`master_cv_ai.md`) and AI-focused instructions: the writer leads with Building Alex and automation work; BI becomes supporting credibility.

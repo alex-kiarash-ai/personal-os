@@ -55,6 +55,15 @@ Locations locked by Shaheen 2026-06-16: Gulf (Dubai/Qatar/Saudi) on-site+hybrid 
 - Anthropic concurrency: batching 1/1000ms + retry 4x/5s.
 - Bright Data key rotation TODO still open (shared with BI pipeline).
 
+## P3 write-first reorder (2026-07-12) - bank discoveries BEFORE Claude
+
+Identical mirror of #03's P3 change (full rationale + design: work/03-application-engine/CLAUDE.md §"P3 write-first reorder"), applied to this engine's own sheet (`11lvksV5NmLK7vWvt4oHIPTXZ1pwRVi67UrWVI3lrAHQ`). Backup: `scripts/n8n-backups/9x9M3EnEEeX3O8dy-pre-P3-20260712-1810.json`. 37 -> 41 nodes, GET-verified, active flag preserved.
+
+- New Stage 2 flow: `Dedup Against Log -> Format Sourced Row -> Anything To Bank? -> [true] Bank Sourced Jobs -> Rehydrate Batch -> Build Match Request` ([false] = drain-only batch skips banking).
+- Every new deduped job is banked to `processed_jobs` as `gate_status=sourced_unscored` + `payload_json` (full job) BEFORE any Claude call; banked rows drain back into later Match batches until a completed row supersedes them (append-only, no in-place updates - matches the engine's existing sheet pattern).
+- Expected until 2026-08-01: runs still die at `Claude Match+Research` on the API cap, but discoveries are banked first; the backlog drains on the first post-cap run. Live-fire proof = the next 07:30 run.
+- Untouched: trigger, gates, sanitizer, voice block, Writer nodes.
+
 ## Post-Run (first import session)
 1. New companies found → vault/business/.
 2. Create vault/projects/ai-job-pipeline/status.md + update vault/log.md.

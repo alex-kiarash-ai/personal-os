@@ -1,6 +1,6 @@
 # Application Engine (BI) - the job-hunting robot
 
-**Workflow ID:** `9XuIEfxS71DEetVR` · **Runs:** every day, 07:00 Stockholm · **Nodes:** 37 · **Export in this folder:** workflow.json (2026-06-30 version, latest)
+**Workflow ID:** `9XuIEfxS71DEetVR` · **Runs:** every day, 07:00 Stockholm · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-12 version, latest - P3 write-first reorder)
 
 ## What it does
 
@@ -22,16 +22,20 @@ Applying to jobs properly means tailoring a CV and letter per job, which costs 1
 - **Poll Wait / Poll Fetch Snapshot / Snapshot Ready?** - the waiting loop: check whether Bright Data is done; if not, wait and ask again; when ready, download the results.
 - **Parse Jobs** - turns the raw scrape into a clean list: title, company, location, description, link.
 
-**Stage 2 - Skip what we've seen**
+**Stage 2 - Skip what we've seen, bank what's new (P3 write-first reorder, 2026-07-12)**
 - **Read Processed Log** - opens the ledger of every job ever processed.
-- **Dedup Against Log** - drops any posting already in the ledger, so nothing is scored or paid for twice.
+- **Dedup Against Log** - drops any posting already in the ledger, so nothing is scored or paid for twice. Since the P3 reorder it also runs the **drain**: ledger rows marked `sourced_unscored` are banked discoveries, not finished work - they rejoin today's batch (rebuilt from the `payload_json` column) until a completed row exists for their id.
+- **Format Sourced Row** - shapes each genuinely new discovery into a ledger row with status `sourced_unscored` plus the full job stored in `payload_json`. If the whole batch is drains (nothing new), it emits a marker instead so the batch still moves on.
+- **Anything To Bank?** - the fork: new rows go to the bank, a drain-only marker skips straight ahead.
+- **Bank Sourced Jobs** - appends the new rows to the same processed-jobs ledger, BEFORE any AI is called. This is the whole point of the reorder: in June-July 2026 the Anthropic spending cap killed every run at the Match step, and because logging only happened after Match, every paid Bright Data discovery burned into the void (17 jobs in just the two days before this fix). Now discoveries are on paper the moment they're found; a cap death costs nothing but time.
+- **Rehydrate Batch** - restores the full deduped batch (new + drained) so the Match step sees exactly what Dedup produced, with the banking already done.
 
 **Stage 3 - Judge each job**
 - **Build Match Request** - packs the job posting plus Shaheen's master CV into a question for Claude (the AI): how well does this fit?
 - **Claude Match+Research** - the first of only two AI calls: returns a fit score, an interest score, the detected work condition, and the reasoning.
 - **Parse Match** - unpacks the AI's answer into clean fields.
 - **Stage 3 Gate** - plain code, no AI: pass only if fit ≥ 70, the role type is right, and the work condition is allowed for that city. Everything else goes to the review queue with the reason.
-- **Format Processed Row / Append Processed Job** - writes every judged job into the ledger, pass or fail.
+- **Format Processed Row / Append Processed Job** - writes every judged job into the ledger, pass or fail. The completed row supersedes any earlier `sourced_unscored` bank row for the same job - the ledger is append-only, nothing is edited in place; Dedup treats "has a completed row" as done.
 - **Passed Gate?** - the fork: winners continue, the rest stop here.
 - **Format Review Row S3 / Append Needs Review S3** - files the near-misses in the "needs review" tab so a human can overrule.
 
