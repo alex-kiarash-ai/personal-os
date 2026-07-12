@@ -82,6 +82,9 @@ The Monday "needs your call" list used to stall until Shaheen was at the keyboar
 
 Execute the action, then mark the note filed: POST `/webhook/alex-inbox-mark` with `filed_to: "crm/<action>"` and the required `note` field. Hard rules inherited from the contract: never print the token; an unreachable inbox is one line then continue, never fails the run; a note is filed, never deleted.
 
+## Deterministic core (upgrade P3, 2026-07-12; the sprint-tracker pattern)
+`scripts/personal-crm-core.js` runs FIRST in the scheduled wrapper, zero tokens, zero network reads: it computes the Monday follow-up list from vault/people frontmatter alone (channel-aware: soft channels get the gentle last-logged wording, never "gone quiet"; cadence = `work/05-personal-crm/state/cadence.json` override, else spec defaults soft 45 / pro-email 30 / personal-email 45), writes `state/monday-list.md`, pushes crm/run_status GREEN. Then the quota gate (`Test-AlexQuotaGate`), then this Claude pass. A capped Monday = the list stands + PARTIAL, never dark. **This pass's step 3 duty (added):** after computing real status-aware Cadence Days, persist them to `work/05-personal-crm/state/cadence.json` (`{"<people-page basename>": days}`) so the core's next fallback list uses refined numbers, and reconcile/refine the core's `state/monday-list.md` into the real Monday section.
+
 ## Reliability SLA (since 2026-07-10)
 The Monday run is a local `claude -p` job and CAN silently miss (the 07-06 usage-limit skip lost three weeks of drift). Two guards:
 - The scheduled wrapper already routes through `Invoke-CloseOutCheck` (scripts/lib/close-out.ps1): a blocked/degraded run pushes RED `run_status` to HQ, and a clean run pushes GREEN so there is always a fresh timestamp to age against.

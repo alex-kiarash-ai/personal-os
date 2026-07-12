@@ -1,13 +1,40 @@
-# Personal CRM scheduled wrapper (Close-Out Gate hardened 2026-07-03; shared mechanism scripts/lib/close-out.ps1)
+# Personal CRM scheduled wrapper (rebuilt 2026-07-12, upgrade P3: deterministic-core-first, the
+# sprint-tracker pattern). Close-Out Gate mechanism: scripts/lib/close-out.ps1.
+#
+# ORDER MATTERS. The zero-token core runs FIRST and is the must-succeed part: it computes the
+# Monday follow-up list from vault/people frontmatter alone (channel-aware, spec-default cadences,
+# state/cadence.json overrides) and pushes crm/run_status GREEN. Three straight quota-dead Mondays
+# (06-26 class) can no longer take the list down.
+# The Claude pass runs SECOND, behind the quota gate: scoring, Msgs 90d, Notion sync, gated drafts.
+# If it is capped, the run is DEGRADED (list stands, HQ green), logged PARTIAL, exit 0.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Set-Location "C:\Users\Thinkpad\Desktop\personal-os"
 . "scripts\lib\close-out.ps1"
 New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\personal-crm.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
-# P3 quota gate (upgrade 2026-07-12): plan freshly capped + not a budget-priority winner -> skip this slot as visible-PARTIAL
-if (-not (Test-AlexQuotaGate -Log $log -Project 'crm')) { exit 0 }
 
+# ---- 1. Deterministic core (must succeed; writes the list + greens HQ) ----
+$coreOut = ''
+try {
+    $coreOut = (& node scripts\personal-crm-core.js 2>&1 | Out-String)
+    $coreCode = $LASTEXITCODE
+} catch {
+    $coreOut = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $coreCode = 1
+}
+"--- core ---`n$coreOut" | Out-File -Append -Encoding utf8 $log
+if ($coreCode -ne 0) {
+    # Core failure = real failure: RED push + retry ladder + exit 1.
+    Invoke-CloseOutCheck -Out $coreOut -Code $coreCode -Log $log -Project 'crm'
+}
+
+# ---- P3 quota gate: plan freshly capped -> skip the Claude pass, list already stands ----
+if (-not (Test-AlexQuotaGate -Log $log -Project 'crm')) {
+    "PARTIAL: Claude pass skipped by the quota gate (plan capped). Core list written + HQ green." | Out-File -Append -Encoding utf8 $log
+    exit 0
+}
+
+# ---- 2. Claude pass (scoring, enrich, Notion sync, gated drafts; non-fatal shape kept) ----
 $out = ''
 try {
     $out = (& "$env:APPDATA\npm\claude.ps1" -p "Run /personal-crm" --dangerously-skip-permissions 2>&1 | Out-String)
@@ -19,13 +46,13 @@ $out | Out-File -Append -Encoding utf8 $log
 
 Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'crm'
 
-# P3 rider (upgrade 2026-07-12, design #05 row): success falls through the check above - push GREEN
-# explicitly so a stale red from a dead Monday self-heals on the next clean run instead of lingering.
+# Success falls through: push GREEN so a stale red self-heals (P3 rider; the "full run clean" signal
+# on top of the core's earlier "numbers landed" green).
 try {
     $token = (Get-Content "work\16-alex-hq\config\alex-hq-token.txt" -Raw).Trim()
     $body = @{ project = 'crm'; metric_key = 'run_status'; value_num = 1
-               headline = "run clean $(Get-Date -Format 'yyyy-MM-dd')"; status = 'green' } | ConvertTo-Json -Compress
+               headline = "full run clean $(Get-Date -Format 'yyyy-MM-dd')"; status = 'green' } | ConvertTo-Json -Compress
     Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
         -Headers @{ 'X-Alex-Token' = $token } -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null
-    "HQ green push sent (crm self-heal)" | Out-File -Append -Encoding utf8 $log
+    "HQ green push sent (full run)" | Out-File -Append -Encoding utf8 $log
 } catch { "HQ green push failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $log }
