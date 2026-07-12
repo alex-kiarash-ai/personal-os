@@ -23,7 +23,9 @@ const GROUP_COLORS: Record<string, string> = {
   me: "#ffffff",
   research: "#ca6702",
 };
-const FALLBACK = "#5f8891";
+// Dark Teal (color-system.md #2): quiet, structural - correct for unclassified data per the
+// 30% band. Was an off-palette slate (fixed 2026-07-12, d2).
+const FALLBACK = "#005f73";
 
 const LEGEND = [
   ["projects", "projects"],

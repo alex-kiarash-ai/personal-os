@@ -67,13 +67,13 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: Capstone. Aggregates all 9 automations + Gmail/Calendar into a branded 7-slide deck + Notion weekly page. Trend metrics to metrics-history. Task Scheduler job PersonalOS-weekly-exec-report.
 - Added: 2026-06-12
 
-### WhatsApp Harvest - PAUSED 2026-06-18 (Shaheen: eating tokens too fast)
-- Status: **DISABLED** in Task Scheduler (`Disable-ScheduledTask PersonalOS-whatsapp-harvest`). Will not run until re-enabled. Re-enable with `Enable-ScheduledTask -TaskName 'PersonalOS-whatsapp-harvest'`.
-- **State PARKED 2026-07-06 (audit step 4), revisit 2026-08-01:** the revisit question is Phase 2 only (iPhone-backup pipeline: build or retire). Phase 1 screen automation is a proven dead end and does not come back.
+### WhatsApp Harvest (#11)
+- Status: **ON-DEMAND since 2026-07-10** (manifest state; the first successful Phase 2 iPhone-backup harvest resolved the parked revisit early). No cron: runs are manual /whatsapp-harvest sessions when a fresh backup is worth ingesting. The Task Scheduler job `PersonalOS-whatsapp-harvest` stays DISABLED in Task Scheduler as a fact - do NOT `Enable-ScheduledTask` it; that would re-arm the retired Phase 1 daily 02:30 trigger.
+- History: PAUSED 2026-06-18 (Shaheen: the screen-scrape was eating tokens too fast) -> State PARKED 2026-07-06 (audit step 4, revisit was set for 2026-08-01) -> flipped PARKED -> ON-DEMAND 2026-07-10 (Phase 2 proven; details in vault/projects/whatsapp-harvest/status.md).
 - Command: /whatsapp-harvest
-- Frequency (when active): daily at 2:30 AM (usage-based slot: runs while Shaheen sleeps so it never competes with his Claude limit; checkpoint-pushes each thread so consumed tokens always equal pushed data)
-- Description: Reads WhatsApp through the official desktop client (read-only screen capture, zero ban risk). TEXT ONLY, never media; voice notes ignored (phase 2 decision pending). Harvests Shaheen's own lines into soul.md per-language voice registers, updates vault/people/ friend pages (context, never transcripts), flags 48h+ unanswered personal messages to the Morning Brief, writes a per-run harvest report + review queue for Shaheen's tag notes. Spec: work/11-whatsapp-harvest/CLAUDE.md.
-- Added: 2026-06-12 (moved 21:30 → 02:30 same day per usage-based scheduling)
+- Frequency: on-demand (the retired Phase 1 slot was daily at 2:30 AM, a usage-based slot that ran while Shaheen slept; kept here as history only)
+- Description: Read-only WhatsApp voice-corpus + people harvest. Phase 2 (proven 2026-07-10): decrypts a local encrypted iPhone backup with wtsexporter, TEXT ONLY, never media; harvests Shaheen's own lines into soul.md per-language voice registers, updates vault/people/ friend pages (context, never transcripts), fills real CRM last-contact dates, flags 48h+ unanswered personal messages to the Morning Brief, writes a per-run harvest report + review queue. Phase 1 (screen capture of the desktop client) is a proven dead end and does not come back; Phase 3 (read-only WAHA gateway) is built-ready, OFF until post-offer. Spec: work/11-whatsapp-harvest/CLAUDE.md.
+- Added: 2026-06-12 (moved 21:30 → 02:30 same day per usage-based scheduling; state assertions rewritten 2026-07-12, upgrade P5 fix c5/M3 - history preserved above)
 
 ### Airbnb Host
 - Command: /airbnb-host (monthly-sync)

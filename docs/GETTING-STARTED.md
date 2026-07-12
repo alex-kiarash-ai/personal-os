@@ -92,7 +92,7 @@ Nothing runs until you schedule it. On this machine the scheduler is Windows Tas
 | Email Triage | /email-triage scheduled | 3x daily at 9:00 AM, 1:00 PM, 5:00 PM |
 | Expense Wrangler | /expense-wrangler | monthly, last day of each month at 8:00 PM |
 | Weekly Exec Report | /weekly-exec-report | Friday at 4:00 PM |
-| WhatsApp Harvest - PAUSED 2026-06-18 (Shaheen: eating tokens too fast) | /whatsapp-harvest | - |
+| WhatsApp Harvest (#11) | /whatsapp-harvest | on-demand (the retired Phase 1 slot was daily at 2:30 AM, a usage-based slot that ran while Shaheen slept; kept here as history only) |
 | Airbnb Host | /airbnb-host (monthly-sync) | monthly on the 24th at 10:00 AM (Task Scheduler job PersonalOS-airbnb-host, **Interactive only** so the headed Chromium can render; reuses the saved login session) |
 | Alex AI Radar (weekly sweep) | /alex-radar --weekly | Monday at 7:30 AM (Task Scheduler job PersonalOS-alex-radar; 07:30 so the output is in the vault before the 08:00 Morning Brief surfaces it as the Radar section) |
 | Git Backup (Recovery Phase 0) | scripts/git-backup.ps1 (pure git, no claude call) | daily at 9:30 PM (Task Scheduler job PersonalOS-git-backup; RestartCount 2 / RestartInterval 30 min / ExecutionTimeLimit 30 min / StartWhenAvailable) |

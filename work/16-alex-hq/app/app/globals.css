@@ -1,20 +1,23 @@
 @import "tailwindcss";
+@import "./tokens.css"; /* GENERATED brand tokens (color law -> generator, upgrade P5) */
 
 /* ALEX brand — Deep Water Instrument Panel (brand/config/color-system.md v1.0)
    Canvas Ink Black · structure Dark Teal/Cyan · Pearl Aqua secondary ·
-   Vanilla Custard tertiary · ONE Golden Orange accent per view · reds alarm-only */
+   Vanilla Custard tertiary · ONE Golden Orange accent per view · reds alarm-only.
+   Named palette hexes live ONLY in tokens.css (generated from the law); these are local
+   aliases. Only law semantic values and derived rgba()/gradient values stay as literals. */
 :root {
-  --ink: #001219;
-  --elev: #00232e;
-  --teal: #005f73;
-  --cyan: #0a9396;
-  --aqua: #94d2bd;
-  --custard: #e9d8a6;
-  --orange: #ee9b00;
-  --caramel: #ca6702;
-  --warn: #bb3e03;
-  --error: #ae2012;
-  --paper: #ffffff;
+  --ink: var(--color-ink-black);
+  --elev: #00232e; /* law §4.1/§7 --bg-elevated: a semantic law value, not a named palette token */
+  --teal: var(--color-dark-teal);
+  --cyan: var(--color-dark-cyan);
+  --aqua: var(--color-pearl-aqua);
+  --custard: var(--color-vanilla-custard);
+  --orange: var(--color-golden-orange);
+  --caramel: var(--color-burnt-caramel);
+  --warn: var(--color-rusty-spice);
+  --error: var(--color-oxidized-iron);
+  --paper: #ffffff; /* law §4.2 primary text on dark: white, not a named palette token */
   --mute: rgba(148, 210, 189, 0.62); /* aqua tier, not off-palette slate */
   --card: rgba(0, 35, 46, 0.52);
 }

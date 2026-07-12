@@ -3,8 +3,12 @@
 //
 // Runs as the final step of every generate-alex.js run, standalone on the CLI, and from the git
 // pre-commit hook (P3-S3). Six checks (V1-V6, spec table + amendments A3/A5) plus the structural
-// guards G1-G4 from Phase 1, plus V9 first-fire aging (upgrade P4, 2026-07-12; WARNING-only).
+// guards G1-G4 from Phase 1, plus V9 first-fire aging (upgrade P4, 2026-07-12; WARNING-only),
+// plus V7 lifecycle-state drift lint and V8 HQ hex scan (upgrade P5, 2026-07-12, design 1.5/1.6).
 // Any failure exits 1 and names exactly what drifted and where.
+//
+// The full suite (G1-G4 + V1-V9) runs on EVERY invocation - generate-alex.js --only=X limits what
+// is staged/applied, never what is checked (c7 fix, upgrade P5).
 //
 // Contract with generate-alex.js (orchestration step 3):
 //   const { runAll } = require('./validate-alex');
@@ -37,6 +41,7 @@ const { parseScheduleJobs, parseMcpList, parseColorTokens, computeCounts } = req
 const { scheduledJobsRows } = require('./lib/gen-docs');
 const { liveJobs } = require('./lib/gen-scheduler');
 const { TARGETS, NODE } = require('./lib/sync-n8n-voice');
+const genTokens = require('./lib/gen-tokens');
 
 const REPO = path.join(__dirname, '..');
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -434,6 +439,205 @@ async function v6ModelRouting({ stagedDir, manifest, context }, failures, warnin
 }
 
 // ---------------------------------------------------------------------------------------------
+// V7 - lifecycle-state drift lint (upgrade P5, 2026-07-12, design 1.5.2): deterministic,
+//      zero-token. For every registry row (projects[] + meta.unnumbered) scan the hand-maintained
+//      prose surfaces for lifecycle-state words that CONTRADICT the manifest state, with exact
+//      file:line output.
+//
+//      Scanned assertion locations ONLY (state words inside dated history notes / body prose are
+//      narrative, not claims - deliberately out of scope):
+//        - scheduler/schedule.md: the "### " section title line + "- Status:"/"- State:" lines of
+//          sections associated to a project (by title containing the project title, a "(#NN)"
+//          tag, or the "- Command:" line naming one of the project's /commands). ERROR-tier:
+//          the scheduler is an execution surface, a wrong state there mis-runs things (c5/M3).
+//        - the project's vault status.md YAML frontmatter `state:` / `status:` value. WARNING.
+//        - the project's docs/projects/{docs} markdown heading lines. WARNING.
+//
+//      False-positive guards (tuned against the real repo, 2026-07-12):
+//        - schedule.md matching is UPPERCASE-ONLY: the repo convention writes real state
+//          assertions there in caps ("State PARKED", "PAUSED 2026-06-18") while lowercase
+//          "parked"/"retired"/"live" are ordinary English inside explanatory prose. Frontmatter
+//          values and docs headers stay case-insensitive (their convention is lowercase:
+//          "status: on-demand", "# 11 - ... (paused)");
+//        - hyphenated compounds are not claims ("Event-driven", "phase-2-live");
+//        - "A -> B" transition phrases are narrative (both sides skipped) - the current state,
+//          if asserted, appears standalone elsewhere on the surface;
+//        - DISABLED next to Task Scheduler wording is a fact about the JOB, not the project
+//          ("Status: DISABLED in Task Scheduler" describes schtasks state);
+//        - PAUSED is accepted as equivalent to a manifest PARKED (same "deliberately stopped"
+//          class); every other word must equal the manifest state exactly.
+// ---------------------------------------------------------------------------------------------
+const STATE_WORDS = 'ON-DEMAND|LIVE|EVENT|DORMANT|PARKED|RETIRED|PAUSED|DISABLED';
+const STATE_RE_CI = new RegExp(`\\b(${STATE_WORDS})\\b`, 'gi'); // frontmatter + docs headers
+const STATE_RE_UC = new RegExp(`\\b(${STATE_WORDS})\\b`, 'g');  // schedule.md (uppercase-only)
+
+function stateWordsIn(line, re = STATE_RE_CI) {
+  const out = [];
+  let m;
+  re.lastIndex = 0;
+  while ((m = re.exec(line)) !== null) {
+    const word = m[1].toUpperCase();
+    const before = line.slice(0, m.index);
+    const after = line.slice(m.index + m[1].length);
+    if (/[A-Za-z0-9]-$/.test(before)) continue;              // compound: phase-2-live
+    if (/^-[A-Za-z0-9]/.test(after)) continue;               // compound: Event-driven
+    if (/(->|→)\s*$/.test(before.slice(-8))) continue;       // transition target: "PARKED -> X"
+    if (/^\s*(->|→)/.test(after.slice(0, 8))) continue;      // transition source: "X -> ON-DEMAND"
+    if (word === 'DISABLED' && /task scheduler|schtasks|scheduledtask/i.test(line)) continue;
+    out.push(word);
+  }
+  return out;
+}
+
+function stateContradicts(word, manifestState) {
+  const s = String(manifestState || '').toUpperCase();
+  if (word === s) return false;
+  if (word === 'PAUSED' && s === 'PARKED') return false; // same "deliberately stopped" class
+  return true;
+}
+
+function v7StateDriftLint({ stagedDir, manifest }, failures, warnings) {
+  const rows = [...manifest.projects, ...(manifest.meta?.unnumbered || [])];
+
+  // --- scheduler/schedule.md (ERROR-tier) --------------------------------------------------
+  const sched = effective(stagedDir, 'scheduler/schedule.md');
+  if (sched) {
+    const lines = sched.text.split(/\r?\n/);
+    // sections: [startIdx, endIdx) of each "### " block
+    const sections = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('### ')) {
+        if (sections.length) sections[sections.length - 1].end = i;
+        sections.push({ start: i, end: lines.length });
+      }
+    }
+    for (const sec of sections) {
+      const title = lines[sec.start];
+      const body = lines.slice(sec.start, sec.end);
+      const cmdLine = body.find(l => /^\s*-\s*Command:/i.test(l)) || '';
+      // associate the section to registry rows
+      const owners = rows.filter(p => {
+        if (p.title && new RegExp(`\\b${p.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(title)) return true;
+        if (p.num != null && new RegExp(`\\(#0?${p.num}\\)`).test(title)) return true;
+        return (p.commands || []).some(c => new RegExp(`/${c}\\b`).test(cmdLine));
+      });
+      if (owners.length === 0) continue;
+      // assertion lines: the title + Status/State lines
+      const assertionIdx = [sec.start];
+      for (let i = sec.start + 1; i < sec.end; i++)
+        if (/^\s*-\s*\*{0,2}(Status|State)\b/i.test(lines[i])) assertionIdx.push(i);
+      for (const idx of assertionIdx) {
+        for (const word of stateWordsIn(lines[idx], STATE_RE_UC)) {
+          for (const p of owners) {
+            if (stateContradicts(word, p.state))
+              failures.push(`FAILED V7: scheduler/schedule.md:${idx + 1} asserts ${word} but system/manifest.json says ${p.name} is ${p.state}`);
+          }
+        }
+      }
+    }
+  }
+
+  // --- vault status.md frontmatter + docs/projects headers (WARNING-tier) -------------------
+  for (const p of rows) {
+    if (p.status_md) {
+      const st = effective(stagedDir, p.status_md);
+      if (st) {
+        const fmLines = st.text.split(/\r?\n/);
+        if (fmLines[0] === '---') {
+          for (let i = 1; i < fmLines.length && fmLines[i] !== '---'; i++) {
+            const kv = fmLines[i].match(/^(state|status):\s*(.+)$/i);
+            if (!kv) continue;
+            for (const word of stateWordsIn(kv[2]))
+              if (stateContradicts(word, p.state))
+                warnings.push(`WARNING V7: ${p.status_md}:${i + 1} frontmatter says ${word} but system/manifest.json says ${p.name} is ${p.state}`);
+          }
+        }
+      }
+    }
+    if (p.docs) {
+      const rel = `docs/projects/${p.docs}`;
+      const doc = effective(stagedDir, rel);
+      if (doc) {
+        const dLines = doc.text.split(/\r?\n/);
+        for (let i = 0; i < dLines.length; i++) {
+          if (!/^#{1,6}\s/.test(dLines[i])) continue;
+          for (const word of stateWordsIn(dLines[i]))
+            if (stateContradicts(word, p.state))
+              warnings.push(`WARNING V7: ${rel}:${i + 1} heading says ${word} but system/manifest.json says ${p.name} is ${p.state}`);
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// V8 - HQ hex scan + token staleness (upgrade P5, 2026-07-12, design 1.6/4.5). ERROR-tier.
+//      (a) every hex literal in the HQ app source (work/16-alex-hq/app: *.ts/*.tsx/*.css under
+//          app/, lib/ and any future scripts/; node_modules, .next, public/data and the generated
+//          tokens.css itself excluded) must resolve to a hex the color law defines (parseColorTokens
+//          allHexes - the SAME contract V5 and the emitter use) or sit on the documented allowlist;
+//      (b) staleness: tokens.css and tokens.json on disk must be byte-equal (modulo CRLF) to what
+//          the emitter would emit from the law right now - the committed artifacts can never drift
+//          from brand/config/color-system.md.
+//      V5 deliberately excludes work/** (the work/12 locked diagram palette); V8 is the surgical
+//      extension for the ONE work/ surface that is identity-carrying UI, the HQ app.
+// ---------------------------------------------------------------------------------------------
+const HQ_APP_DIR = 'work/16-alex-hq/app';
+// V8 allowlist - every entry documented:
+//   #ffffff : law §4.2 primary text on dark (also in allHexes; listed for explicitness)
+//   #ff8a75 : notes.tsx recording/error text + globals.css .btn-mic.rec - documented INTERIM
+//             pending decision D5 (--error-text-dark); P8 routes it through a token and removes
+//             this entry.
+const V8_ALLOWLIST = new Set(['#ffffff', '#ff8a75']);
+const V8_EXTS = new Set(['.ts', '.tsx', '.css']);
+
+function v8HqHexScan({ stagedDir, colorTokens }, failures) {
+  // collect candidate rels from the repo tree AND the staged tree (staged copy wins via effective)
+  const rels = new Set();
+  const collect = (baseAbs, baseRel) => {
+    if (!fs.existsSync(baseAbs)) return;
+    (function walk(dir) {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === 'node_modules' || e.name === '.next') continue;
+        const p = path.join(dir, e.name);
+        const rel = baseRel + '/' + path.relative(baseAbs, p).split(path.sep).join('/');
+        if (e.isDirectory()) {
+          if (rel === `${HQ_APP_DIR}/public/data`) continue;
+          walk(p);
+        } else if (V8_EXTS.has(path.extname(e.name).toLowerCase()) && rel !== genTokens.CSS_REL) {
+          rels.add(rel);
+        }
+      }
+    })(baseAbs);
+  };
+  collect(path.join(REPO, HQ_APP_DIR), HQ_APP_DIR);
+  if (stagedDir) collect(path.join(stagedDir, HQ_APP_DIR), HQ_APP_DIR);
+
+  const allHexes = colorTokens.allHexes;
+  for (const rel of [...rels].sort()) {
+    const eff = effective(stagedDir, rel);
+    if (!eff) continue;
+    const lines = eff.text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].match(HEX_RE) || []) {
+        const hex = normalizeHex(m);
+        if (!allHexes.has(hex) && !V8_ALLOWLIST.has(hex))
+          failures.push(`FAILED V8: off-palette hex ${m} in ${rel}:${i + 1} (${eff.from}) - not a color-law token and not on the documented allowlist`);
+      }
+    }
+  }
+
+  // staleness: committed artifacts vs what the emitter would emit right now
+  const norm = t => t.replace(/\r\n/g, '\n');
+  for (const [rel, emit] of [[genTokens.CSS_REL, genTokens.tokensCss], [genTokens.JSON_REL, genTokens.tokensJson]]) {
+    const eff = effective(stagedDir, rel);
+    if (!eff) { failures.push(`FAILED V8: ${rel} missing - run 'node scripts/generate-alex.js' to emit the brand tokens`); continue; }
+    if (norm(eff.text) !== norm(emit(colorTokens)))
+      failures.push(`FAILED V8: ${rel} (${eff.from}) is STALE against brand/config/color-system.md - regenerate (node scripts/generate-alex.js), never hand-edit`);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // V9 - first-fire aging (upgrade P4, 2026-07-12, design 1.4/MR2-5): every LIVE/EVENT registry
 //      row (numbered + meta.unnumbered) that has NEVER fired (first_fire null) is listed as a
 //      WARNING - never a failure (the aging rule blocks nothing; it makes scaffold-masquerade
@@ -478,7 +682,7 @@ async function runAll({ stagedDir, context = 'generator' } = {}) {
 
   // Shared sources for V1-V6 (staged copy wins; sources are never staged today but effective()
   // keeps that true by construction if they ever are).
-  let manifest = null, schedule = null, allHexes = null;
+  let manifest = null, schedule = null, colorTokens = null;
   const mfRaw = effective(stagedDir, 'system/manifest.json');
   if (!mfRaw) failures.push('FAILED V1: system/manifest.json not found - the registry is required');
   else {
@@ -494,24 +698,26 @@ async function runAll({ stagedDir, context = 'generator' } = {}) {
   const lawRaw = effective(stagedDir, LAW_FILE);
   if (!lawRaw) failures.push(`FAILED V5: ${LAW_FILE} not found - the color law file is required`);
   else {
-    try { allHexes = parseColorTokens(lawRaw.text).allHexes; }
+    try { colorTokens = parseColorTokens(lawRaw.text); }
     catch (e) { failures.push(`FAILED V5: cannot parse the token table of ${LAW_FILE}: ${e.message}`); }
   }
 
+  // The FULL suite runs on every invocation - generate-alex's --only limits what is staged,
+  // never what is checked (c7 fix, upgrade P5).
   if (manifest) v1AutomationCount({ stagedDir, manifest }, failures);
   if (schedule) v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings);
   if (manifest) v3NoRetiredAsLive({ stagedDir, manifest }, failures);
   v4McpConsistency({ stagedDir }, failures);
-  if (allHexes) v5HexTokens({ stagedDir, allHexes }, failures);
+  if (colorTokens) v5HexTokens({ stagedDir, allHexes: colorTokens.allHexes }, failures);
   if (manifest) await v6ModelRouting({ stagedDir, manifest, context }, failures, warnings);
-  // V9 runs in EVERY context and every --only selection (it is part of the standard chain, same
-  // as V1-V6: --only limits what is staged, never what is checked).
+  if (manifest) v7StateDriftLint({ stagedDir, manifest }, failures, warnings);
+  if (colorTokens) v8HqHexScan({ stagedDir, colorTokens }, failures);
   if (manifest) v9FirstFireAging({ stagedDir, manifest }, warnings);
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
   if (failures.length === 0)
-    console.log(`validate-alex: G1-G4 + V1-V6 + V9 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+    console.log(`validate-alex: G1-G4 + V1-V9 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
   return { ok: failures.length === 0, failures, warnings };
 }
 

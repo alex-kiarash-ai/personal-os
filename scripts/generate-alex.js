@@ -10,14 +10,22 @@
 //   CLAUDE.md (constitution)       docs/ARCHITECTURE.md
 //   soul.md                        docs/README.md (custom zone preserved verbatim)
 //   brand/config/*                 docs/projects/README.md (marked table region)
-//   templates/*.template.md        n8n writer voice block (idempotent markers)
+//   templates/*.template.md        work/16-alex-hq/app/app/tokens.css   (brand tokens, P5)
+//                                  brand/tokens/tokens.json             (brand tokens, P5)
+//                                  n8n writer voice block (idempotent markers)
 //                                  Windows Task Scheduler jobs (create-missing-only)
 //
 // Usage:
 //   node scripts/generate-alex.js --dry-run            stage + validate + report, never swap
 //   node scripts/generate-alex.js                      full run: swap, n8n sync, scheduler
-//   node scripts/generate-alex.js --only=docs          any of: docs, claude, n8n, scheduler
-//                                                      (comma-separated; still validates)
+//   node scripts/generate-alex.js --only=docs          any of: docs, claude, tokens, n8n,
+//                                                      scheduler (comma-separated)
+//
+// VALIDATION IS NEVER SCOPED (c7 fix, upgrade P5, 2026-07-12): every run - full, --dry-run, or
+// any --only selection - executes the FULL validation suite (G1-G4 + V1-V9) against the staged
+// set plus the live repo. --only limits what is STAGED/APPLIED, never what is CHECKED, so a
+// partial run can never ship one surface while a sibling surface is silently red.
+//
 // n8n credentials come ONLY from env (N8N_API_URL, N8N_API_KEY) and are required whenever the
 // n8n step runs; it fails loudly without them (ground rule 7).
 'use strict';
@@ -30,6 +38,7 @@ const { loadModel } = require('./lib/read-sources');
 const { claudeRegionBlock } = require('./lib/gen-routing-table');
 const genClaudeRegion = require('./lib/gen-claude-region');
 const genDocs = require('./lib/gen-docs');
+const genTokens = require('./lib/gen-tokens');
 const n8nVoice = require('./lib/sync-n8n-voice');
 const scheduler = require('./lib/gen-scheduler');
 const { runAll: validate } = require('./validate-alex');
@@ -37,7 +46,7 @@ const { runAll: validate } = require('./validate-alex');
 const DRY = process.argv.includes('--dry-run');
 const onlyArg = process.argv.find(a => a.startsWith('--only='));
 const ONLY = onlyArg ? onlyArg.split('=')[1].split(',').map(s => s.trim()) : null;
-const VALID_ONLY = ['docs', 'claude', 'n8n', 'scheduler'];
+const VALID_ONLY = ['docs', 'claude', 'tokens', 'n8n', 'scheduler'];
 if (ONLY) for (const o of ONLY) if (!VALID_ONLY.includes(o)) {
   console.error(`generate-alex: unknown --only value '${o}' (valid: ${VALID_ONLY.join(', ')})`);
   process.exit(1);
@@ -73,10 +82,16 @@ const want = name => !ONLY || ONLY.includes(name);
       ];
       for (const o of outputs) { aw.stage(o.rel, o.content); log.step(`  staged ${o.rel}`); }
     }
+    if (want('tokens')) {
+      aw.stage(genTokens.CSS_REL, genTokens.tokensCss(model.colorTokens));
+      aw.stage(genTokens.JSON_REL, genTokens.tokensJson(model.colorTokens));
+      log.step(`  staged brand tokens: ${genTokens.CSS_REL} + ${genTokens.JSON_REL} (${model.colorTokens.tokens.size} tokens from the color law)`);
+    }
 
-    // 3. Validate the staged set + live systems (G1-G4 + V1-V6; async since Phase 3 - V6 checks
-    //    the live n8n API, the live half of V2 queries Task Scheduler).
-    log.step('[3/5] validate (G1-G4 + V1-V6, context=generator)');
+    // 3. Validate the staged set + live systems. The FULL suite (G1-G4 + V1-V9) runs on EVERY
+    //    run regardless of --only (c7 fix, P5): --only limits staging/applying, never checking.
+    //    Async since Phase 3 - V6 checks the live n8n API, the live half of V2 queries schtasks.
+    log.step('[3/5] validate (G1-G4 + V1-V9, full suite - never narrowed by --only, context=generator)');
     const result = await validate({ stagedDir: aw.STAGING });
     if (!result.ok) throw new Error(`validation failed:\n${result.failures.join('\n')}`);
 

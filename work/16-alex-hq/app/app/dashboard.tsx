@@ -358,12 +358,9 @@ function BrainBreakdown({ projects }: { projects: Record<string, Project> }) {
   const registry = useJson<ProjectsData>("/data/projects.json");
   const registered = registry && registry !== "failed" ? registry.count : null;
   const reporting = Object.keys(projects).filter((p) => p !== "me").length;
-  const graphStamp =
-    graph && graph !== "failed"
-      ? fmtDateTime(graph.generated_at)
-      : infra.brain_graph
-        ? fmtDateTime(infra.brain_graph.ts)
-        : null;
+  // graph.json's own stamp is the SINGLE source for the brain-graph stamp (b9 fix 2026-07-12);
+  // the old fallback to the pushed infra.brain_graph metric could serve a stale value.
+  const graphStamp = graph && graph !== "failed" ? fmtDateTime(graph.generated_at) : null;
   const counts: [string, Metric | undefined | null, string | null][] = [
     ["vault pages", infra.vault_pages, null],
     ["mcp tools", infra.mcp_tools, null],
