@@ -37,6 +37,7 @@ Built by `work/08-expense-wrangler/build_workbook.py` (reusable; re-run to regen
 4. **Category Breakdown** - `=SUMIF` total per category, **% of Total** = cat/grand, **Avg/Month** = total / distinct-month count (`SUMPRODUCT` helper in G3).
 Summary formulas reference WHOLE COLUMNS of the log ($C:$C, $G:$G, $H:$H), so they hold as rows are added.
 **Append rule (immediate mode):** insert the new expense row in Expense Log AND write its Month (col G) + Quarter (col H) formulas for that row. Summaries auto-update. Recalc/verify via LibreOffice headless before declaring done.
+**Uncaptured-burn line (upgrade P6, 2026-07-12, audit b20/design #08 row):** every monthly batch close adds ONE explicit row to the Monthly Summary area: **"Uncaptured burn (est.)"** = Shaheen's confirmed real monthly burn (vault/projects/runway/status.md frontmatter `monthly_burn_sek`, the figure in vault/projects/runway/status.md (gitignored)) MINUS the month's tracked total, floored at 0 - a visible number for what the tracking missed (Klarna aggregate, Bank Norwegian, unmatched FX), never a silent gap. Label it estimate; #20 runway inherits honest inputs from it.
 
 ## Vault Structure
 - **Tier 1:** vault/projects/expense-wrangler/status.md - DB IDs, Excel path, last run, monthly totals snapshot.

@@ -26,6 +26,10 @@ Carries the two job engines (#03 BI, #14 AI) past "draft sent" to the finish. Wh
 
 ## Notion Integration
 None new. Uses the existing Personal CRM DB (contacts) and the sprint board (action items). No new DB by design.
+**Row-filter contract (upgrade P6, 2026-07-12, audit b21):** interview-related rows live MIXED among CRM contacts, so: every #21 row gets the tag `interview` on its CRM entry; every #21 query filters on that tag; and the unattended Status ceiling ("Alex may set Status only up to Interesting unattended") is enforced BY the filter discipline - a #21 write never touches a non-`interview`-tagged row's Status, and never raises any row past Interesting without Shaheen in the loop. Cheap and honest; a dedicated DB was rejected (bootstrap + isolation overhead for a per-event automation).
+
+## First-fire drill (2026-07-12, upgrade P6)
+Full path exercised on a synthetic interview (flag -> dossier shape -> answer-bank prep mapping -> runway-aware negotiation stance computed from the live 07-12 inputs). Record: outputs/interview-copilot/2026-07-12/drill-mock-interview.md. `first_fire: 2026-07-12, kind: drill` in the registry. Friction noted for the first real run: the answer bank already covers behavioral/negotiation (drill's §4+ seeding note was WRONG - the bank's seed list above includes them); real friction found: none.
 
 ## Vault Structure
 - **Tier 1:** `vault/projects/interview-copilot/status.md`.
