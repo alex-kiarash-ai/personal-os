@@ -25,7 +25,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 16 | [Alex HQ](16-alex-hq.md) | LIVE | The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here. |
 | 17 | [Health Tracker](17-health-tracker.md) | LIVE | Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side. |
 | 18 | [Recovery Layer](18-recovery-layer.md) | LIVE | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the gated monthly lint, the auth probe. |
-| 19 | [Venture Sync](19-venture-sync.md) | DORMANT | Read-only mirror of venture repos into the vault. Waiting on the repos existing on this machine. |
+| 19 | [Venture Sync](19-venture-sync.md) | DORMANT | Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine. |
 | 20 | [Runway](20-runway.md) | LIVE | The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel. |
 | 21 | [Interview Copilot](21-interview-copilot.md) | EVENT | Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends. |
 | 22 | [Teach-Alex](22-teach-alex.md) | EVENT | Ten-second corrections from the phone: classified, filed, confirmed for identity files, logged for #23. |
@@ -35,7 +35,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 26 | [Prompting](26-prompting.md) | ON-DEMAND | The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot. |
 | - | [Voice](voice.md) | EVENT | Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool. |
 | - | [Alex Cost Tracker](alex-costs.md) | ON-DEMAND | What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate). |
-| - | [Modeling](modeling.md) | DORMANT | Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows). |
+| - | [Modeling](modeling.md) | PARKED | Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows). Parked on Shaheen's bandwidth, resume post-offer. |
 <!-- PROJECT-TABLE:END -->
 
 Maintained under the Change Propagation standing order: when a project changes for real, its file here changes in the same session.

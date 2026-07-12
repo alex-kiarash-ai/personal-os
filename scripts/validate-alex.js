@@ -3,7 +3,8 @@
 //
 // Runs as the final step of every generate-alex.js run, standalone on the CLI, and from the git
 // pre-commit hook (P3-S3). Six checks (V1-V6, spec table + amendments A3/A5) plus the structural
-// guards G1-G4 from Phase 1. Any failure exits 1 and names exactly what drifted and where.
+// guards G1-G4 from Phase 1, plus V9 first-fire aging (upgrade P4, 2026-07-12; WARNING-only).
+// Any failure exits 1 and names exactly what drifted and where.
 //
 // Contract with generate-alex.js (orchestration step 3):
 //   const { runAll } = require('./validate-alex');
@@ -433,6 +434,40 @@ async function v6ModelRouting({ stagedDir, manifest, context }, failures, warnin
 }
 
 // ---------------------------------------------------------------------------------------------
+// V9 - first-fire aging (upgrade P4, 2026-07-12, design 1.4/MR2-5): every LIVE/EVENT registry
+//      row (numbered + meta.unnumbered) that has NEVER fired (first_fire null) is listed as a
+//      WARNING - never a failure (the aging rule blocks nothing; it makes scaffold-masquerade
+//      visible). The registry rule (manifest states_doc) allows 14 days from the project's
+//      status.md frontmatter `created:` date; rows past that window are marked OVERDUE (check.ps1
+//      C13 goes amber on the same condition). ON-DEMAND/DORMANT/PARKED/RETIRED are exempt by
+//      rule - they have no promise to fire. A documented drill counts (first_fire_kind=drill).
+// ---------------------------------------------------------------------------------------------
+function v9FirstFireAging({ stagedDir, manifest }, warnings) {
+  const rows = [...manifest.projects, ...(manifest.meta?.unnumbered || [])];
+  const flagged = [];
+  for (const p of rows) {
+    if (p.state !== 'LIVE' && p.state !== 'EVENT') continue;
+    if (p.first_fire) continue;
+    let ageDays = null;
+    if (p.status_md) {
+      const st = effective(stagedDir, p.status_md);
+      const m = st && st.text.match(/^created:\s*(\d{4}-\d{2}-\d{2})/m);
+      if (m) ageDays = Math.floor((Date.now() - new Date(`${m[1]}T00:00:00Z`).getTime()) / 86400000);
+    }
+    const label = p.num != null ? `#${pad(p.num)} ${p.name}` : p.name;
+    flagged.push({ label, ageDays });
+  }
+  if (flagged.length === 0) return;
+  const fmt = f => `${f.label} (${f.ageDays === null ? 'created date unknown' : `${f.ageDays}d since created`})`;
+  const overdue = flagged.filter(f => f.ageDays === null || f.ageDays > 14);
+  const within = flagged.filter(f => f.ageDays !== null && f.ageDays <= 14);
+  if (overdue.length)
+    warnings.push(`WARNING V9: LIVE/EVENT project(s) never fired (first_fire null) PAST the 14-day window: ${overdue.map(fmt).join(', ')} - fire it (a documented drill counts, first_fire_kind=drill) or re-state it with a reason`);
+  if (within.length)
+    warnings.push(`WARNING V9: LIVE/EVENT project(s) never fired (first_fire null), still inside the 14-day window: ${within.map(fmt).join(', ')}`);
+}
+
+// ---------------------------------------------------------------------------------------------
 // runAll - the single entry point (async since Phase 3: V6 talks to the live n8n API).
 // ---------------------------------------------------------------------------------------------
 async function runAll({ stagedDir, context = 'generator' } = {}) {
@@ -469,11 +504,14 @@ async function runAll({ stagedDir, context = 'generator' } = {}) {
   v4McpConsistency({ stagedDir }, failures);
   if (allHexes) v5HexTokens({ stagedDir, allHexes }, failures);
   if (manifest) await v6ModelRouting({ stagedDir, manifest, context }, failures, warnings);
+  // V9 runs in EVERY context and every --only selection (it is part of the standard chain, same
+  // as V1-V6: --only limits what is staged, never what is checked).
+  if (manifest) v9FirstFireAging({ stagedDir, manifest }, warnings);
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
   if (failures.length === 0)
-    console.log(`validate-alex: G1-G4 + V1-V6 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+    console.log(`validate-alex: G1-G4 + V1-V6 + V9 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
   return { ok: failures.length === 0, failures, warnings };
 }
 

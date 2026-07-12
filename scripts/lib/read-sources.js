@@ -85,6 +85,45 @@ function parseColorTokens(colorSystemMd) {
   return { tokens, allHexes: all };
 }
 
+// --- registry cadence schema (upgrade P4, 2026-07-12, design 1.3/MR2-3) --------------------------
+// Every registry row (projects[] + meta.unnumbered) must carry the cadence OBJECT
+// { expected_hours: number|null, label: string, note?: string } plus first_fire (null or
+// YYYY-MM-DD) and first_fire_kind (null | 'live' | 'drill'). The old cadence_days integer is
+// DEAD: a row still carrying it fails loudly here so the generator can never ship surfaces
+// from a half-migrated registry (the MR2-3 atomicity rule).
+function validateCadenceSchema(manifest) {
+  const rows = [
+    ...manifest.projects.map(p => ({ row: p, where: `projects[] #${p.num} ${p.name}` })),
+    ...(manifest.meta.unnumbered || []).map(u => ({ row: u, where: `meta.unnumbered ${u.name}` })),
+  ];
+  const errs = [];
+  for (const { row, where } of rows) {
+    if ('cadence_days' in row)
+      errs.push(`${where}: still carries the retired cadence_days field (replace with the cadence object)`);
+    const c = row.cadence;
+    if (!c || typeof c !== 'object' || Array.isArray(c))
+      errs.push(`${where}: missing the cadence object {expected_hours, label, note?}`);
+    else {
+      if (!(c.expected_hours === null || (typeof c.expected_hours === 'number' && c.expected_hours > 0)))
+        errs.push(`${where}: cadence.expected_hours must be a positive number or null (got ${JSON.stringify(c.expected_hours)})`);
+      if (typeof c.label !== 'string' || c.label.trim() === '')
+        errs.push(`${where}: cadence.label must be a non-empty string`);
+      if ('note' in c && typeof c.note !== 'string')
+        errs.push(`${where}: cadence.note must be a string when present`);
+    }
+    if (!('first_fire' in row) || !(row.first_fire === null || /^\d{4}-\d{2}-\d{2}$/.test(row.first_fire)))
+      errs.push(`${where}: first_fire must be null or YYYY-MM-DD (got ${JSON.stringify(row.first_fire)})`);
+    if (!('first_fire_kind' in row) || ![null, 'live', 'drill'].includes(row.first_fire_kind))
+      errs.push(`${where}: first_fire_kind must be null, 'live' or 'drill' (got ${JSON.stringify(row.first_fire_kind)})`);
+    if (row.first_fire === null && row.first_fire_kind !== null)
+      errs.push(`${where}: first_fire_kind set while first_fire is null (a kind without a date is a lie)`);
+    if (row.first_fire !== null && row.first_fire_kind === null)
+      errs.push(`${where}: first_fire dated but first_fire_kind is null (say whether it was live or a drill)`);
+  }
+  if (errs.length)
+    throw new Error(`read-sources: system/manifest.json cadence schema invalid:\n  - ${errs.join('\n  - ')}`);
+}
+
 // --- counts (Phase 3 V1 contract) ----------------------------------------------------------------
 // AUTOMATION_COUNT = non-retired NUMBERED projects; LIVE_COUNT = those in state LIVE.
 // Unnumbered systems (meta.unnumbered) are listed but not counted here.
@@ -114,6 +153,7 @@ function loadModel() {
     throw new Error('read-sources: system/manifest.json has no projects[]');
   if (!model.manifest.meta || !Array.isArray(model.manifest.meta.unnumbered))
     throw new Error('read-sources: system/manifest.json meta.unnumbered missing');
+  validateCadenceSchema(model.manifest);
   if (!model.soul.includes('## My Words'))
     throw new Error('read-sources: soul.md has no "## My Words" section (the voice sync needs it)');
   if (!model.soul.includes('## Voice Rules'))
@@ -126,4 +166,4 @@ function loadModel() {
   return model;
 }
 
-module.exports = { REPO, loadModel, parseScheduleJobs, parseMcpList, parseColorTokens, computeCounts };
+module.exports = { REPO, loadModel, parseScheduleJobs, parseMcpList, parseColorTokens, computeCounts, validateCadenceSchema };

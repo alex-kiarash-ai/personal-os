@@ -10,7 +10,9 @@ If the user just described something briefly, ask clarifying questions: "What sh
 
 ## Step 2: Register FIRST, then scaffold (registry-first, audit step 3, 2026-07-06)
 
-0. **Write the registry entry BEFORE creating anything.** Add the project to `system/manifest.json` `projects[]` (num, name, title, state, trigger, one_liner, docs, schedule_jobs, work_dir, commands, status_md, cadence_days, n8n), then run `node scripts/generate-alex.js` - that generates the routing-table row (root CLAUDE.md), the docs/projects/README.md row, and every other generated doc automatically. Do NOT hand-edit those tables. After the build, re-run `work/18-recovery-layer/check.ps1 -Init` to re-baseline.
+0. **Write the registry entry BEFORE creating anything.** Add the project to `system/manifest.json` `projects[]` (num, name, title, state, trigger, one_liner, docs, schedule_jobs, work_dir, commands, status_md, `cadence: {expected_hours, label, note?}`, `first_fire: null`, `first_fire_kind: null`, n8n), then run `node scripts/generate-alex.js` - that generates the routing-table row (root CLAUDE.md), the docs/projects/README.md row, and every other generated doc automatically. Do NOT hand-edit those tables. After the build, re-run `work/18-recovery-layer/check.ps1 -Init` to re-baseline.
+   - **Cadence (upgrade P4, 2026-07-12):** `expected_hours` = the staleness window HQ ages against (26 daily/weekdays, 192 weekly, 800 monthly, `null` for on-demand/event - null means never stale by age); `label` drives the HQ render rules; `note` is the optional human phrase ("closes month-end").
+   - **First fire:** a new scaffold ALWAYS starts `first_fire: null, first_fire_kind: null`. The first REAL run stamps the date (`first_fire_kind: "live"`, or `"drill"` for a documented drill). A LIVE/EVENT project may sit unfired at most 14 days from its status.md `created:` date - past that V9 warns and check.ps1 C13 goes amber (manifest states_doc rule).
 
 1. Find the next available number in work/ (if nothing exists, start with 01)
 

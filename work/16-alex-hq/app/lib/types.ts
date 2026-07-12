@@ -72,6 +72,23 @@ export function fmtDateTime(ts: string | null | undefined): string {
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 
+// Short day stamp, Europe/Stockholm: "Mon 06 Jul" - for the weekly-cadence tile stamps
+// (design 4.2 "weekly · last Mon DD"). Same formatToParts discipline as fmtDateTime.
+const DAY_STAMP_PARTS = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Stockholm",
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+});
+export function fmtDay(ts: string | null | undefined): string {
+  if (!ts) return "never";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "–";
+  const p: Record<string, string> = {};
+  for (const part of DAY_STAMP_PARTS.formatToParts(d)) p[part.type] = part.value;
+  return `${p.weekday} ${p.day} ${p.month}`;
+}
+
 // Whole days between a YYYY-MM-DD date and `now`'s Stockholm calendar day (positive = past).
 // `now` comes from the server prop, so server and client compute the same value.
 const DAY_PARTS = new Intl.DateTimeFormat("en-GB", {
@@ -143,19 +160,49 @@ export const STACK: { name: string; what: string }[] = [
   { name: "Postgres + Caddy", what: "n8n's database and the TLS front door on the box" },
 ];
 
-export const CADENCE_HOURS: Record<string, number> = {
-  "morning-brief": 26,
-  "app-engine-bi": 26,
-  "app-engine-ai": 26,
-  "email-triage": 12,
-  "linkedin-series": 96,
-  airbnb: 26,
-  radar: 192,
-  crm: 192,
-  expenses: 800,
-  sprint: 80,
-  infra: 26,
-  "alex-hq": 800,
-  health: 30,
-  me: 100000,
-};
+/* ---------- cadence model (upgrade P4, 2026-07-12) ----------
+   The CADENCE_HOURS hand map is DELETED: cadence is registry data now. Every projects.json row
+   (build-projects.mjs, from system/manifest.json) carries
+   { cadence: { expected_hours, label, note? }, first_fire, first_fire_kind } and the render
+   rules per class live in design 4.2:
+   - daily / weekdays / always-on: fresh = "today HH:MM"; amber past expected_hours
+     (weekdays skip Stockholm weekends); red only when the producer itself pushed red.
+   - weekly: "weekly · last {day}"; amber only past 8 days.
+   - monthly: "monthly · {note}"; NEVER amber mid-cycle.
+   - on-demand / event / dormant / parked / retired (expected_hours null): never stale by age;
+     "never fired" when a LIVE/EVENT project has first_fire null. */
+export type Cadence = { expected_hours: number | null; label: string; note?: string | null };
+
+// Age in hours with weekend hours removed (for weekdays-cadence producers): a Friday-morning run
+// read on Monday morning is on schedule, not ~71h stale. UTC day boundaries are used (Stockholm
+// wobbles ±2h around them - irrelevant at 26h staleness granularity); pure function of (ts, now),
+// hydration-safe. Windows past 90 days skip the subtraction (stale is stale).
+export function weekdayAgeHours(ts: string, now: number): number {
+  const from = new Date(ts).getTime();
+  if (Number.isNaN(from)) return Infinity;
+  const DAY = 86400000;
+  const raw = (now - from) / 3600000;
+  if (now - from > 90 * DAY || now <= from) return raw;
+  let weekendMs = 0;
+  for (let t = Math.floor(from / DAY) * DAY; t < now; t += DAY) {
+    const dow = new Date(t).getUTCDay();
+    if (dow === 0 || dow === 6) {
+      const overlap = Math.min(t + DAY, now) - Math.max(t, from);
+      if (overlap > 0) weekendMs += overlap;
+    }
+  }
+  return (now - from - weekendMs) / 3600000;
+}
+
+// The one staleness rule (design 4.2), shared by tiles and the health board. No cadence data
+// (registry not synced, or an unclaimed live slug) falls back to the pre-registry 48h rule.
+export function cadenceStale(cad: Cadence | null | undefined, ts: string | null | undefined, now: number): boolean {
+  const ageH = ts ? (now - new Date(ts).getTime()) / 3600000 : Infinity;
+  if (!cad) return ageH > 48;
+  if (cad.expected_hours == null) return false; // on-demand/event/dormant/parked/retired: never stale by age
+  if (cad.label === "monthly") return false; // never amber mid-cycle
+  if (cad.label === "weekly") return ageH > 8 * 24; // amber only past 8 days
+  if (!ts) return true; // a producing cadence with no event at all is stale
+  const eff = cad.label === "weekdays" ? weekdayAgeHours(ts, now) : ageH;
+  return eff > cad.expected_hours;
+}

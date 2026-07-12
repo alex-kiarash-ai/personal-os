@@ -46,7 +46,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.
 - **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + 1st-Mon lint + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the gated monthly lint, the auth probe.
-- **19 Venture Sync** (DORMANT, revisit 2026-10-01; trigger: -) - Read-only mirror of venture repos into the vault. Waiting on the repos existing on this machine.
+- **19 Venture Sync** (DORMANT, revisit 2026-10-01; trigger: -) - Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine.
 - **20 Runway** (LIVE; trigger: monthly last day 21:15) - The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel.
 - **21 Interview Copilot** (EVENT; trigger: brief flag + on-demand) - Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends.
 - **22 Teach-Alex** (EVENT; trigger: inbox note + on-demand) - Ten-second corrections from the phone: classified, filed, confirmed for identity files, logged for #23.
@@ -56,7 +56,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **26 Prompting** (ON-DEMAND; trigger: on-demand) - The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot.
 - **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 - **Alex Cost Tracker** (ON-DEMAND; trigger: monthly (piggybacks expense slot)) - What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate).
-- **Modeling** (DORMANT, revisit 2026-10-01; trigger: -) - Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows).
+- **Modeling** (PARKED, revisit 2026-10-01; trigger: -) - Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows). Parked on Shaheen's bandwidth, resume post-offer.
 
 **Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand (plus the global `/graphify`).
 

@@ -22,6 +22,11 @@ const row = (p, num) => ({
   trigger: p.trigger ?? "-",
   one_liner: p.one_liner ?? "",
   hq_slug: p.hq_project ?? null, // the alex_metrics slug this project pushes under (null = pushes none)
+  // cadence object + first-fire proof (upgrade P4, 2026-07-12): the frontend's per-class render
+  // rules (design 4.2) read these instead of the deleted CADENCE_HOURS hand map.
+  cadence: p.cadence ?? null,
+  first_fire: p.first_fire ?? null,
+  first_fire_kind: p.first_fire_kind ?? null,
 });
 
 const numbered = m.projects

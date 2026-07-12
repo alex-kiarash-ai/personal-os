@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { motion, AnimatePresence, animate } from "motion/react";
-import type { Inbox, Metric, Project, Status, Summary } from "@/lib/types";
-import { ageLabel, clean, daysSinceStockholm, fmtDateTime, fmtNum, CADENCE_HOURS, DESCRIPTIONS, STACK } from "@/lib/types";
+import type { Cadence, Inbox, Metric, Project, Status, Summary } from "@/lib/types";
+import { ageLabel, cadenceStale, clean, daysSinceStockholm, fmtDateTime, fmtDay, fmtNum, weekdayAgeHours, DESCRIPTIONS, STACK } from "@/lib/types";
 import { BrainGraph } from "./brain";
 import { NotesCard } from "./notes";
 
@@ -58,8 +58,44 @@ type RegProject = {
   trigger: string;
   one_liner: string;
   hq_slug: string | null;
+  /* cadence-as-data (upgrade P4, 2026-07-12): the registry's cadence object + first-fire proof.
+     Nullable so a stale projects.json (pre-P4) degrades to the old 48h fallback, never crashes. */
+  cadence?: Cadence | null;
+  first_fire?: string | null;
+  first_fire_kind?: "live" | "drill" | null;
 };
 type ProjectsData = { generated_at: string; count: number; projects: RegProject[] };
+
+/* a LIVE/EVENT project that has never produced (first_fire null) says so, honestly (design 1.4) */
+const neverFired = (reg: RegProject | null | undefined): boolean =>
+  !!reg && (reg.state === "LIVE" || reg.state === "EVENT") && !reg.first_fire;
+
+/* Stockholm same-calendar-day check (pure function of ts/now - hydration-safe) */
+const stockholmDay = (t: number) => fmtDateTime(new Date(t).toISOString()).slice(0, 10);
+
+/* The per-class tile stamp (design 4.2). daily/weekdays/always-on: "today HH:MM" when fresh,
+   "missed today" once past expected_hours; weekly: "weekly · last Mon 06 Jul"; monthly:
+   "monthly · {note}" and never an age; on-demand/event: just the label - never stale. */
+function cadenceStamp(cad: Cadence | null | undefined, ts: string | null | undefined, now: number): string | undefined {
+  if (!cad) return ts ? `last run ${fmtDateTime(ts)}` : undefined;
+  switch (cad.label) {
+    case "daily":
+    case "weekdays":
+    case "always-on": {
+      if (!ts) return cad.note ? `${cad.label} · ${cad.note}` : cad.label;
+      const t = fmtDateTime(ts);
+      if (stockholmDay(new Date(ts).getTime()) === stockholmDay(now)) return `today ${t.slice(11)}`;
+      return cadenceStale(cad, ts, now) ? `missed today · last ${t}` : `last ${t}`;
+    }
+    case "weekly":
+      return `weekly · last ${fmtDay(ts)}`;
+    case "monthly":
+      return `monthly · ${cad.note ?? "updates at month-end"}`;
+    default:
+      // on-demand / event / dormant / parked / retired: the label is the whole story
+      return cad.note ? `${cad.label} · ${cad.note}` : cad.label;
+  }
+}
 
 const STATE_LABEL: Record<string, string> = {
   LIVE: "no telemetry yet",
@@ -582,6 +618,16 @@ function RegistryCard({ reg }: { reg: RegProject }) {
             #{String(reg.num).padStart(2, "0")}
           </span>
         ) : null}
+        {neverFired(reg) ? (
+          <span className="text-xs" style={{ color: "var(--warn)" }}>
+            never fired
+          </span>
+        ) : reg.first_fire ? (
+          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+            first fired {reg.first_fire}
+            {reg.first_fire_kind === "drill" ? " (drill)" : ""}
+          </span>
+        ) : null}
         <span className="ml-auto text-xs" style={{ color: "var(--mute)" }}>
           trigger · {reg.trigger}
         </span>
@@ -770,17 +816,22 @@ type HealthRow = {
   sortRank: number;
 };
 
-// Live status for a reporting project, cadence-staleness folded in (the pre-registry rule).
-function liveRow(key: string, label: string, p: Project, now: number, slug: string): HealthRow {
-  const ageH = p.last_ts ? (now - new Date(p.last_ts).getTime()) / 3600000 : Infinity;
-  const stale = ageH > (CADENCE_HOURS[slug] ?? 48);
+// Live status for a reporting project, cadence-staleness folded in - the cadence now comes from
+// the registry row (projects.json), not a hand map (upgrade P4). No registry row (unclaimed slug,
+// registry not synced) = the old 48h fallback. Weekly rows amber only past 8 days, monthly rows
+// never amber mid-cycle, on-demand/event rows never age (design 4.2); red stays the producer's call.
+function liveRow(key: string, label: string, p: Project, now: number, slug: string, reg?: RegProject | null): HealthRow {
+  const cad = reg?.cadence;
+  const stale = cadenceStale(cad, p.last_ts, now);
   const status: Status = p.status === "red" ? "red" : stale ? "amber" : p.status;
+  // weekly/monthly/on-demand ages read wrong without the label ("12d ago" on a monthly is fine)
+  const prefix = cad && !["daily", "weekdays", "always-on"].includes(cad.label) ? `${cad.label} · ` : "";
   return {
     key,
     drillId: `proj:${slug}`,
     label,
     display: status,
-    meta: `${ageLabel(p.last_ts, now)}${stale ? " · stale" : ""}`,
+    meta: `${prefix}${ageLabel(p.last_ts, now)}${stale ? " · stale" : ""}`,
     sortRank: { red: 0, amber: 1, green: 2 }[status],
   };
 }
@@ -809,25 +860,28 @@ function HealthBoard({
         const lp = reg.hq_slug ? live[reg.hq_slug] : null;
         if (lp && reg.hq_slug) {
           claimed.add(reg.hq_slug);
-          out.push(liveRow(reg.name, reg.title, lp, now, reg.hq_slug));
+          out.push(liveRow(reg.name, reg.title, lp, now, reg.hq_slug, reg));
         } else {
-          // registered but no live telemetry: show its real state, never a false red/stale
+          // registered but no live telemetry: show its real state, never a false red/stale.
+          // A LIVE/EVENT project that has never produced says "never fired" (design 1.4).
           out.push({
             key: reg.name,
             drillId: `proj:${reg.name}`,
             label: reg.title,
             display: "idle",
-            meta: idleLabel(reg.state),
+            meta: neverFired(reg) ? "never fired" : idleLabel(reg.state),
             sortRank: 3,
           });
         }
       }
     }
     // any live slug the registry didn't claim (infra, plus any future unmapped producer) —
-    // keep it so nothing that reports today ever disappears
+    // keep it so nothing that reports today ever disappears. The infra metrics are produced by
+    // #16's daily local push, so its registry row carries their cadence (no hand map).
+    const alexHqReg = registry && registry !== "failed" ? registry.projects.find((r) => r.name === "alex-hq") : null;
     for (const [slug, lp] of Object.entries(live)) {
       if (claimed.has(slug)) continue;
-      out.push(liveRow(slug, slug, lp, now, slug));
+      out.push(liveRow(slug, slug, lp, now, slug, slug === "infra" ? alexHqReg : null));
     }
 
     return out.sort((a, b) => a.sortRank - b.sortRank || a.label.localeCompare(b.label));
@@ -956,44 +1010,62 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
     };
   };
 
+  // cadence honesty pass (upgrade P4, design 4.2): every tile's freshness stamp + staleness come
+  // from the registry cadence in projects.json (the CADENCE_HOURS hand map is gone). Stale only
+  // lifts green -> amber; red stays the producer's call. A tile that already set a stamp keeps it.
+  const withCadence = (tile: TileDef | null, slug: string, key: string, regOverride?: RegProject | null): TileDef | null => {
+    if (!tile) return tile;
+    const reg = regOverride ?? regByKey[slug];
+    const ts = m(slug, key)?.ts ?? null;
+    if (cadenceStale(reg?.cadence, ts, now) && tile.status === "green") tile.status = "amber";
+    if (!tile.stamp) tile.stamp = cadenceStamp(reg?.cadence, ts, now);
+    return tile;
+  };
+
   // per-tile shaping (2026-07-06 feedback round): absolute stamps, sparklines only where
   // the trend means something, subs carrying the ONE next-action fact
-  const airbnbTile = simple("airbnb", "Airbnb · YTD kr", "airbnb", "ytd_income_kr", { spark: false });
+  const airbnbTile = withCadence(simple("airbnb", "Airbnb · YTD kr", "airbnb", "ytd_income_kr", { spark: false }), "airbnb", "ytd_income_kr");
   const nextBooking = m("airbnb", "next_booking");
   if (airbnbTile && nextBooking) airbnbTile.sub = `next: ${clean(nextBooking.value_text) || clean(nextBooking.headline) || "no booking"}`;
 
-  const radarTile = simple("radar", "Radar · shipped 30d", "radar", "shipped_30d", { spark: false });
-  // weekly producer (Mon sweep): label the cadence so a 6-day-old stamp reads as "on schedule", not "stuck"
-  if (radarTile) radarTile.stamp = `weekly · last run ${fmtDateTime(m("radar", "shipped_30d")?.ts)}`;
+  // weekly producer (Mon sweep): the registry cadence labels it so a 6-day-old stamp reads as
+  // "on schedule", not "stuck"; amber only past 8 days
+  const radarTile = withCadence(simple("radar", "Radar · shipped 30d", "radar", "shipped_30d", { spark: false }), "radar", "shipped_30d");
 
-  const buildTile = simple("build", "Build tasks · done this week", "sprint", "velocity", { spark: false });
-  if (buildTile) buildTile.stamp = `last run ${fmtDateTime(m("sprint", "velocity")?.ts)}`;
+  // weekdays producer: the staleness math skips weekends, so a Friday run is fresh on Monday morning
+  const buildTile = withCadence(simple("build", "Build tasks · done this week", "sprint", "velocity", { spark: false }), "sprint", "velocity");
 
-  const sleepTile = simple("health-sleep", "Body · sleep score", "health", "sleep_score_today", {
-    spark: false,
-    metricKeys: ["sleep_score_today"],
-  });
+  const sleepTile = withCadence(
+    simple("health-sleep", "Body · sleep score", "health", "sleep_score_today", {
+      spark: false,
+      metricKeys: ["sleep_score_today"],
+    }),
+    "health",
+    "sleep_score_today"
+  );
   if (sleepTile) {
-    sleepTile.stamp = `pushed ${fmtDateTime(m("health", "sleep_score_today")?.ts)}`;
     // red here = the daily iPhone push didn't land a real night; say so, don't show a stale number as if fresh
     if (m("health", "sleep_score_today")?.status === "red")
       sleepTile.sub = "phone sync stalled · no fresh sleep from the iPhone · fix the Shortcut";
   }
 
-  const stepsTile = simple("health-steps", "Body · steps yesterday", "health", "steps_today", {
-    metricKeys: ["steps_today"],
-  });
+  const stepsTile = withCadence(
+    simple("health-steps", "Body · steps yesterday", "health", "steps_today", {
+      metricKeys: ["steps_today"],
+    }),
+    "health",
+    "steps_today"
+  );
   if (stepsTile) {
-    stepsTile.stamp = `pushed ${fmtDateTime(m("health", "steps_today")?.ts)}`;
     if (m("health", "steps_today")?.status === "red")
       stepsTile.sub = "phone sync stalled · no fresh steps from the iPhone · fix the Shortcut";
   }
 
-  const expensesTile = simple("expenses", "Expenses · MTD kr", "expenses", "mtd_total_kr");
+  // monthly producer (runs month-end): the cadence stamp ("monthly · closes month-end") makes a
+  // mid-month 0 read as "not captured yet", not "broken"; never amber mid-cycle, zero renders dim
+  const expensesTile = withCadence(simple("expenses", "Expenses · MTD kr", "expenses", "mtd_total_kr"), "expenses", "mtd_total_kr");
   const mtdCat = m("expenses", "mtd_by_category");
   if (expensesTile && mtdCat && mtdCat.value_text) expensesTile.sub = clean(mtdCat.value_text);
-  // monthly producer (runs month-end): label the cadence so a mid-month 0 reads as "not captured yet", not "broken"
-  if (expensesTile) expensesTile.stamp = "monthly · updates at month-end";
 
   // To-Do: the open build-board items (client-fetched todos.json, sprint snapshot)
   const openTodos = todos && todos !== "failed" ? todos.items : null;
@@ -1015,6 +1087,20 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
           : undefined,
     stamp: openTodos && todos !== "failed" && todos ? `as of ${fmtDateTime(todos.generated_at)}` : undefined,
   };
+  // snapshot honesty (d5, design 4.2): the snapshot ages against 2x its PRODUCER's cadence
+  // (todos.json is built from the sprint snapshot - weekdays producer, weekends skipped)
+  if (todos && todos !== "failed") {
+    const cad = regByKey["sprint-tracker"]?.cadence;
+    const exp = cad?.expected_hours ?? 26;
+    const age =
+      cad?.label === "weekdays"
+        ? weekdayAgeHours(todos.generated_at, now)
+        : (now - new Date(todos.generated_at).getTime()) / 3600000;
+    if (age > 2 * exp) {
+      todoTile.status = "amber";
+      todoTile.stamp = `as of ${fmtDateTime(todos.generated_at)} · snapshot stale`;
+    }
+  }
 
   // Plants: count due today, computed at render from the raw dates
   const plantsTile: TileDef = {
@@ -1043,9 +1129,22 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
       plantsTile.sub = dueToday.length > 0 ? `due today: ${dueToday.map((p) => p.name).join(", ")}` : "none due today";
       plantsTile.stamp = `watering data as of ${life.plants.as_of ?? "unknown"}`;
     }
+    // snapshot honesty (d5, design 4.2): life.json is shipped by #16's daily local push - a copy
+    // older than 2x that cadence gets an honest amber instead of looking live
+    const lifeExp = (regByKey["alex-hq"]?.cadence?.expected_hours ?? 26) * 2;
+    const lifeAgeH = (now - new Date(life.generated_at).getTime()) / 3600000;
+    if (lifeAgeH > lifeExp && plantsTile.status === "green") {
+      plantsTile.status = "amber";
+      plantsTile.stamp = `${plantsTile.stamp ?? `watering data as of ${life.plants.as_of ?? "unknown"}`} · snapshot stale`;
+    }
   }
 
   const appsMissing = !bi.drafted_today && !ai.drafted_today;
+  // apps tile freshness: the newest drafted_today event across both lanes, aged against the
+  // BI engine's registry cadence (daily 26h - the lanes are twins)
+  const appsTs = [bi.drafted_today?.ts, ai.drafted_today?.ts].filter((t): t is string => !!t).sort().pop() ?? null;
+  const appsReg = regByKey["app-engine-bi"];
+  const appsStale = cadenceStale(appsReg?.cadence, appsTs, now);
   const tiles: TileDef[] = [
     // label matches the number: DRAFTED TODAY; ready-to-apply totals live in the sub + drill-down
     appsMissing
@@ -1054,20 +1153,27 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
           id: "apps",
           kicker: "Applications · drafted today",
           projects: ["app-engine-bi", "app-engine-ai"],
-          status: appsStatus,
+          status: appsStale ? worst(appsStatus, "amber") : appsStatus,
           big: <CountUp value={drafted} />,
           sub: `ready to apply BI ${fmtNum(bi.draft_ready_total?.value_num ?? null)} · AI ${fmtNum(
             ai.draft_ready_total?.value_num ?? null
           )}`,
+          stamp: cadenceStamp(appsReg?.cadence, appsTs, now),
           className: "sm:col-span-2",
         },
     // Broken n8n today: green 0 whispers, a red count shouts. The one glance that answers
     // "is anything on the box down right now?" — fed daily by the liveness harvest and
     // flipped red instantly by the Pipeline Error Alert workflow the moment something throws.
-    // Drill-down = the full running-workflow list (n8n-workflows.json).
-    simple("n8n-broken", "n8n · broken today", "infra", "n8n_broken_today", { spark: false, noAccent: true }),
-    simple("brief", "Morning Brief · urgent", "morning-brief", "urgent_count", { spark: false }),
-    simple("email", "Email · act now", "email-triage", "act_now", { spark: false }),
+    // Drill-down = the full running-workflow list (n8n-workflows.json). The infra metrics are
+    // produced by #16's daily local push, so its registry row carries their cadence.
+    withCadence(
+      simple("n8n-broken", "n8n · broken today", "infra", "n8n_broken_today", { spark: false, noAccent: true }),
+      "infra",
+      "n8n_broken_today",
+      regByKey["alex-hq"]
+    ),
+    withCadence(simple("brief", "Morning Brief · urgent", "morning-brief", "urgent_count", { spark: false }), "morning-brief", "urgent_count"),
+    withCadence(simple("email", "Email · act now", "email-triage", "act_now", { spark: false }), "email-triage", "act_now"),
     airbnbTile,
     radarTile,
     expensesTile,

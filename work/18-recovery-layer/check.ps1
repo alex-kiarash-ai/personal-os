@@ -233,6 +233,81 @@ try {
     elseif ($LASTEXITCODE -ne 0) { Add-Drift 'outputs-naming' "outputs-ledger validate errored (exit $LASTEXITCODE)" }
 } catch { Add-Drift 'outputs-naming' "outputs-ledger validate could not run: $($_.Exception.Message)" }
 
+# --- C13 first-fire aging (upgrade P4, 2026-07-12, design 1.4): a LIVE/EVENT registry row that has
+# NEVER fired (first_fire null) may age at most 14 days from its status.md frontmatter `created:`
+# date (manifest states_doc rule). Past that = amber until it fires (a documented drill counts,
+# first_fire_kind=drill) or is re-stated with a reason. ON-DEMAND/DORMANT/PARKED/RETIRED exempt.
+# Detect-only, like everything here; the generator's V9 warns on the same condition.
+$ffRows = @($manifest.projects) + @($manifest.meta.unnumbered)
+foreach ($p in $ffRows) {
+    if (@('LIVE', 'EVENT') -notcontains $p.state) { continue }
+    if ($p.first_fire) { continue }
+    $ffLabel = if ($p.num) { "#$($p.num) $($p.name)" } else { "$($p.name)" }
+    $createdStr = $null
+    if ($p.status_md -and (Test-Path $p.status_md)) {
+        $mCreated = [regex]::Match((Get-Content $p.status_md -Raw), '(?m)^created:\s*(\d{4}-\d{2}-\d{2})')
+        if ($mCreated.Success) { $createdStr = $mCreated.Groups[1].Value }
+    }
+    if (-not $createdStr) {
+        Add-Drift 'first-fire' "$ffLabel : LIVE/EVENT with first_fire null and no status.md created date to age against (fix the frontmatter, or stamp first_fire)"
+        continue
+    }
+    $ageDays = ((Get-Date) - [datetime]::ParseExact($createdStr, 'yyyy-MM-dd', $null)).TotalDays
+    if ($ageDays -gt 14) {
+        Add-Drift 'first-fire' "$ffLabel : never fired (first_fire null), created $createdStr ($([math]::Floor($ageDays))d ago, past the 14-day window) - fire it (a documented drill counts) or re-state with a reason"
+    }
+}
+
+# --- C16 cadence-vs-schedule (upgrade P4, 2026-07-12, design 1.3.3): manifest cadence.label vs the
+# Frequency text in scheduler/schedule.md, per project that carries schedule_jobs. Deterministic
+# label -> frequency-pattern map; a project passes when ANY of its schedule.md entries (matched by
+# job name, entries with a real '- Frequency:' line only) matches its label. Labels with no
+# frequency expectation (on-demand/event/dormant/parked/retired, expected_hours null) are skipped.
+# C14/C15 are reserved for upgrade P10 (passphrase attestation, PAT window).
+$freqPatterns = @{
+    'daily'     = 'daily|nightly|every day'
+    'weekdays'  = 'weekday'
+    'weekly'    = 'weekly|monday|tuesday|wednesday|thursday|friday|saturday|sunday'
+    'monthly'   = 'monthly|last day|month-end'
+    'always-on' = 'daily|always'
+}
+# parse schedule.md into sections (same '### ' + '- Frequency:' contract as scripts/lib/read-sources.js).
+# A section belongs to a project when it names one of its PersonalOS-* jobs OR its '- Command:'
+# first token matches one of the project's declared commands (the older entries - Morning Brief,
+# Application Engine Watch - carry no job-name token inside their own section).
+$schedRaw = Get-Content "scheduler\schedule.md" -Raw
+$schedSections = @()
+$schedParts = ($schedRaw -split '(?m)^### ') | Select-Object -Skip 1
+foreach ($part in $schedParts) {
+    $freqM = [regex]::Match($part, '(?m)^- Frequency:\s*(.+)$')
+    $cmdM  = [regex]::Match($part, '(?m)^- Command:\s*/?([\w-]+)')
+    $jobsIn = [regex]::Matches($part, 'PersonalOS-[\w-]+') | ForEach-Object { $_.Value } |
+        Where-Object { $_ -notlike 'PersonalOS-retry-*' } | Sort-Object -Unique
+    $schedSections += [pscustomobject]@{
+        frequency = if ($freqM.Success) { $freqM.Groups[1].Value.Trim() } else { $null }
+        command   = if ($cmdM.Success) { $cmdM.Groups[1].Value } else { $null }
+        jobs      = @($jobsIn)
+    }
+}
+foreach ($p in $manifest.projects) {
+    if (-not $p.schedule_jobs -or $p.schedule_jobs.Count -eq 0) { continue }
+    $cadLabel = if ($p.cadence) { $p.cadence.label } else { $null }
+    if (-not $cadLabel -or -not $freqPatterns.ContainsKey($cadLabel)) { continue }   # no frequency expectation for this label
+    $candidates = @($schedSections | Where-Object { $_.frequency -and (
+        (@($_.jobs | Where-Object { $p.schedule_jobs -contains $_ }).Count -gt 0) -or
+        ($_.command -and (@($p.commands) -contains $_.command))
+    ) })
+    if ($candidates.Count -eq 0) {
+        Add-Drift 'cadence-schedule' "#$($p.num) $($p.name): cadence label '$cadLabel' but no schedule.md entry with a Frequency line names its job(s) ($($p.schedule_jobs -join ', '))"
+        continue
+    }
+    $matched = @($candidates | Where-Object { $_.frequency -imatch $freqPatterns[$cadLabel] })
+    if ($matched.Count -eq 0) {
+        $freqTexts = ($candidates | ForEach-Object { $_.frequency }) -join ' / '
+        Add-Drift 'cadence-schedule' "#$($p.num) $($p.name): manifest cadence label '$cadLabel' contradicts scheduler/schedule.md frequency text '$freqTexts'"
+    }
+}
+
 # ---------------------------------------------------------------- report
 $n = $drift.Count
 $byCat = $drift | Group-Object cat | Sort-Object Count -Descending
