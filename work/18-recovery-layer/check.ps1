@@ -308,6 +308,42 @@ foreach ($p in $manifest.projects) {
     }
 }
 
+# --- C14 passphrase attestation (upgrade P10, 2026-07-12, closes audit c14 without ever reading the
+# secret): work/18-recovery-layer/state/passphrase-attested.txt carries a yyyy-MM-dd date on its
+# first line - Shaheen writes/refreshes it AFTER confirming the vault-backup passphrase is in his
+# password manager. Missing file or a date > 90 days old = amber (the 90-day re-check doubles as
+# the rotation-review prompt, the c15 fold). The check NEVER touches the passphrase file itself.
+$attestFile = Join-Path $stateDir 'passphrase-attested.txt'
+if (-not (Test-Path $attestFile)) {
+    Add-Drift 'attestation' "vault-backup passphrase NEVER attested: confirm it is in the password manager, then write today's date to work/18-recovery-layer/state/passphrase-attested.txt (queue row 'passphrase-attestation')"
+} else {
+    $attLine = (Get-Content $attestFile -TotalCount 1).Trim()
+    $attDate = [datetime]::MinValue
+    # PS 5.1: TryParseExact needs EXPLICIT culture/styles types - a $null culture breaks overload
+    # resolution ("argument count 5" crash, caught live by the fail-loud wrapper 2026-07-12).
+    $attOk = [datetime]::TryParseExact($attLine.Substring(0, [math]::Min(10, $attLine.Length)), 'yyyy-MM-dd',
+        [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$attDate)
+    if (-not $attOk) {
+        Add-Drift 'attestation' "passphrase-attested.txt first line is not a yyyy-MM-dd date ('$attLine')"
+    } elseif (((Get-Date) - $attDate).TotalDays -gt 90) {
+        Add-Drift 'attestation' "passphrase attestation is $([math]::Floor(((Get-Date) - $attDate).TotalDays))d old (>90d): re-confirm the password-manager copy (and consider rotation), then refresh the dated file"
+    }
+}
+
+# --- C15 PAT expiry window (upgrade P10, 2026-07-12, closes audit c17): the GitHub backup PAT in
+# Windows Credential Manager expires ~2027-07 (created 2026-07-02, per root CLAUDE.md). Amber inside
+# 60 days of expiry so rotation happens before the nightly push dies RED. UPDATE $patExpiry when the
+# PAT is rotated (this constant is the check's single input; the credential itself is never read).
+$patExpiry = [datetime]'2027-07-01'
+$patDaysLeft = ($patExpiry - (Get-Date)).TotalDays
+if ($patDaysLeft -le 60) {
+    if ($patDaysLeft -le 0) {
+        Add-Drift 'pat-expiry' "GitHub backup PAT expiry date ($($patExpiry.ToString('yyyy-MM-dd'))) has PASSED - rotate it in Windows Credential Manager + update `$patExpiry in check.ps1"
+    } else {
+        Add-Drift 'pat-expiry' "GitHub backup PAT expires in $([math]::Floor($patDaysLeft))d ($($patExpiry.ToString('yyyy-MM-dd'))): rotate it, then update `$patExpiry in check.ps1"
+    }
+}
+
 # ---------------------------------------------------------------- report
 $n = $drift.Count
 $byCat = $drift | Group-Object cat | Sort-Object Count -Descending
