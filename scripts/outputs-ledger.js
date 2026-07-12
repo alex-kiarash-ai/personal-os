@@ -6,7 +6,10 @@
 // outputs/ledger.jsonl; INDEX.md (outputs/ + a vault copy for Obsidian) is generated
 // from it, newest first. Files NEVER move; the ledger records where they already are.
 //
-//   node scripts/outputs-ledger.js add --project X --path outputs/... --desc "..."   one row (Close-Out A6 lane)
+//   node scripts/outputs-ledger.js add --project X --path outputs/... --desc "..." [--link a.md,b]  one row (Close-Out A6 lane)
+//   node scripts/outputs-ledger.js update-desc --path outputs/... [--desc "..."] [--link ...]  supersede a row's
+//                                                     desc/links (append-only; render shows latest-per-path). The
+//                                                     enrichment lane for skeletal backfill rows. (upgrade P11)
 //   node scripts/outputs-ledger.js reconcile          self-heal: append skeleton rows for any
 //                                                     unledgered deliverable on disk, then render.
 //                                                     Idempotent. Runs nightly via vault-backup.ps1.
@@ -15,7 +18,8 @@
 //                                                     Exit 0 ok / 2 violation (check.ps1 C12 calls this).
 //   node scripts/outputs-ledger.js render             regenerate both INDEX files from the ledger.
 //
-// Row: {"date","project","kind","desc","path","added"}  path = repo-relative, forward slashes, THE key.
+// Row: {"date","project","kind","desc","path","added","links"?}  path = repo-relative, forward slashes, THE key.
+// Append-only; render() shows the LATEST row per path (update-desc supersedes, upgrade P11).
 // Streams are exempt (never ledgered): logs/ (regenerable runtime), voice/ + typed/ (append-only corpora).
 // ledger.jsonl rides the encrypted vault backup (whitelisted); INDEX files are regenerable.
 
@@ -120,19 +124,42 @@ function skeletonRow(file, added) {
   };
 }
 
+// Latest-per-path (upgrade P11, 2026-07-12): the ledger stays append-only, but the INDEX shows the
+// LAST row per path so `update-desc` (a superseding row) and `--link` corrections win. Append order
+// is chronological, so a Map keyed by path keeps the newest.
+function latestPerPath(rows) {
+  const byPath = new Map();
+  for (const r of rows) byPath.set(r.path, r);
+  return [...byPath.values()];
+}
+
+// Links column (upgrade P11, e2): outputs/INDEX.md renders links as plain code; the vault copy turns
+// vault-relative .md paths into [[wiki links]] so the deliverable joins the Obsidian graph.
+function linkCell(links, wiki) {
+  if (!links || !links.length) return '';
+  return links.map(l => {
+    if (!wiki) return `\`${l}\``;
+    const m = String(l).match(/^vault\/(.+)\.md$/);
+    return m ? `[[${m[1]}]]` : String(l);
+  }).join(' · ');
+}
+
+function buildBody(rows, wiki, stamp) {
+  const table = [
+    '| Date | Project | Kind | What it is | Path | Links |',
+    '|---|---|---|---|---|---|',
+    ...rows.map(r => `| ${r.date} | ${r.project} | ${r.kind} | ${r.desc} | \`${r.path}\` | ${linkCell(r.links, wiki)} |`)
+  ].join('\n');
+  return `**${rows.length} deliverables, newest first.** Generated from \`outputs/ledger.jsonl\` by \`scripts/outputs-ledger.js\` - never hand-edit. Regenerate: \`node scripts/outputs-ledger.js render\`. Last generated: ${stamp}.\n\n${table}\n`;
+}
+
 function render() {
-  const rows = readLedger()
+  const rows = latestPerPath(readLedger())
     .sort((a, b) => (b.date + b.path).localeCompare(a.date + a.path));
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  const table = [
-    '| Date | Project | Kind | What it is | Path |',
-    '|---|---|---|---|---|',
-    ...rows.map(r => `| ${r.date} | ${r.project} | ${r.kind} | ${r.desc} | \`${r.path}\` |`)
-  ].join('\n');
-  const body = `**${rows.length} deliverables, newest first.** Generated from \`outputs/ledger.jsonl\` by \`scripts/outputs-ledger.js\` - never hand-edit. Regenerate: \`node scripts/outputs-ledger.js render\`. Last generated: ${stamp}.\n\n${table}\n`;
-  fs.writeFileSync(INDEX_OUT, `# Outputs Index\n\n${body}`, 'utf8');
+  fs.writeFileSync(INDEX_OUT, `# Outputs Index\n\n${buildBody(rows, false, stamp)}`, 'utf8');
   fs.writeFileSync(INDEX_VAULT,
-    `---\ntags: [index, outputs, generated]\nupdated: ${stamp.slice(0, 10)}\n---\n\n# Outputs Index (deliverables ledger)\n\n${body}`, 'utf8');
+    `---\ntags: [index, outputs, generated]\nupdated: ${stamp.slice(0, 10)}\n---\n\n# Outputs Index (deliverables ledger)\n\n${buildBody(rows, true, stamp)}`, 'utf8');
   return rows.length;
 }
 
@@ -163,18 +190,46 @@ function validate() {
   console.log('validate: outputs/ top-level naming clean.');
 }
 
+// links: comma-separated, from --link (upgrade P11, e2). vault/*.md paths become [[wiki links]]
+// in the vault INDEX; anything else (Notion URLs) renders as-is.
+function parseLinks(get) {
+  const l = get('link');
+  return l ? l.split(',').map(s => s.trim()).filter(Boolean) : [];
+}
+
 function add(args) {
   const get = k => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : null; };
   const p = get('path'), project = get('project'), desc = get('desc');
-  if (!p || !project || !desc) { console.error('usage: add --project X --path outputs/... --desc "..."'); process.exit(1); }
+  if (!p || !project || !desc) { console.error('usage: add --project X --path outputs/... --desc "..." [--link a.md,b]'); process.exit(1); }
   const full = path.join(REPO, p);
   if (!fs.existsSync(full)) { console.error(`add: file not found: ${p}`); process.exit(1); }
   const relP = rel(full);
-  if (readLedger().some(r => r.path === relP)) { console.log(`add: already ledgered: ${relP}`); render(); return; }
+  if (readLedger().some(r => r.path === relP)) { console.log(`add: already ledgered: ${relP} (use update-desc to revise)`); render(); return; }
   const row = { ...skeletonRow(full, 'manual'), project, desc };
+  const links = parseLinks(get);
+  if (links.length) row.links = links;
   appendRows([row]);
   render();
-  console.log(`add: ${row.date} ${row.project} ${relP}`);
+  console.log(`add: ${row.date} ${row.project} ${relP}${links.length ? ' +' + links.length + ' link(s)' : ''}`);
+}
+
+// update-desc (upgrade P11, e1/e2): append a SUPERSEDING row for an existing path with a better
+// description and/or links. The ledger stays append-only; render()'s latest-per-path shows the new
+// one. This is the enrichment lane for skeletal backfill rows.
+function updateDesc(args) {
+  const get = k => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : null; };
+  const p = get('path'), desc = get('desc');
+  if (!p || (!desc && !get('link'))) { console.error('usage: update-desc --path outputs/... [--desc "..."] [--link a.md,b]'); process.exit(1); }
+  const relP = p.split(path.sep).join('/');
+  const existing = latestPerPath(readLedger()).find(r => r.path === relP);
+  if (!existing) { console.error(`update-desc: no ledger row for ${relP} - add it first`); process.exit(1); }
+  const row = { ...existing, added: 'update' };
+  if (desc) row.desc = desc;
+  const links = parseLinks(get);
+  if (links.length) row.links = links;
+  appendRows([row]);
+  render();
+  console.log(`update-desc: ${relP}${desc ? ' desc revised' : ''}${links.length ? ' +' + links.length + ' link(s)' : ''}`);
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -182,4 +237,5 @@ if (cmd === 'reconcile') reconcile();
 else if (cmd === 'validate') validate();
 else if (cmd === 'render') { const n = render(); console.log(`render: ${n} rows.`); }
 else if (cmd === 'add') add(rest);
-else { console.error('usage: outputs-ledger.js <add|reconcile|validate|render>'); process.exit(1); }
+else if (cmd === 'update-desc') updateDesc(rest);
+else { console.error('usage: outputs-ledger.js <add|update-desc|reconcile|validate|render>'); process.exit(1); }
