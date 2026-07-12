@@ -8,6 +8,15 @@ New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\landscape-monitor.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
 
+# P13 (b30): pass the n8n API creds so the deployed-versions probe can read the live writer model
+# (the n8n-version half uses ssh + needs no key). Key file is gitignored; never printed. Still
+# ZERO-TOKEN (no LLM). Graceful: a missing key just means the model half of the deployed row is skipped.
+$keyFile = "work\03-application-engine\config\n8n-api-key.txt"
+if (Test-Path $keyFile) {
+    $env:N8N_API_URL = "https://n8n.shaheenkiarash.com/api/v1"
+    $env:N8N_API_KEY = (Get-Content $keyFile -Raw).Trim()
+}
+
 $out = ''
 try {
     $out = (& node "scripts\landscape-monitor.js" 2>&1 | Out-String)

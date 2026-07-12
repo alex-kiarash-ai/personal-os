@@ -46,6 +46,17 @@ as an open option for Shaheen, deliberately not built yet (no premature coupling
   + HN Algolia JSON) across three categories (models | mcp | patterns). Dedupes on a stable id, appends
   only new items to `system/landscape-log.jsonl`. One source failing is logged and skipped; ALL failing
   is the only hard failure (exit 1). Sources are a DATA array at the top - edit it to add a feed.
+  **Upgrade P13 (2026-07-13):** (b29) dropped two ~96%-noise feeds - `anthropic-sdk-python releases`
+  (SDK point bumps, not model launches) + `MCP servers commits` (CI/docs churn) - and tightened
+  `HN: n8n` minPoints 20->40. (c8) `MAX_PER_SOURCE_PER_RUN=6` caps new items per feed per run (the
+  rest drain next run) so one chatty feed can't flood the log. (b30, the highest-value fix) a
+  `category:'deployed'` self-probe logs the box's OWN running versions - n8n via ssh (`docker compose
+  exec n8n n8n --version`) + the deployed writer model via an authenticated `#03` workflow GET - so
+  the weekly eval compares RELEASED-vs-DEPLOYED instead of guessing (the 2.21.7-guessed-as-1.x
+  incident). Idempotent (the row id is the version+model signature, logs only on change), best-effort
+  (any probe failure just skips the deployed row, the public feeds never depend on it). The wrapper
+  passes `N8N_API_URL`/`N8N_API_KEY` so the model half runs daily; still ZERO-TOKEN (no LLM). First
+  real row 2026-07-12: `n8n 2.21.7 · writer model claude-sonnet-4-6`.
 - `scripts/landscape-eval.js` - P2-S2, deterministic half. Reads the last 7 days of the log. Empty week
   -> exit 3 (the wrapper posts nothing, stays GREEN). Otherwise assembles ONE prompt (the week's items +
   current automations + the MCP Reference section + the three questions + output format) and writes it

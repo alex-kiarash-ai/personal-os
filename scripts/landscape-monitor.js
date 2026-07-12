@@ -15,23 +15,27 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const REPO = path.join(__dirname, '..');
 const LOG_FILE = path.join(REPO, 'system', 'landscape-log.jsonl');
 const SKILLS_CONFIG = path.join(REPO, 'system', 'skills-sources.json');
 const FETCH_TIMEOUT_MS = 15000;
 const MAX_PER_SOURCE_FIRST_RUN = 8; // don't dump a feed's entire history on the first ever run
+const MAX_PER_SOURCE_PER_RUN = 6;   // c8 (upgrade P13): a chatty feed can't flood one run's log
 
 // category = the three signal types the spec names (models | mcp | patterns).
 // kind = how to parse the response: 'atom' (GitHub release/commit feeds) or 'hn' (HN Algolia JSON).
+// b29 (upgrade P13, 2026-07-12): dropped two ~96%-noise feeds - 'anthropic-sdk-python releases' (SDK
+// point bumps, never a model launch: the launch signal lives in HN + the deployed-vs-released compare
+// below) and 'MCP servers commits' (CI/docs churn: the real MCP signal is the SDK releases + HN).
+// Tightened 'HN: n8n / automation' minPoints 20 -> 40 (it was pulling non-compete automation blog posts).
 const SOURCES = [
-  { category: 'models',   name: 'anthropic-sdk-python releases', kind: 'atom', url: 'https://github.com/anthropics/anthropic-sdk-python/releases.atom' },
   { category: 'models',   name: 'HN: Anthropic/Claude',          kind: 'hn',   minPoints: 30, url: 'https://hn.algolia.com/api/v1/search_by_date?query=Anthropic%20Claude&tags=story&hitsPerPage=25' },
   { category: 'mcp',      name: 'MCP TypeScript SDK releases',   kind: 'atom', url: 'https://github.com/modelcontextprotocol/typescript-sdk/releases.atom' },
-  { category: 'mcp',      name: 'MCP servers commits',           kind: 'atom', url: 'https://github.com/modelcontextprotocol/servers/commits/main.atom' },
   { category: 'mcp',      name: 'HN: MCP',                       kind: 'hn',   minPoints: 20, url: 'https://hn.algolia.com/api/v1/search_by_date?query=model%20context%20protocol&tags=story&hitsPerPage=25' },
   { category: 'patterns', name: 'n8n releases',                  kind: 'atom', url: 'https://github.com/n8n-io/n8n/releases.atom' },
-  { category: 'patterns', name: 'HN: n8n / automation',          kind: 'hn',   minPoints: 20, url: 'https://hn.algolia.com/api/v1/search_by_date?query=n8n&tags=story&hitsPerPage=25' },
+  { category: 'patterns', name: 'HN: n8n / automation',          kind: 'hn',   minPoints: 40, url: 'https://hn.algolia.com/api/v1/search_by_date?query=n8n&tags=story&hitsPerPage=25' },
 ];
 // HN Algolia's server-side numericFilters returns 400 on search_by_date, so points are filtered here.
 
@@ -170,6 +174,45 @@ async function scanSkills() {
   return { rows: rows.slice(0, maxPerRun), ok, failed };
 }
 
+// ---- Deployed-versions self-probe (b30, upgrade P13, 2026-07-12) ------------------------------
+// The eval used to GUESS what the box runs (the 2.21.7 incident: it assumed n8n 1.x). This logs a
+// `deployed` row so released-vs-deployed is a real comparison, not a guess. IDEMPOTENT: the row id is
+// the version+model signature, so loadSeenIds dedups it - a new row appears ONLY when the box changes.
+// Everything is best-effort + graceful: the public feeds above never depend on this, and any probe
+// failure (no creds, box unreachable, service renamed) just skips the deployed row. NOT zero-auth
+// (the model read needs the n8n key from env), but still ZERO-TOKEN (no LLM).
+async function probeDeployed() {
+  const date = today();
+  // n8n version: ask the box directly (ssh alias 'n8n' = the Hetzner host, same as the backups/cron).
+  let n8nVer = null;
+  try {
+    const out = execSync(
+      'ssh -o ConnectTimeout=8 -o BatchMode=yes n8n "cd /opt/n8n && docker compose exec -T n8n n8n --version 2>/dev/null || true"',
+      { timeout: 15000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+    ).trim();
+    n8nVer = out.match(/\d+\.\d+\.\d+/) ? out.match(/\d+\.\d+\.\d+/)[0] : (out || null);
+  } catch { /* box unreachable / service renamed -> skip the version half */ }
+  // Deployed writer model: read it off the live BI engine (#03) - env-gated on the n8n API key.
+  let model = null;
+  const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
+  if (base && key) {
+    try {
+      const ac = new AbortController();
+      const t = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
+      const res = await fetch(`${base.replace(/\/$/, '')}/workflows/9XuIEfxS71DEetVR`,
+        { headers: { 'X-N8N-API-KEY': key }, signal: ac.signal }).finally(() => clearTimeout(t));
+      if (res.ok) { const wf = await res.text(); const m = wf.match(/claude-[a-z0-9.-]+/i); model = m ? m[0] : null; }
+    } catch { /* API unreachable -> skip the model half */ }
+  }
+  if (!n8nVer && !model) return [];
+  const id = `deployed::n8n=${n8nVer || '?'}::model=${model || '?'}`;
+  return [{
+    date, category: 'deployed', source: 'box self-probe (P13/b30)',
+    item: `n8n ${n8nVer || 'unknown'} · writer model ${model || 'unknown'}`,
+    link: null, id, extra: { n8n_version: n8nVer, writer_model: model },
+  }];
+}
+
 function loadSeenIds() {
   const seen = new Set();
   let firstRun = true;
@@ -196,11 +239,14 @@ function loadSeenIds() {
       let items = src.kind === 'atom' ? parseAtom(text) : parseHn(text, src.minPoints || 0);
       okSources++;
       if (firstRun) items = items.slice(0, MAX_PER_SOURCE_FIRST_RUN);
+      let addedThisSource = 0;
       for (const it of items) {
         const id = idOf(src.category, it.link, it.title);
         if (seen.has(id)) continue;
-        seen.add(id);
+        if (addedThisSource >= MAX_PER_SOURCE_PER_RUN) break; // c8 (P13): cap NEW items per source/run;
+        seen.add(id);                                          // the rest stay unseen and drain next run
         fresh.push({ date, category: src.category, source: src.name, item: it.title, link: it.link, id });
+        addedThisSource++;
       }
     } catch (e) {
       failed.push(`${src.name} (${e.message})`);
@@ -218,6 +264,15 @@ function loadSeenIds() {
     seen.add(row.id);
     fresh.push(row);
   }
+
+  // Deployed-versions self-probe (b30). Best-effort; never affects okSources or the hard-fail gate.
+  try {
+    for (const row of await probeDeployed()) {
+      if (seen.has(row.id)) continue; // idempotent: only a CHANGED deployed signature logs
+      seen.add(row.id);
+      fresh.push(row);
+    }
+  } catch (e) { console.error(`landscape-monitor: deployed probe skipped (${e.message})`); }
 
   if (okSources === 0) {
     console.error(`landscape-monitor: ALL sources failed - nothing fetched. Failures: ${failed.join('; ')}`);
