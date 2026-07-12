@@ -70,6 +70,10 @@ work/12-linkedin-series/profile/
 soul.md
 # HQ brain-graph snapshot embeds vault node names (people + job-target companies)
 work/16-alex-hq/app/public/data/graph.json
+# Waiting-on-you queue + deferred Notion writes carry personal context (upgrade P2, MR2-1);
+# gitignored -> auto-covered by the encrypted vault backup (its set derives from this file)
+system/human-actions.jsonl
+system/pending-writes.jsonl
 # raw personal dumps + personal ops data + ingested notes + personal-story episodes
 I want you to brainstorm with me, I.txt
 notion_rows.txt

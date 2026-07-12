@@ -10,6 +10,7 @@ Read vault/log.md for the most recent entries. Report:
 - Anything needing attention (flagged items, failed runs, out-of-range health values)
 - Upcoming scheduled tasks from scheduler/schedule.md
 - **HQ inbox:** GET `https://n8n.shaheenkiarash.com/webhook/alex-inbox` (X-Alex-Token from work/16-alex-hq/config/alex-hq-token.txt, never printed). If `count_new` > 0, file the notes per work/16-alex-hq/CLAUDE.md "Inbox Contract" (voice → scp + local Whisper first) and mark them; report "HQ notes: N filed". Unreachable → one line, continue.
+- **Waiting on you:** `node scripts/human-actions.js list` (upgrade P2). Print the open queue with ages; "done: <id>" from Shaheen closes an item via the `done` command. Also flush anything flushable from `system/pending-writes.jsonl` (deferred Notion writes) while here.
 
 Keep it brief. 10 lines max. The user wants a snapshot, not a report.
 

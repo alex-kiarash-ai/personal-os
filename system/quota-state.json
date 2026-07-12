@@ -1,0 +1,5 @@
+{
+  "_doc": "Shared quota truth (upgrade P2, design 1.7.1). Writers: close-out.ps1's limit-detect branch (local), the Pipeline Error Alert cap-POST mirror (n8n side, wired in P3). Readers: the P3 pre-run wrapper gate. state: ok|capped. A capped anthropic_api also auto-enqueues the Console-raise row in human-actions.",
+  "anthropic_api": { "state": "capped", "detected": "2026-07-08", "reset_date": "2026-08-01" },
+  "claude_plan": { "state": "ok", "detected": null }
+}

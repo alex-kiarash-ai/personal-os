@@ -34,7 +34,7 @@ Every Friday, reads from ALL nine other automations + Gmail/Calendar and rolls t
 Any source with no data this week → show "nothing this week" rather than omitting the section or erroring.
 
 ## Deliverable choice
-At the START of each run, ask via AskUserQuestion: **"Claude Design deck, PDF summary, or both?"** Default = Claude Design deck. (Scheduled runs default to the Claude Design deck + PDF export, no prompt - a human isn't there.)
+**DECIDED (Shaheen, D7 of the upgrade P0, 2026-07-12): branded PDF only.** The proven 07-03 path: ALEX-branded HTML rendered to PDF (headless Chrome), saved to outputs/weekly-exec-report/YYYY-MM-DD/. No per-run AskUserQuestion, no Claude Design deck by default (an explicit ask from Shaheen can still override on a given Friday). The Notion page carries the full content either way.
 
 ## The 7-slide deck (Claude Design on claude.ai/design → PDF export to outputs/weekly-exec-report/YYYY-MM-DD/weekly-exec-YYYY-MM-DD.pdf)
 1. **Week Summary** - the headline + 3-4 top-line metrics (shipped, meetings, emails, spend).
@@ -42,12 +42,13 @@ At the START of each run, ask via AskUserQuestion: **"Claude Design deck, PDF su
 3. **Key Meetings** - meetings held + outcomes/action items (from Meeting Notes).
 4. **Market Intel** - competitor moves (or "Market Pulse not built yet - no intel this week").
 5. **Relationships** - who you interacted with, follow-ups due, new contacts (from CRM).
-6. **Blockers** - what's stuck and why (Blocked sprint items, gated drafts, unanswered threads).
+6. **Blockers** - what's stuck and why (Blocked sprint items, gated drafts, unanswered threads) + the **Waiting-on-you weekly line** (upgrade P2): `node scripts/human-actions.js list` items that aged another week since last Friday.
 7. **Next Week Priorities** - the levers for next week, priority-filtered by soul.md (rent-moving first: job pipeline > learning > modeling).
 Brand: ALEX (brand-config.md, since 2026-07-03): canvas #001219, Dark Teal #005f73 / Dark Cyan #0a9396 structure, ONE Golden Orange #ee9b00 accent, Calibri, ALEX logo block every slide. Title + closing dark (#001219), content light.
 
 ## Notion weekly summary page
 One page per week under the Personal OS parent (`37bb5342-d7f1-81a4-8bf1-d5642d7c3e85`), titled "Weekly Report YYYY-MM-DD", with the FULL report as page content (all 7 sections as `##` headers). No new database - it's a page, not a DB row.
+**Deferred-writes convention (upgrade P2, 2026-07-12):** if Notion is unreachable at write time, append the pending page-write to `system/pending-writes.jsonl` (gitignored) instead of relying on memory; every interactive session / /status / next scheduled run flushes what it can and removes flushed rows. The 07-10 deferred page is seeded there.
 
 ## Vault Structure
 - **Tier 1:** vault/projects/weekly-exec-report/status.md - last run, deck path, links to weekly pages.

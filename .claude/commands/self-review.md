@@ -8,7 +8,7 @@ Once a week Alex reads its own mistakes and learnings and proposes upgrades to i
 - `/self-review` - run the review now (also the weekly Sunday 20:00 job).
 
 ## Steps the command executes
-1. **Gather** the diff since the last review: corrections in [[projects/teach-alex/corrections-log]] (#02), new `vault/projects/error-log.md` entries, INCOMPLETE close-outs in [[projects/self-review/close-out-log]], soul.md My Words additions (git diff), decisions.md changes.
+1. **Gather** the diff since the last review: corrections in [[projects/teach-alex/corrections-log]] (#02), new `vault/projects/error-log.md` entries, INCOMPLETE close-outs in [[projects/self-review/close-out-log]], soul.md My Words additions (git diff), decisions.md changes, and the human-actions queue (`node scripts/human-actions.js list`, upgrade P2: items that aged another week get a standing weekly line).
 2. **Cluster** into themes.
 3. **Propose** each change concretely: exact file + old -> new text + one-line rationale + the correction/error it came from.
 4. **Write** `vault/projects/self-review/YYYY-MM-DD.md` and open the approval surface (Alex HQ card / Notion row).

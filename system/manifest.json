@@ -5,6 +5,7 @@
     "states_doc": "LIVE = scheduled/event-driven + producing (needs wrapper/error-handler + HQ push). ON-DEMAND = runs when invoked. EVENT = triggered by a detected event, no cron by design. DORMANT = built, waiting on an external dependency (name it + revisit date; two unchanged revisits force activate-or-retire). PARKED = deliberately stopped (resume context + revisit date; same two-strike rule). RETIRED = superseded, tombstoned, strikethrough row.",
     "utility_commands": ["setup", "ingest", "status", "lint", "new", "cron-setup", "brand"],
     "known_work_folders": ["voice"],
+    "known_metric_slugs_no_project": { "human-actions": "the Waiting-on-you queue (upgrade P2, 2026-07-12): system/human-actions.jsonl summary pushed by /alex-hq step 1b; consumed by the P7 HQ strip. Not a project; claimed here so the slug is never mistaken for drift." },
     "known_work_folders_note": "Non-project work/ folders that are legit tooling, not numbered automations. voice = the on-demand two-way voice loop (alex_voice.py; registered as an unnumbered project below). C3 allowlists these so a real rogue folder still flags.",
     "known_extra_projects_no_work_folder": [
       { "name": "recovery", "status_md": "vault/projects/recovery/status.md", "reason": "system layer; code in scripts/ + work/18-recovery-layer" },
