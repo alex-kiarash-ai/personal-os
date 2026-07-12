@@ -295,6 +295,45 @@ button.tile:hover {
   background: rgba(10, 147, 150, 0.4);
 }
 
+/* Keyboard a11y (P9 / design 4.4). All additive: a :focus-visible ring shows ONLY under keyboard
+   focus (never on pointer/tap), so the default render is pixel-identical - today only :hover was
+   styled, leaving keyboard users navigating blind. 2px var(--cyan) outline, offset 2px. */
+.tile:focus-visible,
+.health-row:focus-visible,
+.btn-mic:focus-visible,
+.btn-send:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* Skip-to-main link: off-screen until it receives keyboard focus, then it snaps into the top-left
+   as a real brand chip. Invisible in the default (unfocused) render. */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 60;
+  transform: translateY(-160%);
+  transition: transform 0.18s ease;
+  font-family: var(--font-chakra), sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.55rem 1rem;
+  border-radius: 9999px;
+  background: var(--orange);
+  color: var(--ink);
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-link { transition: none; }
+}
+
 /* notes card (two-way inbox) */
 .note-input {
   flex: 1;

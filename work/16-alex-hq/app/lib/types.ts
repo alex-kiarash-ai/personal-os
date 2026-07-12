@@ -22,6 +22,42 @@ export type Summary = {
   projects: Record<string, Project>;
 };
 
+/* static /data JSON shapes (producers: n8n_liveness.py, build-todos.mjs, build-life.mjs).
+   Moved out of dashboard.tsx in the P9 component extraction - same shapes, relocated. */
+export type N8nList = {
+  generated_at: string;
+  active_count: number;
+  workflows: { name: string; id: string; last_exec: string | null; status: string; broken_reason: string | null }[];
+};
+export type TodosData = {
+  generated_at: string;
+  snapshot_date: string;
+  items: { task: string; status: string; since: string }[];
+};
+export type LifeData = {
+  generated_at: string;
+  gym: { start_date: string; interval_days: number; label: string; as_of: string | null };
+  plants: { as_of: string | null; items: { name: string; every_days: number; last_watered: string }[] };
+};
+/* projects.json (build-projects.mjs, from the project registry): the full roster so the health
+   board shows EVERY registered project, not just the ones pushing telemetry. hq_slug links a
+   project to its live metrics; null = it pushes none (renders as an honest idle ticket). */
+export type RegProject = {
+  name: string;
+  num: number | null;
+  title: string;
+  state: string;
+  trigger: string;
+  one_liner: string;
+  hq_slug: string | null;
+  /* cadence-as-data (upgrade P4, 2026-07-12): the registry's cadence object + first-fire proof.
+     Nullable so a stale projects.json (pre-P4) degrades to the old 48h fallback, never crashes. */
+  cadence?: Cadence | null;
+  first_fire?: string | null;
+  first_fire_kind?: "live" | "drill" | null;
+};
+export type ProjectsData = { generated_at: string; count: number; projects: RegProject[] };
+
 export type InboxNote = {
   id: number;
   note: string;
