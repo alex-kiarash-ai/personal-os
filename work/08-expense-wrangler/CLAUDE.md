@@ -54,6 +54,14 @@ Summary formulas reference WHOLE COLUMNS of the log ($C:$C, $G:$G, $H:$H), so th
 - **Fed by:** Gmail receipts, inbox drops, bank (Chrome).
 - **Feeds into:** the finance picture in [[me/situation]] (monthly burn), future tax prep. Reports Done to the sprint board.
 
+## SCHEDULED ONE-TIME: the alex-costs merge (P9a / D10, DUE at the 2026-07-31 monthly close)
+**The 2026-07-31 batch-mode run MUST also execute the alex-costs merge and close it 100% (Shaheen deferred it to the due date, 2026-07-13).** Build it into THIS run, do not defer again:
+1. Add an **"Alex Costs"** sheet to `build_workbook.py`: what Alex itself costs to run (Anthropic/Claude plan, n8n/Hetzner box, any API spend), all REAL formulas (=SUM/=SUMIFS, never hardcoded), brand-styled like the other sheets. NOTE (corrected 2026-07-13): alex-costs is NOT a never-fired scaffold - it FIRST FIRED 2026-07-02/03 (a real 4-sheet Excel + a 26-measure Power BI dashboard, [[projects/alex-costs/status]]) and the ~1,032 kr/mo is a MODELED run-rate, not a raw assumption. So this merge CONSOLIDATES that monthly refresh INTO the expense close (one monthly money run, not two) and refreshes the figure with the current month's actuals; it does not "discover" the number.
+2. Resolve the 0-byte `alex-cost-dashboard.pbip` reported by audit lane e (the real .pbip is at `outputs/alex-costs/2026-07-03/`; find + delete the stray 0-byte one, or confirm which is canonical) - never leave it ambiguous.
+3. Re-state the registry: `system/manifest.json` meta.unnumbered alex-costs → RETIRED/absorbed per D10 (keep the `hq_project` slug so its HQ tile survives) AND stamp `first_fire: "2026-07-02", first_fire_kind: "live"` (correcting the audit-false null, same class as runway b19 + meeting-intel a8), then `node scripts/generate-alex.js`.
+4. Propagate: alex-costs status.md (merged + current figure), vault/log.md, the Alex Upgrade Plan Notion board P9a row → Done.
+This is the LAST open build item of the run-24 upgrade program (with P3v's 08-01 verify); the whole program closes when both land.
+
 ## Post-Run (mandatory)
 1. New vendor → vendors.md. New recurring merchant of note → vault/business/ only if it matters (not every café).
 2. [[wiki links]] between status, receipts, me/situation.
