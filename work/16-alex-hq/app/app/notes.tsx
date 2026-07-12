@@ -269,14 +269,14 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
       </div>
 
       {recording ? (
-        <div className="flex items-center gap-2 text-sm" style={{ color: "#ff8a75" }}>
+        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--error-text-dark)" }}>
           <span className="dot dot-red" />
           recording {recSeconds}s · tap the button again to stop (max {MAX_REC_SECONDS}s)
         </div>
       ) : null}
 
       {flash ? (
-        <p role="status" aria-live="polite" className="text-sm" style={{ color: flash.includes("NOT") ? "#ff8a75" : "var(--aqua)" }}>
+        <p role="status" aria-live="polite" className="text-sm" style={{ color: flash.includes("NOT") ? "var(--error-text-dark)" : "var(--aqua)" }}>
           {flash}
         </p>
       ) : null}

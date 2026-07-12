@@ -18,6 +18,7 @@
   --warn: var(--color-rusty-spice);
   --error: var(--color-oxidized-iron);
   --paper: #ffffff; /* law §4.2 primary text on dark: white, not a named palette token */
+  --error-text-dark: #ff8a75; /* law §4.4 Signal Coral: small error/recording text on dark, contrast 8.4:1 on #001219 */
   --mute: rgba(148, 210, 189, 0.62); /* aqua tier, not off-palette slate */
   --card: rgba(0, 35, 46, 0.52);
 }
@@ -370,7 +371,7 @@ button.tile:hover {
 }
 .btn-mic.rec {
   background: rgba(174, 32, 18, 0.18);
-  color: #ff8a75;
+  color: var(--error-text-dark);
   border-color: rgba(174, 32, 18, 0.65);
   animation: rec-breathe 1.6s ease-in-out infinite;
 }

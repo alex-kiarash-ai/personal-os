@@ -585,10 +585,10 @@ function v7StateDriftLint({ stagedDir, manifest }, failures, warnings) {
 const HQ_APP_DIR = 'work/16-alex-hq/app';
 // V8 allowlist - every entry documented:
 //   #ffffff : law §4.2 primary text on dark (also in allHexes; listed for explicitness)
-//   #ff8a75 : notes.tsx recording/error text + globals.css .btn-mic.rec - documented INTERIM
-//             pending decision D5 (--error-text-dark); P8 routes it through a token and removes
-//             this entry.
-const V8_ALLOWLIST = new Set(['#ffffff', '#ff8a75']);
+//   (#ff8a75 retired from the allowlist 2026-07-12, P8/D5: it is now the law token Signal Coral
+//    --error-text-dark in color-system.md, so it resolves via allHexes; the app routes it through
+//    var(--error-text-dark) in globals.css + notes.tsx.)
+const V8_ALLOWLIST = new Set(['#ffffff']);
 const V8_EXTS = new Set(['.ts', '.tsx', '.css']);
 
 function v8HqHexScan({ stagedDir, colorTokens }, failures) {

@@ -13,9 +13,11 @@ Ink Black `#001219` · Dark Teal `#005f73` · Dark Cyan `#0a9396` · Pearl Aqua 
 - Title/cover: 26pt bold · H1: 20pt bold `#005f73` · H2: 16pt bold `#005f73` · H3: 13pt bold `#005f73` · Body: 11pt `#001219` · Captions/footnotes: 9pt `#4a5a5e`. Line height ~1.45.
 - Emphasis = bold, never color alone. Headings never in Golden Orange or any red (those are accent/alarm, not structure).
 
-**Web/UI (Alex HQ, web apps): `"Segoe UI", system-ui, -apple-system, sans-serif`.**
+**Web/UI default (generated HTML reports, simple web output): `"Segoe UI", system-ui, -apple-system, sans-serif`.**
 - Calibri is not web-safe cross-device; Segoe UI is its closest system sibling and needs no font download.
 - Scale (px): display 32 · h1 24 · h2 18 · body 16 · secondary 14 · caption 12. Same color rules as documents (dark mode: white primary, Pearl Aqua secondary, Vanilla Custard tertiary).
+
+**Web/UI instrument surfaces (Alex HQ dashboard) - APPROVED DEVIATION (documented 2026-07-12, D6):** the HQ app runs **Chakra Petch** (display, kickers, big stat numbers) + **IBM Plex Sans** (body) + **IBM Plex Mono** (numerals/timestamps), loaded via `next/font/google`. This is a deliberate instrument-panel aesthetic for the always-on dashboard, one deviation from the Segoe UI default and scoped to the HQ app only. Segoe UI stays the default for every other web surface. Same color rules as above.
 
 - The ALEX display lettering exists only inside the logo file. Never retype the wordmark.
 

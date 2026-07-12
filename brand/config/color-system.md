@@ -89,10 +89,13 @@ Accessibility is not optional. Use these pairings only:
 - **Success / positive:** Dark Cyan `#0a9396` or Pearl Aqua `#94d2bd`.
 - **Warning:** Rusty Spice `#bb3e03`.
 - **Error / critical:** Oxidized Iron `#ae2012`, with `#9b2226` for pressed or deep variants.
+- **Error / recording text on DARK surfaces (small text):** Signal Coral `#ff8a75` (semantic token `--error-text-dark`). Adopted 2026-07-12 (D5 of the upgrade): the palette red `#ae2012` reads muddy at small sizes on `#001219`/`#00232e` (~4:1), while Signal Coral clears it at ~8.4:1. Use ONLY for small error/recording state text on dark cards (e.g. the HQ "note not saved" line, the mic recording countdown), never as a fill, border, or on light surfaces.
 
 ### 4.5 Charts and Data Visualization
 
 Order of series colors: `#0a9396`, `#ee9b00`, `#005f73`, `#94d2bd`, `#ca6702`. Reserve the reds for negative values, thresholds, or alerts in the data itself. Gridlines and axes: `#94d2bd` at 20 to 30% opacity on dark, `#001219` at 15% on light.
+
+**Approved data-viz exception (2026-07-12, D10):** a network/force graph's own self/"me" node may render pure white `#ffffff` for maximum contrast against the teal node field (the Alex HQ Brain graph does this). This is a single-node legibility choice, not a series color; it does not count against the one-accent rule.
 
 ### 4.6 Gradients
 
@@ -174,6 +177,7 @@ Rule of thumb: maximum one companion color per asset, and never in the core UI.
   --warning: var(--color-rusty-spice);
   --error: var(--color-oxidized-iron);
   --error-deep: var(--color-brown-red);
+  --error-text-dark: #ff8a75; /* Signal Coral - small error/recording text on dark surfaces, contrast 8.4:1 on #001219 (D5, 2026-07-12) */
 }
 
 [data-theme="light"] {
