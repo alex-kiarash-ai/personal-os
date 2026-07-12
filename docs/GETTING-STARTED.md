@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-11. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-12. -->
 
 # Getting Started: set up and run the Personal OS
 
@@ -25,7 +25,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 - **Then hand-refine `soul.md`** (the biggest lever, that is your identity and voice).
 - Start building automations with `/new` and the per-project `work/{n}/CLAUDE.md` specs. `/new` writes the registry entry in `system/manifest.json` FIRST, then scaffolds.
 
-## 4. The automations (24 registered, non-retired)
+## 4. The automations (25 registered, non-retired)
 
 The registry `system/manifest.json` is the source of truth; this list is generated from it.
 
@@ -43,7 +43,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway.
 - **14 AI Application Engine** (LIVE; trigger: n8n daily 07:30) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
-- **16 Alex HQ** (LIVE; trigger: always-on + push 8:30) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
+- **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.
 - **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + 1st-Mon lint + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the gated monthly lint, the auth probe.
 - **19 Venture Sync** (DORMANT, revisit 2026-10-01; trigger: -) - Read-only mirror of venture repos into the vault. Waiting on the repos existing on this machine.
@@ -53,7 +53,8 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **23 Self-Review** (LIVE; trigger: Sun 20:00) - Alex reviews Alex weekly: clusters corrections, errors, INCOMPLETE close-outs; proposes upgrades behind approval.
 - **24 Flight Search** (ON-DEMAND; trigger: on-demand) - Cheapest + best flights across four sources in parallel (Kiwi, Turkish, Google Flights, Skyscanner); hybrid criteria intake, dedupe to the single cheapest, rank by Shaheen's rules, 30-min follow-up memory, fresh every search.
 - **25 Evolution** (LIVE; trigger: daily monitor 07:10 + weekly eval Mon 07:50) - Keeps Alex current: a zero-token daily monitor logs new Claude models, MCPs, n8n patterns AND agent skills (skills.sh/skillsmp/skillhub) to system/landscape-log.jsonl; a weekly Claude digest proposes/skips each; models/MCPs/patterns route through a human-gated integration runbook, while matching skills AUTO-INSTALL via a deterministic audited installer (git-reversible). Alex proposes; Shaheen decides, except the skills lane self-installs.
-- **Voice** (ON-DEMAND; trigger: on-demand (desktop shortcut / Ctrl+Alt+A / talk.ps1)) - Hands-free two-way voice: open-mic Whisper in, persistent Claude (sonnet) brain as the full Alex, Edge-TTS neural voice out with a never-mute Edge->SAPI floor. Free/local except the brain's Claude-plan usage. Adopted 2026-07-07 as THE voice solution (replaced v1's OpenAI TTS + the SAC-blocked Kokoro plan); latency + conversation tuning same day.
+- **26 Prompting** (ON-DEMAND; trigger: on-demand) - The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot.
+- **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 - **Alex Cost Tracker** (ON-DEMAND; trigger: monthly (piggybacks expense slot)) - What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate).
 - **Modeling** (DORMANT, revisit 2026-10-01; trigger: -) - Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows).
 
@@ -98,7 +99,7 @@ Nothing runs until you schedule it. On this machine the scheduler is Windows Tas
 | Vault Backup - encrypted local-only (Recovery Phase 1) | scripts/vault-backup.ps1 (pure PowerShell, no claude call) | daily at 9:45 PM (Task Scheduler job PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push. |
 | Recovery Layer sweep (Recovery Phase 2) | work/18-recovery-layer/check.ps1 (pure PowerShell, no claude call, zero tokens) | Mondays at 7:30 AM (Task Scheduler job PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure. |
 | Vault Search Index (upgrade-scan item 1) | scripts/run-vault-index.ps1 (pure Python/SQLite, no claude call, zero tokens) | daily at 9:35 PM (Task Scheduler job PersonalOS-vault-index; StartWhenAvailable + battery-safe + ExecutionTimeLimit 15 min; NO restart ladder - a missed rebuild self-heals next night and on-demand `build` always works). Placed 10 min before the 21:45 vault backup so the fresh .db ships in the encrypted blob. |
-| Alex HQ Local Push | /alex-hq | daily at 8:30 AM |
+| Alex HQ Local Push | /alex-hq | daily at 8:45 AM (staggered from 8:30 on 2026-07-12, upgrade P1/c11: it shared the slot with application-engine, both spawning Claude sessions with no serialization) |
 | Runway Command Center | /runway | monthly, last day of month, AFTER /expense-wrangler (reads the freshest expense + booking data) |
 | Interview-to-Offer Copilot | /interview | NO dedicated schedule. Event-driven (the morning brief flags interview invites/events) + on-demand /interview. No Task Scheduler job by design. |
 | Teach-Alex Button | /teach-alex | NO dedicated schedule. Event-driven (a correction note in the alex_inbox, caught at the morning-brief inbox step + other touchpoints) + on-demand. No Task Scheduler job by design. |

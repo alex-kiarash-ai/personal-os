@@ -1,53 +1,53 @@
-# Voice (unnumbered, on-demand)
+# Voice (unnumbered; v3 in-session since 2026-07-12)
 
 ## What it actually does
-A hands-free, two-way spoken conversation with Alex, running on the ThinkPad. You just talk (open
-mic, no button, no wake word), a short chime confirms she heard you, and a few seconds later she talks
-back in a warm natural voice, sentence by sentence, in Alex's personality. It is the full Alex brain
-behind it, not a stripped-down assistant: soul.md, the vault, and read-only tools, loaded once and
-kept alive across the whole conversation, so she remembers what you said three turns ago. She
-understands and can reply in English, Arabic, and Swedish.
+You talk to the actual Claude Code session you are working in, and it talks back. Hold
+Space (with the prompt empty), speak (English or Swedish), release: your words appear in
+the prompt, you read them, you press Enter. Press Ctrl+Alt+D instead to speak Arabic (or any of the three
+languages) through the local Whisper model, which types the words into the prompt for you.
+Either way, when the voice flag is on, Alex speaks every reply out loud in a warm neural
+voice. One brain, the real session, no separate voice assistant.
 
 ## Why it exists
-Typing is a bottleneck for half of Shaheen's thoughts, and the Alex HQ note-drop is one-way (you leave
-a note, no reply). This is the conversational lane: same brain, no keyboard, real back-and-forth.
+Typing is a bottleneck for half of Shaheen's thoughts. Two earlier voice builds ran a
+SEPARATE Alex brain next to the working session; v2 also proved crash-prone (a long-lived
+audio process with a fragile pipe). The 2026-07-12 research run (three agents, one
+adversarial elimination) found that Anthropic had quietly shipped native voice dictation
+inside Claude Code itself, which flipped the answer: stop building a voice assistant,
+wire voice INTO the session.
 
-## The tool we use (and what replaced what)
-The current tool is `work/voice/alex_voice.py` (v2), built 2026-07-07. It stitches together four free/
-local pieces: **openWakeWord** (optional wake word, ONNX), **openai-whisper** for speech-to-text (local,
-nothing leaves the box), **one persistent `claude` process** as the brain, and **Edge-TTS** (Microsoft's
-neural voices over HTTPS) for the voice, with the built-in **Windows SAPI** voice as an automatic
-never-go-silent fallback.
-
-Two earlier attempts were removed:
-- **v1, the OpenAI mini-based setup** (push-to-talk + OpenAI `gpt-4o-mini-tts`): it kept dying when the
-  OpenAI credits ran out, which is what got voice parked in the first place. Gone.
-- **The failed Kokoro / faster-whisper install** (the researched v2 plan): blocked at runtime by Windows
-  Smart App Control, which refuses to load their unsigned native audio DLLs. Abandoned mid-build and
-  pivoted to Edge-TTS, which is signed-safe, free, and a bonus speaks Arabic and Swedish (Kokoro could
-  not). Its only leftover, an orphaned `ctranslate2` package, was uninstalled 2026-07-07.
+## How v3 is put together (and why it doesn't crash)
+- **Speech in (EN/SV):** Claude Code's own `/voice` in HOLD mode. Free, no tokens,
+  maintained by Anthropic. Audio streams to Anthropic's servers for transcription (that
+  is the one privacy trade; the Arabic lane below is fully local).
+- **Speech in (AR/SV/EN, local):** the Ctrl+Alt+D dictate lane, reusing v2's proven
+  Whisper code. It types the transcript and NEVER presses Enter; with auto-accept
+  permissions on this machine, a misheard sentence must never be able to execute, so a
+  human Enter is the law in both input lanes.
+- **Speech out:** a Stop hook hands each reply to a tiny worker process that speaks it
+  (Edge-TTS neural voice, Windows SAPI as the cannot-die fallback) and exits. Gated on a
+  flag file: say "voice on" / "voice off" to Alex.
+- The v2 crash classes are designed out by lifecycle: nothing audio-related lives longer
+  than one utterance or one reply.
 
 ## What it costs
-Effectively free to run, with one thing to watch:
-- **Speech-in (Whisper), the wake word, and the SAPI fallback voice are 100% local and free.**
-- **Edge-TTS is free** (no key, no account) but sends only Alex's spoken reply text to Microsoft over
-  the internet. If it ever breaks, the local SAPI voice takes over automatically, so she never goes mute.
-- **The brain is the real cost: every turn is a live Claude call on the same plan as a normal Claude Code
-  session.** A long spoken conversation burns tokens like a long chat would. This is exactly why her
-  replies are now forced short (1-3 sentences) and hard-capped, and why the tool is launch-on-demand,
-  not always-on: an always-listening mic would quietly turn room noise into paid Claude calls.
+$0/month. Native dictation is free and consumes no Claude tokens; Whisper and SAPI are
+local; Edge-TTS is free (sends only Alex's reply text to Microsoft). Voice turns are
+normal session turns, so they cost exactly what typing the same prompt would.
 
-The old failure mode is designed out: v1 went silent when a paid quota died. v2's floor (SAPI) is local
-and cannot die, so the voice output cannot silently stop the way v1 did.
-
-## Current state: ON-DEMAND (adopted 2026-07-07 as the voice solution)
-Un-parked and adopted after Shaheen's live testing and a same-day tuning pass (latency, sentence gaps,
-the "she never stops talking" fix, and a one-click launcher). Launch it three ways: the **"Alex Voice"
-desktop shortcut**, the **Ctrl+Alt+A** global hotkey, or `work\voice\talk.ps1`. Deliberately not started
-at login. Full technical spec, config knobs, verify steps, and troubleshooting live in
-`work/voice/README.md`.
+## Current state
+- **v3 (in-session): the voice solution.** Always armed via settings + hooks; passive
+  until you hold the key or turn the speak flag on. Live gates G1-G4 (mic tests) run with
+  Shaheen; everything testable headlessly passed 2026-07-12.
+- **v2 (`alex_voice.py`): parked as the walk-around tool.** The only open-mic hands-free
+  lane (launch on demand: "Alex Voice" shortcut / Ctrl+Alt+A). Its separate brain and its
+  crash surfaces are why it is no longer the primary.
+Full spec, config, troubleshooting: `work/voice/README.md`. Decision record:
+`vault/research/alex-voice-in-session.md` (research-team run 22).
 
 ## Works together with
-- **soul.md and the vault** - the persistent Claude process is the full Alex, not a generic assistant.
-- **[Alex HQ](16-alex-hq.md)** - HQ's "Drop a note to Alex" card is the async, one-way capture lane;
-  voice is the live, two-way lane. Same brain, different channel.
+- **soul.md and the vault** - it is the real working session, so voice gets the full Alex.
+- **The soul corpus** - /voice dictations arrive as typed prompts (captured by the typed-
+  input hook); the dictate lane appends raw spoken lines to outputs/voice/transcripts/.
+- **[Alex HQ](16-alex-hq.md)** - HQ's note-drop stays the async phone lane; v3 is the
+  live at-the-desk lane.

@@ -36,7 +36,7 @@ Any source with no data this week → show "nothing this week" rather than omitt
 ## Deliverable choice
 At the START of each run, ask via AskUserQuestion: **"Claude Design deck, PDF summary, or both?"** Default = Claude Design deck. (Scheduled runs default to the Claude Design deck + PDF export, no prompt - a human isn't there.)
 
-## The 7-slide deck (Claude Design on claude.ai/design → PDF export to outputs/reports/weekly-exec-YYYY-MM-DD.pdf)
+## The 7-slide deck (Claude Design on claude.ai/design → PDF export to outputs/weekly-exec-report/YYYY-MM-DD/weekly-exec-YYYY-MM-DD.pdf)
 1. **Week Summary** - the headline + 3-4 top-line metrics (shipped, meetings, emails, spend).
 2. **Project Status** - sprint board snapshot: Done/In Progress/Next/Planned/Blocked counts + what moved (velocity).
 3. **Key Meetings** - meetings held + outcomes/action items (from Meeting Notes).
@@ -72,7 +72,7 @@ soul.md + every source in the table above. brand/config + template.
 4. metrics-history row appended.
 5. vault/index.md + vault/log.md.
 6. Sprint board: Done on first build (2026-06-12).
-7. Clean temp (build scripts, render dirs); keep only the exported .pdf in outputs/reports/ (the deck lives on claude.ai/design; note its project link in status.md).
+7. Clean temp (build scripts, render dirs); keep only the exported .pdf in outputs/weekly-exec-report/YYYY-MM-DD/ (the deck lives on claude.ai/design; note its project link in status.md).
 
 ## Close-Out Extras (Close-Out Gate)
 Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not COMPLETE until:

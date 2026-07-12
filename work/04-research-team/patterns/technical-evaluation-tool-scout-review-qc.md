@@ -1,8 +1,8 @@
 ---
 class: technical-evaluation
 created: 2026-07-05
-last_used: 2026-07-07
-times_used: 4
+last_used: 2026-07-12
+times_used: 5
 ---
 # Tool Scout -> Review -> QC (sequential 3-loop)
 
@@ -32,7 +32,12 @@ Session grounds first, then runs the three sequentially (each sees the prior's o
 - Check LANGUAGE coverage of every model tier separately (STT vs TTS): the multilingual requirement survived STT in every option and silently died at TTS in all of them - only the QC pass caught it.
 - User-specified team designs (engines named in the ask) map onto this pattern cleanly; take the user's design verbatim as the approval and skip the redundant gate.
 
-## Lessons (run 17, 2026-07-07 - Alex upgrade scan, reuse 4)
+## Lessons (run 22, 2026-07-12 - Alex voice in-session, reuse 5)
+- Kill lists from a prior run go stale FAST when the vendor is the platform itself: run 16's "#50720 closed not-planned" (5 days old) hid that /voice dictation had SHIPPED as a first-party feature - the run's biggest finding. Re-verify any kill-list item that gates on a fast-moving first-party surface; "closed not-planned" on a feature request says nothing about a differently-shaped ship.
+- The master re-reads the primary source before accepting a decision-flipping fact: the QC's elimination pivoted on hold-mode's insert-and-wait-for-Enter, which BOTH earlier agents missed while reading the same doc (they analyzed tap mode as the only behavior). One master WebFetch confirmed it verbatim. When one sentence decides the winner, the synthesizer verifies that sentence.
+- Machine facts eliminate what web evidence would ship: `defaultMode: acceptEdits` + the Bash allowlist (read from settings.json) turned P3's auto-Enter injection from "gated by permissions" into a mishear-executes-commands KILLER. Give agents the box, and have the master re-verify the settings claims first-hand.
+- Score model-cooperation mechanisms as KILLER for a PRIMARY lane in reliability-class questions, not SERIOUS: an unquantifiable behavior bet (dies on /clear, degrades post-compaction, no bench retires it) recreates the intermittent-failure class the owner is fleeing. Agent 2 said it in prose; only the QC scored it right.
+- Mid-relay master verification is cheap and load-bearing: `claude --version` + settings read + one doc fetch (~3 tool calls total) grounded three hand-offs. Reviews between agents are where this pattern earns the word "relay".
 - The pattern scales from "pick one tool" to "scan the whole landscape" if the Scout gets explicit LANES (8 here) and a per-lane "nothing new found is a valid finding" clause - 20 candidates came back without padding.
 - Give the QC agent the MACHINE, not just the repo: `claude --version`, settings.json, a one-shot SSH. Two of the scan's three scariest headlines (Auto Memory "already writing", Graphiti RAM) died on machine facts no web agent could see. Also grant the QC one bounded remote check the Reviewer was denied; agent permission classes differ per session and the retry cost one command.
 - Make the session review spot-check the QC's heaviest overrules DIRECTLY (read the settings file, grep the error-log) instead of trusting the chain; and expect the review to still find one dropped constraint (the caching min-prefix) - three agents don't exempt the synthesizer from working.

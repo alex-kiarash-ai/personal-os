@@ -38,7 +38,7 @@ soul.md (voice + negotiation register + My Words), `vault/me/interview-answers.m
 `vault/meetings/` per interview; `vault/me/interview-answers.md` (grows from each interview); `status.md`; `vault/log.md`; `vault/index.md`. New interviewers -> `vault/people/` (People Intake Protocol); new companies -> `vault/business/`. New phrasing Shaheen uses -> soul.md My Words.
 
 ## Outputs
-`outputs/interviews/YYYY-MM-DD/{company}-dossier.md` (+ optional branded PDF) and a prep sheet. Post-interview notes to `vault/meetings/` + CRM + sprint. Negotiation draft on offer.
+`outputs/interview-copilot/YYYY-MM-DD/{company}-dossier.md` (+ optional branded PDF) and a prep sheet. Post-interview notes to `vault/meetings/` + CRM + sprint. Negotiation draft on offer.
 
 ## Guardrails (HARD)
 Drafts only. Never replies to a recruiter, never accepts or declines, never auto-schedules. Every company/person fact is cited or marked unknown, never invented. Every voice draft passes the soul.md check before it is shown.

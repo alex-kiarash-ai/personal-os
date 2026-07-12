@@ -98,8 +98,8 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Vault Backup - encrypted local-only (Recovery Phase 1)
 - Command: scripts/vault-backup.ps1 (pure PowerShell, no claude call)
 - Frequency: daily at 9:45 PM (Task Scheduler job PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push.
-- Description: Closes the privacy-scrub gap. Tars everything git IGNORES (minus regenerable junk - set derived from .gitignore so it can't drift), gpg AES256-encrypts it, round-trip-verifies before shipping, scp's the single .gpg to n8n:/opt/alex-backups/ (last 14 kept), pushes recovery/vault_backup GREEN/RED to Alex HQ. Passphrase in C:\Users\Thinkpad\.alex-secrets\vault-backup.pass (OUTSIDE the repo, icacls-locked) - **must also be in Shaheen's password manager or the off-machine blob is unrecoverable if this machine dies.** Restore drill proven 2026-07-04. Plan: vault/projects/recovery/vault-backup-plan.md.
-- Added: 2026-07-04
+- Description: Closes the privacy-scrub gap. Tars everything git IGNORES (minus regenerable junk - set derived from .gitignore so it can't drift), gpg AES256-encrypts it, round-trip-verifies before shipping, scp's the single .gpg to n8n:/opt/alex-backups/ (last 14 kept), pushes recovery/vault_backup GREEN/RED to Alex HQ. Passphrase in C:\Users\Thinkpad\.alex-secrets\vault-backup.pass (OUTSIDE the repo, icacls-locked) - **must also be in Shaheen's password manager or the off-machine blob is unrecoverable if this machine dies.** Restore drill proven 2026-07-04. Plan: vault/projects/recovery/vault-backup-plan.md. **Since 2026-07-11** it FIRST runs the outputs-ledger nightly self-heal (`node scripts/outputs-ledger.js reconcile`, best-effort, never blocks the backup), and the whitelist also carries outputs/weekly-exec-report + outputs/ledger.jsonl (the amended-Ledger build, [[research/output-structure-review]]).
+- Added: 2026-07-04 (ledger hook 2026-07-11)
 
 ### Recovery Layer sweep (Recovery Phase 2)
 - Command: work/18-recovery-layer/check.ps1 (pure PowerShell, no claude call, zero tokens)
@@ -115,7 +115,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### Alex HQ Local Push
 - Command: /alex-hq
-- Frequency: daily at 8:30 AM
+- Frequency: daily at 8:45 AM (staggered from 8:30 on 2026-07-12, upgrade P1/c11: it shared the slot with application-engine, both spawning Claude sessions with no serialization)
 - Description: Build #16 local-side feed. Harvests the metrics only this ThinkPad can see (MCP tool count, vault page counts, scheduler health), pushes them to the Alex HQ ingest webhook, regenerates + ships the Brain graph (scp, no rebuild), then presents the health summary. Failure-tolerant; never prints the token. Spec: work/16-alex-hq/CLAUDE.md, command: .claude/commands/alex-hq.md. Task Scheduler job PersonalOS-alex-hq.
 - Added: 2026-07-02
 

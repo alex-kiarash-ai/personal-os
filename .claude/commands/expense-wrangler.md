@@ -7,7 +7,7 @@ Spec: work/08-expense-wrangler/CLAUDE.md (read it first). Two modes, same comman
 1. Parse the input (OCR image via Tesseract or Read-tool vision; or parse the typed text/date).
 2. Classify via work/08-expense-wrangler/categories.md + vendors.md (unknown vendor → infer + append to vendors.md, Status Unmatched).
 3. Add a row to the Expenses Notion DB (full detail in page content). Save the receipt to vault/projects/expense-wrangler/receipts/.
-4. Append the row to `outputs/reports/expense-tracker.xlsx` Expense Log AND write its Month (col G) + Quarter (col H) formulas. Summaries auto-update.
+4. Append the row to `outputs/expense-wrangler/expense-tracker.xlsx` Expense Log AND write its Month (col G) + Quarter (col H) formulas. Summaries auto-update.
 5. Recalc-verify via LibreOffice headless. Confirm to the user (vendor, amount, category, deductible).
 
 ## Batch (no input) - also the monthly cron
@@ -21,7 +21,7 @@ Spec: work/08-expense-wrangler/CLAUDE.md (read it first). Two modes, same comman
 - **ALL Excel totals are formulas** (SUMIFS/SUMIF/SUMPRODUCT) - never hardcode a sum.
 - Notion DB id in status.md. Always write readable detail to row content.
 - Flag unusually large or low-confidence items rather than guessing. Never assert tax-deductibility on a guess.
-- Clean temp (recalc dirs, .tmp); keep only expense-tracker.xlsx in outputs/reports/.
+- Clean temp (recalc dirs, .tmp); keep only expense-tracker.xlsx in outputs/expense-wrangler/.
 
 ## Post-Run
 - vendors.md updated for new vendors. status.md (totals, last_run) + monthly history. vault/index.md (new pages) + vault/log.md.

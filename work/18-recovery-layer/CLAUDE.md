@@ -26,7 +26,7 @@ PowerShell 5.1 (Get-ChildItem/Get-FileHash/Get-ScheduledTask/Invoke-RestMethod),
 - **Checker** `check.ps1` - the sweep. Exit **0 clean / 2 drift / 1 checker-error** (Terraform `-detailed-exitcode` convention). Writes `vault/projects/recovery/last-sweep.md` (human report the Monday brief reads) and pushes `recovery/integrity` to Alex HQ (green clean / amber drift, value_num = distinct-finding count). Log: `outputs/logs/recovery-check.log`. **Hardened 2026-07-04 (QA review [[research/recovery-layer-qa-review]]):** repo root derived from `$PSScriptRoot` (survives a restore to any path/machine); the whole sweep is wrapped in a **fail-loud** try/catch that pushes RED integrity (value_num -1) + exit 1 on a checker error, so it can never sit stale-green while dead; the HQ push is best-effort (a bad token/network never fails the sweep).
 - **State** `state/baseline.json` (CLAUDE.md hashes + last_init from `-Init`) + `state/log-highwater.json` (monotonic log line count). Gitignored (local runtime state).
 
-## The checks (v1 - 11, all deterministic, grow from real misses per the design)
+## The checks (v1 - 12, all deterministic, grow from real misses per the design)
 1. **quad completeness** - each manifest project has its work dir, work CLAUDE.md, status.md, and every declared command file.
 2. **orphan commands** - every `.claude/commands/*.md` is owned by a project or the utility allowlist (caught `/venture-sync`).
 3. **orphan work folders** - every `work/` dir (not just `NN-*`) is a manifest project or in the `meta.known_work_folders` allowlist (`voice`, the on-demand voice loop); catches a rogue non-numbered folder.
@@ -38,6 +38,7 @@ PowerShell 5.1 (Get-ChildItem/Get-FileHash/Get-ScheduledTask/Invoke-RestMethod),
 9. **log monotonicity** - `vault/log.md` line count must never drop (append-only; guards data loss).
 10. **manifest hash self-check** - a work CLAUDE.md changed since the last `-Init` → the manifest entry needs review (the manifest can't silently drift).
 11. **index ↔ disk** - each manifest project's status page is catalogued in `vault/index.md` (a registered project missing from the catalog is caught; the design's named piece-2 check).
+12. **outputs naming (2026-07-11, the amended-Ledger build [[research/output-structure-review]])** - outputs/ top-level dirs must be manifest keys or the declared exemptions; calls `node scripts/outputs-ledger.js validate` (exit 2 = drift) so the exemption list has ONE home. Detect-only here; healing = the nightly reconcile in vault-backup.ps1. Guards the backup whitelist against silent folder-name drift (the interview triple-name class).
 
 **Not this sweep's job:** semantic/content drift (stale prose, superseded claims, duplicate topics). That is the **monthly gated /lint** (Phase 3): the checker nominates a shortlist, the LLM judges only that, Shaheen decides. Deterministic checks are ~10,000x cheaper than LLM judgment, so the script gates the judge.
 

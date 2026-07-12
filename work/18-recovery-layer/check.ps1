@@ -168,7 +168,7 @@ if ($unresolved.Count -gt 0) {
 
 # --- C7 scheduler <-> live Task Scheduler ---
 $docJobs = [regex]::Matches((Get-Content "scheduler\schedule.md" -Raw), 'PersonalOS-[\w-]+') |
-    ForEach-Object { $_.Value } | Sort-Object -Unique
+    ForEach-Object { $_.Value } | Where-Object { $_ -notlike 'PersonalOS-retry-*' } | Sort-Object -Unique   # retry-* excluded on BOTH sides (prose describing the retry mechanism is not a documented job; live side already excluded, 2026-07-11)
 # PersonalOS-retry-* are the close-out lib's ephemeral one-shot retry tasks (self-registered on a
 # failed run, auto-delete after their window, 2026-07-06). Not documented jobs; never drift.
 $liveJobs = Get-ScheduledTask -TaskName "PersonalOS-*" -ErrorAction SilentlyContinue |
@@ -222,6 +222,16 @@ foreach ($p in $manifest.projects) {
     $stRef = ($p.status_md -replace '^vault/', '' -replace '\.md$', '')   # e.g. projects/job-pipeline/status
     if ($indexRaw -notmatch [regex]::Escape($stRef)) { Add-Drift 'index' "#$($p.num) $($p.name): status page [[$stRef]] not catalogued in vault/index.md" }
 }
+
+# --- C12 outputs naming (2026-07-11, the amended-Ledger build): outputs/ top-level dirs must be
+# manifest keys or the declared exemptions in scripts/outputs-ledger.js (ONE source of truth for the
+# list, so this calls the validator instead of duplicating it). Detect-only here; the nightly
+# vault-backup reconcile is the healing lane. Guards the backup whitelist against silent name drift.
+try {
+    $lv = node "scripts\outputs-ledger.js" validate 2>&1
+    if ($LASTEXITCODE -eq 2) { Add-Drift 'outputs-naming' (($lv | Select-Object -First 1) -join '') }
+    elseif ($LASTEXITCODE -ne 0) { Add-Drift 'outputs-naming' "outputs-ledger validate errored (exit $LASTEXITCODE)" }
+} catch { Add-Drift 'outputs-naming' "outputs-ledger validate could not run: $($_.Exception.Message)" }
 
 # ---------------------------------------------------------------- report
 $n = $drift.Count

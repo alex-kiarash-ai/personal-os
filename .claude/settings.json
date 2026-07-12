@@ -43,6 +43,26 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f work/voice/.venv/Scripts/python.exe ]; then work/voice/.venv/Scripts/python.exe work/voice/v3/speak_hook.py; else echo '{\"systemMessage\":\"VOICE HOOK DOWN: work/voice/.venv missing or broken - speech out is dead until rebuilt (work/voice/README.md)\"}'; echo \"$(date '+%Y-%m-%d %H:%M') speak_hook: venv python missing\" >> outputs/logs/voice-hook-errors.log; fi"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f work/voice/.venv/Scripts/python.exe ]; then work/voice/.venv/Scripts/python.exe work/voice/v3/notify_hook.py; else echo '{\"systemMessage\":\"VOICE HOOK DOWN: work/voice/.venv missing or broken - notifications are silent until rebuilt (work/voice/README.md)\"}'; echo \"$(date '+%Y-%m-%d %H:%M') notify_hook: venv python missing\" >> outputs/logs/voice-hook-errors.log; fi"
+          }
+        ]
+      }
     ]
   }
 }

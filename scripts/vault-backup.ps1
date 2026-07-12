@@ -36,6 +36,15 @@ $KEEP = 14
 
 $reason = $null
 $sizeMB = 0
+
+# 0. Outputs-ledger nightly self-heal (2026-07-11, the amended-Ledger build): append skeleton
+#    rows for any deliverable that missed its Close-Out A6 append, re-render INDEX. Best-effort:
+#    a ledger failure must NEVER block the backup (the ledger is regenerable, the backup is not).
+try {
+    $lg = node "scripts\outputs-ledger.js" reconcile 2>&1
+    Say "ledger: $($lg | Select-Object -First 1)"
+} catch { Say "ledger reconcile failed (non-fatal): $($_.Exception.Message)" }
+
 try {
     if (-not $gpg)               { throw "gpg not found (install Gpg4win or use the Git-bundled gpg)" }
     if (-not (Test-Path $passFile)) { throw "passphrase file missing: $passFile" }
@@ -49,7 +58,10 @@ try {
     # Irreplaceable outputs (audit step 7, 2026-07-06): deliverables that exist nowhere else
     # (PBIP dashboard, monthly workbooks, final reports). outputs/ stays excluded as a class;
     # only these named folders ride along.
-    $keepOutputs = @('outputs/alex-costs','outputs/reports','outputs/runway','outputs/expense-wrangler') |
+    # weekly-exec-report added 2026-07-11: #10 writes there going forward (reports/ frozen as legacy).
+    # ledger.jsonl added same day: hand-written desc rows are not regenerable (skeleton rows are).
+    $keepOutputs = @('outputs/alex-costs','outputs/reports','outputs/runway','outputs/expense-wrangler',
+                     'outputs/weekly-exec-report','outputs/ledger.jsonl') |
                    Where-Object { Test-Path $_ }
     $list = @($list) + @($keepOutputs)
     $n = ($list | Measure-Object).Count

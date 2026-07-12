@@ -85,15 +85,15 @@ For outputs, use the installed skills. ALWAYS use the skill, not raw Python:
 - Invoke /xlsx skill
 - Read brand/config/brand-config.md for header colors, fonts
 - ALWAYS use real Excel formulas (=SUM, =SUMIFS, etc), never hardcoded values
-- Save to outputs/reports/
+- Save to outputs/{automation}/YYYY-MM-DD/ (Output Hygiene; ledger row per Close-Out A6)
 
 **When the output is a PDF:**
 - Use Python (reportlab or weasyprint) with brand colors and fonts from brand-config.md
-- Save to outputs/reports/
+- Save to outputs/{automation}/YYYY-MM-DD/ (ledger row per Close-Out A6)
 
 **When the output is images (quote cards, charts):**
 - Use Python/Pillow with brand colors from brand-config.md
-- Save to outputs/content/ or outputs/reports/
+- Save to outputs/{automation}/YYYY-MM-DD/ (one-offs: outputs/sessions/YYYY-MM-DD-{topic}/)
 
 **When the user asks for a report/deck/presentation/spreadsheet:**
 - Default to a **Claude Design deck** (web + PDF) for presentations and summaries - NOT .pptx (standing rule 2026-06-15)

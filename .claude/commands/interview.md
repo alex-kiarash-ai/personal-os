@@ -13,7 +13,7 @@ Carries a booked interview to the finish: dossier + prep against Shaheen's answe
 1. **Read the answer bank** `vault/me/interview-answers.md` + soul.md (voice) + `me/situation` (availability, salary, citizenship, severance).
 2. **Build the dossier** for the company / role / interviewers: reuse Meeting Intel (#06) + Research Team (#04); cross-reference `vault/people/` and `vault/business/`. Cite every fact, mark unknowns, invent nothing.
 3. **Prep sheet:** likely questions in his domain (Power BI + AI automation) mapped to his own answers, his differentiators, the smart questions to ask, and the diplomatic summer-remote probe from My Words.
-4. **Write** `vault/meetings/{company-YYYY-MM-DD}.md` + the dossier to `outputs/interviews/YYYY-MM-DD/`. New interviewer -> `vault/people/` (intake); new company -> `vault/business/`.
+4. **Write** `vault/meetings/{company-YYYY-MM-DD}.md` + the dossier to `outputs/interview-copilot/YYYY-MM-DD/`. New interviewer -> `vault/people/` (intake); new company -> `vault/business/`.
 5. **Post-interview (`notes`):** extract notes -> `vault/meetings/` + Personal CRM + sprint board action items; harvest any new phrasing to soul.md My Words + grow the answer bank.
 6. **On offer (`offer`, Phase 2):** pull the current zero date from [[projects/runway/status]], draft a negotiation message in his voice (OpenAI + soul.md): positive, money-second, soft numbers, availability from today.
 

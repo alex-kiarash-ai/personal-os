@@ -29,7 +29,7 @@ Columns: **Vendor** (title), **Date** (date), **Amount** (number, `number_with_c
 Views: **This Month** (Date set, desc) · **By Category** (board) · **Flagged** (Status = Flagged).
 Each row's content holds the readable detail (what/why, receipt reference). Notion is for browsing; the Excel is the report.
 
-## The Excel (outputs/reports/expense-tracker.xlsx)
+## The Excel (outputs/expense-wrangler/expense-tracker.xlsx)
 Built by `work/08-expense-wrangler/build_workbook.py` (reusable; re-run to regenerate). 4 sheets, brand-styled (ALEX brand since 2026-07-03: Dark Teal header #005F73/white bold, alt-row tint #FFF5E1, SEK `#,##0.00 "kr"`):
 1. **Expense Log** - raw rows. Date, Vendor, Amount, Category, Tax Deductible, Status, **Month** + **Quarter** (formula-derived from Date: `TEXT(DATEVALUE(date),"YYYY-MM")` and `YEAR&"-Q"&ROUNDUP(MONTH/3)`).
 2. **Monthly Summary** - months × categories, each cell `=SUMIFS(Log Amount, Log Month, month, Log Category, cat)`; row + grand totals via SUM.
@@ -59,7 +59,7 @@ Summary formulas reference WHOLE COLUMNS of the log ($C:$C, $G:$G, $H:$H), so th
 3. Notion rows created/updated; Excel regenerated + recalc-verified.
 4. vault/index.md + vault/log.md updated.
 5. Sprint board: Done on first build (2026-06-12).
-6. Clean temp: delete any recalc/ dir and *.tmp; keep only expense-tracker.xlsx in outputs/reports/.
+6. Clean temp: delete any recalc/ dir and *.tmp; keep only expense-tracker.xlsx in outputs/expense-wrangler/.
 - Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/expense-wrangler.md. Failure-tolerant, token never printed. Two keys since 2026-07-06: `mtd_total_kr` + `mtd_by_category` (per-Category sums for current-month rows, compact `"Travel 1273.63 · Meals 474"` value_text — feeds the HQ expenses tile + drill-down). BOTH modes push, immediate single-receipt mode included, so the tile isn't a month behind until the last-day close.
 
 ## Implementation Notes (as built, 2026-06-12)

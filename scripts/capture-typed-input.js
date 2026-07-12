@@ -40,14 +40,25 @@ function main(raw) {
 
   const dir = path.join(__dirname, '..', 'outputs', 'typed', 'transcripts');
   const file = path.join(dir, `${day}.md`);
-  fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, `# Typed transcript ${day} (raw typed messages, for soul.md My Words harvest)\n\n`, 'utf8');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(file)) {
+      fs.writeFileSync(file, `# Typed transcript ${day} (raw typed messages, for soul.md My Words harvest)\n\n`, 'utf8');
+    }
+    // one bullet per message; collapse internal newlines so a multi-line paste stays a single entry,
+    // words otherwise untouched (verbatim).
+    const line = prompt.replace(/\r?\n/g, ' ').replace(/[ \t]+/g, ' ').trim();
+    fs.appendFileSync(file, `- [${hm}] ${line}\n`, 'utf8');
+  } catch (err) {
+    // Fail VISIBLE, never fatal (c4, upgrade P1 2026-07-12): a locked file or full disk must not
+    // silently eat corpus days. stderr surfaces in hook debug output; the breadcrumb log gives the
+    // Monday sweep / a human something to find. Still exit 0 - the prompt is never harmed.
+    process.stderr.write(`capture-typed-input: transcript write FAILED (${err.code || err.message})\n`);
+    try {
+      fs.appendFileSync(path.join(__dirname, '..', 'outputs', 'logs', 'typed-capture-errors.log'),
+        `${day} ${hm} ${err.code || ''} ${String(err.message).slice(0, 200)}\n`, 'utf8');
+    } catch (_) { /* disk truly gone; stderr was the last resort */ }
   }
-  // one bullet per message; collapse internal newlines so a multi-line paste stays a single entry,
-  // words otherwise untouched (verbatim).
-  const line = prompt.replace(/\r?\n/g, ' ').replace(/[ \t]+/g, ' ').trim();
-  fs.appendFileSync(file, `- [${hm}] ${line}\n`, 'utf8');
 }
 
 let raw = '';

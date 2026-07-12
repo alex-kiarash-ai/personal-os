@@ -1,4 +1,70 @@
-# Alex Voice v2 - hands-free
+# Alex Voice v3 - in-session (THE voice solution since 2026-07-12)
+
+Two-way voice INSIDE the interactive Claude Code session: the working session is the one
+brain, no separate voice process. Built 2026-07-12 from [[research/alex-voice-in-session]]
+(research-team run 22, "ride the official surface"). v2 below stays as the on-demand
+walk-around tool; v3 cannibalizes its proven TTS chain + whisper code as organs.
+
+## How you use it (any Claude Code session in this repo)
+- **Talk to the session (EN/SV):** hold **Space** with the prompt empty (native `/voice`
+  HOLD mode; run `/voice` once in a session to see status + trigger the mic check), speak,
+  release. There is a short key-repeat warmup ("keep holding..."), then a live waveform.
+  The transcript lands in the prompt, dimmed then final. **You read it and press Enter
+  yourself** - `autoSubmit` stays OFF, non-negotiable: this repo runs `acceptEdits`, so a
+  mishear must never be able to execute. Dictation language = the `language` setting
+  (`/config`); empty = English, `sv` = Swedish. Free, no tokens, streams audio to
+  Anthropic's servers (their STT). *(A Ctrl+Space rebind was tried and reverted 2026-07-12:
+  terminal hosts, VS Code first among them, swallow it before the TUI ever sees it. If
+  hold-Space won't trigger, `/voice tap` avoids the key-repeat requirement.)*
+  **Use a standalone terminal (Windows Terminal) for voice, not the VS Code integrated
+  terminal** - VS Code intercepts keys and shares one window handle across editor +
+  terminal, which also blinds the dictate lane's focus guard to which pane has focus.
+- **Arabic (or any of the three, locally):** press **Ctrl+Alt+D** (desktop shortcut
+  "Alex Dictate") with the terminal focused. Two-tone chime = talk; low chime = heard.
+  Local whisper base (auto-detect AR/SV/EN, nothing leaves the box) TYPES the transcript
+  into the prompt via SendInput. Never presses Enter. If focus moved while transcribing,
+  nothing is typed: double beep = the text is on the clipboard, paste it.
+- **She talks back:** with the voice flag on, a Stop hook speaks every reply aloud
+  (Edge-TTS neural -> Windows SAPI never-mute floor, first 8 sentences, markdown stripped).
+  Toggle: say **"voice on" / "voice off"** to Alex (she writes/deletes
+  `outputs/voice/voice-on.flag`), or run `work\voice\v3\voice-on.cmd` / `voice-off.cmd`.
+  Flag off = the hook exits in ~0.1s, silent; scheduled headless runs never have it on.
+- **Permission dialogs speak:** a Notification hook says "I need your permission on
+  screen" (30s cooldown) so a hands-off wait never silently stalls.
+
+## v3 architecture (why it can't crash like v2)
+Every audio component is SHORT-LIVED: Anthropic's recorder lives per utterance, the TTS
+worker lives per reply, the dictate lane lives per hotkey press. No persistent subprocess
+pipe (v2's S1), no long-lived PortAudio stream (S2), no turn-timeout desync (S3). Files:
+`work/voice/v3/` - `tts_chain.py` (Edge->SAPI chain + sanitizer, lifted from v2),
+`speak_hook.py` + `speak_worker.py` (Stop hook -> detached speaker, dedup + /clear filter,
+serialized by a lock dir), `notify_hook.py`, `dictate.py` (recorder + whisper + SendInput
+KEYEVENTF_UNICODE with a foreground-hwnd guard). Hooks wired in `.claude/settings.json`;
+voice mode + keybinding in `~/.claude/settings.json` + `~/.claude/keybindings.json`.
+Logs: `outputs/voice/.state/*.log`. Raw spoken lines still append to
+`outputs/voice/transcripts/` (soul corpus); /voice dictations arrive as typed prompts and
+are captured by the UserPromptSubmit hook like any typed input.
+
+## v3 troubleshooting
+- **She doesn't speak:** is the flag on? (`outputs/voice/voice-on.flag`) Hooks load at
+  session START - a session opened before the wiring needs a restart. Check
+  `outputs/voice/.state/speak.log` / `hook.log`.
+- **Robotic voice:** Edge-TTS failed (network/403), SAPI floor took over. That IS the
+  warning sign; it self-heals next reply.
+- **Hold-Space does nothing:** run `/voice` first (status + mic check); it only arms on an
+  EMPTY prompt; key-repeat must be on at the OS level, else use `/voice tap`.
+- **Ctrl+Alt+D types nothing or types garbage:** check `outputs/voice/.state/dictate.log`.
+  "focus moved" = the text is on the clipboard, paste it. Garbage words = it recorded a
+  fragment: press the hotkey, WAIT for the two-tone chime, then speak (the language pick
+  is now forced to the best of EN/AR/SV, fixed 2026-07-12 after live pt/fr mislabels).
+  Keep the terminal focused from hotkey press to injection.
+- **Known time bomb (auto-update OFF on this box, so it lands only on manual update):**
+  Claude Code v2.1.203+ adds a 30-min idle abort on stdio MCP tools - irrelevant to v3
+  (no MCP server), noted for the Phase-2 converse lane.
+
+---
+
+# Alex Voice v2 - hands-free (the walk-around tool, on-demand)
 
 Two-way, hands-free voice conversation with Alex. Built 2026-07-07 from
 [[research/alex-voice-handsfree]] (research-team run 16, Option A "own the whole loop").
@@ -6,7 +72,7 @@ You just talk (open mic, no wake word by default), a chime confirms she heard yo
 and talks back in a natural voice, sentence by sentence, as the FULL Alex (soul.md + vault + read-only
 tools, loaded once and kept alive across the conversation). English, Arabic, Swedish. Zero keyboard.
 
-**State: ON-DEMAND - the adopted voice solution (2026-07-07).** This is `alex_voice.py`; it replaced
+**State: ON-DEMAND walk-around tool. Superseded 2026-07-12 as THE voice solution by v3 above (in-session; research run 22); v2 remains the only open-mic hands-free lane.** This is `alex_voice.py`; it replaced
 v1 (OpenAI TTS, push-to-talk) and the abandoned Kokoro/faster-whisper plan. Human overview:
 `docs/projects/voice.md`. Registry: `system/manifest.json` (`meta.unnumbered[0]`).
 
