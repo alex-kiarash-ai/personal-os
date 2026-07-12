@@ -383,6 +383,25 @@ button.tile:hover {
   cursor: default;
 }
 
+/* tiny inline spinner for the note "uploading…" state (aqua tier, no new color) */
+.spinner {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.05rem;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(148, 210, 189, 0.25);
+  border-top-color: var(--aqua);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+}
+
 .note-row {
   display: flex;
   align-items: center;

@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { Inbox, InboxNote } from "@/lib/types";
 import { ageLabel } from "@/lib/types";
 
 const MAX_REC_SECONDS = 120;
+const REFETCH_MS = 60_000;
 
 const spring = { type: "spring" as const, stiffness: 260, damping: 26 };
 
-function localNote(note: string, source: string): InboxNote {
+// Optimistic local row (negative id). `pending` marks the in-flight POST (the `uploading...`
+// state); once the POST resolves the row shows "saved · transcribes at next touchpoint". The
+// next /api/inbox refetch returns the real server row (positive id) which replaces it as truth.
+type LocalNote = InboxNote & { pending?: boolean };
+
+function localNote(note: string, source: string, pending = false): LocalNote {
   return {
     id: -Date.now(),
     note,
@@ -18,12 +24,26 @@ function localNote(note: string, source: string): InboxNote {
     filed_to: "",
     ts: new Date().toISOString(),
     audio: "",
+    pending,
   };
+}
+
+const isVoice = (n: InboxNote) => n.source === "hq-voice" || !!n.audio;
+
+function MicGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden className="flex-none">
+      <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor" />
+      <path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8.5 22h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 export function NotesCard({ initial, now }: { initial: Inbox | null; now: number }) {
   const [text, setText] = useState("");
-  const [items, setItems] = useState<InboxNote[]>(initial?.recent ?? []);
+  // server rows are truth; local optimistic rows fill the gap until the server catches up
+  const [serverItems, setServerItems] = useState<InboxNote[]>(initial?.recent ?? []);
+  const [localItems, setLocalItems] = useState<LocalNote[]>([]);
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
@@ -40,11 +60,51 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
     };
   }, []);
 
+  // Poll the inbox: on returning to the PWA (visibilitychange) and every 60s WHILE visible.
+  // Fail-calm: a failed fetch keeps whatever we already show, no error spam. When the server's
+  // newest row is at least as new as an optimistic local row, the server has that note now, so we
+  // drop optimistic rows the server has caught up to (server is truth once it arrives).
+  const refetch = useCallback(async () => {
+    try {
+      const res = await fetch("/api/inbox", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as Inbox;
+      const rows = data?.recent;
+      if (!Array.isArray(rows)) return;
+      setServerItems(rows);
+      const newest = rows.reduce((max, r) => Math.max(max, new Date(r.ts).getTime() || 0), 0);
+      setLocalItems((cur) => cur.filter((l) => l.pending || new Date(l.ts).getTime() > newest));
+    } catch {
+      // keep showing what we have
+    }
+  }, []);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (timer) return;
+      void refetch();
+      timer = setInterval(() => void refetch(), REFETCH_MS);
+    };
+    const stop = () => {
+      if (timer) clearInterval(timer);
+      timer = null;
+    };
+    const onVis = () => (document.visibilityState === "visible" ? start() : stop());
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [refetch]);
+
   async function sendNote() {
     const body = text.trim();
     if (!body || sending) return;
     setSending(true);
     setFlash(null);
+    setLocalItems((cur) => [localNote(body, "hq-typed", true), ...cur]);
     try {
       const res = await fetch("/api/note", {
         method: "POST",
@@ -52,10 +112,14 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
         body: JSON.stringify({ text: body }),
       });
       if (!res.ok) throw new Error();
-      setItems((cur) => [localNote(body, "hq-typed"), ...cur].slice(0, 12));
+      // clear the pending flag: uploading... -> saved
+      setLocalItems((cur) => cur.map((l) => (l.pending && l.source === "hq-typed" ? { ...l, pending: false } : l)));
       setText("");
       setFlash("Saved. I file it at my next touchpoint.");
+      void refetch();
     } catch {
+      // roll the optimistic row back on a failed POST
+      setLocalItems((cur) => cur.filter((l) => !(l.pending && l.source === "hq-typed")));
       setFlash("Couldn't reach the backend. Note NOT saved, try again.");
     } finally {
       setSending(false);
@@ -65,15 +129,18 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
   async function uploadVoice(blob: Blob) {
     setSending(true);
     setFlash(null);
+    setLocalItems((cur) => [localNote("", "hq-voice", true), ...cur]);
     try {
       const fd = new FormData();
       const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("webm") ? "webm" : "audio";
       fd.append("audio", blob, `note.${ext}`);
       const res = await fetch("/api/voice", { method: "POST", body: fd });
       if (!res.ok) throw new Error();
-      setItems((cur) => [localNote("(voice note, transcribes at next touchpoint)", "hq-voice"), ...cur].slice(0, 12));
+      setLocalItems((cur) => cur.map((l) => (l.pending && l.source === "hq-voice" ? { ...l, pending: false } : l)));
       setFlash("Voice note saved. I transcribe and file it at my next touchpoint.");
+      void refetch();
     } catch {
+      setLocalItems((cur) => cur.filter((l) => !(l.pending && l.source === "hq-voice")));
       setFlash("Upload failed. Voice note NOT saved, try again.");
     } finally {
       setSending(false);
@@ -131,7 +198,8 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
     }
   }
 
-  const shown = items.slice(0, 5);
+  // display: optimistic local rows first (newest), then server rows (truth), capped at 5
+  const shown: LocalNote[] = [...localItems, ...serverItems].slice(0, 5);
 
   return (
     <motion.div
@@ -215,22 +283,44 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
 
       {shown.length ? (
         <div>
-          {shown.map((n) => (
-            <div key={n.id} className="note-row">
-              <span className={`dot ${n.status === "filed" ? "dot-green" : "dot-amber"}`} />
-              <span className="min-w-0 flex-1 truncate">
-                {n.note || (n.audio ? "(voice note, transcribes at next touchpoint)" : "(empty)")}
-              </span>
-              <span
-                className="max-w-[55%] flex-none truncate text-xs tabular-nums"
-                style={{ color: "var(--mute)" }}
-              >
-                {n.source === "hq-voice" ? "voice · " : ""}
-                {n.status === "filed" ? (n.filed_to ? `filed → ${n.filed_to}` : "filed") : "waiting"} ·{" "}
-                {ageLabel(n.ts, now)}
-              </span>
-            </div>
-          ))}
+          {shown.map((n) => {
+            const voice = isVoice(n);
+            const filed = n.status === "filed";
+            // explicit row states (design 4.8):
+            //   pending  -> uploading... (spinner)
+            //   voice, not filed -> saved · transcribes at next touchpoint
+            //   filed -> filed → {destination}, note text backfilled by the mark step
+            const stateLabel = n.pending
+              ? "uploading…"
+              : filed
+                ? n.filed_to
+                  ? `filed → ${n.filed_to}`
+                  : "filed"
+                : voice
+                  ? "saved · transcribes next touchpoint"
+                  : "waiting";
+            const bodyText = n.note || (voice ? "(voice note, transcribes at next touchpoint)" : "(empty)");
+            return (
+              <div key={n.id} className="note-row">
+                <span className={`dot ${filed ? "dot-green" : "dot-amber"}`} />
+                {voice ? (
+                  <span className="flex-none" style={{ color: "var(--mute)" }} aria-label="voice note">
+                    <MicGlyph />
+                  </span>
+                ) : null}
+                <span className="min-w-0 flex-1 truncate">{bodyText}</span>
+                <span
+                  className="max-w-[55%] flex-none truncate text-xs tabular-nums"
+                  style={{ color: "var(--mute)" }}
+                >
+                  {n.pending ? (
+                    <span className="spinner" aria-hidden />
+                  ) : null}
+                  {stateLabel} · {ageLabel(n.ts, now)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </motion.div>

@@ -6,6 +6,7 @@ import type { Cadence, Inbox, Metric, Project, Status, Summary } from "@/lib/typ
 import { ageLabel, cadenceStale, clean, daysSinceStockholm, fmtDateTime, fmtDay, fmtNum, weekdayAgeHours, DESCRIPTIONS, STACK } from "@/lib/types";
 import { BrainGraph } from "./brain";
 import { NotesCard } from "./notes";
+import { WaitingStrip } from "./waiting";
 
 /* ---------- primitives ---------- */
 
@@ -937,11 +938,16 @@ function HealthBoard({
 
 export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: number; inbox: Inbox | null }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [waitingOpen, setWaitingOpen] = useState(false);
   const todos = useJson<TodosData>("/data/todos.json");
   const life = useJson<LifeData>("/data/life.json");
   const registry = useJson<ProjectsData>("/data/projects.json");
 
   const m = (p: string, k: string): Metric | null => s.projects?.[p]?.metrics?.[k] ?? null;
+
+  // Waiting-on-you strip (design 4.1.2): the pushed human-actions summary metric. Absent/null or
+  // open_count 0 -> the strip renders nothing (fail-calm, the healthy screen stays calm).
+  const humanActions = m("human-actions", "open_count");
 
   const bi = s.projects["app-engine-bi"]?.metrics ?? {};
   const ai = s.projects["app-engine-ai"]?.metrics ?? {};
@@ -1180,6 +1186,16 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
     stepsTile,
   ].filter((t): t is TileDef => t !== null);
 
+  // IA regroup (design 4.1): the SAME tiles, grouped by cadence into TODAY / RHYTHMS / SYSTEM.
+  // No tile added, none removed — just moved. GymCard + plants render inline (not TileDefs), so
+  // the groups list ids and the section JSX places the special cards. Any listed id that didn't
+  // build (metric missing -> null tile) is silently skipped, so an absent producer never gaps.
+  const byId = new Map(tiles.map((t) => [t.id, t]));
+  const TODAY_IDS = ["apps", "n8n-broken", "brief", "email", "health-sleep", "health-steps"];
+  const RHYTHMS_IDS = ["build", "todos", "radar", "airbnb", "expenses"];
+  const todayTiles = TODAY_IDS.map((id) => byId.get(id)).filter((t): t is TileDef => !!t);
+  const rhythmTiles = RHYTHMS_IDS.map((id) => byId.get(id)).filter((t): t is TileDef => !!t);
+
   const brainStats: [string, Metric | null, string | null][] = [
     ["vault pages", infra.vault_pages ?? null, null],
     ["mcp tools", infra.mcp_tools ?? null, null],
@@ -1224,21 +1240,47 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
         <div className="filament" />
       </motion.header>
 
+      {/* Waiting-on-you strip: renders only when the human-actions queue has open items
+          (empty queue = nothing here; the healthy screen stays calm). Sits above the Notes card. */}
+      <div className="mb-4">
+        <WaitingStrip
+          metric={humanActions}
+          open={waitingOpen}
+          onOpen={() => setWaitingOpen(true)}
+          onClose={() => setWaitingOpen(false)}
+          now={now}
+        />
+      </div>
+
       {/* Two-way inbox */}
       <section className="mb-4">
         <NotesCard initial={inbox} now={now} />
       </section>
 
-      {/* Glance tiles */}
+      {/* TODAY: the daily-cadence tiles (design 4.1). Applications keeps col-span-2 + stays first. */}
+      <span className="kicker mb-2 block">Today</span>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((t, i) => (
+        {todayTiles.map((t, i) => (
           <Tile key={t.id} {...t} index={i} onOpen={setOpen} />
         ))}
+        {/* Gym lives in TODAY (computed daily): the answer IS the card, no drill-down */}
+        <GymCard life={life} now={now} index={todayTiles.length} />
+      </section>
 
-        {/* Life cards: gym (the answer is the card) + plants (drill-down lists all 8) */}
-        <GymCard life={life} now={now} index={tiles.length} />
-        <Tile {...plantsTile} index={tiles.length + 1} onOpen={setOpen} />
+      {/* RHYTHMS: this week / month (design 4.1). Plants (computed daily from dates) joins them. */}
+      <span className="kicker mb-2 mt-6 block" style={{ color: "var(--mute)" }}>
+        This week / month
+      </span>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {rhythmTiles.map((t, i) => (
+          <Tile key={t.id} {...t} index={i} onOpen={setOpen} />
+        ))}
+        <Tile {...plantsTile} index={rhythmTiles.length} onOpen={setOpen} />
+      </section>
 
+      {/* SYSTEM: the Alex Brain strip, the health board, the graph (design 4.1). */}
+      <span className="kicker mb-2 mt-6 block">System</span>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Alex Brain: the structure strip */}
         <motion.button
           layoutId="tile-brain"
