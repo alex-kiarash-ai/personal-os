@@ -1,0 +1,229 @@
+{
+  "name": "Quota Reset Auto-Run (one-shot gate)",
+  "nodes": [
+    {
+      "id": "f34b6098-bcec-4494-ab59-e5900dff70fb",
+      "name": "Arm Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qra-arm",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "t6G41mSyUrqqreHR",
+          "name": "QRA Header Auth"
+        }
+      }
+    },
+    {
+      "id": "e03ca3f7-2b1d-457d-84b2-e87135b8af35",
+      "name": "Set Arm State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const sd = $getWorkflowStaticData('global');\nconst b = $json.body || {};\nif (!b.fire_at || !b.prompt) { return [{ json: { ok:false, error:'need fire_at (ISO 8601) and prompt' } }]; }\nsd.fire_at = b.fire_at;\nsd.prompt = b.prompt;\nsd.consumed = false;\nsd.armed_at = new Date().toISOString();\nsd.run_id = 'qra-' + Date.now();\nsd.last_status = null; sd.completed_at = null; sd.last_output_chars = null;\nreturn [{ json: { ok:true, run_id: sd.run_id, fire_at: sd.fire_at, armed_at: sd.armed_at } }];"
+      }
+    },
+    {
+      "id": "bc74b373-aec4-4e9f-86f5-f6a5bfbc123b",
+      "name": "Arm Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "216be2f1-827c-43b1-af94-6520a9ed09ed",
+      "name": "Gate Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        340
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "qra-gate",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "t6G41mSyUrqqreHR",
+          "name": "QRA Header Auth"
+        }
+      }
+    },
+    {
+      "id": "47e9288b-010b-4af8-a50d-8c85936cbb1d",
+      "name": "Compute Go",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        340
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const sd = $getWorkflowStaticData('global');\nconst now = Date.now();\nconst fireMs = sd.fire_at ? Date.parse(sd.fire_at) : null;\nconst go = !!(sd.fire_at && !sd.consumed && fireMs !== null && now >= fireMs);\nreturn [{ json: {\n  go,\n  prompt: go ? (sd.prompt || null) : null,\n  run_id: sd.run_id || null,\n  fire_at: sd.fire_at || null,\n  consumed: !!sd.consumed,\n  now: new Date().toISOString()\n} }];"
+      }
+    },
+    {
+      "id": "d6b1b284-bec7-46d8-ba24-6343cd59b76c",
+      "name": "Gate Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "92466b85-4bb1-402b-b8cc-3c824017f2dd",
+      "name": "Result Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        580
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qra-result",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "t6G41mSyUrqqreHR",
+          "name": "QRA Header Auth"
+        }
+      }
+    },
+    {
+      "id": "0ce10d7c-2cf1-4fae-b53a-9e5e1c41d93d",
+      "name": "Mark Consumed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        580
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const sd = $getWorkflowStaticData('global');\nconst b = $json.body || {};\nsd.consumed = true;\nsd.last_status = b.status || 'unknown';\nsd.last_output_chars = (b.output != null ? String(b.output).length : 0);\nsd.completed_at = new Date().toISOString();\nreturn [{ json: { ok:true, run_id: sd.run_id || null, status: sd.last_status, output_chars: sd.last_output_chars } }];"
+      }
+    },
+    {
+      "id": "62e3c82e-1b4b-4254-a6fd-ae4c35df5bc2",
+      "name": "Result Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        580
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "Arm Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Arm State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Arm State": {
+      "main": [
+        [
+          {
+            "node": "Arm Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate Webhook": {
+      "main": [
+        [
+          {
+            "node": "Compute Go",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Go": {
+      "main": [
+        [
+          {
+            "node": "Gate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mark Consumed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Consumed": {
+      "main": [
+        [
+          {
+            "node": "Result Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

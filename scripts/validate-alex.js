@@ -182,7 +182,9 @@ function v1AutomationCount({ stagedDir, manifest }, failures) {
 //          generator derives from scheduler/schedule.md (scheduledJobsRows contract);
 //      (b) reality side: every documented PersonalOS-* job (parseScheduleJobs contract, retry-*
 //          excluded by convention) must exist in live Windows Task Scheduler, and every live
-//          PersonalOS-* job must be documented. schtasks unavailable: FAIL in generator context,
+//          PersonalOS-* job must be documented. Transient tasks (schedule.md "## Transient tasks"
+//          section, e.g. the self-removing QRA poller) are exempt from must-exist-live but count
+//          as documented if armed (2026-07-13). schtasks unavailable: FAIL in generator context,
 //          LOUD SKIP in pre-commit context (a clone on another machine can still commit).
 // ---------------------------------------------------------------------------------------------
 function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
@@ -224,8 +226,9 @@ function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
     return;
   }
   const liveSet = new Set(live), docSet = new Set(schedule.allJobNames);
+  const transientSet = new Set(schedule.transientJobNames || []); // documented one-shots, live only while armed
   const notRegistered = schedule.allJobNames.filter(j => !liveSet.has(j));
-  const unknown = live.filter(j => !docSet.has(j));
+  const unknown = live.filter(j => !docSet.has(j) && !transientSet.has(j));
   if (notRegistered.length)
     failures.push(`FAILED V2: job(s) documented in scheduler/schedule.md but MISSING from live Windows Task Scheduler: ${notRegistered.join(', ')}`);
   if (unknown.length)

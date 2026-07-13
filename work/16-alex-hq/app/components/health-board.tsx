@@ -4,10 +4,10 @@
    REGISTERED project (the full roster from projects.json), live metrics merged on by hq_slug,
    non-reporting projects shown as honest idle tickets. liveRow folds cadence-staleness in. */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import type { Project, ProjectsData, RegProject, Status } from "@/lib/types";
-import { ageLabel, cadenceStale } from "@/lib/types";
+import { ageLabel, cadenceStale, DISPLAY_NAMES } from "@/lib/types";
 import { idleLabel, neverFired } from "@/lib/data";
 import { spring } from "@/components/primitives";
 
@@ -85,11 +85,27 @@ export function HealthBoard({
     const alexHqReg = registry && registry !== "failed" ? registry.projects.find((r) => r.name === "alex-hq") : null;
     for (const [slug, lp] of Object.entries(live)) {
       if (claimed.has(slug)) continue;
-      out.push(liveRow(slug, slug, lp, now, slug, slug === "infra" ? alexHqReg : null));
+      // C9: real names for the unclaimed feeds (raw slugs sat in the red-first top rows)
+      out.push(liveRow(slug, DISPLAY_NAMES[slug] ?? slug, lp, now, slug, slug === "infra" ? alexHqReg : null));
     }
 
     return out.sort((a, b) => a.sortRank - b.sortRank || a.label.localeCompare(b.label));
   }, [projects, registry, now]);
+
+  /* C9: the idle tier (registered, no telemetry expected) costs ~1,500 mobile px for near-zero
+     daily signal — on mobile it folds behind a one-tap disclosure; desktop stays fully expanded.
+     Nothing is hidden, every registered project stays reachable in one tap. */
+  const [idleOpen, setIdleOpen] = useState(false);
+  const active = rows.filter((r) => r.sortRank < 3);
+  const idle = rows.filter((r) => r.sortRank === 3);
+
+  // C20: say what the population is — registered projects vs unclaimed live feeds
+  const regCount = registry && registry !== "failed" ? registry.projects.length : 0;
+  const feedCount = rows.length - regCount;
+  const popLabel =
+    regCount > 0
+      ? `${regCount} projects${feedCount > 0 ? ` + ${feedCount} feeds` : ""}`
+      : `${rows.length} systems`;
 
   const loading = registry === null;
 
@@ -105,11 +121,11 @@ export function HealthBoard({
       <div className="flex items-center justify-between">
         <span className="kicker">Automation Health</span>
         <span className="text-xs" style={{ color: "var(--mute)" }}>
-          {rows.length} systems · tap one for what it does
+          {popLabel} · tap one for what it does
         </span>
       </div>
       <ul className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
-        {rows.map((p, i) => (
+        {active.map((p, i) => (
           <motion.li
             key={p.key}
             initial={{ opacity: 0, x: -12 }}
@@ -126,7 +142,37 @@ export function HealthBoard({
             </button>
           </motion.li>
         ))}
+        {idle.map((p, i) => (
+          <motion.li
+            key={p.key}
+            className={idleOpen ? "" : "hidden sm:block"}
+            initial={{ opacity: 0, x: -12 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ ...spring, delay: (active.length + i) * 0.03 }}
+          >
+            <button className="health-row" onClick={() => onOpen(p.drillId)}>
+              <span className={`dot dot-${p.display}`} aria-label={p.display} />
+              <span className="min-w-0 flex-1 truncate font-medium">{p.label}</span>
+              <span className="ml-auto flex-none text-xs tabular-nums" style={{ color: "var(--mute)" }}>
+                {p.meta}
+              </span>
+            </button>
+          </motion.li>
+        ))}
       </ul>
+      {idle.length > 0 ? (
+        <button
+          type="button"
+          className="health-row justify-center sm:hidden"
+          onClick={() => setIdleOpen((v) => !v)}
+          aria-expanded={idleOpen}
+        >
+          <span className="text-xs" style={{ color: "var(--mute)" }}>
+            {idleOpen ? `hide the ${idle.length} idle / on-demand` : `+ ${idle.length} idle / on-demand`}
+          </span>
+        </button>
+      ) : null}
       {loading ? (
         <p className="text-xs" style={{ color: "var(--mute)" }}>
           loading the full roster…

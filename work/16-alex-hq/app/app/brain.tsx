@@ -76,7 +76,7 @@ export function BrainGraph() {
         <span className="kicker">The Brain · vault graph</span>
         {data ? (
           <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
-            {data.nodes.length} pages · {data.links.length} links · built {fmtDateTime(data.generated_at)}
+            {data.nodes.length} graph pages · nav excluded · {data.links.length} links · built {fmtDateTime(data.generated_at)}
           </span>
         ) : null}
       </div>
@@ -138,7 +138,7 @@ export function BrainGraph() {
           </span>
         ))}
         <span className="ml-auto text-xs" style={{ color: "var(--mute)" }}>
-          drag · zoom — index + log excluded
+          drag · zoom · index + log excluded
         </span>
       </div>
     </motion.div>

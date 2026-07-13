@@ -45,6 +45,7 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
   const [serverItems, setServerItems] = useState<InboxNote[]>(initial?.recent ?? []);
   const [localItems, setLocalItems] = useState<LocalNote[]>([]);
   const [sending, setSending] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
@@ -201,6 +202,13 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
   // display: optimistic local rows first (newest), then server rows (truth), capped at 5
   const shown: LocalNote[] = [...localItems, ...serverItems].slice(0, 5);
 
+  /* C1 (mobile fold): resolved history is retrospective reassurance, so on mobile it collapses
+     behind a tap and the fold serves the read path (strip + capture input + the first red tiles).
+     Auto-shown while any note is still in flight or waiting (the loop isn't closed yet); desktop
+     always shows it. The capture affordance (input + mic + send) never collapses. */
+  const hasOpenNote = shown.some((n) => n.pending || n.status !== "filed");
+  const showHistory = historyOpen || hasOpenNote;
+
   return (
     <motion.div
       className="tile flex flex-col gap-3 p-5"
@@ -281,8 +289,20 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
         </p>
       ) : null}
 
+      {shown.length && !hasOpenNote ? (
+        <button
+          type="button"
+          className="self-start py-1 text-xs sm:hidden"
+          style={{ color: "var(--mute)" }}
+          onClick={() => setHistoryOpen((v) => !v)}
+          aria-expanded={showHistory}
+        >
+          {showHistory ? "hide history" : `history · ${shown.length} ›`}
+        </button>
+      ) : null}
+
       {shown.length ? (
-        <div>
+        <div className={showHistory ? "" : "hidden sm:block"}>
           {shown.map((n) => {
             const voice = isVoice(n);
             const filed = n.status === "filed";

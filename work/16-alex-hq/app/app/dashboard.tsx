@@ -5,9 +5,10 @@
    @/components in the P9 refactor (design 4.3) - this file keeps the information architecture in
    one readable place. No logic changed in the move; the tile map + cadence shaping stay here. */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { ageLabel, cadenceStale, clean, fmtDateTime, fmtNum, weekdayAgeHours } from "@/lib/types";
+import { ageLabel, cadenceStale, clean, fmtDateTime, fmtDay, fmtNum, weekdayAgeHours } from "@/lib/types";
 import type { Inbox, LifeData, Metric, ProjectsData, RegProject, Status, Summary, TodosData } from "@/lib/types";
 import { cadenceStamp, regByKey, useJson, worst } from "@/lib/data";
 import { CountUp, Dot } from "@/components/primitives";
@@ -22,9 +23,49 @@ import { WaitingStrip } from "./waiting";
 
 const spring = { type: "spring" as const, stiffness: 260, damping: 26 };
 
-export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: number; inbox: Inbox | null }) {
+// C2 cadences: the page's server fetch revalidates at 60s, so a 2-min refresh always lands fresh
+// data; the "ago" labels tick every minute (their own granularity).
+const REFRESH_MS = 120_000;
+const NOW_TICK_MS = 60_000;
+
+export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summary; now: number; inbox: Inbox | null }) {
   const [open, setOpen] = useState<string | null>(null);
-  const [waitingOpen, setWaitingOpen] = useState(false);
+
+  /* C2: the standalone PWA has no reload UI, so without this the summary NEVER refetched
+     client-side — resumed at 08:00 it showed last night's tiles with "7h ago" frozen. On
+     visibilitychange -> visible: refresh the server payload + recompute "now"; while visible,
+     a slow interval keeps both live. router.refresh() merges the new RSC payload without
+     touching client state (a half-typed note survives). Initial state = the server prop, so
+     hydration stays deterministic; the clock only moves in effects. */
+  const router = useRouter();
+  const [now, setNow] = useState(serverNow);
+  useEffect(() => {
+    let tick: ReturnType<typeof setInterval> | null = null;
+    let refresh: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (!tick) tick = setInterval(() => setNow(Date.now()), NOW_TICK_MS);
+      if (!refresh) refresh = setInterval(() => router.refresh(), REFRESH_MS);
+    };
+    const stop = () => {
+      if (tick) clearInterval(tick);
+      if (refresh) clearInterval(refresh);
+      tick = refresh = null;
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        setNow(Date.now());
+        router.refresh(); // resume: last night's tiles must not survive the morning
+        start();
+      } else stop();
+    };
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [router]);
+
   const todos = useJson<TodosData>("/data/todos.json");
   const life = useJson<LifeData>("/data/life.json");
   const registry = useJson<ProjectsData>("/data/projects.json");
@@ -108,12 +149,6 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
     "health",
     "sleep_score_today"
   );
-  if (sleepTile) {
-    // red here = the daily iPhone push didn't land a real night; say so, don't show a stale number as if fresh
-    if (m("health", "sleep_score_today")?.status === "red")
-      sleepTile.sub = "phone sync stalled · no fresh sleep from the iPhone · fix the Shortcut";
-  }
-
   const stepsTile = withCadence(
     simple("health-steps", "Body · steps yesterday", "health", "steps_today", {
       metricKeys: ["steps_today"],
@@ -121,10 +156,26 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
     "health",
     "steps_today"
   );
-  if (stepsTile) {
-    if (m("health", "steps_today")?.status === "red")
-      stepsTile.sub = "phone sync stalled · no fresh steps from the iPhone · fix the Shortcut";
-  }
+
+  /* C7: red = the daily iPhone push didn't land. The 07-08 pass fixed the words but the biggest
+     pixels still contradicted them (full-white 42 / 0 reading as fresh). Now the last REAL
+     reading renders dimmed (the healthy-zero whisper treatment) + dated, a dead-default 0 (a
+     counter that never counted, not a measurement) renders "–", and the sparkline goes quiet. */
+  const stallHealthTile = (tile: TileDef | null, key: string, noun: string) => {
+    const mm = m("health", key);
+    if (!tile || mm?.status !== "red") return;
+    tile.sub = `phone sync stalled · no fresh ${noun} from the iPhone · fix the Shortcut`;
+    tile.dim = true;
+    tile.history = undefined;
+    const real = mm.value_num != null && mm.value_num !== 0;
+    if (!real) tile.big = "–";
+    const lastRealTs = real
+      ? mm.ts
+      : [...(mm.history ?? [])].reverse().find((h) => h.value_num != null && h.value_num !== 0)?.ts;
+    if (lastRealTs) tile.stamp = `last real: ${fmtDay(lastRealTs)}`;
+  };
+  stallHealthTile(sleepTile, "sleep_score_today", "sleep");
+  stallHealthTile(stepsTile, "steps_today", "steps");
 
   // monthly producer (runs month-end): the cadence stamp ("monthly · closes month-end") makes a
   // mid-month 0 read as "not captured yet", not "broken"; never amber mid-cycle, zero renders dim
@@ -274,15 +325,10 @@ export function Dashboard({ summary: s, now, inbox }: { summary: Summary; now: n
       </motion.header>
 
       {/* Waiting-on-you strip: renders only when the human-actions queue has open items
-          (empty queue = nothing here; the healthy screen stays calm). Sits above the Notes card. */}
+          (empty queue = nothing here; the healthy screen stays calm). Sits above the Notes card.
+          Non-expanding banner since C6 — the overlay it opened only repeated the strip. */}
       <div className="mb-4">
-        <WaitingStrip
-          metric={humanActions}
-          open={waitingOpen}
-          onOpen={() => setWaitingOpen(true)}
-          onClose={() => setWaitingOpen(false)}
-          now={now}
-        />
+        <WaitingStrip metric={humanActions} />
       </div>
 
       {/* Two-way inbox */}

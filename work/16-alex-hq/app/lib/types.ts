@@ -158,6 +158,16 @@ export function fmtNum(n: number | null): string {
   return (neg ? "-" : "") + grouped + (dec ? "," + dec.padEnd(2, "0").slice(0, 2) : "");
 }
 
+/* Display names for live slugs the registry doesn't claim (C9): the board's red-first sort puts
+   the hottest rows first, and those were rendering raw debug slugs exactly where the eye lands.
+   Honest end-state is claiming these as registry projects (routed to the system backlog); until
+   then the map translates, and any unmapped slug still falls back to itself (no row ever lost). */
+export const DISPLAY_NAMES: Record<string, string> = {
+  infra: "HQ Infra",
+  "human-actions": "Waiting on You",
+  quota: "Claude Quota",
+};
+
 // One-liners for the health-board drill-down: what each automation does.
 export const DESCRIPTIONS: Record<string, string> = {
   "morning-brief": "Daily 08:00 brief: unread mail, calendar, life ops and context, filtered to what matters.",

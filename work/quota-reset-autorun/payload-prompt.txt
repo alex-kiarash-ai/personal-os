@@ -1,0 +1,6 @@
+<<< PASTE YOUR PROMPT HERE >>>
+
+Everything above this line gets replaced by your actual work-prompt. It runs once, in full
+auto (claude -p --dangerously-skip-permissions), the moment your quota reset window opens.
+Write it exactly as you would type it to Alex. A delivery line (email/draft the result to you)
+is appended automatically by the poller, so you don't need to add one.

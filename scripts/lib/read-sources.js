@@ -20,6 +20,16 @@ function read(rel) {
 // Job names are every PersonalOS-<x> token anywhere in the file (the prose carries them), minus the
 // ephemeral PersonalOS-retry-* one-shots (excluded by design, same as recovery check C7).
 function parseScheduleJobs(scheduleMd) {
+  // "## Transient tasks (not standing jobs)" documents self-removing/on-demand tasks (e.g. the
+  // QRA poller, 2026-07-13) so they are not mistaken for rogue jobs. They are NOT standing jobs:
+  // V2's must-exist-live check skips them, but an armed one showing up live still counts as
+  // documented. Section stripped before parsing so its names never pollute entries/allJobNames.
+  let transientJobNames = [];
+  const tm = scheduleMd.match(/^## Transient tasks[^\n]*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m);
+  if (tm) {
+    transientJobNames = [...new Set((tm[1].match(/PersonalOS-[A-Za-z0-9-]+/g) || []))].sort();
+    scheduleMd = scheduleMd.replace(tm[0], '');
+  }
   const entries = [];
   const parts = scheduleMd.split(/^### /m).slice(1);
   for (const part of parts) {
@@ -37,7 +47,7 @@ function parseScheduleJobs(scheduleMd) {
   const allJobNames = [...new Set((scheduleMd.match(/PersonalOS-[A-Za-z0-9-]+/g) || []))]
     .filter(j => !j.startsWith('PersonalOS-retry-')).sort();
   if (entries.length === 0) throw new Error('read-sources: scheduler/schedule.md has no "### " entries');
-  return { entries, allJobNames };
+  return { entries, allJobNames, transientJobNames };
 }
 
 // --- CLAUDE.md "## MCP Reference" -> the MCP surface names ---------------------------------------

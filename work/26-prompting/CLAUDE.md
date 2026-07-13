@@ -109,6 +109,15 @@ Generated prompts reference files, they never restate file contents. No retyped 
 2. Choose the tool (MCP first if one exists; Chrome only for sites without one).
 3. Build extraction with pagination handling; validate output shape.
 
+**n8n instance / infra upgrade (box ops, NOT a workflow build; added 2026-07-13 from the n8n 2.21.7->2.30.3 run)**
+1. Skills: `n8n-cli` (instance ops from shell) + `systematic-debugging` on breakage; Context7 for the target version's release notes / breaking changes.
+2. Pre-flight ON the box: discover deployment (docker-compose vs run), DB backend (Postgres vs SQLite -> decides recreate safety), current version + image tag; API-snapshot every ACTIVE workflow's flag as the rollback reference.
+3. Backup-first: pg_dump (or volume backup) + REST workflow export + compose-file backup; confirm the nightly backups ran.
+4. Read release notes (Context7): list breaking changes that hit live workflows; STOP + surface before touching the container if any do.
+5. Pin the EXACT target tag (never :latest), recreate preserving the data volume; watch migrations finish clean.
+6. Verify-after-write: version read-back + re-activate any dropped active flags (the 2026-07-10 class) + one live test execution (200 + expected shape) + auth gate still enforcing; keep a rollback point.
+7. Propagate the new version to system/landscape-log.jsonl (#25 b30-idempotent row) + any stale ":latest"/version docs.
+
 **No pattern fits:** build a sensible numbered sequence from first principles. The mandatory skills sentence still runs; if no bound skill matches, optionally check `find-skills` for an installable one (routes through the #25 audit lane, never a blind install). Still end OUTPUT with the Close-Out Gate. At close-out, append the new sequence to this pattern library.
 
 ## Gap-check rules

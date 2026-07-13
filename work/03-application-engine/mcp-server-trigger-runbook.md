@@ -93,7 +93,7 @@ claude mcp add --transport http app-engine \
 
 ## Transport upgraded 2026-07-02 (legacy SSE → streamable HTTP)
 Origin: Alex AI Radar run-4 deep-dive on the MCP 2026-07-28 spec ([[research/mcp-spec-v2-stateless-concept]]) probed the box and caught the friction-#4 misdiagnosis. Executed on Shaheen's yes:
-- Box inventory (read-only, via SSH + REST): n8n **2.21.7** (image pulled 2026-05-21, Postgres 16), McpTrigger supports typeVersion **[1, 1.1, 2]**. The live trigger was v1.
+- Box inventory (read-only, via SSH + REST): n8n **2.21.7** (image pulled 2026-05-21, Postgres 16) *(superseded 2026-07-13: box upgraded to n8n **2.30.3**, compose pin bump, MCP nodes + this server verified still live)*, McpTrigger supports typeVersion **[1, 1.1, 2]**. The live trigger was v1.
 - Change: PUT workflow `CnhvoIVLSc6cUQZG` with the trigger at **typeVersion 2** (only field changed). Backup first: `config/backup-pre-typebump-1783001244.json`. Workflow stayed active; live crons + 3 workers untouched and verified active after.
 - Probes after: `POST /mcp/app-engine` → **403** (route live, auth gate enforcing; was 404). `GET /mcp/app-engine/sse` → **404** (legacy route gone). Garbage bearer → 403.
 - **Rollback:** PUT the backup JSON back (restores typeVersion 1 / SSE) - one API call.

@@ -8,6 +8,13 @@ import type { Metric, Project } from "@/lib/types";
 import { ageLabel, clean, fmtDateTime, fmtNum } from "@/lib/types";
 import { CountUp, Dot } from "@/components/primitives";
 
+/* C15: unit-bearing slots render dot-decimal with the unit attached — "$" next to a
+   decimal-comma numeral is a mixed locale and misreads as a list. Uniform precision per slot;
+   kr amounts elsewhere keep the Swedish style, and fmtNum itself is untouched. */
+const pct = (m?: Metric) => (m?.value_num != null ? `${m.value_num.toFixed(1)}%` : clean(m?.value_text) || "–");
+const usd = (m?: Metric) => (m?.value_num != null ? `$${m.value_num.toFixed(2)}` : clean(m?.value_text) || "–");
+const int = (m?: Metric) => (m?.value_num != null ? fmtNum(m.value_num) : clean(m?.value_text) || "–");
+
 export function AppsBreakdown({ projects, now }: { projects: Record<string, Project>; now: number }) {
   const lanes: { slug: string; label: string }[] = [
     { slug: "app-engine-bi", label: "BI lane" },
@@ -42,14 +49,16 @@ export function AppsBreakdown({ projects, now }: { projects: Record<string, Proj
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 py-3" style={{ borderBottom: "1px solid rgba(148,210,189,0.12)" }}>
-              {[
-                ["in review", mm.needs_review_depth],
-                ["pass rate %", mm.pass_rate_pct],
-                ["spend $", mm.total_spend_usd],
-              ].map(([label2, m]) => (
-                <div key={label2 as string} className="brain-stat">
-                  <span className="v">{m ? ((m as Metric).value_num != null ? fmtNum((m as Metric).value_num) : clean((m as Metric).value_text) || "–") : "–"}</span>
-                  <span className="k">{label2 as string}</span>
+              {(
+                [
+                  ["in review", int(mm.needs_review_depth)],
+                  ["pass rate", pct(mm.pass_rate_pct)],
+                  ["spend", usd(mm.total_spend_usd)],
+                ] as [string, string][]
+              ).map(([label2, v]) => (
+                <div key={label2} className="brain-stat">
+                  <span className="v">{v}</span>
+                  <span className="k">{label2}</span>
                 </div>
               ))}
             </div>

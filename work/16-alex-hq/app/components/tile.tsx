@@ -79,7 +79,8 @@ export function Tile({
         </div>
       ) : null}
       {sub ? (
-        <p className="line-clamp-2 text-sm leading-snug" style={{ color: "var(--mute)" }}>
+        // red subs carry the offender names — one extra line so the alarm is never clipped (C17)
+        <p className={`${status === "red" ? "line-clamp-3" : "line-clamp-2"} text-sm leading-snug`} style={{ color: "var(--mute)" }}>
           {sub}
         </p>
       ) : null}
