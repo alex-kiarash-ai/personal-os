@@ -48,7 +48,7 @@ soul.md (voice + negotiation register + My Words), `vault/me/interview-answers.m
 Drafts only. Never replies to a recruiter, never accepts or declines, never auto-schedules. Every company/person fact is cited or marked unknown, never invented. Every voice draft passes the soul.md check before it is shown.
 
 ## Model Routing
-Claude: dossier, question prep, fit reasoning, note extraction. OpenAI + soul.md: the draft reply and the negotiation message (human-facing prose in Shaheen's voice).
+Claude: dossier, question prep, fit reasoning, note extraction. claude-sonnet-4-6 + soul.md: the draft reply and the negotiation message (human-facing prose in Shaheen's voice). *(Corrected 2026-07-14, /deep-audit D1: was "OpenAI"; the 2026-07-08 model-routing rule runs all prose nodes on claude-sonnet-4-6.)*
 
 ## Connections
 - **Fed by:** #03 BI pipeline + #14 AI pipeline (the applications that lead to interviews), Gmail/Calendar, Meeting Intel (#06), Research Team (#04), Personal CRM (#05), Runway (#20), Email Triage (#07 - its job-loop flags recruiter replies + interview invites and escalates them here, 2026-07-10 v2).

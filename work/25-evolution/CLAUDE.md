@@ -116,8 +116,8 @@ For EVERY item Shaheen approves from a digest, same discipline as any other chan
    drift, don't bypass.
 6. Shaheen **reviews the diff once, approves, merges.** That is the only path to production.
 
-## Activation (post-merge - deliberately deferred, see the note)
-Nothing is scheduled live yet. Two reasons: (a) the wrappers live on the `refactor/v2-architecture`
+## Activation (ACTIVATED 2026-07-09)
+**ACTIVATED 2026-07-09** (confirmed live by /deep-audit D4, 2026-07-14: `PersonalOS-landscape-monitor` daily 07:10 + `PersonalOS-landscape-eval` Mon 07:50 both firing, last green 07-13). The steps below are the historical activation record; the original deferral reasoning was: (a) the wrappers live on the `refactor/v2-architecture`
 branch, and a live Windows task pointing at a branch-only wrapper breaks the moment anyone checks out
 main; (b) the weekly eval burns plan tokens, so it should not auto-start without Shaheen's go. This
 matches the spec's own rule: build Phase 2 last, after Phase 1 is merged. Activation is one step:

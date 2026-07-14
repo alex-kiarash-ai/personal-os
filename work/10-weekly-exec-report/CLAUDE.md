@@ -4,7 +4,7 @@
 Automation (scheduled weekly + on-demand) - the capstone. Aggregates every other automation.
 
 ## Purpose
-Every Friday, reads from ALL nine other automations + Gmail/Calendar and rolls the week into one branded 7-slide deck and a Notion weekly summary page: what shipped, project status, key meetings, market intel, who you dealt with, what's blocked, and next week's priorities. It's the one artifact that tells Shaheen (and a future manager/client) what a week of the Personal OS actually produced.
+Every Friday, reads from every other live automation + Gmail/Calendar and rolls the week into one branded 7-slide deck and a Notion weekly summary page: what shipped, project status, key meetings, market intel, who you dealt with, what's blocked, and next week's priorities. It's the one artifact that tells Shaheen (and a future manager/client) what a week of the Personal OS actually produced.
 
 ## Entry Points
 - **Scheduled:** Friday 16:00 (Task Scheduler `PersonalOS-weekly-exec-report`).
@@ -27,7 +27,7 @@ Every Friday, reads from ALL nine other automations + Gmail/Calendar and rolls t
 | Relationships | Personal CRM | `746bc5bf-8ab3-4e34-911d-00b9d180e350` + vault/people/ (who you interacted with this week) |
 | Expenses | Expense Wrangler | `ef881285-4d96-461f-a905-72e161a91532` + vault/projects/expense-wrangler/ |
 | Research | Research Team | vault/research/ |
-| Content | Content Machine | `0f511509-1c63-4b22-a328-976d6d56d6aa` + vault/projects/content-machine/ |
+| Content | LinkedIn Series (#12) | `0f511509-1c63-4b22-a328-976d6d56d6aa` (Content Library DB, moved to #12 when #09 Content Machine retired 2026-07-06; /deep-audit D5) + vault/projects/linkedin-series/ |
 | Email flow | Email Triage | `9badd246-01a3-4e23-b7b4-9d2c843daef4` + vault/projects/email-triage/history/ |
 | Raw | Gmail + Calendar | this week's window |
 
@@ -63,7 +63,7 @@ soul.md + every source in the table above. brand/config + template.
 - New people/companies only if the aggregation surfaces any not already filed (rare - upstream automations already file them).
 
 ## Connections
-- **Fed by:** all 9 automations + Gmail/Calendar. This is the top of the pyramid; everything reports up to it.
+- **Fed by:** every live automation + Gmail/Calendar. This is the top of the pyramid; everything reports up to it.
 - **Feeds into:** Shaheen's weekly review; portable proof-of-work for job interviews (a real artifact showing systems thinking + AI-automation in action).
 
 ## Post-Run (mandatory)

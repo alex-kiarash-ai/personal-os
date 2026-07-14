@@ -1,7 +1,7 @@
 # WhatsApp Harvest (voice corpus + people sync)
 
 ## Type
-Automation (local, scheduled daily 02:30, while Shaheen sleeps). Phase 1 of the WhatsApp integration agreed 2026-06-12.
+Automation (ON-DEMAND). **Superseded 2026-07-14 (/deep-audit D3):** the daily-02:30 scheduled screen-scrape described below is Phase 1 and is RETIRED (dead end); the live method is Phase 2 - an on-demand encrypted iPhone-backup harvest (proven 2026-07-10). The `PersonalOS-whatsapp-harvest` task is Disabled. The "02:30" / "Method (v1, screen capture)" sections below are kept as history; read status.md for the current state. Phase 1 of the WhatsApp integration agreed 2026-06-12.
 
 ## Why 02:30 (Shaheen's usage-based scheduling, 2026-06-12)
 Schedule by usage, not by clock convenience: the run fires when Shaheen's interactive usage is guaranteed zero, so it never competes with his day and gets a fresh 5-hour window. Combined with checkpoint pushes (below), every token consumed buys data that is already in the db.
