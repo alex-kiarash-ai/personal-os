@@ -9,7 +9,12 @@ $log = "outputs\logs\airbnb-host.log"
 if (-not (Test-AlexQuotaGate -Log $log -Project 'airbnb')) { exit 0 }
 
 # Deterministic first (write-first discipline): harvest, THEN rebuild the model.
-python "work\13-airbnb-host\scrape_airbnb.py"  2>&1 | Out-File -Append -Encoding utf8 $log
+# --headless is REQUIRED for the scheduled/unattended run (fix 2026-07-14): a HEADED launch has no
+# desktop to render into under Task Scheduler and hangs to a 180s launch timeout (that was the real
+# 2026-06-24 failure, NOT an expired login - the session was still valid). Headless reuses the same
+# persistent .browser-profile session and works read-only (verified 2026-07-14: logged-in, 38 rows).
+# Manual/on-demand runs stay HEADED per RUNBOOK.md (lower bot-detection risk when Shaheen is watching).
+python "work\13-airbnb-host\scrape_airbnb.py" --headless 2>&1 | Out-File -Append -Encoding utf8 $log
 $scrapeCode = $LASTEXITCODE
 if ($scrapeCode -ne 0) {
     # FAIL LOUD (fix, /deep-audit full-repo M2, 2026-07-14): a failed scrape must NOT fall through to

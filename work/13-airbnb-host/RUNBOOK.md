@@ -39,5 +39,9 @@ fix the selectors against what your account actually renders. Expect one tuning 
 - If you ever feel uneasy, delete `.browser-profile/` to kill the saved session and fall back to the Gmail feed.
 
 ## Cadence
-On-demand for now (`/airbnb-host`). If you want it scheduled (e.g. weekly), say so and I'll
-add a Task Scheduler job - but headless scheduled scraping raises detection risk, so weekly + headed is the safer default.
+Scheduled monthly on the 24th (Task Scheduler `PersonalOS-airbnb-host`) + on-demand (`/airbnb-host`).
+**The scheduled run uses `--headless` (fix 2026-07-14):** a headed browser can't launch unattended under
+Task Scheduler - it hangs to a 180s launch timeout (that was the 06-24 failure, NOT an expired login).
+Headless reuses the same `.browser-profile` session read-only. Detection-risk note: headless is more
+detectable than headed, so the cadence stays occasional (monthly) and read-only. Manual runs you start
+yourself stay headed.

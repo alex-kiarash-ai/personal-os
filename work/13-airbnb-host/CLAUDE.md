@@ -12,7 +12,7 @@ Track Shaheen's Airbnb hosting of a studio apartment entirely from the Gmail fee
 
 ## Data Access (decided 2026-06-14)
 Shaheen chose **browser automation over the Gmail feed** (he wants his actual account data, not email-derived). Reality check that drove it: Airbnb has no host API, no usable MCP, and this agent session has no browser tool (WebFetch dies on authenticated pages). So access is a **local, read-only Playwright harvest of his own logged-in dashboard**:
-- `scrape_airbnb.py` - persistent Chromium profile (login + 2FA once, session reused), pulls the official earnings CSV + scrapes reservations. NEVER sends/accepts/declines/edits. Saves to `raw/` + `raw/_debug/` (screenshots + HTML for selector tuning).
+- `scrape_airbnb.py` - persistent Chromium profile (login + 2FA once, session reused), pulls the official earnings CSV + scrapes reservations. NEVER sends/accepts/declines/edits. Saves to `raw/` + `raw/_debug/` (screenshots + HTML for selector tuning). **Scheduled runs pass `--headless` (fix 2026-07-14):** a headed browser can't launch unattended under Task Scheduler (180s launch timeout = the 06-24 failure, NOT an expired login - the session is valid); headless reuses the same `.browser-profile` session read-only. Manual runs you start yourself stay headed (lower bot-detection risk).
 - `ingest_airbnb.py` - parses `raw/` (pandas) into the Excel model (formulas re-applied) + `raw/bookings-normalized.json` for Notion.
 - See `RUNBOOK.md`. Risks accepted by Shaheen: ToS-gray, bot-detection, fragile selectors. Mitigations: read-only, human pacing, occasional cadence, `.browser-profile/` treated as a secret (gitignored, never in vault).
 - Gmail feed remains the **fallback** if the browser route is killed.
