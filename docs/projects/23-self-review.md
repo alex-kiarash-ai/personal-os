@@ -13,4 +13,6 @@
 
 **Connects to:** fed by Teach-Alex (#22), the error log, the close-out log, your voice corpus and decisions; feeds your rules, voice, taste, the Monday brief, and a Building Alex episode.
 
-**Command:** `/self-review` (also weekly, Sunday 20:00). Numbering note: this is roadmap brief 01, built as work/23; live work/01 is the sprint tracker.
+**Also: `/deep-audit` (added 2026-07-14):** the heavy on-demand version. Instead of reading this week's mistakes, it fans out one agent per project across the whole system and makes each one prove that what the project CLAIMS (that it is live, that it does what it says, that its workflow is actually running) matches reality, then a second pass tries to prove those "verified" answers wrong. It catches the "the file says X but reality is Y" drift the cheap weekly checks miss (the kind behind the July engine that silently switched itself off while every file still said it was running). Never scheduled (it spends the plan's usage window); it finds and proposes, never fixes on its own.
+
+**Command:** `/self-review` (also weekly, Sunday 20:00) + `/deep-audit` (on-demand). Numbering note: this is roadmap brief 01, built as work/23; live work/01 is the sprint tracker.

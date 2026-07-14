@@ -9,6 +9,7 @@ Turns Alex's learning loop from passive filing into an active habit. Once a week
 ## Entry Points
 - **Scheduled:** weekly, Sunday 20:00 (quiet slot), before the Monday brief.
 - **On-demand:** `/self-review`.
+- **On-demand, heavy:** `/deep-audit [scope]` - the adversarial whole-system audit (see Deep Audit below). Never scheduled.
 
 ## What a run does
 1. **Gather the diff** since the last review: new corrections in [[projects/teach-alex/corrections-log]] (#22), new `vault/projects/error-log.md` entries, INCOMPLETE close-out reports from [[projects/self-review/close-out-log]], soul.md My Words additions (git diff), `vault/me/decisions.md` changes.
@@ -33,6 +34,9 @@ the 15 scheduled jobs. Invoked via the Agent tool (Alex's existing inline-subage
 Claude Code config). Verified 2026-07-07 against a reconstructed 07-03 violator (FAIL) + a compliant
 artifact (PASS). #23 owns the kit because it owns the review/quality surface; the invocation is global
 (every session's item C), driven from the root CLAUDE.md Close-Out Gate.
+
+## Deep Audit (on-demand adversarial repo audit) - added 2026-07-14 (dynamic-workflows build)
+The heavy on-demand sibling of the weekly review. `/deep-audit [scope]` fans out one agent per project and makes each prove the project's manifest CLAIMS (state, "does what the one-liner says", n8n `active:true` on the live API, schedule_jobs exist, first_fire real, connected surfaces agree) match GROUND TRUTH, then an adversarial pass tries to break every "verified" verdict from a cited system fact. It catches the "file says X, reality is Y" drift class that #18's pattern-checker and the cheap weekly review structurally miss (proven by the 07-10 silent dual-engine deactivation, the stale deployed-inactive note, the recurring audit-null corrections in commits). **Never scheduled** - on Max it spends the usage window; a full ~26-project run is the quarterly deep sweep, scope it to one project for a bounded proof. **Finds + proposes only:** DRIFT enters #23's gated propose/approve/apply loop (generated-surface drift is fixed via `system/manifest.json` + the generator, never hand-edits between markers; identity files stay gated exactly like `/self-review`). Full spec + workflow: `work/23-self-review/deep-audit/README.md`. It is the whole-repo sibling of #04's single-claim Adversarial Verification Mode (shared evidence-anchored refutation discipline: dissent must cite a fact, never model reasoning alone).
 
 ## Data / infra it uses (all live)
 Git history (weekly diff of the identity files), `vault/projects/error-log.md`, [[projects/teach-alex/corrections-log]] (#22), [[projects/self-review/close-out-log]], soul.md My Words, `vault/me/decisions.md`, `vault/me/taste-profile.md`, the vault, Notion (approval rows), Alex HQ (approval card). No new external service; this is reasoning over files that already exist.

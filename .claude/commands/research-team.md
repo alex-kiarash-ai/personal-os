@@ -4,6 +4,10 @@ Spec: work/04-research-team/CLAUDE.md (read it first; it defines the full runtim
 
 Usage: `/research-team {question or topic}`. If no question given, ask for one - don't invent a topic.
 
+## Modes
+- **Research (default):** `/research-team {question}` - gather external evidence, synthesize, ship. Steps below.
+- **Adversarial verification:** `/research-team verify: {claim}` (or "stress-test / red-team {claim}") - put a claim Alex or Shaheen already holds ON TRIAL. Refuters are mandated to DISPROVE it and must anchor every attack in EXTERNAL evidence (not model reasoning), a convergence judge returns CONFIRMED / REFUTED / UNRESOLVED and never averages a split, and the honesty law binds the debate. This is the only sanctioned way to check an Alex conclusion here (default-flow agreement is consensus laundering). Full spec: work/04-research-team/CLAUDE.md "Adversarial Verification Mode". On-demand sibling of #23 `/deep-audit`.
+
 ## Steps (condensed; spec is authoritative)
 1. Classify the question; check work/04-research-team/patterns/index.md for a reusable team.
 2. Check vault/research/ and notion-search first - partial answers may exist; don't re-buy them.
