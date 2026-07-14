@@ -13,7 +13,7 @@ no approvals), emails you the result, then disables itself. One shot, no recurre
 
 ```
   Hetzner n8n workflow "Quota Reset Auto-Run (one-shot gate)"  (holds fire_at + go/consumed in static data)
-     ^  GET /webhook/qra-gate  (every 60s, token-gated)
+     ^  GET /webhook/qra-gate  (once at fire time, token-gated)
      |
   ThinkPad scheduled task PersonalOS-qra-poller --> go? --yes--> claude -p (full auto) --> save + email draft
      |                                                              |
@@ -39,7 +39,8 @@ on the laptop with `--dangerously-skip-permissions`, so it can never be an open 
    cd work\quota-reset-autorun\scripts
    .\arm.ps1 -ResetTime "15:00"     # fires at 15:05; add -OffsetMinutes N to change the +5
    ```
-   arm.ps1 arms the box, verifies the gate read-back, and registers the every-minute poller.
+   arm.ps1 arms the box, verifies the gate read-back, and registers a single-fire task at fire time
+   (no every-minute polling; runs on wake if the laptop was asleep, self-expires after 12h).
 3. Keep the ThinkPad awake through the fire time. The result lands as a Gmail draft to
    shaheen.kiarash@gmail.com and a copy in `outputs/prompting-scheduled/YYYY-MM-DD/`.
 4. Cancel anytime: `.\disarm.ps1`.
@@ -61,6 +62,12 @@ a hard-sent mail. Want true auto-send? Add an SMTP cred to n8n and switch the re
 - Poller no-ops cleanly on `go:false` (no claude run, no task, no files).
 - NOT yet live-fired: the GO branch invoking `claude -p` + draft + result-post (spends quota + drops a
   draft; uses the identical pattern as the 8 scheduler run-*.ps1 wrappers). First real arming proves it.
+- 2026-07-14: arm.ps1 failed repeatedly ("connection closed on send", then "problem executing the
+  workflow"). REAL root cause: `Get-Content -Raw` returns a string decorated with PS provider
+  NoteProperties, and `ConvertTo-Json` exploded them into a ~90MB body. Fix: read the prompt with
+  `[System.IO.File]::ReadAllText` (plain string). Scripts also moved to **curl.exe** (temp-file
+  `--data-binary @file`) for robustness, but that was not the fix. Verified live. See
+  vault/projects/error-log.md "ROOT CAUSE (definitive)".
 
 ## Note
 One-off by design, NOT a registered numbered automation. A recurring version would route through /new

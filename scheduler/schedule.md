@@ -194,7 +194,7 @@ Re-apply after any task re-creation (never `schtasks /change` - it hangs on a pa
 Fixed 2026-07-03: alex-radar and sprint-tracker had `WakeToRun=False` (a Monday / weekday-morning laptop job that could not wake the machine = a silent miss); both flipped to True.
 
 ## Transient tasks (not standing jobs)
-- **PersonalOS-qra-poller** (added 2026-07-13, Quota Reset Auto-Run): a ONE-SHOT task created by `work/quota-reset-autorun/scripts/arm.ps1` when Shaheen arms a quota-reset auto-run. Runs `poll-and-run.ps1` every 1 min (MultipleInstances IgnoreNew, StartWhenAvailable, battery-ok), fires the armed prompt once at reset+5, then **unregisters itself**. Not a standing job, not created by /cron-setup. If you see it in Task Scheduler, a run is armed; `disarm.ps1` removes it. Documented here so it is not mistaken for a rogue task.
+- **PersonalOS-qra-poller** (added 2026-07-13, Quota Reset Auto-Run): a ONE-SHOT task created by `work/quota-reset-autorun/scripts/arm.ps1` when Shaheen arms a quota-reset auto-run. Fires ONCE at reset+offset (single-fire trigger, no every-minute polling; StartWhenAvailable so it runs on wake, self-expiring after 12h), runs the armed prompt, then **unregisters itself**. Not a standing job, not created by /cron-setup. If you see it in Task Scheduler, a run is armed; `disarm.ps1` removes it. Documented here so it is not mistaken for a rogue task.
 
 ## How to Set Up in Cowork
 
