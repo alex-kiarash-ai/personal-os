@@ -98,6 +98,9 @@ export function HealthBoard({
   const [idleOpen, setIdleOpen] = useState(false);
   const active = rows.filter((r) => r.sortRank < 3);
   const idle = rows.filter((r) => r.sortRank === 3);
+  // C11: the board pulses its ONE worst dot (rows sort red-first, so that's the first red);
+  // every other red row is a steady alarm — an alarm day stays readable, not a light show
+  const firstRed = active.findIndex((r) => r.display === "red");
 
   // C20: say what the population is — registered projects vs unclaimed live feeds
   const regCount = registry && registry !== "failed" ? registry.projects.length : 0;
@@ -118,8 +121,9 @@ export function HealthBoard({
       viewport={{ once: true, margin: "-40px" }}
       transition={spring}
     >
-      <div className="flex items-center justify-between">
-        <span className="kicker">Automation Health</span>
+      {/* C19: the row wraps, the kicker itself never does (zero-kicker-wraps gate at 390) */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="kicker whitespace-nowrap">Automation Health</span>
         <span className="text-xs" style={{ color: "var(--mute)" }}>
           {popLabel} · tap one for what it does
         </span>
@@ -134,7 +138,7 @@ export function HealthBoard({
             transition={{ ...spring, delay: i * 0.03 }}
           >
             <button className="health-row" onClick={() => onOpen(p.drillId)}>
-              <span className={`dot dot-${p.display}`} aria-label={p.display} />
+              <span className={`dot dot-${p.display}${i === firstRed ? " dot-pulse" : ""}`} aria-label={p.display} />
               <span className="min-w-0 flex-1 truncate font-medium">{p.label}</span>
               <span className="ml-auto flex-none text-xs tabular-nums" style={{ color: "var(--mute)" }}>
                 {p.meta}

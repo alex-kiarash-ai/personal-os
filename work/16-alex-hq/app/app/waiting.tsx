@@ -49,17 +49,26 @@ export function WaitingStrip({ metric }: { metric: Metric | null }) {
     <motion.div
       aria-live="polite"
       aria-label={`Waiting on you: ${count} ${count === 1 ? "item" : "items"}${oldest ? `, ${oldest}` : ""}`}
-      className={`tile ${critical ? "tile-red" : ""} flex w-full items-center gap-3 px-5 py-3 text-left`}
+      className={`tile ${critical ? "strip-red" : ""} flex w-full items-center gap-3 px-5 py-3 text-left`}
       style={{ borderRadius: "1rem", cursor: "default" }}
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring}
     >
-      <span className={`dot ${critical ? "dot-red" : "dot-amber"}`} aria-hidden />
+      {/* C11: the strip is its own section with one dot — critical keeps the heartbeat */}
+      <span className={`dot ${critical ? "dot-red dot-pulse" : "dot-amber"}`} aria-hidden />
       <span className="kicker whitespace-nowrap" style={critical ? { color: "var(--paper)" } : undefined}>
         Waiting on you
       </span>
-      <span className="font-display flex-none text-lg font-bold tabular-nums">{count}</span>
+      {/* C8: the waiting count is an unactioned action-count, so it burns Rusty Spice like its
+          tile siblings; on the critical red face it stays white — max contrast wins there */}
+      {/* C12: the count is a data numeral, so it speaks Plex Mono like every other numeral */}
+      <span
+        className="num-display flex-none text-lg"
+        style={critical ? undefined : { color: "var(--warn)" }}
+      >
+        {count}
+      </span>
       {oldest ? (
         <span className="flex-none text-xs tabular-nums" style={{ color: "var(--mute)" }}>
           {oldest}

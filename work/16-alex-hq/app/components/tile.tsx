@@ -17,7 +17,13 @@ export type TileDef = {
   status: Status;
   big: React.ReactNode;
   dim?: boolean;
-  accent?: string;
+  /* C8: an unactioned action-count (urgent / act now / broken) burns Rusty Spice — the mirror
+     of the dim-zeros rule, so "zeros whisper, actionable counts burn" holds in both directions.
+     Independent of the dot: Morning Brief can show a burning 2 on a green run. */
+  burn?: boolean;
+  /* C11: exactly one dot per section carries the pulse — the dashboard marks its worst red */
+  pulse?: boolean;
+  accent?: React.ReactNode;
   sub?: string;
   stamp?: string;
   history?: Metric["history"];
@@ -31,6 +37,8 @@ export function Tile({
   status,
   big,
   dim,
+  burn,
+  pulse,
   accent,
   sub,
   stamp,
@@ -44,7 +52,9 @@ export function Tile({
   status: Status;
   big: React.ReactNode;
   dim?: boolean;
-  accent?: string;
+  burn?: boolean;
+  pulse?: boolean;
+  accent?: React.ReactNode;
   sub?: string;
   stamp?: string;
   history?: Metric["history"];
@@ -67,10 +77,14 @@ export function Tile({
     >
       <div className="flex w-full items-center justify-between gap-3">
         <span className="kicker">{kicker}</span>
-        <Dot status={status} />
+        <Dot status={status} pulse={pulse} />
       </div>
-      {/* healthy zeros whisper; only actionable numbers burn white */}
-      <div className="big" style={dim ? { color: "rgba(148, 210, 189, 0.55)" } : undefined}>
+      {/* healthy zeros whisper (dim); unactioned action-counts burn Rusty Spice (C8 —
+          §4.2 allows warning colors in big stat numbers, never paragraphs) */}
+      <div
+        className="big"
+        style={dim ? { color: "rgba(148, 210, 189, 0.55)" } : burn ? { color: "var(--warn)" } : undefined}
+      >
         {big}
       </div>
       {accent ? (

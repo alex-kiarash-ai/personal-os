@@ -214,22 +214,40 @@ button.tile:hover {
   background: rgba(10, 147, 150, 0.1);
 }
 
-/* status tints: warning + error borders (reds = alarm only) */
+/* status skin (C4): the alarm retreats to the ring. The old 52%-alpha card fill let the
+   border-box red gradient wash the whole tile face — pixel-sampled proof it broke color-law
+   §4.1 (never red as a large background) on the Brain strip, and 5 warm tiles read as maroon.
+   Interior is now an OPAQUE elevated step (law --bg-elevated); the alarm lives in the 1px
+   ring + the dot + the kicker, plus a <=6% wash for RED only. Amber gets no wash and keeps
+   its aqua kicker (no law-compliant small amber text exists; ring + dot + burning count
+   carry it). The Waiting strip alone keeps face-level primacy via .strip-red below. */
 .tile-red {
+  background:
+    linear-gradient(rgba(174, 32, 18, 0.055), rgba(174, 32, 18, 0.055)) padding-box,
+    linear-gradient(var(--elev), var(--elev)) padding-box,
+    linear-gradient(150deg, rgba(174, 32, 18, 0.7), rgba(174, 32, 18, 0.12) 55%) border-box;
+}
+.tile-red .kicker {
+  color: var(--error-text-dark); /* Signal Coral: THE sanctioned small red text on dark (§4.4 D5) */
+}
+
+.tile-amber {
+  background:
+    linear-gradient(var(--elev), var(--elev)) padding-box,
+    linear-gradient(150deg, rgba(187, 62, 3, 0.55), rgba(187, 62, 3, 0.1) 55%) border-box;
+}
+
+/* the Waiting strip's critical state: the ONE surface that keeps the old face-level red
+   (C4's explicit exception — a critical human-actions queue is the page's loudest fact) */
+.strip-red {
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(150deg, rgba(174, 32, 18, 0.7), rgba(174, 32, 18, 0.12) 55%) border-box;
 }
 
-.tile-amber {
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    linear-gradient(150deg, rgba(187, 62, 3, 0.55), rgba(187, 62, 3, 0.1) 55%) border-box;
-}
-
 .kicker {
   font-family: var(--font-chakra), sans-serif;
-  font-size: 0.66rem;
+  font-size: 0.7rem; /* C19: 0.66 -> 0.7 (craft band 0.7-0.72); QA gate = zero wraps at 390+1440 */
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -253,15 +271,21 @@ button.tile:hover {
   flex: none;
 }
 .dot-green { background: var(--cyan);  box-shadow: 0 0 12px rgba(10, 147, 150, 1); }
-.dot-amber { background: var(--warn);  box-shadow: 0 0 10px rgba(187, 62, 3, 0.8); }
-.dot-red   { background: var(--error); box-shadow: 0 0 12px rgba(174, 32, 18, 0.95); animation: pulse 1.6s ease-in-out infinite; }
+/* C8 dot grammar, shape + color so grayscale still separates the states:
+   red = filled (the section's WORST red also pulses, C11) · amber = thick ring (precedent:
+   dot-idle's thin hollow ring) · green = filled, no pulse · idle = thin faint ring */
+.dot-amber { background: transparent; border: 3px solid var(--warn); box-shadow: 0 0 10px rgba(187, 62, 3, 0.8); }
+.dot-red   { background: var(--error); box-shadow: 0 0 12px rgba(174, 32, 18, 0.95); }
 /* idle: registered project with no live telemetry — a quiet hollow marker, never an alarm */
 .dot-idle  { background: transparent; border: 1px solid rgba(148, 210, 189, 0.55); box-shadow: none; } /* 0.55 clears the 3:1 non-text floor (C16) */
+/* C11: the pulse is opt-in — ONE heartbeat per section (its worst dot), not nine in sync.
+   The dashboard / health board / strips decide who wears it ("breathes, never dances"). */
+.dot-pulse { animation: pulse 1.6s ease-in-out infinite; }
 
 /* state chip in the registry drill-down card */
 .state-chip {
   font-family: var(--font-chakra), sans-serif;
-  font-size: 0.6rem;
+  font-size: 0.66rem; /* C19: chips step up with the kickers */
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -275,6 +299,14 @@ button.tile:hover {
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.35); opacity: 0.7; }
+}
+/* C11: the two attention-grabbers that ignored the OS setting (motion/react components are
+   covered by MotionConfig reducedMotion="user" in layout; these are raw CSS keyframes) */
+@media (prefers-reduced-motion: reduce) {
+  .dot-pulse,
+  .btn-mic.rec {
+    animation: none;
+  }
 }
 
 /* header hairline: brand gradient teal → cyan, slow shimmer */
@@ -449,7 +481,8 @@ button.tile:hover {
 
 .note-row {
   display: flex;
-  align-items: center;
+  /* C10: rows may wrap to two lines now — top-align so a wrapped body doesn't float the dot */
+  align-items: flex-start;
   gap: 0.6rem;
   font-size: 0.85rem;
   padding: 0.35rem 0;
@@ -457,6 +490,28 @@ button.tile:hover {
 }
 .note-row:last-of-type {
   border-bottom: none;
+}
+.note-row > .dot {
+  margin-top: 0.28rem; /* optically centers on the first text line */
+}
+
+/* C12: one numeral voice — overlay headline numbers + the strip count join .big /
+   .brain-stat .v / .accent-num in Plex Mono; Chakra keeps kickers and display WORDS only
+   (D6 as amended 2026-07-14). Weight 600 because Plex Mono ships 500/600, no 700. */
+.num-display {
+  font-family: var(--font-mono), monospace;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* C21: secondary numerals in the aqua accent tier (the apps tile's lane counts) —
+   same mono voice as .big/.brain-stat .v, one step smaller */
+.accent-num {
+  font-family: var(--font-mono), monospace;
+  font-weight: 600;
+  font-size: 1.15rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Alex Brain strip: horizontal count readouts */

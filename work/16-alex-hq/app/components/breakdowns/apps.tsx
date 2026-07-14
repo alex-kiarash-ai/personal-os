@@ -40,7 +40,8 @@ export function AppsBreakdown({ projects, now }: { projects: Record<string, Proj
                 ready to apply · good fit
               </span>
               <div className="mt-1 flex items-baseline gap-3">
-                <span className="font-display text-3xl font-bold tracking-tight">
+                {/* C12: one numeral voice — the lane headline matches the tiles' Plex Mono */}
+                <span className="num-display text-3xl tracking-tight">
                   {ready !== null ? <CountUp value={ready} /> : "–"}
                 </span>
                 <span className="text-sm" style={{ color: "var(--mute)" }}>

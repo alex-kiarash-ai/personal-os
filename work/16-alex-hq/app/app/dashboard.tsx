@@ -5,7 +5,7 @@
    @/components in the P9 refactor (design 4.3) - this file keeps the information architecture in
    one readable place. No logic changed in the move; the tile map + cadence shaping stay here. */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ageLabel, cadenceStale, clean, fmtDateTime, fmtDay, fmtNum, weekdayAgeHours } from "@/lib/types";
@@ -30,6 +30,33 @@ const NOW_TICK_MS = 60_000;
 
 export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summary; now: number; inbox: Inbox | null }) {
   const [open, setOpen] = useState<string | null>(null);
+
+  /* C13: in a standalone PWA, Back is the universal dismiss gesture — without this it exited
+     the whole app from inside a drill-down, the most expensive possible mis-tap. Opening pushes
+     ONE history entry (merged into the existing state so Next's router keys survive); the Back
+     gesture (popstate) closes the overlay; programmatic closes (Escape / ✕ / backdrop) consume
+     that entry via history.back() so the stack never grows. Refresh with an overlay open leaves
+     the marker on the CURRENT entry only: the reloaded page has no overlay, and the first Back
+     just re-lands on the page (popstate → already-null no-op) — nothing strands. */
+  const openRef = useRef<string | null>(null);
+  const openOverlay = useCallback((id: string) => {
+    if (!openRef.current) window.history.pushState({ ...window.history.state, hqOverlay: true }, "");
+    openRef.current = id;
+    setOpen(id);
+  }, []);
+  const closeOverlay = useCallback(() => {
+    openRef.current = null;
+    setOpen(null);
+    if (window.history.state?.hqOverlay) window.history.back();
+  }, []);
+  useEffect(() => {
+    const onPop = () => {
+      openRef.current = null;
+      setOpen(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   /* C2: the standalone PWA has no reload UI, so without this the summary NEVER refetched
      client-side — resumed at 08:00 it showed last night's tiles with "7h ago" frozen. On
@@ -98,7 +125,7 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
     kicker: string,
     project: string,
     key: string,
-    opts?: { spark?: boolean; noAccent?: boolean; metricKeys?: string[] }
+    opts?: { spark?: boolean; noAccent?: boolean; burn?: boolean; metricKeys?: string[] }
   ): TileDef | null => {
     const mm = m(project, key);
     if (!mm) return null;
@@ -109,6 +136,8 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
       status: mm.status,
       big: mm.value_num != null ? <CountUp value={mm.value_num} /> : clean(mm.value_text) || "–",
       dim: mm.value_num === 0 && mm.status === "green",
+      // C8: opts.burn marks an ACTION count — non-zero renders the numeral in Rusty Spice
+      burn: (opts?.burn ?? false) && mm.value_num != null && mm.value_num > 0,
       accent: opts?.noAccent ? undefined : mm.value_num != null && mm.value_text ? clean(mm.value_text) : undefined,
       sub: mm.headline ? clean(mm.headline) : undefined,
       history: opts?.spark === false ? undefined : mm.history,
@@ -133,13 +162,19 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
   const airbnbTile = withCadence(simple("airbnb", "Airbnb · YTD kr", "airbnb", "ytd_income_kr", { spark: false }), "airbnb", "ytd_income_kr");
   const nextBooking = m("airbnb", "next_booking");
   if (airbnbTile && nextBooking) airbnbTile.sub = `next: ${clean(nextBooking.value_text) || clean(nextBooking.headline) || "no booking"}`;
+  // C21 bento resolve: airbnb spans 2 (the plan's call) and expenses joins it (the only RHYTHMS
+  // tile with a sparkline + category sub — width serves it) so the section squares at every
+  // breakpoint: 4 singles + two doubles = two full rows at 1440, no trailing holes.
+  if (airbnbTile) airbnbTile.className = "sm:col-span-2";
 
   // weekly producer (Mon sweep): the registry cadence labels it so a 6-day-old stamp reads as
   // "on schedule", not "stuck"; amber only past 8 days
   const radarTile = withCadence(simple("radar", "Radar · shipped 30d", "radar", "shipped_30d", { spark: false }), "radar", "shipped_30d");
 
   // weekdays producer: the staleness math skips weekends, so a Friday run is fresh on Monday morning
-  const buildTile = withCadence(simple("build", "Build tasks · done this week", "sprint", "velocity", { spark: false }), "sprint", "velocity");
+  // kicker shortened C19: "Build tasks · done this week" wrapped a 4-col tile at 1440 once
+  // kickers stepped up to 0.7rem; the sub still carries the in-progress/next detail
+  const buildTile = withCadence(simple("build", "Build · done this week", "sprint", "velocity", { spark: false }), "sprint", "velocity");
 
   const sleepTile = withCadence(
     simple("health-sleep", "Body · sleep score", "health", "sleep_score_today", {
@@ -182,6 +217,7 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
   const expensesTile = withCadence(simple("expenses", "Expenses · MTD kr", "expenses", "mtd_total_kr"), "expenses", "mtd_total_kr");
   const mtdCat = m("expenses", "mtd_by_category");
   if (expensesTile && mtdCat && mtdCat.value_text) expensesTile.sub = clean(mtdCat.value_text);
+  if (expensesTile) expensesTile.className = "sm:col-span-2"; // C21, see the airbnb note
 
   // To-Do: the open build-board items (client-fetched todos.json, sprint snapshot)
   const openTodos = todos && todos !== "failed" ? todos.items : null;
@@ -228,7 +264,10 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
   const appsReg = reg["app-engine-bi"];
   const appsStale = cadenceStale(appsReg?.cadence, appsTs, now);
   const tiles: TileDef[] = [
-    // label matches the number: DRAFTED TODAY; ready-to-apply totals live in the sub + drill-down
+    // label matches the number: DRAFTED TODAY; the ready-to-apply lane counts are the page's
+    // biggest true backlog (explicitly "waiting on you" in the drill-down), so C21 promotes
+    // them from a muted sub to secondary numerals in the aqua accent tier (never Golden
+    // Orange) — the span-2 tile finally uses its width.
     appsMissing
       ? null
       : {
@@ -237,9 +276,14 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
           projects: ["app-engine-bi", "app-engine-ai"],
           status: appsStale ? worst(appsStatus, "amber") : appsStatus,
           big: <CountUp value={drafted} />,
-          sub: `ready to apply BI ${fmtNum(bi.draft_ready_total?.value_num ?? null)} · AI ${fmtNum(
-            ai.draft_ready_total?.value_num ?? null
-          )}`,
+          accent: (
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span>ready to apply</span>
+              <span className="accent-num">BI {fmtNum(bi.draft_ready_total?.value_num ?? null)}</span>
+              <span>·</span>
+              <span className="accent-num">AI {fmtNum(ai.draft_ready_total?.value_num ?? null)}</span>
+            </span>
+          ),
           stamp: cadenceStamp(appsReg?.cadence, appsTs, now),
           className: "sm:col-span-2",
         },
@@ -249,13 +293,13 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
     // Drill-down = the full running-workflow list (n8n-workflows.json). The infra metrics are
     // produced by #16's daily local push, so its registry row carries their cadence.
     withCadence(
-      simple("n8n-broken", "n8n · broken today", "infra", "n8n_broken_today", { spark: false, noAccent: true }),
+      simple("n8n-broken", "n8n · broken today", "infra", "n8n_broken_today", { spark: false, noAccent: true, burn: true }),
       "infra",
       "n8n_broken_today",
       reg["alex-hq"]
     ),
-    withCadence(simple("brief", "Morning Brief · urgent", "morning-brief", "urgent_count", { spark: false }), "morning-brief", "urgent_count"),
-    withCadence(simple("email", "Email · act now", "email-triage", "act_now", { spark: false }), "email-triage", "act_now"),
+    withCadence(simple("brief", "Morning Brief · urgent", "morning-brief", "urgent_count", { spark: false, burn: true }), "morning-brief", "urgent_count"),
+    withCadence(simple("email", "Email · act now", "email-triage", "act_now", { spark: false, burn: true }), "email-triage", "act_now"),
     airbnbTile,
     radarTile,
     expensesTile,
@@ -271,9 +315,24 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
   // build (metric missing -> null tile) is silently skipped, so an absent producer never gaps.
   const byId = new Map(tiles.map((t) => [t.id, t]));
   const TODAY_IDS = ["apps", "n8n-broken", "brief", "email", "health-sleep", "health-steps"];
-  const RHYTHMS_IDS = ["build", "todos", "radar", "airbnb", "expenses"];
+  // C21 order: the four singles fill row 1 at 1440 (plants joins them), the two span-2 tiles
+  // (airbnb + expenses) fill row 2 — no trailing holes at any breakpoint. Plants moved from the
+  // appended slot into the mapped list so the order is one visible line here.
+  const RHYTHMS_IDS = ["build", "todos", "radar"];
   const todayTiles = TODAY_IDS.map((id) => byId.get(id)).filter((t): t is TileDef => !!t);
-  const rhythmTiles = RHYTHMS_IDS.map((id) => byId.get(id)).filter((t): t is TileDef => !!t);
+  const rhythmTiles = [...RHYTHMS_IDS.map((id) => byId.get(id)), plantsTile, byId.get("airbnb"), byId.get("expenses")].filter(
+    (t): t is TileDef => !!t
+  );
+
+  // C11: one heartbeat per section — only the FIRST red tile in each grid pulses; every other
+  // red is a steady alarm ("~9 dots pulsing in sync on an alarm day breaks the panel's own
+  // 'breathes, never dances' charter"). Amber never pulsed and still doesn't.
+  const markWorstPulse = (list: TileDef[]) => {
+    const worstRed = list.find((t) => t.status === "red");
+    if (worstRed) worstRed.pulse = true;
+  };
+  markWorstPulse(todayTiles);
+  markWorstPulse(rhythmTiles);
 
   const brainStats: [string, Metric | null, string | null][] = [
     ["vault pages", infra.vault_pages ?? null, null],
@@ -340,30 +399,29 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
       <span className="kicker mb-2 block">Today</span>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {todayTiles.map((t, i) => (
-          <Tile key={t.id} {...t} index={i} onOpen={setOpen} />
+          <Tile key={t.id} {...t} index={i} onOpen={openOverlay} />
         ))}
         {/* Gym lives in TODAY (computed daily): the answer IS the card, no drill-down */}
         <GymCard life={life} now={now} index={todayTiles.length} />
       </section>
 
-      {/* RHYTHMS: this week / month (design 4.1). Plants (computed daily from dates) joins them. */}
-      <span className="kicker mb-2 mt-6 block" style={{ color: "var(--mute)" }}>
-        This week / month
-      </span>
+      {/* RHYTHMS: this week / month (design 4.1). Plants renders inside rhythmTiles since C21.
+          C18: label unified aqua with its siblings (the mute override was an undocumented
+          leftover) — section separation now comes from the bigger break, not a dimmer label. */}
+      <span className="kicker mb-2 mt-10 block">This week / month</span>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {rhythmTiles.map((t, i) => (
-          <Tile key={t.id} {...t} index={i} onOpen={setOpen} />
+          <Tile key={t.id} {...t} index={i} onOpen={openOverlay} />
         ))}
-        <Tile {...plantsTile} index={rhythmTiles.length} onOpen={setOpen} />
       </section>
 
       {/* SYSTEM: the Alex Brain strip, the health board, the graph (design 4.1). */}
-      <span className="kicker mb-2 mt-6 block">System</span>
+      <span className="kicker mb-2 mt-10 block">System</span>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Alex Brain: the structure strip */}
         <motion.button
           layoutId="tile-brain"
-          onClick={() => setOpen("brain")}
+          onClick={() => openOverlay("brain")}
           className={`tile ${infraStatus !== "green" ? `tile-${infraStatus}` : ""} flex flex-col gap-3 p-5 text-left sm:col-span-2 lg:col-span-4`}
           style={{ borderRadius: "1rem" }}
           initial={{ opacity: 0, y: 28, scale: 0.98 }}
@@ -375,7 +433,8 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
         >
           <div className="flex w-full items-center justify-between gap-3">
             <span className="kicker">Alex Brain · the structure</span>
-            <Dot status={infraStatus} />
+            {/* C11: the strip is the SYSTEM grid's only dot, so red here = the section's worst */}
+            <Dot status={infraStatus} pulse={infraStatus === "red"} />
           </div>
           <div className="grid grid-cols-3 gap-x-4 gap-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-6">
             {brainStats.map(([label, mm, fixed]) => (
@@ -392,7 +451,7 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
 
       {/* Health board: the flagship sits above the graph */}
       <section className="mt-4">
-        <HealthBoard projects={s.projects} registry={registry} now={now} onOpen={setOpen} />
+        <HealthBoard projects={s.projects} registry={registry} now={now} onOpen={openOverlay} />
       </section>
 
       {/* The Brain graph */}
@@ -413,7 +472,7 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
             now={now}
             todos={todos}
             life={life}
-            onClose={() => setOpen(null)}
+            onClose={closeOverlay}
           />
         ) : null}
       </AnimatePresence>

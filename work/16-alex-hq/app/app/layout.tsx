@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Chakra_Petch, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { MotionProvider } from "@/components/motion-provider";
 import "./globals.css";
 
 const chakra = Chakra_Petch({
@@ -44,7 +45,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${chakra.variable} ${plex.variable} ${plexMono.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <MotionProvider>{children}</MotionProvider>
+      </body>
     </html>
   );
 }

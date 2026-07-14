@@ -24,12 +24,18 @@ off-brand styling because the brand file was never read.
   alarm reds `#bb3e03` / `#ae2012` / `#9b2226`, plus the light-mode tertiary gray `#4a5a5e`
   (captions/dates/secondary text on light surfaces; sanctioned by brand-config.md Fonts +
   color-system.md `[data-theme="light"] --text-tertiary`; rubric gap found by the 2026-07-07
-  CV grade). **FAIL** on any off-brand color, and specifically
-  on the RETIRED brand palette (navy `#0C1651`, cyan `#12CCDD`, coral `#F09063`).
+  CV grade), the elevated dark surface `#00232e` (color-system.md §4.1 / §7 `--bg-elevated`),
+  and Signal Coral `#ff8a75` ONLY as small error/recording text on dark surfaces (§4.4 /
+  `--error-text-dark`, D5 2026-07-12; as a fill, border, or on light surfaces it FAILS - both
+  added 2026-07-13, rubric-lag flagged by the wave-1 HQ grade). **FAIL** on any off-brand color,
+  and specifically on the RETIRED brand palette (navy `#0C1651`, cyan `#12CCDD`, coral `#F09063`).
 - **BV2 Accent discipline.** At most ONE Golden Orange accent per view/page. FAIL if orange is used
   as a general fill or on multiple competing elements in one view.
 - **BV3 Typography.** Calibri for generated documents, or the `"Segoe UI", system-ui` stack for
-  web/UI. FAIL if identity text uses a generic/other family (Arial, Times, Helvetica, default serif).
+  web/UI. One documented exception: the Alex HQ dashboard app runs Chakra Petch + IBM Plex Sans +
+  IBM Plex Mono (brand-config.md Fonts, APPROVED DEVIATION D6 2026-07-12, scoped to that app ONLY -
+  the same trio on any other surface FAILS; added 2026-07-13, rubric-lag flagged by the wave-1 HQ
+  grade). FAIL if identity text uses a generic/other family (Arial, Times, Helvetica, default serif).
 - **BV4 Red discipline.** Red appears ONLY as alarm / negative value / threshold, never as
   decoration or structure. A healthy screen has no red.
 - **BV5 Logo.** The ALEX logo (`alex-logo-transparent.png`, or the full-bleed `alex-logo.jpg` on a

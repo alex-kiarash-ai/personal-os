@@ -278,7 +278,9 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
 
       {recording ? (
         <div className="flex items-center gap-2 text-sm" style={{ color: "var(--error-text-dark)" }}>
-          <span className="dot dot-red" />
+          {/* C11: a LIVE recording is an active process — this dot keeps its pulse (the only
+              one in its card, and the mic button's breathe is gated off under reduced motion) */}
+          <span className="dot dot-red dot-pulse" />
           recording {recSeconds}s · tap the button again to stop (max {MAX_REC_SECONDS}s)
         </div>
       ) : null}
@@ -328,7 +330,9 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
                     <MicGlyph />
                   </span>
                 ) : null}
-                <span className="min-w-0 flex-1 truncate">{bodyText}</span>
+                {/* C10: two full lines instead of a one-line ellipsis — the history rows were
+                    eating their own content; the state label keeps its single truncated line */}
+                <span className="min-w-0 flex-1 line-clamp-2">{bodyText}</span>
                 <span
                   className="max-w-[55%] flex-none truncate text-xs tabular-nums"
                   style={{ color: "var(--mute)" }}

@@ -30,7 +30,8 @@ export function MetricRow({ mkey, m, now }: { mkey: string; m: Metric; now: numb
         </span>
       </div>
       <div className="mt-1 flex items-baseline gap-3">
-        <span className="font-display text-3xl font-bold tracking-tight">
+        {/* C12: one numeral voice — headline numbers match the tiles' Plex Mono, two inches away */}
+        <span className="num-display text-3xl tracking-tight">
           {m.value_num != null ? <CountUp value={m.value_num} /> : clean(m.value_text) || "–"}
         </span>
         {m.value_num != null && m.value_text ? (
