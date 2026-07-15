@@ -460,7 +460,7 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
       </section>
 
       <footer className="mt-6 text-center text-xs" style={{ color: "var(--mute)" }}>
-        Personal OS · the vault is the brain, this is the face
+        Personal Ops System · the vault is the brain, this is the face
       </footer>
 
       <AnimatePresence>

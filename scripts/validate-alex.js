@@ -441,6 +441,24 @@ async function v6ModelRouting({ stagedDir, manifest, context }, failures, warnin
         failures.push(`FAILED V6: model routing mismatch - CLAUDE.md (${claude.from}) rule says ${rule}, live workflow ${t.id} (${t.name}) '${NODE}' runs ${m}`);
     }
   }
+
+  // BUG-10 fix (2026-07-15): also model-check the sync TARGETS that are NOT registered production
+  // engines (the Writer Voice Eval) - WARN, not fail. The eval reuses the writer node verbatim and is
+  // the "re-test the sanitizer" regression harness, so if it silently drifts to a different model its
+  // pass/fail stops representing production; surface it without failing a build.
+  for (const t of TARGETS.filter(x => !registered.has(x.id))) {
+    try {
+      const wf = await fetchJson(`${base.replace(/\/$/, '')}/workflows/${t.id}`, { 'X-N8N-API-KEY': key });
+      const node = (wf.nodes || []).find(n => n.name === NODE);
+      if (!node || typeof (node.parameters || {}).jsCode !== 'string') continue;
+      const models = [...new Set([...node.parameters.jsCode.matchAll(/\bmodel\s*:\s*["']([A-Za-z0-9._-]+)["']/g)].map(m => m[1]))];
+      for (const m of models) {
+        if (m !== rule) warnings.push(`WARNING V6: sync harness ${t.id} (${t.name}) '${NODE}' runs ${m}, not the rule ${rule} - the regression harness has drifted from production`);
+      }
+    } catch (e) {
+      warnings.push(`WARNING V6: sync harness ${t.id} (${t.name}) unreachable for model-check - ${e.message}`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -709,6 +727,8 @@ const V10_PROTECTED = [
   { path: 'vault/projects/self-review/close-out-log.md', kind: 'append', tracked: false },
   { path: 'vault/projects/sprint-tracker/velocity.md', kind: 'append', tracked: false },
   { path: 'outputs/ledger.jsonl', kind: 'append', tracked: false },
+  { path: 'system/human-actions.jsonl', kind: 'append', tracked: false },   // BUG-07 fix 2026-07-15: the two queues NEVER-TOUCH.md
+  { path: 'system/pending-writes.jsonl', kind: 'append', tracked: false },  // lists as append-only were absent from V10_PROTECTED; added so the set matches the doc
   { path: 'system/landscape-log.jsonl', kind: 'append', tracked: true },
   { path: 'vault/identity.md', kind: 'flagged', tracked: false },
   { path: 'brand/config/color-system.md', kind: 'flagged', tracked: true },

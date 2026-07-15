@@ -145,7 +145,7 @@ adding a tier). Cost stayed **$0/mo**. Full record: [[research/alex-voice-handsf
 ## Conversation pass (2026-07-07, live test round 2: "she never stopped talking")
 - **Voice style prompt** (`VOICE_STYLE`, via `--append-system-prompt`): every turn knows it's a SPOKEN
   conversation - 1-3 short sentences, no lists/markdown, offer the long version instead of dumping it.
-  Verified: "explain everything my personal OS does" now gets 4 sentences + a question back, not a report.
+  Verified: "explain everything my personal ops system does" now gets 4 sentences + a question back, not a report.
 - **Monologue seatbelt** (`VOICE_MAX_SENTENCES=8`): deterministic hard-stop if the model ignores the
   style prompt; the rest of the reply is drained silently so the brain stays aligned.
 - **Usage note:** every voice turn draws from the same Claude plan as interactive sessions (one

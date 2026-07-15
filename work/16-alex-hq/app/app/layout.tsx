@@ -23,7 +23,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "Alex HQ",
-  description: "The glanceable numbers layer of the Personal OS.",
+  description: "The glanceable numbers layer of the Personal Ops System.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

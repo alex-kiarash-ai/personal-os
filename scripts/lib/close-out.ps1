@@ -1,5 +1,5 @@
 # scripts/lib/close-out.ps1
-# Shared Close-Out Gate mechanical checks for scheduled Personal OS wrappers.
+# Shared Close-Out Gate mechanical checks for scheduled Personal Ops System wrappers.
 # Canonical mechanism for the Close-Out Gate (vault/research/alex-close-out-gate.md).
 #
 # Implements:
@@ -30,8 +30,14 @@ function Set-AlexQuotaCapped {
         $qs = Get-Content $qsPath -Raw | ConvertFrom-Json
         $now = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
         if ($Kind -eq 'api') {
+            # BUG-02 fix (2026-07-15): only enqueue the Console-raise row on the ok->capped TRANSITION,
+            # never on every capped re-detection during a weeks-long cap. Otherwise a closed-then-recapped
+            # item resurrects and poisons the "waiting on you" queue's trust.
+            $wasCapped = ($qs.anthropic_api.state -eq 'capped')
             $qs.anthropic_api.state = 'capped'; $qs.anthropic_api.detected = $now
-            & node scripts/human-actions.js add --id cap-raise-console --what "Raise the Anthropic API monthly limit in Console (cap re-detected by a wrapper)" --why "Console account access is yours alone" --severity critical 2>$null
+            if (-not $wasCapped) {
+                & node scripts/human-actions.js add --id cap-raise-console --what "Raise the Anthropic API monthly limit in Console (cap re-detected by a wrapper)" --why "Console account access is yours alone" --severity critical 2>$null
+            }
         } else {
             $qs.claude_plan.state = 'capped'; $qs.claude_plan.detected = $now
         }
@@ -129,6 +135,21 @@ function Invoke-CloseOutCheck {
         $reason = "claude exit code $Code"
     }
 
+    # BUG-05 fix (2026-07-15): a run that streams >500 chars of real work, THEN hits the cap and exits 0,
+    # escapes the short-gated limit patterns above and would be scored green ("died dark, reported green").
+    # Catch it by scanning the TAIL of the output (last 400 chars) for the harness's hard-limit signature:
+    # a limit notice in the tail means the run died mid-stream, whereas a limit merely *mentioned* earlier
+    # in prose (the 2026-07-06 false-flag class) is not in the tail. Un-gated by total length.
+    if ($null -eq $reason) {
+        $tail = if ($Out.Length -gt 400) { $Out.Substring($Out.Length - 400) } else { $Out }
+        if ($tail -match 'reached your .{0,40}limit|API usage limits|Please run /login') {
+            $tl = ($tail -split "`r?`n" | Where-Object { $_ -match 'limit|/login' } | Select-Object -Last 1)
+            $reason = if ($tl) { "mid-stream stop: " + $tl.Trim() } else { 'mid-stream usage/session limit (tail-detected, exit 0)' }
+            if ($reason.Length -gt 140) { $reason = $reason.Substring(0, 140) }
+            Set-AlexQuotaCapped -Kind $(if ($tail -match 'API usage limits') { 'api' } else { 'plan' }) -Log $Log
+        }
+    }
+
     if ($null -eq $reason) {
         "OK (exit $Code)" | Out-File -Append -Encoding utf8 $Log
         return
@@ -180,6 +201,12 @@ function Invoke-CloseOutCheck {
         "retry skipped: calling wrapper path unknown" | Out-File -Append -Encoding utf8 $Log
     } elseif ($attempt -ge 5) {
         "retry chain exhausted (attempt $attempt/5), giving up until the next scheduled slot" | Out-File -Append -Encoding utf8 $Log
+    } elseif ($reason -match 'API usage limits' -and (Test-Path 'system\quota-state.json') -and (((Get-Content 'system\quota-state.json' -Raw | ConvertFrom-Json).anthropic_api.state) -eq 'capped')) {
+        # BUG-03 fix (2026-07-15): a week-scale Anthropic API cap is still capped in 90 min, so waking
+        # to re-hit it is pure battery/token drain across ~13 wrappers x 4 retries. Skip the retry; the
+        # next scheduled slot covers recovery. A transient plan/auth cap is NOT matched here, so it
+        # still self-heals as before.
+        "retry skipped: known persistent Anthropic API cap (next scheduled slot covers recovery)" | Out-File -Append -Encoding utf8 $Log
     } else {
         $next = $attempt + 1
         $rname = "PersonalOS-retry-$([IO.Path]::GetFileNameWithoutExtension($wrapper))-$next"

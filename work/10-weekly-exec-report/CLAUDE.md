@@ -4,14 +4,14 @@
 Automation (scheduled weekly + on-demand) - the capstone. Aggregates every other automation.
 
 ## Purpose
-Every Friday, reads from every other live automation + Gmail/Calendar and rolls the week into one branded 7-slide deck and a Notion weekly summary page: what shipped, project status, key meetings, market intel, who you dealt with, what's blocked, and next week's priorities. It's the one artifact that tells Shaheen (and a future manager/client) what a week of the Personal OS actually produced.
+Every Friday, reads from every other live automation + Gmail/Calendar and rolls the week into one branded 7-slide deck and a Notion weekly summary page: what shipped, project status, key meetings, market intel, who you dealt with, what's blocked, and next week's priorities. It's the one artifact that tells Shaheen (and a future manager/client) what a week of the Personal Ops System actually produced.
 
 ## Entry Points
 - **Scheduled:** Friday 16:00 (Task Scheduler `PersonalOS-weekly-exec-report`).
 - **On-demand:** `/weekly-exec-report`.
 
 ## Tools Used
-- Notion MCP: read every DB (IDs below) + create the weekly summary page under the Personal OS parent.
+- Notion MCP: read every DB (IDs below) + create the weekly summary page under the Personal Ops System parent.
 - Gmail MCP + Google Calendar MCP: raw week data (sent/received volume, meetings held).
 - **Claude Design (DesignSync)** → the deck (standing rule 2026-06-15; NOT /pptx). Build the 7 slides as design-system components on claude.ai/design, branded from brand/config/brand-config.md, then export PDF to outputs/. No native .pptx.
 - soul.md (reporting tone: Alex, lead with the lever, no filler).
@@ -47,7 +47,7 @@ Any source with no data this week → show "nothing this week" rather than omitt
 Brand: ALEX (brand-config.md, since 2026-07-03): canvas #001219, Dark Teal #005f73 / Dark Cyan #0a9396 structure, ONE Golden Orange #ee9b00 accent, Calibri, ALEX logo block every slide. Title + closing dark (#001219), content light.
 
 ## Notion weekly summary page
-One page per week under the Personal OS parent (`37bb5342-d7f1-81a4-8bf1-d5642d7c3e85`), titled "Weekly Report YYYY-MM-DD", with the FULL report as page content (all 7 sections as `##` headers). No new database - it's a page, not a DB row.
+One page per week under the Personal Ops System parent (`37bb5342-d7f1-81a4-8bf1-d5642d7c3e85`), titled "Weekly Report YYYY-MM-DD", with the FULL report as page content (all 7 sections as `##` headers). No new database - it's a page, not a DB row.
 **Deferred-writes convention (upgrade P2, 2026-07-12):** if Notion is unreachable at write time, append the pending page-write to `system/pending-writes.jsonl` (gitignored) instead of relying on memory; every interactive session / /status / next scheduled run flushes what it can and removes flushed rows. The 07-10 deferred page is seeded there.
 
 ## Vault Structure

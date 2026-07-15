@@ -15,7 +15,7 @@ Spec: work/01-sprint-tracker/CLAUDE.md (read it first). Voice: Alex (soul.md) - 
    - **Board:** counts + the honest velocity (shipped vs reconciled, not the raw Done delta).
    - **Stale (5+ wd):** from `stale[]`, each with what it waits on.
    - **Contract:** if `contract_missing[]` is non-empty, flag it as a /new step-5 miss; else "clean".
-4. **Create the Notion standup page** "Standup YYYY-MM-DD" under the Personal OS parent (ID in vault/projects/notion-parent-id.md), same content.
+4. **Create the Notion standup page** "Standup YYYY-MM-DD" under the Personal Ops System parent (ID in vault/projects/notion-parent-id.md), same content.
 5. **Refresh the status.md rolling summary** (top 2-3 update blocks + last_run). The long narrative lives in `status-history.md`; the machine snapshot lives in `board-state.json`. Do NOT re-append velocity or re-push HQ.
 
 ## Post-Run

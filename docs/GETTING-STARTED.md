@@ -1,6 +1,6 @@
 <!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-15. -->
 
-# Getting Started: set up and run the Personal OS
+# Getting Started: set up and run the Personal Ops System
 
 This is the onboarding and operations guide: what you need, how to boot Alex, what runs, and how the schedules work. For how the system is designed and how Alex behaves, read `docs/ARCHITECTURE.md`.
 
@@ -57,7 +57,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **27 Migration Engine** (ON-DEMAND; trigger: on-demand) - Run a large code/config migration as a dynamic workflow: parallel agents, per-unit self-verification, adversarial parity check, resumable + reversible. Refuses to run without a named target + a verification harness. No target committed yet (P9 dashboard.tsx extraction = the small hand-done precedent).
 - **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 - **Alex Cost Tracker** (ON-DEMAND; trigger: monthly (piggybacks expense slot)) - What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate).
-- **Modeling** (PARKED, revisit 2026-10-01; trigger: -) - Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows). Parked on Shaheen's bandwidth, resume post-offer.
+- **Modeling** (DORMANT, revisit 2026-08-01; trigger: -) - Modeling career run as an engineered system (shaheenkiarash.com on Cloudflare Workers). Content engine chosen 2026-07-15: self-hosted Postiz on the Hetzner box, auto-publish the approved queue, no auto-engagement. Config in work/modeling. DORMANT waiting on Shaheen: DNS, box deploy, an IG Business/Creator account. Own-n8n audience/lead-gen layers on after.
 
 **Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand (plus the global `/graphify`).
 

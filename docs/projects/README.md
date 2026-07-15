@@ -1,6 +1,6 @@
 # The Projects - Plain-Language Guide
 
-One file per project in the Personal OS: **what it actually does, why it exists, and which other projects it works with.** Written for a non-technical reader. The table below is GENERATED from the project registry (`system/manifest.json`) by `scripts/generate-alex.js`, so it cannot drift by hand (since 2026-07-06; unified generator since 2026-07-08).
+One file per project in the Personal Ops System: **what it actually does, why it exists, and which other projects it works with.** Written for a non-technical reader. The table below is GENERATED from the project registry (`system/manifest.json`) by `scripts/generate-alex.js`, so it cannot drift by hand (since 2026-07-06; unified generator since 2026-07-08).
 
 The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that operates a markdown knowledge base (the vault), twenty-plus automations, a phone dashboard, and two job-hunting robots on a rented server. The automations feed each other: everything reports its numbers to the dashboard, everything writes what it learns into the vault, and a weekly report reads all of it. The technical specs live in `work/{NN}/CLAUDE.md`; the live n8n workflows are explained in [`docs/n8n/`](../n8n/); the whole-system map is `vault/identity.md`.
 
@@ -36,7 +36,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 27 | [Migration Engine](27-migration-engine.md) | ON-DEMAND | Run a large code/config migration as a dynamic workflow: parallel agents, per-unit self-verification, adversarial parity check, resumable + reversible. Refuses to run without a named target + a verification harness. No target committed yet (P9 dashboard.tsx extraction = the small hand-done precedent). |
 | - | [Voice](voice.md) | EVENT | Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool. |
 | - | [Alex Cost Tracker](alex-costs.md) | ON-DEMAND | What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo run rate). |
-| - | [Modeling](modeling.md) | PARKED | Modeling career run as an engineered system (Cloudflare Workers site, planned n8n flows). Parked on Shaheen's bandwidth, resume post-offer. |
+| - | [Modeling](modeling.md) | DORMANT | Modeling career run as an engineered system (shaheenkiarash.com on Cloudflare Workers). Content engine chosen 2026-07-15: self-hosted Postiz on the Hetzner box, auto-publish the approved queue, no auto-engagement. Config in work/modeling. DORMANT waiting on Shaheen: DNS, box deploy, an IG Business/Creator account. Own-n8n audience/lead-gen layers on after. |
 <!-- PROJECT-TABLE:END -->
 
 Maintained under the Change Propagation standing order: when a project changes for real, its file here changes in the same session.

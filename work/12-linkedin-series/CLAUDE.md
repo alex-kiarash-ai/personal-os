@@ -4,7 +4,7 @@
 Automation (on-demand episode drafting + slot-scheduled staging via n8n). Never fully automated: n8n stages, Shaheen posts.
 
 ## Purpose
-Turn Shaheen's real Personal OS history into a 10-episode LinkedIn series in his voice, with Shaheen as hero and Alex as a named but low-visibility character. Goal: visible AI building-in-public for recruiters (Power BI / AI automation roles) and entry into the AI community. Calendar: Tue + Thu 08:30 Europe/Stockholm, 16 Jun → 16 Jul 2026, then ongoing log.
+Turn Shaheen's real Personal Ops System history into a 10-episode LinkedIn series in his voice, with Shaheen as hero and Alex as a named but low-visibility character. Goal: visible AI building-in-public for recruiters (Power BI / AI automation roles) and entry into the AI community. Calendar: Tue + Thu 08:30 Europe/Stockholm, 16 Jun → 16 Jul 2026, then ongoing log.
 
 ## Entry Points
 - /post-episode (on-demand): draft the named or next episode, stop for review.
@@ -30,7 +30,7 @@ Turn Shaheen's real Personal OS history into a 10-episode LinkedIn series in his
 Notion MCP (Content Library + sprint board), Google Drive MCP / n8n Drive node (staging), n8n API (key in work/03-application-engine/config/, reuse push pattern from config/push-nodash.js), soul.md, vault. Content Machine pipeline pattern (Researcher→Writer→Editor; Editor = the dash scan + voice check). NO LinkedIn API. NO Chrome for posting.
 
 ## Notion Integration
-No new database. Episodes are rows in the existing **Content Library** (db_id b7305101-b911-4b9e-9196-8e7ac259a7a7, data_source_id 0f511509-1c63-4b22-a328-976d6d56d6aa, see vault/projects/content-machine/status.md). Conventions: Title prefix "Building Alex ENN:", Platform=LinkedIn, Type=post, Source="Building Alex series", Status flow **Draft → Approved → Staged → Published** (Approved + Staged added to the select 2026-06-13), Publish Date = slot date, FULL post text in page body. Sprint board row: "LinkedIn Series (Personal OS)".
+No new database. Episodes are rows in the existing **Content Library** (db_id b7305101-b911-4b9e-9196-8e7ac259a7a7, data_source_id 0f511509-1c63-4b22-a328-976d6d56d6aa, see vault/projects/content-machine/status.md). Conventions: Title prefix "Building Alex ENN:", Platform=LinkedIn, Type=post, Source="Building Alex series", Status flow **Draft → Approved → Staged → Published** (Approved + Staged added to the select 2026-06-13), Publish Date = slot date, FULL post text in page body. Sprint board row: "LinkedIn Series (Personal Ops System)".
 
 ## n8n workflow "LinkedIn Series" (staging only)
 Schedule Tue + Thu 08:00 Europe/Stockholm → query Content Library for oldest "Building Alex" row with Status=Approved → create Drive folder "Building Alex"/episode-NN-slug/ → upload post.txt (page body) + the approved image → update row to Staged + Drive link. Build/deploy AFTER episode 1 is approved (review stop comes first). Morning Brief flags slot days.

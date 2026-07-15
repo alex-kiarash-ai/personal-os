@@ -39,6 +39,22 @@ elseif ($out -match 'session limit|usage limit|API usage limits|reached your .{0
 elseif ($code -ne 0)                                      { $reason = "claude exit code $code" }
 elseif ($out -notmatch '\bOK\b')                          { $reason = 'unexpected probe output' }
 
+# BUG-12 fix (2026-07-15): a limit caught Sunday evening must ARM the quota gate for the Monday train,
+# not just alert. The probe's whole purpose ("catch it before the Monday train") was half-delivered -
+# it turned the HQ tile RED but never primed system/quota-state.json, so Monday's wrappers each
+# rediscovered the cap and each fired a retry ladder. Now it primes the shared quota state + verifies.
+if ($reason -match 'limit') {
+    . "scripts\lib\close-out.ps1"   # defines Set-AlexQuotaCapped/Test-AlexQuotaGate at load, no side effects
+    $kind = if ($out -match 'API usage limits') { 'api' } else { 'plan' }
+    Set-AlexQuotaCapped -Kind $kind -Log $log
+    try {   # Verify-after-write (standing order): read the mutated field back, log a mismatch
+        $qs = Get-Content 'system\quota-state.json' -Raw | ConvertFrom-Json
+        $armed = if ($kind -eq 'api') { $qs.anthropic_api.state } else { $qs.claude_plan.state }
+        if ($armed -ne 'capped') { "quota-state prime VERIFY FAILED: $kind state='$armed'" | Out-File -Append -Encoding utf8 $log }
+        else { "quota-state primed + verified: $kind capped" | Out-File -Append -Encoding utf8 $log }
+    } catch { "quota-state verify read failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $log }
+}
+
 # Push infra/auth_ok to Alex HQ (green fresh / red stale). Never log the token; push failure never crashes the probe.
 $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"
 if (Test-Path $tokenFile) {

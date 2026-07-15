@@ -100,7 +100,7 @@ function lastVelocityRow(velText) {
 }
 
 // expected titles: strip the trailing "(BI)" style qualifier. board tasks: keep paren CONTENT
-// (the "(Modeling)"/"(Personal OS)" suffix carries the match), just drop the paren chars.
+// (the "(Modeling)"/"(Personal Ops System)" suffix carries the match), just drop the paren chars.
 const normKey = s => s.toLowerCase().replace(/\s*\(.*$/, '').replace(/[-/]/g, ' ').replace(/\s+/g, ' ').trim();
 const normHay = s => s.toLowerCase().replace(/[()]/g, ' ').replace(/[-/]/g, ' ').replace(/\s+/g, ' ').trim();
 function contractCheck(rows, manifest) {

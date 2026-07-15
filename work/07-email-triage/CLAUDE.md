@@ -70,7 +70,7 @@ Draft only if: real email (it's a reply, so the address is known) AND recipient 
 - **Stale job-thread nudge:** `state/job-threads.json` tracks recruiter/CRM-contact threads awaiting Shaheen's reply; unanswered > N days (the stale-recruiter-thread pattern) surfaces a "going stale - reply?" nudge in the morning brief, cross-checked against the CRM last-contact. Draft stays gated; this adds tracking + the nudge, never auto-send.
 
 ## Notion Integration
-**Email Triage** database under the Personal OS parent page (ID in vault/projects/notion-parent-id.md).
+**Email Triage** database under the Personal Ops System parent page (ID in vault/projects/notion-parent-id.md).
 Columns: **Subject** (title) · **Sender** (text) · **Classification** (select: Act Now, Read Later, Archive) · **Draft Status** (select: Pending, Approved, Sent, Skipped) · **Date** (date).
 Views: **Today** (Date is-not-empty, sorted desc, sliced to today) · **Pending Drafts** (Draft Status = Pending).
 Row content holds the *intelligence*: sender + relationship, what they want, why it matters, classification reason, topic label - NOT the raw email body.
@@ -106,7 +106,7 @@ Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not CO
 - Every processed thread carries `alex/triaged` (nothing left un-stamped, or the next run re-processes it).
 
 ## Implementation Notes
-- **2026-06-12 (build):** Email Triage DB created under Personal OS parent; two modes; reuses the CRM draft gate + shared writing-style-notes.
+- **2026-06-12 (build):** Email Triage DB created under Personal Ops System parent; two modes; reuses the CRM draft gate + shared writing-style-notes.
 - **2026-07-10 (Gmail drafts):** scheduled mode stages replies straight into Gmail as unsent threaded drafts (Shaheen reviews in the app: send / edit-send / delete), superseding the old "write to an outputs/ file" behavior. Safe: create_draft never sends.
 - **2026-07-10 (smart-inbox v2, this build):** added the five capabilities above. The outputs/ per-run draft file is **retired** (drafts live in Gmail; record = Gmail + Notion + vault snapshot + log.md) - supersedes the earlier "thin audit summary" note. Dedup moved from timestamp boundary to the `alex/triaged` label. Categorization + the sender-rule gate run in both modes. The sent-vs-draft loop closes the learning gap the Gmail-draft change opened. Backfill is a one-time `/email-triage backfill`.
 - **Verify-at-execution flags:** native Gmail filter creation may not be exposed by the MCP (fall back to the sender-map + per-run suppression); List-Unsubscribe header availability unconfirmed.

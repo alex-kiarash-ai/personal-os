@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Alex HQ",
     short_name: "Alex HQ",
-    description: "The glanceable numbers layer of the Personal OS.",
+    description: "The glanceable numbers layer of the Personal Ops System.",
     start_url: "/",
     display: "standalone",
     // Ink Black (brand/config/color-system.md #1) - was an off-palette near-black (fixed 2026-07-12, d1)

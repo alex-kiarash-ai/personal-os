@@ -83,7 +83,7 @@ Endpoint (streamable HTTP since 2026-07-02, bearer-gated): `https://n8n.shaheenk
 
 ## Connections
 - Feeds into: Job Search Pipeline sheet (review surface), Google Drive drafts.
-- Fed by: nothing. Independent of the Personal OS local automations.
+- Fed by: nothing. Independent of the Personal Ops System local automations.
 
 ## Known gotchas (from the doc, preserved)
 - `time_range` must be the human label (`Past 24 hours`); `past_week` etc. are rejected.
@@ -105,6 +105,10 @@ Context: both engines CAP-DEAD until 2026-08-01 (Anthropic monthly cap; every ru
 - **Expected until 2026-08-01:** runs still die at Match on the cap, but AFTER banking - the ledger accumulates `sourced_unscored` rows daily and the whole backlog drains into Match on the first post-cap run. Live-fire proof = the next 07:00 run.
 - **Companion change:** the Pipeline Error Alert (`QlGy1BFzdKF852uR`) now detects the cap signature and pushes a `quota/anthropic_api` red metric to alex_metrics (see docs/n8n/pipeline-error-alert/).
 - **Untouched:** trigger, gates, sanitizer, voice block, Writer nodes - no other behavior changed.
+
+## Stage 5 `cl_pdf` fix + cap lifted (2026-07-15)
+
+The Anthropic cap that had both engines dying at `Claude Match+Research` (see P3 above) LIFTED ~07-13; #03's daily runs now complete both Claude calls and reach Stage 5. That exposed a separate blocker: **`Render Cover Letter PDF` was `disabled`**, so `cl_pdf` was never rendered and `Upload Cover Letter PDF` hard-failed *"no binary field 'cl_pdf'"*. Re-enabled via the REST API 2026-07-15 (backup `scripts/n8n-backups/9XuIEfxS71DEetVR-pre-cl-reenable-20260715-143512.json`, GET-verified, active preserved, `docs/n8n/03-application-engine/workflow.json` re-synced). This **SUPERSEDES the 07-14 "Rebind PDFs broken-pairing" diagnosis** in [[projects/error-log]] - that root cause was wrong (07-07 exec 474 proves `Rebind PDFs` carries both PDFs fine when the node is enabled) and its proposed Rebind rewrite would not have worked. **`Rebind PDFs` needs no change.** #14's render nodes were never disabled. Live-fire proof = next 07:00 cron reaching `Append Run Log`.
 
 ## Post-Run (first import session)
 1. No people/companies generated at build time.

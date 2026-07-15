@@ -1,0 +1,8 @@
+# Secrets + local state stay off git (root .gitignore already covers work/*/config/ and .env;
+# this is belt-and-suspenders + ignores runtime data dirs).
+config/
+postiz.env
+.env
+data/
+postiz-data/
+uploads/

@@ -14,7 +14,7 @@ Spec: work/10-weekly-exec-report/CLAUDE.md (read it first). Aggregates all 9 aut
    - Research ← vault/research/ · Content ← Content Library `0f511509-1c63-4b22-a328-976d6d56d6aa` · Email ← Email Triage `9badd246-01a3-4e23-b7b4-9d2c843daef4`
    - Raw ← Gmail + Calendar (this week).
 3. **Build the 7-slide deck with Claude Design (DesignSync)** (standing rule 2026-06-15; NOT /pptx): `ToolSearch("select:DesignSync")` → reuse/create a claude.ai/design project (ask before creating) → build the 7 slides as design-system components one at a time (finalize_plan → write_files), branded per brand/config/brand-config.md (ALEX: #001219 canvas, #005f73/#0a9396 teal structure, one #ee9b00 accent), Calibri, ALEX logo block: Week Summary · Project Status · Key Meetings · Market Intel · Relationships · Blockers · Next Week Priorities. **Export PDF** to outputs/weekly-exec-report/YYYY-MM-DD/weekly-exec-YYYY-MM-DD.pdf (own folder since 2026-07-11; outputs/reports/ is frozen legacy); note the claude.ai/design project link.
-4. **Notion weekly page**: "Weekly Report YYYY-MM-DD" under the Personal OS parent, full report as page content (7 `##` sections).
+4. **Notion weekly page**: "Weekly Report YYYY-MM-DD" under the Personal Ops System parent, full report as page content (7 `##` sections).
 5. **metrics-history**: append vault/projects/weekly-exec-report/metrics-history/YYYY-MM-DD.md (shipped, velocity, meetings, emails, spend, drafts) for trends.
 
 ## Tone

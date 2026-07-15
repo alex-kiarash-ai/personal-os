@@ -30,8 +30,23 @@ function main(raw) {
     return; // unparseable stdin -> drop silently
   }
   if (!prompt) return;                  // empty submit
-  if (prompt.startsWith('/')) return;   // slash-command invocation, not his prose
-  if (prompt.startsWith('<')) return;   // harness/system-injected wrapper (<command-*>, <local-command*>, etc.)
+  if (prompt.startsWith('/') || prompt.startsWith('<')) {
+    // Slash-command / harness-wrapper messages are not his prose - dropped. BUG-18 fix (2026-07-15):
+    // if the message does NOT look like a real command/wrapper it may be genuine prose being lost
+    // from the corpus, so breadcrumb it - NEVER to the transcript (keeps the corpus clean), NEVER to
+    // stdout (HARD RULE), just a local skips log so a dropped line is at least discoverable.
+    const looksLikeCommand = /^\/[\w-]+(\s|$)/.test(prompt);
+    const looksLikeWrapper = /^<[\w!/-]/.test(prompt);
+    if (!looksLikeCommand && !looksLikeWrapper) {
+      try {
+        const d = new Date(); const p = (n) => String(n).padStart(2, '0');
+        const st = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+        fs.appendFileSync(path.join(__dirname, '..', 'outputs', 'logs', 'typed-capture-skips.log'),
+          `${st} dropped-maybe-prose len=${prompt.length}\n`, 'utf8');
+      } catch (_) { /* never harm the prompt */ }
+    }
+    return;
+  }
 
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');

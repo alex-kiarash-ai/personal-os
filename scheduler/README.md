@@ -1,6 +1,6 @@
 # Scheduler Registry
 
-This folder tracks all scheduled tasks for your Personal OS.
+This folder tracks all scheduled tasks for your Personal Ops System.
 
 When you tell your agent to schedule something (e.g., "schedule morning brief for 8 AM every day"), it creates an entry here instead of trying to set up a cron job directly.
 

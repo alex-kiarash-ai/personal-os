@@ -32,9 +32,12 @@ if command -v node >/dev/null 2>&1; then
 elif [ -x "/c/Program Files/nodejs/node.exe" ]; then
   NODE="/c/Program Files/nodejs/node.exe"
 else
-  echo "pre-commit: WARNING - node not found; validate-alex CANNOT run. Commit allowed, but the" >&2
-  echo "pre-commit: validation gate did NOT run. Fix PATH or install Node.js." >&2
-  exit 0
+  echo "pre-commit: BLOCKED - node not found; validate-alex CANNOT run, so this commit is not validated." >&2
+  echo "pre-commit: (BUG-07 fix 2026-07-15: fail CLOSED. A commit that cannot be validated must not pass" >&2
+  echo "pre-commit:  the gate silently. node is machine-scope on this box; if it is genuinely gone the" >&2
+  echo "pre-commit:  nightly backup blocks LOUD (RED HQ push) instead of committing ungated.)" >&2
+  echo "pre-commit: Fix PATH / install Node.js, or 'git commit --no-verify' to override deliberately." >&2
+  exit 1
 fi
 
 # Load n8n creds from the local key file when the environment does not carry them (option (a)).

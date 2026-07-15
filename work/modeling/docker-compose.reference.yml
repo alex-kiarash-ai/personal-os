@@ -1,0 +1,68 @@
+# REFERENCE ONLY - do not treat as the source of truth.
+# Postiz changes services / images / env vars between releases. At deploy time:
+#   git clone https://github.com/gitroomhq/postiz-docker-compose
+# and reconcile this file against the canonical compose there. Postiz's own docs
+# say: always pull the compose from the repo, never a snapshot. This is the shape
+# to expect on the Hetzner box, kept here so the project lives in one place.
+#
+# Front on port 4007, put behind the box's reverse proxy as social.shaheenkiarash.com (TLS).
+# Real secrets go in ./config/postiz.env (gitignored via work/*/config/), never inline.
+
+services:
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:latest   # pin a version tag for production, not :latest
+    container_name: postiz
+    restart: always
+    env_file:
+      - ./config/postiz.env
+    ports:
+      - "4007:4007"
+    volumes:
+      - postiz-config:/config/
+      - postiz-uploads:/uploads/
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+    networks:
+      - postiz-network
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: postiz-postgres
+    restart: always
+    env_file:
+      - ./config/postiz.env      # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+    volumes:
+      - postgres-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - postiz-network
+
+  postiz-redis:
+    image: redis:7.2-alpine
+    container_name: postiz-redis
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - postiz-redis-data:/data
+    networks:
+      - postiz-network
+
+volumes:
+  postgres-volume:
+  postiz-redis-data:
+  postiz-config:
+  postiz-uploads:
+
+networks:
+  postiz-network:

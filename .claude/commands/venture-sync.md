@@ -141,7 +141,7 @@ auto: true
 [[ventures/{venture}/status]] · [[business/...]] · [[people/...]]
 ```
 
-## Step 4: Personal OS automations get briefs too
+## Step 4: Personal Ops System automations get briefs too
 
 For each `vault/projects/{name}/status.md` (the 10 automations), generate `vault/projects/{name}/brief.md`:
 

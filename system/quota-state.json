@@ -1,5 +1,5 @@
 {
   "_doc": "Shared quota truth (upgrade P2, design 1.7.1). Writers: close-out.ps1's limit-detect branch (local), the Pipeline Error Alert cap-POST mirror (n8n side, wired in P3). Readers: the P3 pre-run wrapper gate. state: ok|capped. A capped anthropic_api also auto-enqueues the Console-raise row in human-actions.",
-  "anthropic_api": { "state": "capped", "detected": "2026-07-08", "reset_date": "2026-08-01" },
+  "anthropic_api": { "state": "ok", "detected": null, "reset_date": null, "_note": "Cleared 2026-07-15 (deep-audit master addendum): the monthly cap lifted early ~2026-07-13 per vault/log.md sprint entry; both engines active:true + #14 producing (live API read). Stale 'capped->2026-08-01' was BUG-01/04's phantom outage - no early-reset clear path existed. #03's remaining draft blocker is the Stage-5 cl_pdf Drive-node bug, not a cap." },
   "claude_plan": { "state": "ok", "detected": null }
 }

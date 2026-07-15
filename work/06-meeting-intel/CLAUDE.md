@@ -40,7 +40,7 @@ On later runs, skip install; just transcribe. Timebox long files; if a transcrip
 | pasted text | Process directly, no file |
 
 ## Notion Integration
-**Meeting Notes** database under the Personal OS parent page (ID in vault/projects/notion-parent-id.md).
+**Meeting Notes** database under the Personal Ops System parent page (ID in vault/projects/notion-parent-id.md).
 Columns:
 - **Title** (title)
 - **Date** (date)
@@ -94,7 +94,7 @@ Each row's page **content** holds the full structured notes: Summary, Decisions,
 Follow-up drafts obey the CRM gate: real email on file, recipient not personal/family, not a do-not-contact/sensitive contact, draft only (never auto-send). A meeting with an off-limits attendee still gets notes + action items; it just doesn't get an auto-drafted email.
 
 ## Implementation Notes (as built, 2026-06-11)
-- Scaffolded with inbox/ + processed/. Meeting Notes DB created under Personal OS parent; IDs in status.md.
+- Scaffolded with inbox/ + processed/. Meeting Notes DB created under Personal Ops System parent; IDs in status.md.
 - Whisper is NOT installed at build (no audio yet). First audio file triggers the install + base-model download + the user message above. ffmpeg dependency checked at that point.
 - No live meeting processed at build (on-demand; first real file/dossier starts the history). vault/meetings/ created empty with a .gitkeep.
 - Reuses the CRM draft gate rather than re-inventing one.

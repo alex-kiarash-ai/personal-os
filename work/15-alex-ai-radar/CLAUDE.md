@@ -56,15 +56,15 @@ Full source list with endpoints lives in `vault/projects/alex-ai-radar/sources.m
 ## Notion Integration
 **One new database in the pilot: `AI Radar Tools`** (Stream B pipeline). The Ideas DB (Stream A) is defined below but **not created until Tap 3 activates**. Memory (Taste Profile, Landscape Memory) does NOT go in Notion; it lives in the vault.
 
-Bootstrap on first run per the root **Bootstrap Protocol** (Notion creation sequence: `notion-create-database` → `notion-move-pages` under the Personal OS parent → `notion-update-data-source` ALTER COLUMN to restore select options → `notion-create-view`). Save IDs to `vault/projects/alex-ai-radar/status.md`.
+Bootstrap on first run per the root **Bootstrap Protocol** (Notion creation sequence: `notion-create-database` → `notion-move-pages` under the Personal Ops System parent → `notion-update-data-source` ALTER COLUMN to restore select options → `notion-create-view`). Save IDs to `vault/projects/alex-ai-radar/status.md`.
 
-- parent_page_id: `37bb5342-d7f1-81a4-8bf1-d5642d7c3e85` (Personal OS page)
+- parent_page_id: `37bb5342-d7f1-81a4-8bf1-d5642d7c3e85` (Personal Ops System page)
 
 **`AI Radar Tools` schema (Stream B):**
 - **Tool** (title)
 - **Type** (select: MCP, Model, Library, Technique, Product)
 - **What it does** (text)
-- **Improves** (select: Alex, Personal OS, Job Pipeline, Modeling, Content)
+- **Improves** (select: Alex, Personal Ops System, Job Pipeline, Modeling, Content)
 - **Source** (url)
 - **Corroboration** (number - count of INDEPENDENT sources after dedup, Run Check 1)
 - **Fit score** (number - rubric total, see Scoring)

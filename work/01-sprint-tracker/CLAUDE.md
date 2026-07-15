@@ -4,7 +4,7 @@
 Automation
 
 ## Purpose
-Reads the Notion Progress Tracker board (the master list of automations to build), generates a daily standup summary (Done / In Progress / Next / Planned / Blocked with counts), and tracks build velocity over time. It is the heartbeat of the Personal OS build-out: one glance tells Shaheen what shipped, what's moving, and what's stuck.
+Reads the Notion Progress Tracker board (the master list of automations to build), generates a daily standup summary (Done / In Progress / Next / Planned / Blocked with counts), and tracks build velocity over time. It is the heartbeat of the Personal Ops System build-out: one glance tells Shaheen what shipped, what's moving, and what's stuck.
 
 ## Entry Points
 - **Scheduled:** weekdays at 9:00 AM via system scheduler (`claude -p "Run /sprint-tracker"`)
@@ -19,15 +19,15 @@ Reads the Notion Progress Tracker board (the master list of automations to build
 **No new database.** This automation reads and writes the existing **Progress Tracker** DB:
 - db_id: `462c1e60-a70c-4fd4-815f-2a58b1f8f573`
 - data_source_id: `0c239613-7e4e-410c-b064-266fa31a9da4`
-- parent_page_id: `37bb5342-d7f1-81a4-8bf1-d5642d7c3e85` (Personal OS page)
-- Schema: Task (title), Status (Planned/Next/In Progress/Blocked/Done), Project (Job Pipeline/Modeling/Personal OS), Order (number), Notes (text)
+- parent_page_id: `37bb5342-d7f1-81a4-8bf1-d5642d7c3e85` (Personal Ops System page)
+- Schema: Task (title), Status (Planned/Next/In Progress/Blocked/Done), Project (Job Pipeline/Modeling/Personal Ops System), Order (number), Notes (text)
 - Views: Board (by Status), Build Order (by Order), Default table
 
 **Read path (rebuilt 2026-07-10): paginated Notion REST, not the MCP.** `scripts/lib/notion-board.js` queries `POST /v1/data_sources/{data_source_id}/query` with cursor pagination (Notion-Version 2025-09-03; falls back to `/v1/databases/{db_id}/query` at 2022-06-28), returning ALL rows in one deterministic pass - no 25-result cap, no hand-maintained page-ID list. Credentials: a Notion internal-integration token shared to this DB, at `work/01-sprint-tracker/config/notion-token.txt` (gitignored, MANUAL one-time setup - see Setup below). If the token is absent the core falls back to parsing the status.md snapshot table (degraded: counts still work, but the honest shipped/reconciled velocity split needs the live read). The old fetch-each-row-by-ID path (a workaround for the MCP's schema-only `notion-fetch` + the 25-cap search) is retired; the snapshot table now serves only as that cache fallback + a human view.
 
 **Setup (one-time, manual):** create a Notion internal integration at notion.so/my-integrations, share it to the Progress Tracker DB (`...` → Connections → add the integration), and save its secret to `work/01-sprint-tracker/config/notion-token.txt`. Until this exists the core runs in cache mode.
 
-Each run also creates one **standup page** under the Personal OS parent page, titled `Standup YYYY-MM-DD`, with the full summary as content.
+Each run also creates one **standup page** under the Personal Ops System parent page, titled `Standup YYYY-MM-DD`, with the full summary as content.
 
 ## Vault Structure
 - **Tier 1:** `vault/projects/sprint-tracker/status.md` - DB IDs, schema, current board snapshot, last run.
@@ -76,7 +76,7 @@ Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not CO
 - **Retry (corrected 2026-07-06):** the 2026-07-02 RestartCount 4 / 90min ladder on `PersonalOS-sprint-tracker` was proven a no-op for this failure class - Task Scheduler only restarts on LAUNCH failures, never on a wrapper that runs and exits 1 (the 07-06 quad failure: four exit-1 limit fails, zero restarts). The working retry now lives in the shared lib: on failure `Invoke-CloseOutCheck` registers a one-shot task `PersonalOS-retry-run-sprint-tracker-{n}` (+90 min, attempts 2-5, auto-deletes), so a 9:00 quota fail still self-retries at ~10:30/12:00/13:30/15:00 past the 1pm reset. The task settings stay (they cover launch failures). Login failure still needs a human (`claude /login`), but every failed attempt lands RED on the HQ health board, so it can never be silently dark again.
 
 ## Implementation Notes (as built, 2026-06-10)
-- First run executed manually during build. Board had 7 seeded rows; "Sprint Tracker" row added as row 8 (Status Done, Project Personal OS, Order 0 so it tops the Build Order view as shipped infrastructure).
+- First run executed manually during build. Board had 7 seeded rows; "Sprint Tracker" row added as row 8 (Status Done, Project Personal Ops System, Order 0 so it tops the Build Order view as shipped infrastructure).
 - Velocity baseline started at 1 Done (this automation). Counts: Done 1, In Progress 1, Next 1, Planned 5, Blocked 0.
 - Standup voice: Alex (soul.md). Lead with the single highest-leverage item, then counts, then stalls. No corporate standup-speak.
 Ye

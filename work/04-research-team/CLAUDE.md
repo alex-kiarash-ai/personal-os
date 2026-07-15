@@ -14,7 +14,7 @@ An adaptive research system that designs its own team per question. Given a rese
 - WebSearch + WebFetch (load via ToolSearch first)
 - Chrome only for sites that block plain fetch (deep scraping; never for Gmail/Calendar/Notion)
 - Python (data analysis, charts) - via Bash, cleanup after
-- Notion MCP: notion-search (internal context), notion-create-pages (research page under Personal OS parent)
+- Notion MCP: notion-search (internal context), notion-create-pages (research page under Personal Ops System parent)
 - **Claude Design (DesignSync) for branded decks** (standing rule 2026-06-15; NOT /pptx), /xlsx skill (data tables), Python/reportlab (standalone PDF)
 
 ## The Runtime Flow (executed by Claude Code per run)
@@ -24,7 +24,7 @@ An adaptive research system that designs its own team per question. Given a rese
 4. **Approval gate.** Show the design via AskUserQuestion: approve / modify / answer-without-team (for questions too small for a team). Do NOT spawn agents before approval - sub-agents are the expensive path.
 5. **Execute.** Spawn approved sub-agents (parallel calls in one block where independent). Each returns findings + sources. **Timebox every lane:** each sub-agent's mission includes "if reasonable effort turns up nothing, report 'nothing found' with what was tried; do not keep digging." A lane that comes back empty is a finding, not a failure. Never re-spawn an agent to retry an empty lane without a changed approach.
 6. **Synthesize.** Main session writes the answer: findings first, confidence levels, what's unknown stays unknown. Alex voice, no padding.
-7. **Save knowledge.** vault/research/{topic-slug}.md (concise findings, key insights, sources, [[wiki links]]). Notion page "Research: {topic}" under the Personal OS parent (ID in vault/projects/notion-parent-id.md) with the full findings as content.
+7. **Save knowledge.** vault/research/{topic-slug}.md (concise findings, key insights, sources, [[wiki links]]). Notion page "Research: {topic}" under the Personal Ops System parent (ID in vault/projects/notion-parent-id.md) with the full findings as content.
 8. **Save the pattern.** If the team design was new or meaningfully adapted: write patterns/{class}-{slug}.md (see Pattern Format) and update patterns/index.md.
 9. **Deliverable (team runs only).** If the run went through the answer-without-team path, the vault page + Notion page IS the deliverable - do not build a file for a two-paragraph answer. For team runs, ask via AskUserQuestion: "Claude Design deck or PDF?" Then:
    - **Deck → Claude Design (DesignSync)** (standing rule 2026-06-15): build on claude.ai/design as a design-system deck, slides as components one at a time (finalize_plan → write_files), branded from brand/config/brand-config.md (ALEX brand: #001219 canvas, #005f73 + #0a9396 teal structure, one #ee9b00 accent, Calibri, ALEX logo block), then export PDF. NOT /pptx (no native .pptx).
@@ -52,7 +52,7 @@ times_used: N
 patterns/index.md lists every pattern: name, class, times_used, one-line description.
 
 ## Notion Integration
-No new database. One page per research run under the Personal OS parent page (`37bb5342-d7f1-81a4-8bf1-d5642d7c3e85`), titled "Research: {topic}", full findings as page content. notion-search before researching: internal docs may already answer part of the question.
+No new database. One page per research run under the Personal Ops System parent page (`37bb5342-d7f1-81a4-8bf1-d5642d7c3e85`), titled "Research: {topic}", full findings as page content. notion-search before researching: internal docs may already answer part of the question.
 
 ## Vault Structure
 - Tier 1: vault/projects/research-team/status.md (last run, run count, recent topics, output paths)

@@ -1,4 +1,4 @@
-# ALEX PERSONAL OS — REFACTOR SPEC v2.1 (FOR CLAUDE CODE)
+# ALEX PERSONAL OPS SYSTEM — REFACTOR SPEC v2.1 (FOR CLAUDE CODE)
 
 **Date:** 2026-07-08
 **Root:** `C:/Users/Thinkpad/Desktop/personal-os`

@@ -3,7 +3,7 @@
 Spec: work/13-airbnb-host/CLAUDE.md (read it first). Knowledge: vault/me/airbnb-studio.md.
 
 ## Bootstrap (first run only)
-Read vault/projects/airbnb-host/status.md. If `db_id` is `(pending bootstrap)`, create the **Airbnb Bookings** DB under the Personal OS parent (Bootstrap Protocol + Notion creation sequence in root CLAUDE.md): create -> move-pages -> ALTER COLUMN for Status select options -> create views -> save db_id + data_source_id to status.md.
+Read vault/projects/airbnb-host/status.md. If `db_id` is `(pending bootstrap)`, create the **Airbnb Bookings** DB under the Personal Ops System parent (Bootstrap Protocol + Notion creation sequence in root CLAUDE.md): create -> move-pages -> ALTER COLUMN for Status select options -> create views -> save db_id + data_source_id to status.md.
 
 ## Monthly-sync mode (scheduled job)
 If invoked with "monthly-sync" (the Task Scheduler wrapper already ran scrape + ingest this run): do NOT re-scrape. Skip straight to reading `raw/bookings-normalized.json`, upsert the Notion Bookings DB, refresh the vault pages + log, and flag new pendings/discrepancies. The Excel model is already rebuilt by the wrapper.

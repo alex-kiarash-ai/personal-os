@@ -1,4 +1,4 @@
-# Alex Personal OS — Core Architecture Analysis
+# Alex Personal Ops System — Core Architecture Analysis
 
 **Date:** 2026-07-08
 **Scope:** The core architecture files at the personal-os root + their declared authorities.

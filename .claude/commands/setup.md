@@ -1,6 +1,6 @@
 # /setup - First-Run Onboarding
 
-Guide the user through setting up their Personal OS. One step at a time. Wait for input before moving on.
+Guide the user through setting up their Personal Ops System. One step at a time. Wait for input before moving on.
 
 Prerequisites (done before running /setup):
 - MCP connections (Gmail, Calendar, Notion) authenticated via /mcp
@@ -150,7 +150,7 @@ Read soul.md back. Then list the vault pages you created with their cross-refere
 
 ## Step 5: Initialize Notion Workspace + Project Tracker
 
-Create a "Personal OS" parent page in Notion. ALL future databases live under this page.
+Create a "Personal Ops System" parent page in Notion. ALL future databases live under this page.
 Store parent page ID in vault/projects/notion-parent-id.md.
 
 Under the parent page, create "Progress Tracker" database: Task (title), Status (select: To Do/In Progress/Done), Order (number), Notes (text).
@@ -194,7 +194,7 @@ Run `ls work/` and check what's there:
 
 Tell the user, exactly:
 ```
-Your Personal OS is ready. The automations are pre-built - no prompts to run.
+Your Personal Ops System is ready. The automations are pre-built - no prompts to run.
 
 Try any of these commands. Each one runs Step 0 (Bootstrap) on first invocation
 to create its Notion DB lazily, then does its job:
@@ -226,7 +226,7 @@ Use Bash to test: `[ -f <candidate>/01-sprint-tracker/prompt_1_build.md ] && ech
 Tell the user, substituting `{PROMPTS_PATH}`:
 
 ```
-Your Personal OS skeleton is ready. No automations are built yet.
+Your Personal Ops System skeleton is ready. No automations are built yet.
 
 Build path: paste prompts one at a time, in order.
 
@@ -246,7 +246,7 @@ Eleven prompts total. By the end your install will match personal-os-prebuilt.
 If PROMPTS_PATH is "(not found)", say instead:
 
 ```
-Your Personal OS skeleton is ready. No automations are built yet.
+Your Personal Ops System skeleton is ready. No automations are built yet.
 
 I couldn't find the prompts/ folder. It usually ships alongside personal-os/
 as a sibling directory. Where did you save it? Paste the path or drop the

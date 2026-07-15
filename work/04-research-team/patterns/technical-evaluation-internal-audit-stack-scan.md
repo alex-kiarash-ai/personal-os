@@ -7,7 +7,7 @@ times_used: 4
 # Internal audit + stack scan (build-something-on-our-own-system questions)
 
 ## Question shape
-"We want to build X on top of our own system: what of OURS should feed it, what does our INFRA offer, and what's the best external TOOLING to build it with?" Two internal lanes + one web lane. Fits any feature that consumes existing Personal OS data (dashboard, digest, API, export).
+"We want to build X on top of our own system: what of OURS should feed it, what does our INFRA offer, and what's the best external TOOLING to build it with?" Two internal lanes + one web lane. Fits any feature that consumes existing Personal Ops System data (dashboard, digest, API, export).
 
 ## Team
 - Project Auditor: sweep all builds' status.md + specs + vault/log.md; per build report measurable outputs (real example values), source of truth, cadence, tile/feed-worthiness High/Med/Low | tools: Explore (very thorough, read-only) | output: structured table + cross-cutting metrics list

@@ -1,5 +1,5 @@
 <!-- CUSTOM_START -->
-# Personal OS docs
+# Personal Ops System docs
 
 This folder explains the system to a human. The repo runs Alex, Shaheen's personal AI agent: a
 Claude Code setup with memory, guardrails, and a pile of automations that work while he sleeps.

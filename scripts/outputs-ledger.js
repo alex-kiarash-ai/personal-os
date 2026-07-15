@@ -37,8 +37,10 @@ const MANIFEST = path.join(REPO, 'system', 'manifest.json');
 const STREAM_DIRS = ['logs', 'voice', 'typed'];
 // Validation exemptions: legit top-level dirs that are not manifest keys.
 // cv = working set; reports/brand/architecture/building-alex = frozen legacy (pre-ledger one-offs);
-// sessions = THE home for future one-off session outputs (sessions/YYYY-MM-DD-topic/).
-const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex'];
+// sessions = THE home for future one-off session outputs (sessions/YYYY-MM-DD-topic/);
+// prompting-scheduled = the Quota Reset Auto-Run tool's result dir (work/quota-reset-autorun/scripts/
+//   poll-and-run.ps1 writes qra-*.txt here by design; QRA is a registered known_work_folder, 2026-07-15).
+const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex', 'prompting-scheduled'];
 const SKIP_FILES = new Set(['ledger.jsonl', 'INDEX.md', '.gitkeep', 'desktop.ini', 'Thumbs.db', '.platform']);
 const SKIP_EXT = new Set(['.log', '.tmp', '.lock']);
 // Multi-file bundle formats: internals are components of ONE deliverable, never rows themselves

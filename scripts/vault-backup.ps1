@@ -45,6 +45,22 @@ try {
     Say "ledger: $($lg | Select-Object -First 1)"
 } catch { Say "ledger reconcile failed (non-fatal): $($_.Exception.Message)" }
 
+# BUG-11 fix (2026-07-15): on a month-end night the expense (20:00, 2h limit) + runway (21:15) jobs can
+# still be writing their Excel workbooks to outputs/ when this 21:45 tar runs, so the backup could capture
+# a half-written .xlsx. Wait (bounded) for those month-end producers to finish before taring; proceed
+# anyway after a 12-min cap so the backup window is never blown.
+if (-not $DryRun) {
+    $waited = 0
+    while ($waited -lt 720) {
+        $busy = Get-ScheduledTask -TaskName 'PersonalOS-expense-wrangler', 'PersonalOS-runway' -ErrorAction SilentlyContinue |
+                Where-Object { $_.State -eq 'Running' }
+        if (-not $busy) { break }
+        Say "waiting for month-end producer(s) before taring: $(($busy | ForEach-Object { $_.TaskName }) -join ', ') (${waited}s)"
+        Start-Sleep -Seconds 60; $waited += 60
+    }
+    if ($waited -ge 720) { Say "proceeded after the 12-min wait cap (a month-end producer was still running); backup may catch a mid-write file this once" }
+}
+
 try {
     if (-not $gpg)               { throw "gpg not found (install Gpg4win or use the Git-bundled gpg)" }
     if (-not (Test-Path $passFile)) { throw "passphrase file missing: $passFile" }

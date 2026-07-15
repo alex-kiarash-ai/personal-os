@@ -6,7 +6,7 @@ Spec: work/16-alex-hq/CLAUDE.md (read it first). Status + IDs: vault/projects/al
 1. **Harvest local-only metrics** (the ones only this ThinkPad can see):
    - `infra.mcp_tools`: count `mcp__` tool names available (or `claude mcp list`)
    - `infra.vault_pages`: `Glob vault/**/*.md` count (+ people/business/research sub-counts as value_text)
-   - `infra.scheduled_jobs_active`: `schtasks /query` count of enabled Personal OS jobs (see vault/projects/cron-paths.md for names)
+   - `infra.scheduled_jobs_active`: `schtasks /query` count of enabled Personal Ops System jobs (see vault/projects/cron-paths.md for names)
    - `recovery.hours_since_last_push`: `git log -1 --format=%ct origin/main` → hours since the last GitHub backup push (added 2026-07-02, Recovery Phase 0; amber-worthy if > 30h since the job runs daily 21:30)
    - `infra.n8n_up_today` + `infra.n8n_broken_today`: run `python work/16-alex-hq/scripts/n8n_liveness.py` - it queries the n8n REST API and prints a JSON **array** of TWO ready-to-push events: `n8n_up_today` (active workflows that ran today, over active count) and `n8n_broken_today` (workflows broken RIGHT NOW = latest run errored, OR an expected-daily workflow gone silent >26h; red with the offenders named). Merge BOTH array elements into the step-2 events push verbatim. If it exits non-zero (API unreachable), SKIP both - never push a fabricated 0. (up_today added 2026-07-04; broken_today added 2026-07-06 - it's the number behind the "Broken n8n today" HQ card, and the Pipeline Error Alert workflow pushes the same key RED the instant a guarded workflow throws.)
 1b. **Refresh the static data JSONs** (volume-mounted at /app/public/data, no rebuild ever needed; skip gracefully if SSH is unavailable):

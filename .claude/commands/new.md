@@ -1,6 +1,6 @@
 # /new - Create a New Automation
 
-This is the master command for creating any automation in the Personal OS. Every automation, including the core 10, is created through this flow.
+This is the master command for creating any automation in the Personal Ops System. Every automation, including the core 10, is created through this flow.
 
 ## Step 1: Understand
 
@@ -29,7 +29,7 @@ work/{number}-{name}/
    - Purpose (what it does, one paragraph)
    - Entry Points (scheduled, on-demand, event-driven)
    - Tools Used (Gmail MCP, Calendar MCP, Notion MCP, Chrome, Python, /pptx, /xlsx, sub-agents, etc.)
-   - Notion Integration (what database to create under the Personal OS parent page, what views, what columns. Read parent page ID from vault/projects/notion-parent-id.md)
+   - Notion Integration (what database to create under the Personal Ops System parent page, what views, what columns. Read parent page ID from vault/projects/notion-parent-id.md)
    - Vault Structure:
      - Tier 1: vault/projects/{name}/status.md (summary, Notion database ID, last run)
      - Tier 2: vault/projects/{name}/{subfolders}/ (dense data: history, archives, data)

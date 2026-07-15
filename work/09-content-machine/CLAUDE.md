@@ -53,7 +53,7 @@ Platform · Type (thread/post/caption/script/newsletter-section/long-form) · Pi
 6. For each approved topic tell the user: "Run /content-machine with '{topic}' to create the content."
 
 ## Notion Integration
-**Content Library** under the Personal OS parent page.
+**Content Library** under the Personal Ops System parent page.
 - db_id: b7305101-b911-4b9e-9196-8e7ac259a7a7 · data_source: 0f511509-1c63-4b22-a328-976d6d56d6aa
 Columns: Title (title), Platform (select), Type (select), Pillar (select), Idea (text), Source (text), Target Audience (text), Status (select), Publish Date (date).
 Views: **Calendar** (by Publish Date) · **Pipeline** (board by Status) · **By Platform** (board) · **This Week** (Publish Date set, asc).

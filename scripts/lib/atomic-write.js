@@ -13,7 +13,14 @@ const BACKUP = path.join(REPO, '.staging-backup');
 function rmrf(p) { fs.rmSync(p, { recursive: true, force: true }); }
 
 // Fresh start: clear any leftovers from a previous (failed or dry) run.
-function reset() { rmrf(STAGING); rmrf(BACKUP); }
+function reset() {
+  // BUG-09 fix (2026-07-15): a leftover .staging-backup/ means the last run died mid-rollback - surface
+  // it so a half-written repo state is discoverable, not silently cleared.
+  if (fs.existsSync(BACKUP)) {
+    try { console.warn(`atomic-write: found leftover ${path.basename(BACKUP)}/ from a prior run (a swap likely died mid-rollback). Check 'git status' for half-written files before it is cleared.`); } catch (_) {}
+  }
+  rmrf(STAGING); rmrf(BACKUP);
+}
 
 // Write one output into the staging tree (relPath is repo-relative, forward slashes ok).
 function stage(relPath, content) {
@@ -66,6 +73,13 @@ function swapAll() {
       done.push(rel);
     }
   } catch (e) {
+    // BUG-09 fix (2026-07-15): drop a recovery marker BEFORE rolling back, so if the process is KILLED
+    // mid-rollback (power loss) the half-restored state is discoverable and names which files to
+    // restore from .staging-backup/. A clean rollback leaves it; the next reset() clears it.
+    try {
+      fs.writeFileSync(path.join(BACKUP, 'ROLLBACK-INCOMPLETE.txt'),
+        `atomic-write swap FAILED at: ${e.message}\nswapped-before-fail (restore these from this dir if a crash interrupts the rollback):\n${done.join('\n')}\n`, 'utf8');
+    } catch (_) { /* best-effort marker */ }
     // Roll back everything already swapped, then rethrow: all-or-nothing.
     for (const rel of done) {
       const target = path.join(REPO, rel);

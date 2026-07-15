@@ -35,10 +35,14 @@ try {
     }
 
     # Push even on no-change days: recovers from a previously failed push.
+    # BUG-17 fix (2026-07-15): push the CURRENT branch, not a hardcoded 'main'. A commit on a feature
+    # branch (e.g. context-engineering-*) never reached GitHub - `git push origin main` no-op'd (exit 0)
+    # and reported GREEN while the day's work sat unpushed. Now the backup covers whatever branch is live.
     # cmd /c wrapper: PS 5.1 wraps native stderr in NativeCommandError records; cmd redirect keeps the log clean.
+    $br = (git rev-parse --abbrev-ref HEAD 2>$null); if ($br) { $br = $br.Trim() } else { $br = 'main' }
     if ($null -eq $reason -and -not $DryRun) {
-        cmd /c "git push origin main 2>&1" | Out-File -Append -Encoding utf8 $log
-        if ($LASTEXITCODE -ne 0) { $reason = "git push failed (exit $LASTEXITCODE) - network or expired PAT?" }
+        cmd /c "git push origin $br 2>&1" | Out-File -Append -Encoding utf8 $log
+        if ($LASTEXITCODE -ne 0) { $reason = "git push failed (exit $LASTEXITCODE, branch $br) - network or expired PAT?" }
     }
 } catch {
     $reason = "wrapper exception: $($_.Exception.Message)"
@@ -50,7 +54,7 @@ if (Test-Path $tokenFile) {
     $token = (Get-Content $tokenFile -Raw).Trim()
     if ($null -eq $reason) {
         $body = @{ project = 'recovery'; metric_key = 'run_status'; value_num = 1
-                   headline = "backup pushed ($changed files changed)"; status = 'green' } | ConvertTo-Json
+                   headline = "backup pushed ($changed files changed, branch $br)"; status = 'green' } | ConvertTo-Json
     } else {
         $body = @{ project = 'recovery'; metric_key = 'run_status'; value_num = 0
                    headline = "backup FAILED: $reason"; status = 'red' } | ConvertTo-Json

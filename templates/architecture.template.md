@@ -2,7 +2,7 @@
 
 # Architecture: how Alex works
 
-This is the constitution for deep readers: the full operating rules of the Personal OS, with a human preamble. The rules body below is the project `CLAUDE.md`, embedded verbatim at generation time, so this page can never drift from what Alex actually loads. To change a rule, edit `CLAUDE.md` (or the file it points to) and regenerate; never edit this page.
+This is the constitution for deep readers: the full operating rules of the Personal Ops System, with a human preamble. The rules body below is the project `CLAUDE.md`, embedded verbatim at generation time, so this page can never drift from what Alex actually loads. To change a rule, edit `CLAUDE.md` (or the file it points to) and regenerate; never edit this page.
 
 ## The system in short
 

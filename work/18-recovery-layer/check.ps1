@@ -168,11 +168,11 @@ if ($unresolved.Count -gt 0) {
 
 # --- C7 scheduler <-> live Task Scheduler ---
 $docJobs = [regex]::Matches((Get-Content "scheduler\schedule.md" -Raw), 'PersonalOS-[\w-]+') |
-    ForEach-Object { $_.Value } | Where-Object { $_ -notlike 'PersonalOS-retry-*' } | Sort-Object -Unique   # retry-* excluded on BOTH sides (prose describing the retry mechanism is not a documented job; live side already excluded, 2026-07-11)
+    ForEach-Object { $_.Value } | Where-Object { $_ -notlike 'PersonalOS-retry-*' -and $_ -ne 'PersonalOS-qra-poller' } | Sort-Object -Unique   # retry-* + the transient qra-poller (arm.ps1-created one-shot, OBS-21 fix 2026-07-15) excluded on BOTH sides
 # PersonalOS-retry-* are the close-out lib's ephemeral one-shot retry tasks (self-registered on a
 # failed run, auto-delete after their window, 2026-07-06). Not documented jobs; never drift.
 $liveJobs = Get-ScheduledTask -TaskName "PersonalOS-*" -ErrorAction SilentlyContinue |
-    Where-Object { $_.TaskName -notlike 'PersonalOS-retry-*' } | ForEach-Object { $_.TaskName }
+    Where-Object { $_.TaskName -notlike 'PersonalOS-retry-*' -and $_.TaskName -ne 'PersonalOS-qra-poller' } | ForEach-Object { $_.TaskName }
 foreach ($j in $docJobs) { if ($liveJobs -notcontains $j) { Add-Drift 'scheduler' "documented job '$j' is NOT registered in Task Scheduler" } }
 foreach ($j in $liveJobs) { if ($docJobs -notcontains $j) { Add-Drift 'scheduler' "registered job '$j' is NOT documented in scheduler/schedule.md" } }
 
@@ -263,7 +263,7 @@ foreach ($p in $ffRows) {
 # label -> frequency-pattern map; a project passes when ANY of its schedule.md entries (matched by
 # job name, entries with a real '- Frequency:' line only) matches its label. Labels with no
 # frequency expectation (on-demand/event/dormant/parked/retired, expected_hours null) are skipped.
-# C14/C15 are reserved for upgrade P10 (passphrase attestation, PAT window).
+# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below. 17 checks total (C1-C17).
 $freqPatterns = @{
     'daily'     = 'daily|nightly|every day'
     'weekdays'  = 'weekday'
@@ -341,6 +341,23 @@ if ($patDaysLeft -le 60) {
         Add-Drift 'pat-expiry' "GitHub backup PAT expiry date ($($patExpiry.ToString('yyyy-MM-dd'))) has PASSED - rotate it in Windows Credential Manager + update `$patExpiry in check.ps1"
     } else {
         Add-Drift 'pat-expiry' "GitHub backup PAT expires in $([math]::Floor($patDaysLeft))d ($($patExpiry.ToString('yyyy-MM-dd'))): rotate it, then update `$patExpiry in check.ps1"
+    }
+}
+
+# --- C17 skills symlink layer (BUG-16 fix, 2026-07-15): committed skill CONTENT lives in
+# .agents/skills/; the discovery layer .claude/skills/ is gitignored links (junctions on Windows)
+# that must be rebuilt on restore. A missing link = that (often MANDATORY) skill silently does not
+# load, with nothing failing loud. Detect-only. Rebuild per pair:
+#   cmd /c mklink /J .claude\skills\<name> ..\..\.agents\skills\<name>
+$agentsSkills = Join-Path $repo '.agents\skills'
+$claudeSkills = Join-Path $repo '.claude\skills'
+if (Test-Path $agentsSkills) {
+    $missingLinks = @()
+    foreach ($d in (Get-ChildItem $agentsSkills -Directory -ErrorAction SilentlyContinue)) {
+        if (-not (Test-Path (Join-Path $claudeSkills $d.Name))) { $missingLinks += $d.Name }
+    }
+    if ($missingLinks.Count) {
+        Add-Drift 'skills-link' "$($missingLinks.Count) skill(s) in .agents/skills/ have no resolving .claude/skills/ link (rebuild per pair: cmd /c mklink /J .claude\skills\<name> ..\..\.agents\skills\<name>): $($missingLinks -join ', ')"
     }
 }
 

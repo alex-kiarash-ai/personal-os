@@ -23,7 +23,7 @@ Shaheen chose **browser automation over the Gmail feed** (he wants his actual ac
   - `express@airbnb.com` - guest messages, reservation confirmations.
   - `automated@airbnb.com` - **pending requests** (accept/decline, time-limited), check-in reminders, login/security alerts, **payout** notifications.
   - Search pattern: `from:(express@airbnb.com OR automated@airbnb.com) newer_than:{window}`. `get_thread` to read full body when a snippet can't yield dates/amount/guest.
-- **Notion MCP** - Airbnb Bookings DB under the Personal OS parent (Bootstrap Protocol).
+- **Notion MCP** - Airbnb Bookings DB under the Personal Ops System parent (Bootstrap Protocol).
 - **/xlsx skill** - branded income model with real SUMIFS/SUMIF/AVERAGEIF formulas. Never hardcoded values.
 - No Chrome. No Airbnb API (does not exist for individual hosts).
 
@@ -38,7 +38,7 @@ Shaheen chose **browser automation over the Gmail feed** (he wants his actual ac
 | Login/security alert | automated@ | FYI only, not a booking. |
 
 ## Notion Integration
-**Airbnb Bookings** database under the [[projects/notion-parent-id|Personal OS parent]]:
+**Airbnb Bookings** database under the [[projects/notion-parent-id|Personal Ops System parent]]:
 - Schema:
   - Booking (title, e.g. "Guest name - dates")
   - Guest (text)

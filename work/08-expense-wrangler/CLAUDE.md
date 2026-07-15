@@ -23,7 +23,7 @@ One command to capture expenses and produce a company-grade report. **Immediate 
 Per receipt/line: Vendor, Date, Amount, Category (via categories.md + vendors.md), Tax Deductible (default per category, human overrides), Notes, Status. OCR-low-confidence or unusually large → Status Flagged. Unknown vendor → infer + append to vendors.md, Status Unmatched until bank-matched.
 
 ## Notion Integration
-**Expenses** database under the Personal OS parent page (ID in vault/projects/notion-parent-id.md).
+**Expenses** database under the Personal Ops System parent page (ID in vault/projects/notion-parent-id.md).
 - db_id: 225b2c6c-a34c-4518-9db4-ba4bd06dad63 · data_source: ef881285-4d96-461f-a905-72e161a91532
 Columns: **Vendor** (title), **Date** (date), **Amount** (number, `number_with_commas` - values are SEK), **Category** (select: Meals/Travel/Software/Office/Subscriptions/Other), **Tax Deductible** (checkbox), **Notes** (text), **Status** (select: Verified/Unmatched/Flagged).
 Views: **This Month** (Date set, desc) · **By Category** (board) · **Flagged** (Status = Flagged).

@@ -122,6 +122,11 @@ async function run({ soul, apply, log }) {
     fs.writeFileSync(path.join(BACKUP_DIR, `${t.id}-before-soulsync-${Date.now()}.json`),
       JSON.stringify(await (await fetch(`${base}/workflows/${t.id}`, { headers: hdrs })).json(), null, 2));
 
+    // BUG-08 fix (2026-07-15, corrected after an empirical 400): n8n's public-API PUT REJECTS a
+    // settings object with additional properties ("settings must NOT have additional properties"), so
+    // a full round-trip is impossible - the 8-key allowlist is REQUIRED, not optional. It already
+    // covers the load-bearing keys (errorWorkflow, executionTimeout, the save modes, timezone,
+    // executionOrder). The real gap was no verification those survived; the read-back below closes it.
     const ALLOWED = ['saveExecutionProgress', 'saveManualExecutions', 'saveDataErrorExecution', 'saveDataSuccessExecution', 'executionTimeout', 'errorWorkflow', 'timezone', 'executionOrder'];
     const settings = {};
     for (const k of ALLOWED) if (wf.settings && wf.settings[k] !== undefined) settings[k] = wf.settings[k];
@@ -136,6 +141,17 @@ async function run({ soul, apply, log }) {
     const w = v.nodes.find(n => n.name === NODE).parameters.jsCode;
     const ok = w.includes(START) && w.includes(END) && (!sampleMark || w.includes(sampleMark)) && v.nodes.length === before;
     if (!ok) throw new Error(`sync-n8n-voice: ${t.name}: post-write verification failed (marker/phrase/nodecount)`);
+
+    // BUG-08 fix (2026-07-15): Verify-after-write on the SETTINGS slice. Confirm every ALLOWLISTED key
+    // that existed before survived the PUT (a dropped errorWorkflow/timeout must never ship silently).
+    // Only the allowlisted keys are checked - non-allowlisted keys are dropped by design (n8n rejects
+    // them), so verifying them would false-alarm.
+    for (const k of ALLOWED) {
+      if (wf.settings && wf.settings[k] !== undefined &&
+          JSON.stringify((v.settings || {})[k]) !== JSON.stringify(wf.settings[k])) {
+        throw new Error(`sync-n8n-voice: ${t.name}: allowlisted settings key '${k}' changed/dropped by the PUT (was ${JSON.stringify(wf.settings[k])}, now ${JSON.stringify((v.settings || {})[k])}) - restore from ${BACKUP_DIR}/${t.id}-before-soulsync-*.json`);
+      }
+    }
 
     // n8n's PUT can drop activation (2026-07-10: both engines deactivated by the overnight sync,
     // crons deregistered, next-morning runs never fired). Restore it, then GATE green on it.

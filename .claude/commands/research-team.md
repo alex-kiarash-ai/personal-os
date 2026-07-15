@@ -14,7 +14,7 @@ Usage: `/research-team {question or topic}`. If no question given, ask for one -
 3. Design the team (2-5 sub-agents, parallel where independent) or adapt the matched pattern.
 4. AskUserQuestion: approve / modify / answer-without-team. NO sub-agents before approval.
 5. Execute, synthesize in Alex voice. Unknown stays unknown; cite sources.
-6. Write vault/research/{topic-slug}.md + Notion page "Research: {topic}" under the Personal OS parent.
+6. Write vault/research/{topic-slug}.md + Notion page "Research: {topic}" under the Personal Ops System parent.
 7. Save/refresh the pattern in patterns/ + index.md.
 8. AskUserQuestion: "Claude Design deck or PDF?" → **Deck = Claude Design (DesignSync)** on claude.ai/design (slides as components, finalize_plan → write_files, branded from brand config), export PDF; OR PDF = reportlab with brand config. NOT /pptx (standing rule 2026-06-15). Output the PDF (+ note the claude.ai/design link) to outputs/research-team/YYYY-MM-DD/. Delete build scripts and temp artifacts after.
 

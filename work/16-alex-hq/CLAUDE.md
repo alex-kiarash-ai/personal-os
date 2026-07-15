@@ -4,7 +4,7 @@
 Automation (metrics dashboard: always-on backend + PWA frontend + on-demand local push command)
 
 ## Purpose
-The glanceable numbers layer of the Personal OS. Every automation reports its key metrics to one store; Alex HQ renders them as a branded, advanced bento dashboard reachable from Shaheen's phone (PWA) and PC, answering "how is my life-system doing today" in 10 seconds. **Two-way since 2026-07-02:** metrics flow up to Shaheen's eyes, and Shaheen's notes (typed or voice) flow down to Alex through the Inbox Contract below - an ASYNC capture inbox, not a chat. VS Code stays the cockpit, the vault stays the brain, HQ is the face (now with ears). Born from [[research/alex-push-ui-delivery-layer]] (architecture) + [[research/alex-hq-tiles-and-stack]] (tiles, infra signals, stack; /research-team run 6).
+The glanceable numbers layer of the Personal Ops System. Every automation reports its key metrics to one store; Alex HQ renders them as a branded, advanced bento dashboard reachable from Shaheen's phone (PWA) and PC, answering "how is my life-system doing today" in 10 seconds. **Two-way since 2026-07-02:** metrics flow up to Shaheen's eyes, and Shaheen's notes (typed or voice) flow down to Alex through the Inbox Contract below - an ASYNC capture inbox, not a chat. VS Code stays the cockpit, the vault stays the brain, HQ is the face (now with ears). Born from [[research/alex-push-ui-delivery-layer]] (architecture) + [[research/alex-hq-tiles-and-stack]] (tiles, infra signals, stack; /research-team run 6).
 
 ## Entry Points
 - **Always-on backend:** two n8n webhook endpoints on the Hetzner box (see Infrastructure).
