@@ -4,7 +4,9 @@
 // Runs as the final step of every generate-alex.js run, standalone on the CLI, and from the git
 // pre-commit hook (P3-S3). Six checks (V1-V6, spec table + amendments A3/A5) plus the structural
 // guards G1-G4 from Phase 1, plus V9 first-fire aging (upgrade P4, 2026-07-12; WARNING-only),
-// plus V7 lifecycle-state drift lint and V8 HQ hex scan (upgrade P5, 2026-07-12, design 1.5/1.6).
+// plus V7 lifecycle-state drift lint and V8 HQ hex scan (upgrade P5, 2026-07-12, design 1.5/1.6),
+// plus V10 protected-file guard (2026-07-15, context-engineering run; COMMIT-TIME ONLY, enforces
+// vault/me/NEVER-TOUCH.md against the staged changeset - runs in pre-commit context with --changed).
 // Any failure exits 1 and names exactly what drifted and where.
 //
 // The full suite (G1-G4 + V1-V9) runs on EVERY invocation - generate-alex.js --only=X limits what
@@ -675,9 +677,136 @@ function v9FirstFireAging({ stagedDir, manifest }, warnings) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// V10 - protected-file guard (context-engineering run, 2026-07-15). Enforces vault/me/NEVER-TOUCH.md
+//       at COMMIT TIME. A CHANGESET question (git's staged diff), not a content question, so it
+//       reads git directly and runs ONLY in pre-commit context with --changed (armed by
+//       scripts/hooks/pre-commit); a no-op in the generator context, so generate-alex.js is
+//       untouched.
+//
+//       Rule per protected path (kinds: immutable | append-only | flagged):
+//         - delete / rename-away of a protected path -> FAIL (immutable, append), WARNING (flagged)
+//         - modify of an immutable path              -> FAIL
+//         - modify of an append-only path            -> FAIL unless the staged diff is pure addition
+//                                                       (numstat removed-lines == 0)
+//         - modify of a flagged path                 -> WARNING
+//         - add (new file), incl. under an immutable dir -> allowed
+//       Override: git commit --no-verify (documented in NEVER-TOUCH.md; no custom flag).
+//
+//       V10_PROTECTED below is the canonical machine list; the human doc is vault/me/NEVER-TOUCH.md
+//       (keep the two in sync - short, low-churn set).
+//
+//       HONESTY NOTE (the privacy scrub reality): a commit guard can only see git-TRACKED files.
+//       All of vault/** and outputs/** are gitignored (local-only, encrypted-backup-covered), so
+//       those entries NEVER appear in a staged diff - the guard cannot enforce them at commit time;
+//       they are protected by policy + the encrypted vault backup, and are listed here (tracked:false)
+//       so the set stays canonical and the guard auto-covers any entry that ever becomes tracked.
+//       The entries the guard ACTIVELY enforces are the tracked ones (tracked:true):
+//       system/landscape-log.jsonl and brand/config/color-system.md.
+// ---------------------------------------------------------------------------------------------
+const V10_PROTECTED = [
+  { path: 'vault/sources/', kind: 'immutable', dir: true, tracked: false },
+  { path: 'vault/log.md', kind: 'append', tracked: false },
+  { path: 'vault/projects/self-review/close-out-log.md', kind: 'append', tracked: false },
+  { path: 'vault/projects/sprint-tracker/velocity.md', kind: 'append', tracked: false },
+  { path: 'outputs/ledger.jsonl', kind: 'append', tracked: false },
+  { path: 'system/landscape-log.jsonl', kind: 'append', tracked: true },
+  { path: 'vault/identity.md', kind: 'flagged', tracked: false },
+  { path: 'brand/config/color-system.md', kind: 'flagged', tracked: true },
+];
+
+function matchProtected(rel, list = V10_PROTECTED) {
+  const p = String(rel || '').split(path.sep).join('/');
+  for (const entry of list) {
+    if (entry.dir) { if (p === entry.path.replace(/\/$/, '') || p.startsWith(entry.path)) return entry; }
+    else if (p === entry.path) return entry;
+  }
+  return null;
+}
+
+// PURE evaluator (unit-tested directly): changeset = [{status, path, oldPath?, removed}], status a
+// single git letter (A/M/D/R/C); removed is the numstat removed-line count (consulted for M only).
+function evaluateProtectedChangeset(changeset, list = V10_PROTECTED) {
+  const failures = [], warnings = [];
+  for (const ch of changeset) {
+    const st = String(ch.status || '').toUpperCase();
+    if (st === 'D' || st.startsWith('R')) {
+      // judged on the path that LEAVES its protected home (old path for a rename)
+      const gone = st.startsWith('R') ? (ch.oldPath || ch.path) : ch.path;
+      const hit = matchProtected(gone, list);
+      if (hit) {
+        const verb = st === 'D' ? 'deletes' : 'renames away';
+        const msg = `commit ${verb} protected ${hit.kind} path ${gone} (NEVER-TOUCH.md)`;
+        if (hit.kind === 'flagged') warnings.push(`WARNING V10: ${msg} - surfaced, not blocked`);
+        else failures.push(`FAILED V10: ${msg} - use 'git commit --no-verify' to override deliberately`);
+      }
+      continue;
+    }
+    if (st === 'M') {
+      const hit = matchProtected(ch.path, list);
+      if (!hit) continue;
+      if (hit.kind === 'immutable')
+        failures.push(`FAILED V10: commit modifies immutable ${ch.path} (NEVER-TOUCH.md) - content is read-only; --no-verify to override`);
+      else if (hit.kind === 'flagged')
+        warnings.push(`WARNING V10: commit modifies flagged ${ch.path} (NEVER-TOUCH.md) - surfaced, not blocked`);
+      else if (hit.kind === 'append') {
+        const removed = Number(ch.removed);
+        if (!Number.isFinite(removed) || removed > 0)
+          failures.push(`FAILED V10: commit modifies append-only ${ch.path} with ${Number.isFinite(removed) ? removed : 'non-text/unknown'} removed line(s) (NEVER-TOUCH.md) - append-only files may only grow; --no-verify to override`);
+      }
+    }
+    // A (add) and any other status: allowed
+  }
+  return { failures, warnings };
+}
+
+// Reads git's staged changeset (name-status + numstat, both -z for robust paths). Only called in
+// pre-commit context, so git shelling never happens on the generator path.
+function readStagedChangeset() {
+  const { execFileSync } = require('child_process');
+  const run = args => execFileSync('git', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 1 << 24 });
+  const changeset = [];
+  const ns = run(['diff', '--cached', '--name-status', '-z']).split('\0');
+  for (let i = 0; i < ns.length; i++) {
+    const status = ns[i];
+    if (!status) continue;
+    if (status[0] === 'R' || status[0] === 'C') {
+      const oldPath = ns[++i], newPath = ns[++i];
+      changeset.push({ status: status[0], oldPath, path: newPath });
+    } else {
+      const p = ns[++i];
+      if (p == null) break;
+      changeset.push({ status: status[0], path: p });
+    }
+  }
+  // numstat removed-line counts for modified files (rename records skipped: those FAIL via name-status)
+  const removedByPath = new Map();
+  const num = run(['diff', '--cached', '--numstat', '-z']).split('\0');
+  for (let i = 0; i < num.length; i++) {
+    const tok = num[i];
+    if (!tok) continue;
+    const parts = tok.split('\t');
+    if (parts.length === 3 && parts[2] !== '') removedByPath.set(parts[2], parts[1]); // '-' for binary
+    else if (parts.length === 3 && parts[2] === '') i += 2; // rename record: skip old+new tokens
+  }
+  for (const ch of changeset)
+    if (ch.status === 'M') ch.removed = removedByPath.has(ch.path) ? removedByPath.get(ch.path) : '0';
+  return changeset;
+}
+
+function v10ProtectedFileGuard({ context, changed }, failures, warnings) {
+  if (context !== 'pre-commit' || !changed) return; // armed only by the commit hook
+  let changeset;
+  try { changeset = readStagedChangeset(); }
+  catch (e) { warnings.push(`WARNING V10 SKIPPED: could not read the staged changeset via git - ${e.message}`); return; }
+  const res = evaluateProtectedChangeset(changeset);
+  for (const f of res.failures) failures.push(f);
+  for (const w of res.warnings) warnings.push(w);
+}
+
+// ---------------------------------------------------------------------------------------------
 // runAll - the single entry point (async since Phase 3: V6 talks to the live n8n API).
 // ---------------------------------------------------------------------------------------------
-async function runAll({ stagedDir, context = 'generator' } = {}) {
+async function runAll({ stagedDir, context = 'generator', changed = false } = {}) {
   const failures = [];
   const warnings = [];
 
@@ -716,11 +845,12 @@ async function runAll({ stagedDir, context = 'generator' } = {}) {
   if (manifest) v7StateDriftLint({ stagedDir, manifest }, failures, warnings);
   if (colorTokens) v8HqHexScan({ stagedDir, colorTokens }, failures);
   if (manifest) v9FirstFireAging({ stagedDir, manifest }, warnings);
+  v10ProtectedFileGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
   if (failures.length === 0)
-    console.log(`validate-alex: G1-G4 + V1-V9 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+    console.log(`validate-alex: G1-G4 + V1-V10 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
   return { ok: failures.length === 0, failures, warnings };
 }
 
@@ -733,12 +863,13 @@ if (require.main === module) {
     process.exit(1);
   }
   const stagedDir = stagedArg ? path.resolve(stagedArg.split('=')[1]) : path.join(REPO, '.staging');
+  const changed = process.argv.includes('--changed'); // arms V10 (pre-commit hook passes it)
   // process.exitCode (not process.exit()): a hard exit right after fetch trips a libuv teardown
   // assertion on Windows (uv async handle still closing). Letting the loop drain is safe and the
   // exit code is identical for the caller.
-  runAll({ stagedDir: fs.existsSync(stagedDir) ? stagedDir : undefined, context })
+  runAll({ stagedDir: fs.existsSync(stagedDir) ? stagedDir : undefined, context, changed })
     .then(({ ok }) => { process.exitCode = ok ? 0 : 1; })
     .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }
 
-module.exports = { runAll };
+module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED };

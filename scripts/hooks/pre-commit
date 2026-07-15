@@ -1,6 +1,8 @@
 #!/bin/sh
 # pre-commit - the permanent validation gate (refactor P3-S3, decision D7).
-# Runs scripts/validate-alex.js (G1-G4 + V1-V6) on every commit; a red check blocks the commit.
+# Runs scripts/validate-alex.js (G1-G4 + V1-V10) on every commit; a red check blocks the commit.
+# V10 (protected-file guard, 2026-07-15) reads the staged changeset via --changed and enforces
+# vault/me/NEVER-TOUCH.md (immutable / append-only / flagged); override with git commit --no-verify.
 #
 # Install (one-time per clone; this file is versioned, .git/hooks is not):
 #   git config core.hooksPath scripts/hooks
@@ -46,8 +48,8 @@ if [ -z "$N8N_API_URL" ]; then
   export N8N_API_URL
 fi
 
-echo "pre-commit: validate-alex (G1-G4 + V1-V6, context=pre-commit)"
-"$NODE" "$ROOT/scripts/validate-alex.js" --context=pre-commit
+echo "pre-commit: validate-alex (G1-G4 + V1-V10, context=pre-commit; V10 = NEVER-TOUCH guard on the staged changeset)"
+"$NODE" "$ROOT/scripts/validate-alex.js" --context=pre-commit --changed
 STATUS=$?
 if [ $STATUS -ne 0 ]; then
   echo "pre-commit: BLOCKED - validation failed (see FAILED lines above)." >&2

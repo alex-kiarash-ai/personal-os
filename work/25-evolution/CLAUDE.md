@@ -177,6 +177,58 @@ Alex HQ.
   conversational reply + Close-Out Report + ran Change Propagation instead of a clean digest. Fixed by
   the read-only / digest-only output contract now in scripts/landscape-eval.js.
 
+## Schema-Drift Detector (planned, spec 2026-07-15 - context-engineering research run)
+Not built yet. Specced here so a build can drop straight in; do NOT advertise it in the manifest
+one-liner until it ships (honesty rule - no vaporware in the routing table). Backlog line in
+`vault/projects/evolution/status.md`.
+
+**The problem it closes.** The `## MCP Reference` in root `CLAUDE.md` (~lines 172-206) is HAND-WRITTEN
+and drifts from live tool schemas. It has already bitten a run: 2026-07-13 the Google Calendar
+`list_events` params were renamed `timeMin/timeMax` -> `startTime/endTime` and a run 404'd (error-log).
+#25 today monitors NEW MCPs/models/patterns; it does NOT watch for SCHEMA DRIFT on the tools already
+in use. This adds that lane, on the same rails (monitor -> log -> weekly eval -> human-gated fix).
+
+**Baseline (the diff target): `system/mcp-reference.json`** - a hand-maintained machine mirror of the
+PARAMETER facts asserted in the CLAUDE.md MCP Reference, per tracked tool (e.g. Calendar `list_events`
+-> `startTime`/`endTime`; Gmail search -> `query`; Notion date -> `date:Field:start`). The prose already
+parses for the tool SET (`scripts/lib/read-sources.js` `parseMcpList`), but param shapes are not in the
+prose, so the JSON mirror is the canonical machine baseline. It is itself a "keep in sync with CLAUDE.md"
+surface (the fix step updates both together).
+
+**Capture (the honest hard part).** Most MCP tool schemas are visible ONLY as loaded function
+definitions INSIDE a Claude Code session (deferred tools loaded via ToolSearch); the claude.ai-brokered
+connectors (Gmail, Calendar, Notion, Drive) have no headless HTTP endpoint Alex can poll for their
+schemas. Two capture lanes, by tool kind:
+- **Brokered tools (the drift-prone ones):** a thin capture step RIDES an existing daily `claude -p`
+  session (piggyback the morning brief, or a tiny dedicated micro-session - this is the ONE non-zero-token
+  part, same budget shape as the weekly eval's single call, and it does NO reasoning). It ToolSearch-loads
+  the tracked set named in `system/mcp-reference.json` and dumps each live loaded schema to
+  `system/mcp-live-schemas.json`. Deterministic write of already-in-context JSON; no model thinking.
+- **HTTP-reachable MCPs (e.g. the n8n Application Engine MCP):** call the server's own `tools/list` over
+  HTTP with the bearer - fully zero-token, no session needed. Prefer this lane whenever a tool exposes it.
+
+**Diff (zero-token, pure Node).** A sibling of `landscape-monitor.js` (or a new mode of it) compares
+`system/mcp-live-schemas.json` against `system/mcp-reference.json` per tracked tool: added/removed/renamed
+params and shape changes. Any mismatch appends ONE row to `system/landscape-log.jsonl` under a NEW
+`category:'schema'` with `{date, category:'schema', source:'<tool>', item:'<param X renamed/removed>',
+id:<stable signature>}`. Idempotent (id = the drift signature, logs only on change), best-effort (a
+missing live dump just skips, the public feeds never depend on it) - the exact discipline of the b30
+`category:'deployed'` self-probe, which already proved the RELEASED-vs-DEPLOYED shape; this is
+MIRROR-vs-LIVE for tool params.
+
+**Surface + fix (human-gated, no auto-edit of CLAUDE.md).** The weekly `landscape-eval.js` already reads
+every new log row; `category:'schema'` rows appear in the digest flagged as drift, recommend = "fix the
+MCP Reference". Shaheen applies it through `## Integration` step 1 (edit the CLAUDE.md MCP Reference AND
+`system/mcp-reference.json` together, run `generate-alex.js`, V4 re-checks MCP set consistency). The
+detector NEVER edits CLAUDE.md itself - models/MCPs/patterns keep the human gate; only the skills lane
+self-installs.
+
+**Build checklist (when it ships):** add `system/mcp-reference.json` (seed it from the current MCP
+Reference, starting with the params that already drifted: Calendar, Gmail, Notion) + the capture step +
+the diff + `category:'schema'` handling in the eval prompt; add a tracked-tool list to
+`system/skills-sources.json`'s sibling or inline in `mcp-reference.json`; then update the manifest
+one-liner and run `generate-alex.js` (now it is real). Effort: ~1-2 days, the capture harness is the work.
+
 ## Guardrails (from soul.md)
 - Alex proposes, Shaheen decides - with ONE owner-approved exception (2026-07-11): the SKILLS lane
   auto-installs. Even there the MODEL never acts - it writes a digest + a json proposal, fully read-only;

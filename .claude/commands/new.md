@@ -24,7 +24,7 @@ work/{number}-{name}/
 └── config/       (if it needs configuration files)
 ```
 
-3. Write work/{number}-{name}/CLAUDE.md with ALL sections:
+3. Write work/{number}-{name}/CLAUDE.md with ALL sections. **First read [[research/exemplars/gold-automation-spec]]** (`vault/research/exemplars/gold-automation-spec.md`) for the gold-standard spec shape - contract-first, IDs inline, honest limitations, named Close-Out Extras - and match it (lean, not long):
    - Type (automation)
    - Purpose (what it does, one paragraph)
    - Entry Points (scheduled, on-demand, event-driven)
