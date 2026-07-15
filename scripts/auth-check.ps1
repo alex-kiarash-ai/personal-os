@@ -55,6 +55,15 @@ if ($reason -match 'limit') {
     } catch { "quota-state verify read failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $log }
 }
 
+# FIX-01 class (2026-07-15 /prompting item 6): the DISARM mirror of the prime above. A clean probe
+# just completed a successful `claude -p` call (a PLAN oracle), so a stale plan cap is cleared here,
+# verify-after-write inside Clear-AlexQuotaCapped. Before this, auth-check armed the gate on a hit but
+# nothing ever cleared it, so a lifted cap stayed 'capped' until cleared by hand (FIX-01, 2 days late).
+if ($null -eq $reason) {
+    . "scripts\lib\close-out.ps1"
+    Clear-AlexQuotaCapped -Kind plan -Log $log -Reason 'clean auth probe' | Out-Null
+}
+
 # Push infra/auth_ok to Alex HQ (green fresh / red stale). Never log the token; push failure never crashes the probe.
 $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"
 if (Test-Path $tokenFile) {

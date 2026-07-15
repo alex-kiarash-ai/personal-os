@@ -46,6 +46,53 @@ function Set-AlexQuotaCapped {
     } catch { "quota-state write failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $Log }
 }
 
+# --- P3 quota-state disarm (FIX-01 class, 2026-07-15 /prompting item 6) --------------------------
+# The mirror of Set-AlexQuotaCapped. The gate ARMED automatically (limit-detect + auth-check) but
+# nothing DISARMED it, so a lifted cap left a stale 'capped' flag until cleared by hand (FIX-01,
+# cleared 2 days late). One shared clear path with verify-after-write built in.
+#   Kind 'plan' | 'api' | 'both'. Clears only what is actually 'capped' (idempotent no-op otherwise).
+# Scope: a clean `claude -p` probe (auth-check / morning-brief) is a PLAN oracle only, so those callers
+# pass -Kind plan. The api (Console monthly) cap clears on reset_date expiry (the gate); an EARLY api
+# lift still needs a future n8n-side success signal - it has no local clear path (documented gap).
+# On an api clear it closes the cap-raise-console human-action, the mirror of Set arming's enqueue.
+# Returns $true if it cleared anything.
+function Clear-AlexQuotaCapped {
+    param(
+        [ValidateSet('plan', 'api', 'both')][string]$Kind = 'plan',
+        [Parameter(Mandatory)][string]$Log,
+        [string]$Reason = 'cleared'
+    )
+    $cleared = $false
+    try {
+        $qsPath = Join-Path (Get-Location) "system\quota-state.json"
+        $qs = Get-Content $qsPath -Raw | ConvertFrom-Json
+        $now = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
+        $doPlan = ($Kind -eq 'plan' -or $Kind -eq 'both')
+        $doApi  = ($Kind -eq 'api'  -or $Kind -eq 'both')
+        if ($doPlan -and $qs.claude_plan.state -eq 'capped') {
+            $qs.claude_plan.state = 'ok'; $qs.claude_plan.detected = $null
+            $cleared = $true
+            "quota-state: claude_plan capped->ok ($Reason) at $now" | Out-File -Append -Encoding utf8 $Log
+        }
+        if ($doApi -and $qs.anthropic_api.state -eq 'capped') {
+            $qs.anthropic_api.state = 'ok'; $qs.anthropic_api.detected = $null; $qs.anthropic_api.reset_date = $null
+            $cleared = $true
+            "quota-state: anthropic_api capped->ok ($Reason) at $now" | Out-File -Append -Encoding utf8 $Log
+            & node scripts/human-actions.js done cap-raise-console 2>$null | Out-Null
+            $global:LASTEXITCODE = 0   # the 'done' no-op exits 1 when the item isn't open; don't leak it
+        }
+        if ($cleared) {
+            [IO.File]::WriteAllText($qsPath, (($qs | ConvertTo-Json -Depth 4) + "`n"))
+            # Verify-after-write (standing order): read back the mutated field(s), log a mismatch.
+            $rb = Get-Content $qsPath -Raw | ConvertFrom-Json
+            $bad = (($doPlan -and $rb.claude_plan.state -ne 'ok') -or ($doApi -and $rb.anthropic_api.state -ne 'ok'))
+            if ($bad) { "quota-state CLEAR VERIFY FAILED: plan='$($rb.claude_plan.state)' api='$($rb.anthropic_api.state)'" | Out-File -Append -Encoding utf8 $Log }
+            else { "quota-state clear verified ($Kind, $Reason)" | Out-File -Append -Encoding utf8 $Log }
+        }
+    } catch { "quota-state clear failed: $($_.Exception.Message)" | Out-File -Append -Encoding utf8 $Log }
+    return $cleared
+}
+
 # --- P3 quota gate (upgrade 2026-07-12, design 1.7.2 / plan Phase 3 step 1) ---------------------
 # Called at the TOP of a wrapper, BEFORE spawning claude -p:
 #   if (-not (Test-AlexQuotaGate -Log $log -Project 'crm')) { exit 0 }
@@ -65,11 +112,28 @@ function Test-AlexQuotaGate {
     $stateFile = "system\quota-state.json"
     if (-not (Test-Path $stateFile)) { return $true }
     try { $q = Get-Content $stateFile -Raw | ConvertFrom-Json } catch { return $true }
+
+    # Edit 2 (FIX-01 class, 2026-07-15 /prompting item 6): date-expiry disarm, so a lapsed cap never
+    # lingers 'capped'. Deterministic, zero-token, fail-open. The api (Console monthly) cap clears when
+    # its recorded reset_date has passed; the plan cap clears on its >6h TTL below. This is the missing
+    # DISARM half - before it, the gate ignored a stale flag but never cleared it (the FIX-01 asymmetry).
+    try {
+        if ($q.anthropic_api.state -eq 'capped' -and $q.anthropic_api.reset_date) {
+            $rd = $null; try { $rd = [datetime]$q.anthropic_api.reset_date } catch {}
+            if ($rd -and (Get-Date) -ge $rd) { Clear-AlexQuotaCapped -Kind api -Log $Log -Reason 'api reset_date passed' | Out-Null }
+        }
+    } catch {}
+
     $plan = $q.claude_plan
     if (-not $plan -or $plan.state -ne 'capped') { return $true }
     $detected = $null
     try { $detected = [datetime]$plan.detected } catch {}
-    if (-not $detected -or ((Get-Date) - $detected).TotalHours -gt 6) { return $true }
+    if (-not $detected -or ((Get-Date) - $detected).TotalHours -gt 6) {
+        # A plan cap resets in hours, so a flag older than the 6h TTL is stale: CLEAR it, don't just
+        # fail-open (the silent fail-open left the flag 'capped' forever - the FIX-01 asymmetry).
+        if ($detected) { Clear-AlexQuotaCapped -Kind plan -Log $Log -Reason 'plan >6h TTL expired' | Out-Null }
+        return $true
+    }
 
     $pri = 3
     try {

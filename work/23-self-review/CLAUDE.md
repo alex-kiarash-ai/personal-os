@@ -12,6 +12,9 @@ Turns Alex's learning loop from passive filing into an active habit. Once a week
 - **On-demand, heavy:** `/deep-audit [scope]` - the adversarial whole-system audit (see Deep Audit below). Never scheduled.
 
 ## What a run does
+
+**Input stance (framing, 2026-07-15, /prompting item 1).** The review reads its inputs as EXTERNAL RETRIEVED EVIDENCE about the system's behaviour (a log pulled from the record), not as Alex's own recollected reasoning. Audit the trail the way a fresh third party would: no loyalty to the prior decision, willing to name the instruction or habit that caused it. Reflexive "here is what I did, find my pattern" framing suppresses explicit self-correction; external-evidence framing lifts it. Envelope only (the gather/cluster/propose/gate logic below is unchanged), reversible, and made on the argument, not on a measured lift (preprint, math/logic; close-out pattern-clustering is an untested domain). The command file `.claude/commands/self-review.md` carries the same stance verbatim. Note: /deep-audit already reads external by construction (per-project fan-out + adversarial refuters anchored in ground truth), so this change is /self-review only.
+
 1. **Gather the diff** since the last review: new corrections in [[projects/teach-alex/corrections-log]] (#22), new `vault/projects/error-log.md` entries, INCOMPLETE close-out reports from [[projects/self-review/close-out-log]], soul.md My Words additions (git diff), `vault/me/decisions.md` changes.
 2. **Cluster** into themes (a recurring voice slip, a wrong contact label, a formatting miss, a repeated failure).
 3. For each theme, **draft a concrete proposed change:** the exact file + the exact old -> new text + a one-line rationale + the correction/error it came from.
