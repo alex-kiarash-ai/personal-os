@@ -18,6 +18,7 @@ chunks each file by heading so results point at a section, ranks with bm25 weigh
 above the body. Query terms are quoted defensively so FTS5 syntax chars in the query can't error.
 """
 import argparse
+import json
 import os
 import re
 import sqlite3
@@ -30,6 +31,9 @@ REPO = Path(__file__).resolve().parent.parent
 # (scripts/tests/test_vault_search_freshness.py) without touching the real index.
 VAULT = Path(os.environ.get("ALEX_VAULT_DIR", str(REPO / "vault")))
 DB = Path(os.environ.get("ALEX_INDEX_DB", str(REPO / "scripts" / "vault-index" / "vault-search.db")))
+# Read-experiment instrument (2026-07-15, /prompting item 7): one JSONL row per search, so we can
+# measure whether the vault's retrieval path is actually exercised. Gitignored, zero-token, no schedule.
+READS_LOG = Path(os.environ.get("ALEX_READS_LOG", str(REPO / "system" / "vault-reads.jsonl")))
 
 HEADING = re.compile(r"^(#{1,3})\s+(.*)$")
 
@@ -168,6 +172,17 @@ def _index_is_stale():
     return _newest_source_mtime() > built
 
 
+def _log_read(query, count):
+    """Append one row per search to READS_LOG (read-experiment, 2026-07-15 /prompting item 7).
+    Best-effort: a logging failure must NEVER break a search."""
+    try:
+        rec = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "query": query, "results": count}
+        with open(READS_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 def search(query, n):
     q = _fts_query(query)
     if not q:
@@ -197,6 +212,7 @@ def search(query, n):
         return 2
     finally:
         con.close()
+    _log_read(query, len(results))
     if not results:
         print(f"no matches for: {query}")
         return 0

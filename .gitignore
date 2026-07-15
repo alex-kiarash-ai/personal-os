@@ -74,6 +74,8 @@ work/16-alex-hq/app/public/data/graph.json
 # gitignored -> auto-covered by the encrypted vault backup (its set derives from this file)
 system/human-actions.jsonl
 system/pending-writes.jsonl
+# read-experiment instrument (2026-07-15, /prompting item 7): logs vault search queries, local-only
+system/vault-reads.jsonl
 # raw personal dumps + personal ops data + ingested notes + personal-story episodes
 I want you to brainstorm with me, I.txt
 notion_rows.txt
