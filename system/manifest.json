@@ -563,14 +563,15 @@
       "name": "recovery-layer",
       "title": "Recovery Layer",
       "state": "LIVE",
-      "trigger": "Mon 07:30 + nightly 21:30/21:45 + 1st-Mon lint + Sun auth probe",
-      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the gated monthly lint, the auth probe.",
+      "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + Sun auth probe",
+      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the auth probe.",
       "docs": "18-recovery-layer.md",
       "schedule_jobs": [
         "PersonalOS-recovery-check",
         "PersonalOS-git-backup",
         "PersonalOS-vault-backup",
         "PersonalOS-vault-index",
+        "PersonalOS-n8n-active-check",
         "PersonalOS-lint-monthly",
         "PersonalOS-auth-check"
       ],

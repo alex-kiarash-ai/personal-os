@@ -24,7 +24,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 15 | [Alex AI Radar](15-alex-ai-radar.md) | LIVE | The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane. |
 | 16 | [Alex HQ](16-alex-hq.md) | LIVE | The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here. |
 | 17 | [Health Tracker](17-health-tracker.md) | LIVE | Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side. |
-| 18 | [Recovery Layer](18-recovery-layer.md) | LIVE | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the gated monthly lint, the auth probe. |
+| 18 | [Recovery Layer](18-recovery-layer.md) | LIVE | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the auth probe. |
 | 19 | [Venture Sync](19-venture-sync.md) | DORMANT | Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine. |
 | 20 | [Runway](20-runway.md) | LIVE | The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel. |
 | 21 | [Interview Copilot](21-interview-copilot.md) | EVENT | Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends. |

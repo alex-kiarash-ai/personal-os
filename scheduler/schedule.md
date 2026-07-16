@@ -107,6 +107,12 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against system/manifest.json (17 checks: quad completeness, orphans x3, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check, index↔disk, outputs naming, first-fire aging, cadence-vs-schedule, passphrase attestation, PAT expiry, skills-symlink restore guard). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
 - Added: 2026-07-04
 
+### n8n active-flag watcher (Recovery Layer, BUG-01 fix)
+- Command: scripts/n8n-active-check.ps1 (pure PowerShell, no claude call, zero tokens)
+- Frequency: daily at 8:10 AM (Task Scheduler job PersonalOS-n8n-active-check; StartWhenAvailable + ExecutionTimeLimit 15 min; NO restart policy: exit 1 = a workflow is OFF, a real finding, not a transient failure). Placed after the 07:00/07:30 engine crons so a failed activation is caught the same morning.
+- Description: Reads system/manifest.json, takes every LIVE project mapped to an n8n workflow id (currently #3/#12/#14/#15/#16/#17), GETs each workflow, asserts active==true. Any expected-active workflow found OFF -> RED to Alex HQ recovery/n8n_active + exit 1. A total-API outage is amber + exit 0 (transient, never a false RED). Born from the 2026-07-16 diagnostic audit (BUG-01): n8n's activate/deactivate does not bump `updatedAt`, so a silently deactivated workflow (the 2026-07-10 class) was invisible until a missed run - this reads the flag itself, daily.
+- Added: 2026-07-16
+
 ### Vault Search Index (upgrade-scan item 1)
 - Command: scripts/run-vault-index.ps1 (pure Python/SQLite, no claude call, zero tokens)
 - Frequency: daily at 9:35 PM (Task Scheduler job PersonalOS-vault-index; StartWhenAvailable + battery-safe + ExecutionTimeLimit 15 min; NO restart ladder - a missed rebuild self-heals next night and on-demand `build` always works). Placed 10 min before the 21:45 vault backup so the fresh .db ships in the encrypted blob.

@@ -17,6 +17,7 @@ Shaheen and the monthly LLM /lint. Design + evidence: [[research/alex-recovery-l
 - **On-demand:** `powershell -File work/18-recovery-layer/check.ps1` any time.
 - **Baseline:** `check.ps1 -Init` after real structural changes (records CLAUDE.md hashes + log high-water into state/).
 - **Test:** `check.ps1 -DryRun` runs the sweep and writes the report but does NOT push to Alex HQ.
+- **n8n active-flag watcher (sibling, daily):** `PersonalOS-n8n-active-check`, daily 08:10 -> `scripts/n8n-active-check.ps1` (also zero-token, `-DryRun` to skip the HQ push). Reads the manifest's LIVE projects that map to an n8n workflow id (#3/#12/#14/#15/#16/#17), GETs each, asserts `active==true`, and pushes RED `recovery/n8n_active` + exit 1 if any expected-active workflow is OFF. A total-API outage is amber + exit 0 (transient, never a false RED). **Why it exists (BUG-01, 2026-07-16 diagnostic audit):** n8n's activate/deactivate does NOT bump `updatedAt`, so a silently deactivated LIVE workflow (the 2026-07-10 dual-engine class) is invisible to any timestamp check - you must read the flag itself, and the weekly sweep is too infrequent to catch a same-day miss. The still-open class fix is a shared PUT-with-active-hard-restore helper so no ad-hoc n8n REST write can drop the flag in the first place.
 
 ## Tools Used
 PowerShell 5.1 (Get-ChildItem/Get-FileHash/Get-ScheduledTask/Invoke-RestMethod), the n8n-free local filesystem, Alex HQ push webhook. No LLM, no MCP, no network except the one HQ push.

@@ -28,7 +28,34 @@ New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\recovery-check.log"
 function Say($m) { "$m" | Out-File -Append -Encoding utf8 $log }
 
-$manifest = Get-Content (Join-Path $repo "system\manifest.json") -Raw | ConvertFrom-Json   # registry moved to system/ 2026-07-08 (refactor A2)
+# Shared fail-loud handler (BUG-02 fix, 2026-07-16 diagnostic audit). Pushes RED integrity (value_num
+# -1) to Alex HQ + logs, so the checker can never sit stale-green while dead. Used by BOTH the
+# pre-sweep manifest-load guard below AND the sweep's catch (they were duplicated; now one path).
+function Push-CheckerError($err) {
+    Say "CHECKER ERROR: $err"
+    Write-Output "Recovery checker ERROR (exit 1): $err"
+    $tf = "work\16-alex-hq\config\alex-hq-token.txt"
+    if ((Test-Path $tf) -and -not $DryRun) {
+        try {
+            $token = (Get-Content $tf -Raw).Trim()
+            $body = @{ project = 'recovery'; metric_key = 'integrity'; value_num = -1
+                       headline = "checker ERROR: $err"; status = 'red' } | ConvertTo-Json -Compress
+            Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
+                -Headers @{ 'X-Alex-Token' = $token } -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null
+        } catch { Say "RED error-push failed: $($_.Exception.Message)" }
+    }
+}
+
+# BUG-02 fix (2026-07-16 diagnostic audit): this load + the -Init baseline reads were OUTSIDE the
+# fail-loud try/catch (which started below at the sweep). A missing/corrupt manifest.json therefore
+# killed the checker at parse time - exit 1, NO red push - the exact stale-green-while-dead class this
+# whole layer exists to kill (proven by the audit's P2-4 rename probe). Guard it with the shared handler.
+try {
+    $manifest = Get-Content (Join-Path $repo "system\manifest.json") -Raw | ConvertFrom-Json   # registry moved to system/ 2026-07-08 (refactor A2)
+} catch {
+    Push-CheckerError "manifest load failed: $($_.Exception.Message)"
+    exit 1
+}
 $baselineFile = Join-Path $stateDir "baseline.json"
 $hwFile       = Join-Path $stateDir "log-highwater.json"
 
@@ -410,19 +437,8 @@ if ($n -eq 0) { exit 0 } else { exit 2 }
 catch {
     # Fail LOUD: the checker itself broke. Push RED integrity (value_num -1) so the tile can't sit
     # stale-green while the sweep is dead — the exact "job can't announce its own failure" class this
-    # layer was built to kill (design piece 5), now guarded inside the layer itself.
-    $err = $_.Exception.Message
-    Say "CHECKER ERROR: $err"
-    Write-Output "Recovery checker ERROR (exit 1): $err"
-    $tf = "work\16-alex-hq\config\alex-hq-token.txt"
-    if ((Test-Path $tf) -and -not $DryRun) {
-        try {
-            $token = (Get-Content $tf -Raw).Trim()
-            $body = @{ project = 'recovery'; metric_key = 'integrity'; value_num = -1
-                       headline = "checker ERROR: $err"; status = 'red' } | ConvertTo-Json -Compress
-            Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
-                -Headers @{ 'X-Alex-Token' = $token } -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null
-        } catch { Say "RED error-push failed: $($_.Exception.Message)" }
-    }
+    # layer was built to kill (design piece 5), now guarded inside the layer itself. Shared with the
+    # pre-sweep manifest-load guard via Push-CheckerError (BUG-02 fix, 2026-07-16).
+    Push-CheckerError $_.Exception.Message
     exit 1
 }

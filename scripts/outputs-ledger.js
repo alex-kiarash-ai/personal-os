@@ -156,7 +156,14 @@ function buildBody(rows, wiki, stamp) {
 }
 
 function render() {
+  // BUG-10 fix (2026-07-16 diagnostic audit): the INDEX is the RETRIEVAL surface ("find that file"),
+  // so a row whose file no longer exists on disk (moved/reorganized/deleted) must not render a dead
+  // link. The append-only ledger keeps the full history; the INDEX shows only what is currently
+  // retrievable. This suppresses the 6 pre-reorg career-relaunch flat-path rows (their files moved to
+  // ai/ and powerbi/ subfolders, already re-ledgered) and any future move/delete, without ever
+  // rewriting a ledger line (NEVER-TOUCH: outputs/ledger.jsonl is append-only).
   const rows = latestPerPath(readLedger())
+    .filter(r => !r.path || fs.existsSync(path.join(REPO, r.path)))
     .sort((a, b) => (b.date + b.path).localeCompare(a.date + a.path));
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   fs.writeFileSync(INDEX_OUT, `# Outputs Index\n\n${buildBody(rows, false, stamp)}`, 'utf8');

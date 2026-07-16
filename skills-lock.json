@@ -1,17 +1,23 @@
 {
   "version": 1,
   "skills": {
-    "Agent Development": {
+    "agent-development": {
       "source": "anthropics/claude-code",
       "sourceType": "github",
       "skillPath": "plugins/plugin-dev/skills/agent-development/SKILL.md",
       "computedHash": "4931c2867890bfef5881225adb691c3d719fe9ad556e3d5fae15f83e0668fa60"
     },
-    "Skill Development": {
-      "source": "anthropics/claude-code",
+    "career-changer-translator": {
+      "source": "davila7/claude-code-templates",
       "sourceType": "github",
-      "skillPath": "plugins/plugin-dev/skills/skill-development/SKILL.md",
-      "computedHash": "8d262f08f33825947ea20204ebf5101e36056c98090251bd973a552ec8ef0c0c"
+      "skillPath": "cli-tool/components/skills/career/career-changer-translator/SKILL.md",
+      "computedHash": "bc0b6179e2eacee5c485ed6632a6324699361cbe3a4b503786c627e8ad5bd5fa"
+    },
+    "cover-letter-generator": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "skillPath": "cli-tool/components/skills/career/cover-letter-generator/SKILL.md",
+      "computedHash": "508ab32176332a27b434912b632ddd01c314c135480ee3d35eb06e934a919e43"
     },
     "crm-cleanup": {
       "source": "anthropics/knowledge-work-plugins",
@@ -25,11 +31,42 @@
       "skillPath": "small-business/skills/crm-maintenance/SKILL.md",
       "computedHash": "2f06ece9fb15e3b52a86821e43752845b46a6c9e2c59642df379dd03b177cc02"
     },
+    "diagrammer": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "skillPath": "cli-tool/components/skills/creative-design/diagrammer/SKILL.md",
+      "computedHash": "31ce90c465a21554401a46a950bf6e74a29ad384d28290e683b10efa8a69c983"
+    },
+    "image-manipulation-image-magick": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/image-manipulation-image-magick/SKILL.md",
+      "computedHash": "fba25bd07b134f456f7f6d217fd4d385f67286957387f59115a8275c391769c4"
+    },
     "interview-prep": {
       "source": "anthropics/knowledge-work-plugins",
       "sourceType": "github",
       "skillPath": "human-resources/skills/interview-prep/SKILL.md",
       "computedHash": "24c96c7c4db9c6741750225d9c9cc60a61e9b47d2e0f2c18cbc8465c1be109ac"
+    },
+    "job-description-analyzer": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "skillPath": "cli-tool/components/skills/career/job-description-analyzer/SKILL.md",
+      "computedHash": "cea1f8412d32b8756f1b8c990fac09015d11867b8ec2e6a3249e0d65072e18e0"
+    },
+    "linkedin-profile-optimizer": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "skillPath": "cli-tool/components/skills/career/linkedin-profile-optimizer/SKILL.md",
+      "computedHash": "fd55f8965cc91e726beb4235aee2d5bce0b213b2d55b1a9ec3755e1b0b42881c"
+    },
+    "n8n-cli": {
+      "source": "n8n-io/n8n",
+      "sourceType": "manual",
+      "skillPath": ".agents/skills/n8n-cli/SKILL.md",
+      "computedHash": "8ede540cb5c1d52c90fa800f2256ffdf3567e259473d5782901c5e69037c1869",
+      "note": "manual single-file copy from the official n8n pack (2026-07-11); upstream repo path unverified, hash is of the local canonical SKILL.md"
     },
     "n8n-code-javascript": {
       "source": "czlonkowski/n8n-skills",
@@ -109,36 +146,6 @@
       "skillPath": "cli-tool/components/skills/career/resume-ats-optimizer/SKILL.md",
       "computedHash": "d09bf72dfbb72880b238c2f19f9575399467a7b953ef27f2f729693fa5d892e1"
     },
-    "resume-tailor": {
-      "source": "davila7/claude-code-templates",
-      "sourceType": "github",
-      "skillPath": "cli-tool/components/skills/career/resume-tailor/SKILL.md",
-      "computedHash": "20ea68cefb92169958c8da174ad2aff2c52d6349799cf955be14dd1f2dc8f736"
-    },
-    "career-changer-translator": {
-      "source": "davila7/claude-code-templates",
-      "sourceType": "github",
-      "skillPath": "cli-tool/components/skills/career/career-changer-translator/SKILL.md",
-      "computedHash": "bc0b6179e2eacee5c485ed6632a6324699361cbe3a4b503786c627e8ad5bd5fa"
-    },
-    "cover-letter-generator": {
-      "source": "davila7/claude-code-templates",
-      "sourceType": "github",
-      "skillPath": "cli-tool/components/skills/career/cover-letter-generator/SKILL.md",
-      "computedHash": "508ab32176332a27b434912b632ddd01c314c135480ee3d35eb06e934a919e43"
-    },
-    "job-description-analyzer": {
-      "source": "davila7/claude-code-templates",
-      "sourceType": "github",
-      "skillPath": "cli-tool/components/skills/career/job-description-analyzer/SKILL.md",
-      "computedHash": "cea1f8412d32b8756f1b8c990fac09015d11867b8ec2e6a3249e0d65072e18e0"
-    },
-    "linkedin-profile-optimizer": {
-      "source": "davila7/claude-code-templates",
-      "sourceType": "github",
-      "skillPath": "cli-tool/components/skills/career/linkedin-profile-optimizer/SKILL.md",
-      "computedHash": "fd55f8965cc91e726beb4235aee2d5bce0b213b2d55b1a9ec3755e1b0b42881c"
-    },
     "resume-bullet-writer": {
       "source": "davila7/claude-code-templates",
       "sourceType": "github",
@@ -151,11 +158,23 @@
       "skillPath": "cli-tool/components/skills/career/resume-quantifier/SKILL.md",
       "computedHash": "176ad6b35009ac4e529e04309bb6c0d40e4e300229457f54da61c28b193e20f4"
     },
+    "resume-tailor": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "skillPath": "cli-tool/components/skills/career/resume-tailor/SKILL.md",
+      "computedHash": "20ea68cefb92169958c8da174ad2aff2c52d6349799cf955be14dd1f2dc8f736"
+    },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/skill-creator/SKILL.md",
       "computedHash": "7e3c9cd74e9e2b4828527a857170e86310f2dab5ea8030a9043df2c7e6c88857"
+    },
+    "skill-development": {
+      "source": "anthropics/claude-code",
+      "sourceType": "github",
+      "skillPath": "plugins/plugin-dev/skills/skill-development/SKILL.md",
+      "computedHash": "8d262f08f33825947ea20204ebf5101e36056c98090251bd973a552ec8ef0c0c"
     },
     "systematic-debugging": {
       "source": "obra/superpowers",
@@ -168,18 +187,6 @@
       "sourceType": "github",
       "skillPath": "skills/webapp-testing/SKILL.md",
       "computedHash": "3f14af7f5690695209c22fbf8c8d133769a86d64892602c09bb13f135e14e857"
-    },
-    "image-manipulation-image-magick": {
-      "source": "github/awesome-copilot",
-      "sourceType": "github",
-      "skillPath": "skills/image-manipulation-image-magick/SKILL.md",
-      "computedHash": "fba25bd07b134f456f7f6d217fd4d385f67286957387f59115a8275c391769c4"
-    },
-    "diagrammer": {
-      "source": "davila7/claude-code-templates",
-      "sourceType": "github",
-      "skillPath": "cli-tool/components/skills/creative-design/diagrammer/SKILL.md",
-      "computedHash": "31ce90c465a21554401a46a950bf6e74a29ad384d28290e683b10efa8a69c983"
     }
   }
 }

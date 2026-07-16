@@ -76,6 +76,9 @@ system/human-actions.jsonl
 system/pending-writes.jsonl
 # read-experiment instrument (2026-07-15, /prompting item 7): logs vault search queries, local-only
 system/vault-reads.jsonl
+# quota truth = live runtime state (cap status + internal incident notes), churns on every cap event
+# and carries no reproducible value in git. Local-only, encrypted-backup-covered (BUG-06, 2026-07-16).
+system/quota-state.json
 # raw personal dumps + personal ops data + ingested notes + personal-story episodes
 I want you to brainstorm with me, I.txt
 notion_rows.txt
