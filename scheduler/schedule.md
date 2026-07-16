@@ -92,7 +92,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Git Backup (Recovery Phase 0)
 - Command: scripts/git-backup.ps1 (pure git, no claude call)
 - Frequency: daily at 9:30 PM (Task Scheduler job PersonalOS-git-backup; RestartCount 2 / RestartInterval 30 min / ExecutionTimeLimit 30 min / StartWhenAvailable)
-- Description: Commits the whole personal-os tree (respecting .gitignore: secrets/outputs/build artifacts excluded) and pushes to the private GitHub repo alex-kiarash-ai/personal-os. Pushes recovery/run_status GREEN to Alex HQ on success, RED with reason on failure, so a dead backup is never silent. PAT lives in Windows Credential Manager (expires ~2027-07, rotation note in the plan). Plan: vault/projects/recovery/github-backup-plan.md.
+- Description: Commits the whole personal-os tree (respecting .gitignore: secrets/outputs/build artifacts excluded) and pushes to the GitHub repo alex-kiarash-ai/personal-os (PUBLIC since 2026-07-16, Shaheen's call; scrubbed, so .gitignore is the sole barrier keeping personal data off it). Pushes recovery/run_status GREEN to Alex HQ on success, RED with reason on failure, so a dead backup is never silent. PAT lives in Windows Credential Manager (expires ~2027-07, rotation note in the plan). Plan: vault/projects/recovery/github-backup-plan.md.
 - Added: 2026-07-02
 
 ### Vault Backup - encrypted local-only (Recovery Phase 1)

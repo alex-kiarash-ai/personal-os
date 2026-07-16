@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-15. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-16. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -14,7 +14,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 ## 2. Install and first boot
 
 1. **Install Claude Code:** desktop app from claude.com/claude-code, or the CLI installer (`irm https://claude.ai/install.ps1 | iex` on Windows, `curl -fsSL https://claude.ai/install.sh | bash` on Mac; `npm install -g @anthropic-ai/claude-code` also works).
-2. **Get the files:** a direct copy (USB/zip) from Shaheen, OR `git clone -c core.longpaths=true` the private repo (the long-paths flag is mandatory on Windows). **Important:** the repo is scrubbed, so a git clone gives you a **vault-less skeleton** (the entire `vault/`, `soul.md`, and `work/*/config` are gitignored and local-only). Only a direct copy from Shaheen carries personal data.
+2. **Get the files:** a direct copy (USB/zip) from Shaheen, OR `git clone -c core.longpaths=true` the **public** repo (public since 2026-07-16; the long-paths flag is mandatory on Windows). **Important:** the repo is scrubbed, so a git clone gives you a **vault-less skeleton** (the entire `vault/`, `soul.md`, and `work/*/config` are gitignored and local-only). Only a direct copy from Shaheen carries personal data. Because the repo is public, anyone can clone this skeleton, so the scrub + `.gitignore` are the only things keeping personal data off it.
 3. **First boot:** open Claude Code *inside* the personal-os folder, then run `/status`. If you cloned the repo there is no soul.md yet, so the first reply is plain Claude, that is expected; personality appears after `/setup` writes soul.md. If you *have* soul.md and still get plain Claude, the session hook needs `cat` (ships with Git for Windows).
 4. **Connect services** at claude.ai, Settings, Connectors: Gmail, Calendar, Drive (one Google sign-in), Notion (optional). The in-app `/mcp` manager inside Claude Code is an alternative path to the same connectors. These are one-time authentications; they persist across sessions. Install the "Claude in Chrome" extension for browser control. (GitHub is used only for backup via git + a token, not a connector.)
 5. **Optional phone control:** pair the Claude Code Desktop app (Cowork) with the mobile app so you can send Alex tasks from your phone. The Alex HQ dashboard is a separate phone surface for reading metrics.
@@ -39,7 +39,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **08 Expense Wrangler** (LIVE; trigger: monthly last day 20:00) - Receipts to the Notion Expenses DB + an all-formula branded monthly Excel.
 - **10 Weekly Exec Report** (LIVE; trigger: Fri 16:00) - The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.
 - **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup)) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
-- **12 LinkedIn Series** (LIVE; trigger: on-demand + staging Tue/Thu) - Building Alex in public: locked ~150-word template, hard gates, real numbers; n8n stages, Shaheen posts.
+- **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts.
 - **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway.
 - **14 AI Application Engine** (LIVE; trigger: n8n daily 07:30) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
@@ -113,7 +113,7 @@ Nothing runs until you schedule it. On this machine the scheduler is Windows Tas
 
 ## 7. Backup and recovery, in one paragraph
 
-Git pushes the functional system (code + docs, never the vault or soul.md) to a private GitHub repo daily at 21:30. The personal half (vault, soul.md, secrets) ships daily at 21:45 as a gpg-encrypted blob to the n8n box, last 14 kept; the passphrase lives outside the repo and must also be in the password manager. A zero-token checker sweeps the whole system against `system/manifest.json` every Monday 07:30. Full detail: the Backup & Recovery section of `CLAUDE.md` and `vault/projects/recovery/` (local).
+Git pushes the functional system (code + docs, never the vault or soul.md) to a GitHub repo (public since 2026-07-16; scrubbed, so `.gitignore` is the sole barrier keeping personal data off it) daily at 21:30. The personal half (vault, soul.md, secrets) ships daily at 21:45 as a gpg-encrypted blob to the n8n box, last 14 kept; the passphrase lives outside the repo and must also be in the password manager. A zero-token checker sweeps the whole system against `system/manifest.json` every Monday 07:30. Full detail: the Backup & Recovery section of `CLAUDE.md` and `vault/projects/recovery/` (local).
 
 ## 8. Success checklist
 

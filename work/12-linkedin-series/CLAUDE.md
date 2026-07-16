@@ -4,11 +4,11 @@
 Automation (on-demand episode drafting + slot-scheduled staging via n8n). Never fully automated: n8n stages, Shaheen posts.
 
 ## Purpose
-Turn Shaheen's real Personal Ops System history into a 10-episode LinkedIn series in his voice, with Shaheen as hero and Alex as a named but low-visibility character. Goal: visible AI building-in-public for recruiters (Power BI / AI automation roles) and entry into the AI community. Calendar: Tue + Thu 08:30 Europe/Stockholm, 16 Jun → 16 Jul 2026, then ongoing log.
+Turn Shaheen's real Personal Ops System history into an ongoing LinkedIn series in his voice, with Shaheen as hero and Alex as a named but low-visibility character. Goal: visible AI building-in-public for recruiters (Power BI / AI automation roles) and entry into the AI community. Cadence: one post per week until mid-August 2026, then two or three per week when recruiters are back. Posted 08:30 Europe/Stockholm; Shaheen posts manually, n8n only stages. Material source of truth for what each post says: vault/projects/linkedin-series/posts-5-12-plan.md. Images are created by Shaheen manually; Alex only states the suggested screenshot per draft. No image automation anywhere.
 
 ## Entry Points
-- /post-episode (on-demand): draft the named or next episode, stop for review.
-- /post-publish (n8n, Tue + Thu 08:00): stage the next Approved episode to Google Drive.
+- /post-episode (on-demand): draft the named or next episode from the material plan, with the published episodes 01-04 as the quality bar and the locked template + polished public register from soul.md; stop for review.
+- /post-publish (n8n staging, scheduled): stage the next Approved episode as text into its own Drive folder and write the folder link back to Notion; Shaheen posts. Never posts to LinkedIn.
 
 ## HARD RULES (every run, no exceptions)
 1. Read `vault/projects/linkedin-series/concept.md` EVERY run. It holds the locked decisions and the **never-share living list** (money details, other people's identities, employer internals, real-time feelings, and other private items). Shaheen adds items over time; each addition binds immediately.
@@ -18,9 +18,9 @@ Turn Shaheen's real Personal Ops System history into a 10-episode LinkedIn serie
 5. The commercial offer (Alex as a product) is invisible in the series.
 6. The job-pipeline episode includes verbatim: "removes hours of tailoring, not the 60 seconds of clicking submit."
 7. Every real number is real (cost, count, hours) and traceable to the vault. Never invented.
-8. Images: real screenshots only (n8n canvas, Obsidian graph, Task Scheduler, Power BI dashboard), stored in screenshots/, picked by Shaheen. NEVER AI-generated.
-9. Voice: soul.md "My Words" generator-request register. English only. Hook in the first two lines.
-10. Episode skeleton, always: recognizable problem → what I built → one real number → one hard lesson.
+8. Images: no AI-generated photos, no fake screenshots. Real screenshots and designed brand diagrams of real architecture are both allowed (episodes 2 and 3 are the reference). All images created and picked by Shaheen manually; the staging workflow never touches images.
+9. Voice: soul.md "My Words" polished public register (the LinkedIn register, NOT the generator-request register used for chat and email). English only. Hook in the first two lines.
+10. Episode structure: follow the locked LinkedIn EPISODE TEMPLATE in soul.md, driven by the post's hook, turn, real material, and one hard lesson from the material plan. Not every post carries a single number; use one only when it is real and traceable to the vault.
 11. HARD GATE on staging: only Notion status = Approved can ever be staged. n8n NEVER posts to LinkedIn; no LinkedIn API anywhere.
 12. Comment replies: drafted on request only, Shaheen sends, never autonomous.
 13. Hashtags: 3-4 niche max (#PowerBI #n8n #ClaudeAI #AIAutomation).
@@ -33,7 +33,7 @@ Notion MCP (Content Library + sprint board), Google Drive MCP / n8n Drive node (
 No new database. Episodes are rows in the existing **Content Library** (db_id b7305101-b911-4b9e-9196-8e7ac259a7a7, data_source_id 0f511509-1c63-4b22-a328-976d6d56d6aa, see vault/projects/content-machine/status.md). Conventions: Title prefix "Building Alex ENN:", Platform=LinkedIn, Type=post, Source="Building Alex series", Status flow **Draft → Approved → Staged → Published** (Approved + Staged added to the select 2026-06-13), Publish Date = slot date, FULL post text in page body. Sprint board row: "LinkedIn Series (Personal Ops System)".
 
 ## n8n workflow "LinkedIn Series" (staging only)
-Schedule Tue + Thu 08:00 Europe/Stockholm → query Content Library for oldest "Building Alex" row with Status=Approved → create Drive folder "Building Alex"/episode-NN-slug/ → upload post.txt (page body) + the approved image → update row to Staged + Drive link. Build/deploy AFTER episode 1 is approved (review stop comes first). Morning Brief flags slot days.
+Scheduled run → query Content Library for oldest "Building Alex" row with Status=Approved → create Drive folder "Building Alex"/episode-NN-slug/ → build post.txt from the page body (deterministic dash scan + bullet/number fidelity) → upload the TEXT ONLY into that episode folder → write Status=Staged + the Drive folder link back to Notion → read-back verify both writes. No image node: images are manual, Shaheen adds his image to the episode folder himself. Morning Brief flags posting days.
 
 ## Vault Structure
 - Tier 1: vault/projects/linkedin-series/status.md (per-run updates, open items)
@@ -58,5 +58,5 @@ status.md per run; soul.md edit-harvest; log.md; index.md for new pages.
 - Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/post-publish.md. Failure-tolerant, token never printed.
 
 ## Open items
-- Face photo or video in episode 1: Shaheen decides by Mon 2026-06-15 EOD (with the profile deadline, Notion task 37db5342-d7f1-81bf-a60d-ca7416380263).
-- n8n staging workflow: deploy after episode 1 approval.
+- Posts 5-12 to draft from posts-5-12-plan.md: one per week until mid-August 2026, then two or three per week.
+- Staging-workflow quality fixes (dash scan, text fidelity, per-episode folder, Drive-link write-back, read-back verify) tracked in n8n-staging-fix-plan.md.

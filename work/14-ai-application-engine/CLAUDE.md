@@ -64,6 +64,10 @@ Identical mirror of #03's P3 change (full rationale + design: work/03-applicatio
 - Expected until 2026-08-01: runs still die at `Claude Match+Research` on the API cap, but discoveries are banked first; the backlog drains on the first post-cap run. Live-fire proof = the next 07:30 run.
 - Untouched: trigger, gates, sanitizer, voice block, Writer nodes.
 
+## Stage 5 network retry-on-fail hardening (2026-07-16)
+
+This engine is where the failure surfaced: exec 1208 (07-16 07:30) died at `Upload CV PDF` on a transient `read ECONNRESET` from Google Drive, after both Claude calls + both PDF renders had already run. Root cause: no `retryOnFail` on any Stage-5 network node. Fixed identically on this engine and #03 (kept in lockstep): `retryOnFail=true, maxTries=4, waitBetweenTries=5000` on `Render CV PDF`, `Render Cover Letter PDF`, `Create Drive Folder`, `Upload CV PDF`, `Upload Cover Letter PDF`. REST API, backup-first (`scripts/n8n-backups/9x9M3EnEEeX3O8dy-pre-retry-20260716-132302.json`), GET read-back verified, active + `errorWorkflow` preserved. Today's failed job was banked `sourced_unscored` (P3) so the next 07:30 cron rehydrates it and completes upload under the retry net. Full rationale + trade-offs: work/03-application-engine/CLAUDE.md §"Stage 5 network retry-on-fail hardening" + [[projects/error-log]] 2026-07-16.
+
 ## Post-Run (first import session)
 1. New companies found → vault/business/.
 2. Create vault/projects/ai-job-pipeline/status.md + update vault/log.md.

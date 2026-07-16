@@ -199,7 +199,7 @@ export const STACK: { name: string; what: string }[] = [
   { name: "Whisper, local", what: "voice notes transcribed on the ThinkPad, zero cloud, zero cost" },
   { name: "Next.js PWA", what: "this dashboard: Docker beside n8n, Caddy TLS, basic auth, installable on the phone" },
   { name: "Cloudflare", what: "DNS for shaheenkiarash.com and the hq subdomain" },
-  { name: "GitHub", what: "nightly 21:30 backup of the whole OS to a private repo, secrets excluded" },
+  { name: "GitHub", what: "nightly 21:30 backup of the whole OS to a public repo (since 2026-07-16), secrets + vault excluded by .gitignore" },
   { name: "Bright Data", what: "LinkedIn job sourcing for both engines" },
   { name: "Google Workspace", what: "Sheets ledgers, Drive PDFs, the Gmail feeds everything reads" },
   { name: "Gotenberg", what: "HTML to PDF rendering inside the pipeline" },
