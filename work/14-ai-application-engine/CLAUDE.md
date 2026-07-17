@@ -73,3 +73,6 @@ This engine is where the failure surfaced: exec 1208 (07-16 07:30) died at `Uplo
 2. Create vault/projects/ai-job-pipeline/status.md + update vault/log.md.
 3. Routing table row 14 in root CLAUDE.md.
 4. Sprint board row "AI Application Engine" → Done only after a validated end-to-end run.
+
+## Trifecta
+Gate: **draft-only**. Legs: private_data=true, untrusted_content=true, external_comm=true (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). All three legs true (AI-track clone of #03): private + untrusted job postings + outbound drafts. Draft + stage, Shaheen submits. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

@@ -98,3 +98,6 @@ Follow-up drafts obey the CRM gate: real email on file, recipient not personal/f
 - Whisper is NOT installed at build (no audio yet). First audio file triggers the install + base-model download + the user message above. ffmpeg dependency checked at that point.
 - No live meeting processed at build (on-demand; first real file/dossier starts the history). vault/meetings/ created empty with a .gitkeep.
 - Reuses the CRM draft gate rather than re-inventing one.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private CRM + untrusted dropped files/research; notes+actions stay internal. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

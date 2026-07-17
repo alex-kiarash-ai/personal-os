@@ -104,3 +104,6 @@ Master's job here: it does NOT get to dissolve an UNRESOLVED verdict to look dec
 
 ## What this is NOT
 The default flow is a real research tool because its evidence is external. It is NOT, by default, a validator of Alex's own reasoning: same model, hub-and-spoke authority, and the synthesizer is the same Alex being checked. Treating default-flow agent agreement as corroboration of an Alex conclusion is consensus laundering, and stays banned. The one sanctioned way to check an Alex conclusion here is Adversarial Verification Mode (above), and it works ONLY because the verdict rides on external disconfirming evidence the refuters did or did not find, never on agent agreement. If a verification run reaches CONFIRMED without a single lane anchoring in an external fact, that is consensus laundering in a debate costume: discard it.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=false, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Ingests external web evidence (untrusted); reports stay local. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

@@ -118,3 +118,6 @@ After #14 died at `Upload CV PDF` on a transient `read ECONNRESET` (exec 1208, 0
 1. No people/companies generated at build time.
 2. Update vault/projects/job-pipeline/status.md and vault/log.md.
 3. Mark the sprint-board row Done only after validated end-to-end run.
+
+## Trifecta
+Gate: **draft-only**. Legs: private_data=true, untrusted_content=true, external_comm=true (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). All three legs true: private CV + untrusted job postings + outbound-destined drafts. Alex drafts + stages, Shaheen submits. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

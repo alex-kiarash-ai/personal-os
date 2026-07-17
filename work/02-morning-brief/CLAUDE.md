@@ -92,3 +92,6 @@ Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calen
 - Gotcha: Gmail `newer_than:` only takes d/m/y, not hours. Pull 1d and trim to 12h in-context.
 - Gotcha: calendar returned a FROM_GMAIL all-day "Stay at Metro" (Apr 22–Jun 29) - treat transparency:transparent + eventType FROM_GMAIL as context, not a meeting.
 - People/business pages created during the run (kept local, not in the repo).
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Aggregates private surfaces + untrusted email/radar; emits nothing externally. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

@@ -290,7 +290,7 @@ foreach ($p in $ffRows) {
 # label -> frequency-pattern map; a project passes when ANY of its schedule.md entries (matched by
 # job name, entries with a real '- Frequency:' line only) matches its label. Labels with no
 # frequency expectation (on-demand/event/dormant/parked/retired, expected_hours null) are skipped.
-# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below. 17 checks total (C1-C17).
+# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below; C18 (machine-timezone vs travel-state, P8) is below. 18 checks total (C1-C18).
 $freqPatterns = @{
     'daily'     = 'daily|nightly|every day'
     'weekdays'  = 'weekday'
@@ -386,6 +386,32 @@ if (Test-Path $agentsSkills) {
     if ($missingLinks.Count) {
         Add-Drift 'skills-link' "$($missingLinks.Count) skill(s) in .agents/skills/ have no resolving .claude/skills/ link (rebuild per pair: cmd /c mklink /J .claude\skills\<name> ..\..\.agents\skills\<name>): $($missingLinks -join ', ')"
     }
+}
+
+# --- C18 machine timezone vs travel-state expectation (P8 scheduler TZ audit, 2026-07-17). Detect-only.
+# The local Task Scheduler triggers fire at the machine's wall clock (see the Timezone Policy in
+# scheduler/schedule.md). If the machine tz drifts from where Alex expects Shaheen to be, follows-Shaheen
+# jobs (brief/triage) OR must-anchor jobs (server-coordinated) fire at the wrong hour. Expectation = the
+# home tz, UNLESS system/travel-state.json (P7 trip-ops 1b) declares an active trip with a current_win_tz.
+$homeWinTz = 'W. Europe Standard Time'   # Stockholm/Sweden in Windows tz ids
+$expectedTz = $homeWinTz
+$tripCtx = "no active trip -> expected home '$homeWinTz'"
+$travelState = Join-Path $repo 'system\travel-state.json'
+if (Test-Path $travelState) {
+    try {
+        $ts = Get-Content $travelState -Raw | ConvertFrom-Json
+        if ($ts.home_win_tz) { $homeWinTz = $ts.home_win_tz; $expectedTz = $ts.home_win_tz }
+        if ($ts.trip_id -and $ts.current_win_tz) {
+            $expectedTz = $ts.current_win_tz
+            $tripCtx = "travel-state trip '$($ts.trip_id)' -> expected '$expectedTz'"
+        }
+    } catch {
+        Add-Drift 'timezone' "system/travel-state.json is not valid JSON - cannot verify the machine timezone expectation"
+    }
+}
+$actualTz = (Get-TimeZone).Id
+if ($actualTz -ne $expectedTz) {
+    Add-Drift 'timezone' "machine timezone is '$actualTz' but $tripCtx (scheduler TZ policy, schedule.md). Set the machine tz or update system/travel-state.json so scheduled jobs fire at the right wall clock."
 }
 
 # ---------------------------------------------------------------- report

@@ -1,6 +1,7 @@
 {
   "meta": {
     "generated": "2026-07-06",
+    "repo_visibility": "public",
     "purpose": "THE project registry, at system/manifest.json since 2026-07-08 (moved from work/18-recovery-layer, refactor amendment A2) (audit step 3, 2026-07-06): desired-state source of truth for BOTH the Recovery checker (check.ps1) AND the generated surfaces (CLAUDE.md routing table + docs/projects/README.md table + docs/GETTING-STARTED.md + docs/README.md quick start, written by scripts/generate-alex.js, the unified generator since 2026-07-08). Curated by hand: when a project is added, retired, renamed, or changes state/trigger, edit THIS file first, then run the generator. /new writes its entry here before scaffolding. The per-project CLAUDE.md baseline hashes are stored by `check.ps1 -Init` in state/baseline.json (NOT here); the claude_md_sha fields below are reserved/unused. The `hq_project` field is THE authoritative project->Alex-HQ metric-slug map (2026-07-07): work/16-alex-hq/scripts/build-projects.mjs reads it to render the HQ Automation Health board FROM this registry, so every registered project shows (not just the ones that push telemetry). null = the project pushes no live metric (its ticket shows an honest idle state).",
     "states_doc": "LIVE = scheduled/event-driven + producing (needs wrapper/error-handler + HQ push). ON-DEMAND = runs when invoked. EVENT = triggered by a detected event, no cron by design. DORMANT = built, waiting on an external dependency (name it + revisit date; two unchanged revisits force activate-or-retire). PARKED = deliberately stopped (resume context + revisit date; same two-strike rule). RETIRED = superseded, tombstoned, strikethrough row. A project may carry LIVE or EVENT for at most 14 days with first_fire null (aging measured from its status.md frontmatter created date); past that the generator V9 warns and check.ps1 C13 goes amber until it fires (a documented drill counts, first_fire_kind=drill) or is re-stated with a reason.",
     "cadence_doc": "Upgrade P4 (2026-07-12, design 1.3/MR2-3): `cadence` replaced the old per-day integer field. {expected_hours: N|null, label, note?} - expected_hours is the staleness window HQ/checks age against (null = never stale by age: on-demand/event/dormant/parked/retired); label drives the per-class render rules (design 4.2); note is the human phrase shown on monthly/odd cadences. Multi-job projects are keyed to the tightest job. `first_fire`/`first_fire_kind` (design 1.4/MR2-5): the date a project FIRST produced for real (null = never fired; kind live|drill - a documented drill counts as proof, marked honestly).",
@@ -23,6 +24,7 @@
       "quota": "cap-detection metric (upgrade P3, 2026-07-12): pushed by the Pipeline Error Alert on an API-cap hit; mirrored into system/quota-state.json by /alex-hq 3a + brief 4e2. Not a project."
     },
     "budget_priority_doc": "Upgrade P3 (2026-07-12, design 1.7.2): consulted by Test-AlexQuotaGate (scripts/lib/close-out.ps1) ONLY while the Claude PLAN is freshly capped (claude_plan in system/quota-state.json, <=6h old). <=1 = the wrapper still spawns claude -p; absent/default 3 = degraded to deterministic-core-only/skip with an amber PARTIAL push. Kept deliberately dumb (QC over-engineering note 3): an integer, no scheduling logic. Only non-default rows carry the field.",
+    "trifecta_doc": "Trifecta classification (three-plan validation P3, 2026-07-17): the agent-security Rule-of-Two made declarative. Each project carries {private_data, untrusted_content, external_comm} booleans (the raw capability/exposure, classified honestly) + a `gate` (the mitigation). VOCAB: draft-only (Alex drafts, a human sends) | human-posts (Alex stages, a human posts) | queue-only (Alex queues an action for human approval) | read-only (never autonomously emits/writes externally) | null (no meaningful external exposure). RULE (validator V12, pure file checks): any project with ALL THREE legs true MUST carry a non-null gate from the vocab, AND that gate string MUST appear on a `## Trifecta` line in the project's work/NN/CLAUDE.md. v1 DROPS the read-only-vs-write integrations assertion (no integrations data in the manifest; deferred, see vault/research/trifecta-map.md). v1 is DECLARATIVE, not runtime-enforced. Full classification + reasoning + system-level channels: vault/research/trifecta-map.md.",
     "known_work_folders_note": "Non-project work/ folders that are legit tooling, not numbered automations. voice = the on-demand two-way voice loop (alex_voice.py; registered as an unnumbered project below). quota-reset-autorun = the P3 quota-cap auto-run tooling (local poller + the n8n 'Quota Reset Auto-Run (one-shot gate)' workflow ardWIfcbe5TwkMm8); registered 2026-07-14 (/deep-audit S1) so it stops flagging as orphan-work. Open sub-item for Shaheen: the documented PersonalOS-qra-poller job is not in Task Scheduler - register via /cron-setup or drop from scheduler/schedule.md if the n8n one-shot supersedes it. C3 allowlists these so a real rogue folder still flags.",
     "known_extra_projects_no_work_folder": [
       {
@@ -103,8 +105,8 @@
       "num": 1,
       "name": "sprint-tracker",
       "title": "Sprint Tracker",
-      "state": "LIVE",
-      "trigger": "weekdays 9:00",
+      "state": "PARKED",
+      "trigger": "PAUSED (Shaheen 2026-07-16, until re-enabled)",
       "one_liner": "Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it.",
       "docs": "01-sprint-tracker.md",
       "schedule_jobs": [
@@ -120,6 +122,12 @@
       "cadence": {
         "expected_hours": 26,
         "label": "weekdays"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
       },
       "first_fire": "2026-06-10",
       "first_fire_kind": "drill",
@@ -149,6 +157,12 @@
         "expected_hours": 26,
         "label": "daily"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-06-10",
       "first_fire_kind": "live",
       "n8n": null,
@@ -159,8 +173,8 @@
       "name": "application-engine",
       "title": "Application Engine (BI)",
       "state": "LIVE",
-      "trigger": "n8n 07:00 + watch 8:30",
-      "one_liner": "Job pipeline, Power BI track: source, score, gate, draft, render daily; also an MCP server.",
+      "trigger": "n8n every 72h (07:00) + watch 8:30",
+      "one_liner": "Job pipeline, Power BI track: source, score, gate, draft, render every 72h; also an MCP server.",
       "docs": "03-application-engine.md",
       "schedule_jobs": [
         "PersonalOS-application-engine"
@@ -176,6 +190,12 @@
       "cadence": {
         "expected_hours": 26,
         "label": "daily"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
       },
       "first_fire": "2026-06-10",
       "first_fire_kind": "live",
@@ -201,6 +221,12 @@
       "cadence": {
         "expected_hours": null,
         "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
       },
       "first_fire": "2026-06-10",
       "first_fire_kind": "live",
@@ -230,6 +256,12 @@
         "label": "weekly",
         "note": "Mon 8:30"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
       "first_fire": "2026-06-11",
       "first_fire_kind": "live",
       "n8n": null,
@@ -255,6 +287,12 @@
         "expected_hours": null,
         "label": "on-demand"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-06-12",
       "first_fire_kind": "drill",
       "n8n": null,
@@ -265,13 +303,11 @@
       "name": "email-triage",
       "title": "Email Triage",
       "state": "LIVE",
-      "trigger": "9:00 / 13:00 / 17:00",
-      "one_liner": "Inbox triage three times a day + voice-matched reply drafts; learns from Shaheen's edits.",
+      "trigger": "daily 05:00",
+      "one_liner": "Inbox triage once each morning at 05:00 + voice-matched reply drafts; learns from Shaheen's edits.",
       "docs": "07-email-triage.md",
       "schedule_jobs": [
-        "PersonalOS-email-triage-0900",
-        "PersonalOS-email-triage-1300",
-        "PersonalOS-email-triage-1700"
+        "PersonalOS-email-triage"
       ],
       "hq_project": "email-triage",
       "revisit": null,
@@ -283,7 +319,13 @@
       "cadence": {
         "expected_hours": 26,
         "label": "daily",
-        "note": "3 slots: 9/13/17"
+        "note": "once daily 05:00 (was 3x 9/13/17; cost cut 2026-07-16)"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
       },
       "first_fire": "2026-06-12",
       "first_fire_kind": "live",
@@ -313,6 +355,12 @@
         "label": "monthly",
         "note": "closes month-end"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-06-12",
       "first_fire_kind": "live",
       "n8n": null,
@@ -339,6 +387,12 @@
       "cadence": {
         "expected_hours": null,
         "label": "retired"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
       },
       "first_fire": null,
       "first_fire_kind": null,
@@ -368,6 +422,12 @@
         "label": "weekly",
         "note": "Fri 16:00"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-06-12",
       "first_fire_kind": "live",
       "n8n": null,
@@ -395,6 +455,12 @@
         "expected_hours": null,
         "label": "on-demand"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-07-10",
       "first_fire_kind": "live",
       "n8n": null,
@@ -421,6 +487,12 @@
         "expected_hours": null,
         "label": "on-demand",
         "note": "n8n staging on a schedule; one post/week to mid-Aug 2026, then two or three per week"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": true,
+        "gate": "human-posts"
       },
       "first_fire": "2026-06-13",
       "first_fire_kind": "live",
@@ -450,6 +522,12 @@
         "label": "monthly",
         "note": "closes the 24th; brief surfaces bookings daily"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-06-14",
       "first_fire_kind": "live",
       "n8n": null,
@@ -460,7 +538,7 @@
       "name": "ai-application-engine",
       "title": "AI Application Engine",
       "state": "LIVE",
-      "trigger": "n8n daily 07:30",
+      "trigger": "n8n every 72h (07:30)",
       "one_liner": "Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.",
       "docs": "14-ai-application-engine.md",
       "schedule_jobs": [],
@@ -470,8 +548,14 @@
       "commands": [],
       "status_md": "vault/projects/ai-job-pipeline/status.md",
       "cadence": {
-        "expected_hours": 26,
-        "label": "daily"
+        "expected_hours": 78,
+        "label": "every 72h"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
       },
       "first_fire": "2026-06-16",
       "first_fire_kind": "live",
@@ -501,6 +585,12 @@
         "label": "weekly",
         "note": "daily server collector feeds it"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-07-01",
       "first_fire_kind": "live",
       "n8n": "PYePT4Al6aPZi56M",
@@ -529,6 +619,12 @@
         "label": "always-on",
         "note": "local push daily 8:45"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-07-02",
       "first_fire_kind": "live",
       "n8n": "GLcMPA4m0DRGjnQH",
@@ -552,6 +648,12 @@
         "expected_hours": 26,
         "label": "daily",
         "note": "phone producer 23:59"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
       },
       "first_fire": "2026-07-04",
       "first_fire_kind": "live",
@@ -585,6 +687,12 @@
         "label": "daily",
         "note": "nightly backups; Monday sweep"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": true,
+        "gate": null
+      },
       "first_fire": "2026-07-04",
       "first_fire_kind": "live",
       "n8n": null,
@@ -609,6 +717,12 @@
       "cadence": {
         "expected_hours": null,
         "label": "dormant"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
       },
       "first_fire": null,
       "first_fire_kind": null,
@@ -638,6 +752,12 @@
         "label": "monthly",
         "note": "closes month-end"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
       "first_fire": "2026-07-06",
       "first_fire_kind": "live",
       "n8n": null,
@@ -663,6 +783,12 @@
         "expected_hours": null,
         "label": "event"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
       "first_fire": "2026-07-12",
       "first_fire_kind": "drill",
       "n8n": null,
@@ -687,6 +813,12 @@
       "cadence": {
         "expected_hours": null,
         "label": "event"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
       },
       "first_fire": null,
       "first_fire_kind": null,
@@ -717,6 +849,12 @@
         "label": "weekly",
         "note": "Sun 20:00"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
       "first_fire": "2026-07-06",
       "first_fire_kind": "drill",
       "n8n": null,
@@ -741,6 +879,12 @@
       "cadence": {
         "expected_hours": null,
         "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
       },
       "first_fire": "2026-07-12",
       "first_fire_kind": "live",
@@ -769,6 +913,12 @@
         "label": "daily",
         "note": "weekly eval Mondays"
       },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
       "first_fire": "2026-07-09",
       "first_fire_kind": "live",
       "n8n": null,
@@ -794,6 +944,12 @@
         "expected_hours": null,
         "label": "on-demand"
       },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
       "first_fire": "2026-07-11",
       "first_fire_kind": "live",
       "n8n": null,
@@ -818,6 +974,72 @@
       "cadence": {
         "expected_hours": null,
         "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 28,
+      "name": "chat-gateway",
+      "title": "Chat Gateway",
+      "state": "DORMANT",
+      "trigger": "poller-driven phone chat (planned) + phone via n8n instance MCP; build pending",
+      "one_liner": "Two-way phone chat into Alex: a read-only pocket that captures notes and done:/action:/teach: commands from the phone into the existing alex_inbox pipeline, complementing the session and never replacing it. SCAFFOLDED 2026-07-17; live build pending the BotFather bot, Telegram user id, phone pairing and the RC test (all Shaheen-side).",
+      "docs": "28-chat-gateway.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": "2026-09-15",
+      "work_dir": "work/28-chat-gateway",
+      "commands": [],
+      "status_md": "vault/projects/chat-gateway/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "scaffolded, build pending"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 29,
+      "name": "trip-ops",
+      "title": "Trip Ops",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand + rides the 05:00 email lane (not event-driven)",
+      "one_liner": "Booking confirmations Shaheen forwards become trip notes, read-back-verified Google Calendar events, and brief lines; a machine-readable travel flag (system/travel-state.json) drives timezone-aware scheduling (recovery C18).",
+      "docs": "29-trip-ops.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/29-trip-ops",
+      "commands": [
+        "trip-ops"
+      ],
+      "status_md": "vault/projects/trip-ops/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
       },
       "first_fire": null,
       "first_fire_kind": null,

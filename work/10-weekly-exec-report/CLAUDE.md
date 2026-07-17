@@ -85,3 +85,6 @@ Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not CO
 - Market Pulse (#11+, competitors/) dependency handled gracefully - section shows "not built yet".
 - No deck generated at build (needs a real week of data; first Friday run / on-demand produces the first one).
 - metrics-history starts empty; first run seeds the trend line.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Aggregates private automation state + untrusted mail/calendar into an internal deck. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

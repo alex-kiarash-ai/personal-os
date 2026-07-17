@@ -79,9 +79,47 @@ function renderItem(e, i) {
   return `${i + 1}. [${e.source}] ${e.item}${e.link ? `\n   ${e.link}` : ''}`;
 }
 
-function buildPrompt(week) {
+// Deterministic platform-overlap pre-scan (three-plan validation P4, 2026-07-17). Zero-token: keyword
+// match of each new `platform` item against every non-retired project's name + one_liner + commands, so
+// "the platform we run on just changed" is caught by the Monday eval, not a manual brainstorm. A hit is
+// marked OVERLAPPING with the project(s) + the shared tokens. Tuning bias (per the plan): a false overlap
+// costs one digest row, the cheap direction. The model must then resolve every overlap to Recommend/Skip;
+// a deterministic post-check in the wrapper (landscape-eval-check.js) fails the run if it silently drops one.
+const STOP = new Set(['alex','shaheen','every','automation','status','notion','gmail','into','from','with',
+  'that','this','their','there','build','built','daily','weekly','month','monthly','model','models','claude',
+  'sonnet','before','after','while','which','when','then','than','they','them','your','yours','field','value',
+  'table','data','file','files','page','pages','line','lines','runs','only','also','more','most','some','same',
+  'other','across','pipeline','project','projects','update','report','reports','first','second','human','local']);
+function tokset(s) {
+  return new Set(String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length >= 5 && !STOP.has(t)));
+}
+function computeOverlaps(week) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(REPO, 'system', 'manifest.json'), 'utf8'));
+  const projTokens = manifest.projects.filter(p => p.state !== 'RETIRED').map(p => ({
+    num: p.num, title: p.title,
+    tokens: tokset(`${p.name} ${p.title} ${p.one_liner} ${(p.commands || []).join(' ')}`),
+  }));
+  const overlaps = [];
+  for (const e of week) {
+    if (e.category !== 'platform') continue;
+    const it = tokset(`${e.item} ${e.source || ''}`);
+    if (!it.size) continue;
+    const hits = [];
+    for (const p of projTokens) {
+      const shared = [...it].filter(t => p.tokens.has(t));
+      if (shared.length) hits.push({ project: `#${String(p.num).padStart(2, '0')} ${p.title}`, on: shared });
+    }
+    if (hits.length) overlaps.push({
+      id: e.id, item: e.item, link: e.link || null,
+      projects: hits.map(h => h.project), tokens: [...new Set(hits.flatMap(h => h.on))],
+    });
+  }
+  return overlaps;
+}
+
+function buildPrompt(week, overlaps) {
   const { projects, mcpSection, installedSkills, bindingsSection, allowlist, installCap } = capabilitiesContext();
-  const grouped = { models: [], mcp: [], patterns: [], skills: [] };
+  const grouped = { models: [], mcp: [], patterns: [], platform: [], skills: [] };
   for (const e of week) (grouped[e.category] || (grouped[e.category] = [])).push(e);
   // Bound the prompt: show only the strongest skills candidates (rest stay in the log for a later week).
   const EVAL_SKILLS_CAP = 25;
@@ -102,6 +140,7 @@ deterministic, audited, git-reversible installer (Shaheen's 2026-07-11 decision)
 
 Hard rules:
 - Assess only the listed items. Invent nothing. If an item is unclear, say so; unknown stays unknown.
+- Every item in the PLATFORM CAPABILITY OVERLAP block below MUST end up in ## Recommended or ## Skip, named verbatim. Dropping one fails the whole run (a deterministic post-check enforces this).
 - This is about Alex's own capabilities (models, MCPs, automation patterns, agent skills), NOT a general
   AI news feed (that is #15 Alex AI Radar's job, for Shaheen's field awareness). If an item is only
   Shaheen-facing news with no bearing on Alex's build, mark it skip and say "radar territory".
@@ -138,6 +177,15 @@ ${bindingsSection}
 === THIS WEEK'S LANDSCAPE ITEMS (${week.length}) ===
 ${itemLines}
 
+=== PLATFORM CAPABILITY OVERLAP (deterministic pre-scan; MANDATORY per-item resolution) ===
+The daily monitor's new \`platform\` items (the tools Alex runs on) were keyword-matched against your own
+automations. Each item below overlaps an existing project - it MIGHT mean that project should change, or it
+might be noise. You MUST resolve EVERY item in this block to either ## Recommended or ## Skip, naming it
+verbatim (a deterministic post-check fails the whole run if any is silently dropped):
+${(overlaps && overlaps.length)
+    ? overlaps.map(o => `- **${o.item}** overlaps ${o.projects.join(', ')} (shared: ${o.tokens.join(', ')})${o.link ? `\n  ${o.link}` : ''}`).join('\n')
+    : '(none this week)'}
+
 === OUTPUT FORMAT (this exact shape: digest markdown, THEN one json block) ===
 # Landscape Digest ${new Date().toISOString().slice(0, 10)}
 _${week.length} items this week. Alex proposes, Shaheen decides (skills auto-install per the policy above)._
@@ -172,7 +220,7 @@ markdown in the shape above, followed by the single fenced json install block, a
 first line of your output must be the '# Landscape Digest' heading.`;
 }
 
-(function main() {
+function main() {
   const week = loadWeek();
   if (week.length === 0) {
     console.log('NOTHING_NEW: no landscape-log entries in the last ' + WINDOW_DAYS + ' days.');
@@ -182,8 +230,16 @@ first line of your output must be the '# Landscape Digest' heading.`;
   const stamp = new Date().toISOString().slice(0, 10);
   const outDir = path.join(REPO, 'outputs', 'evolution', stamp);
   fs.mkdirSync(outDir, { recursive: true });
+  // P4: deterministic platform-overlap pre-scan. Written to overlaps.json so the wrapper's post-check
+  // (landscape-eval-check.js) can prove the model resolved every overlap to Recommend/Skip.
+  const overlaps = computeOverlaps(week);
+  fs.writeFileSync(path.join(outDir, 'overlaps.json'), JSON.stringify(overlaps, null, 2), 'utf8');
   const promptPath = path.join(outDir, 'eval-prompt.txt');
-  fs.writeFileSync(promptPath, buildPrompt(week), 'utf8');
+  fs.writeFileSync(promptPath, buildPrompt(week, overlaps), 'utf8');
   console.log(promptPath); // the wrapper reads this path, feeds it to one claude -p call
   process.exitCode = 0;
-})();
+}
+
+if (require.main === module) main();
+// Exported for the P4 test harness (computeOverlaps is the deterministic overlap pre-scan).
+module.exports = { computeOverlaps, buildPrompt, tokset, loadWeek };

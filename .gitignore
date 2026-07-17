@@ -34,6 +34,10 @@ work/18-recovery-layer/state/
 # raw draft text for the sent-vs-draft learning loop, pruned each run - never on GitHub, never the vault)
 work/07-email-triage/state/
 
+# Trip-ops runtime state (P7): raw forwarded booking-confirmation emails banked here (Option B/MD-5) so
+# the privacy rule stays exception-free. Local-only, encrypted-backup-covered (set derives from .gitignore).
+work/29-trip-ops/state/
+
 # Vault-search FTS5 index (derived from vault/**/*.md, regenerable via scripts/vault_search.py build;
 # gitignored so it stays off GitHub but IS inside the repo tree, so the encrypted vault backup covers it)
 scripts/vault-index/
@@ -79,6 +83,11 @@ system/vault-reads.jsonl
 # quota truth = live runtime state (cap status + internal incident notes), churns on every cap event
 # and carries no reproducible value in git. Local-only, encrypted-backup-covered (BUG-06, 2026-07-16).
 system/quota-state.json
+# credential-age ledger (P5 security sweep S3): points at WHERE each secret lives + rotation dates.
+# Not the secrets themselves, but the map is sensitive on a public repo. Local-only, backup-covered.
+system/credentials-ledger.json
+# travel-state (P7 trip-ops 1b + recovery C18): home/current timezone + active trip. Local-only.
+system/travel-state.json
 # raw personal dumps + personal ops data + ingested notes + personal-story episodes
 I want you to brainstorm with me, I.txt
 notion_rows.txt

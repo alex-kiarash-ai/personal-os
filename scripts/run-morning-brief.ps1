@@ -26,7 +26,8 @@ $nonce = New-SoulNonce
 $out = ''
 try {
     $prompt = "Run /morning-brief" + (Get-SoulCanaryInstruction -Nonce $nonce)
-    $out = (& "$env:APPDATA\npm\claude.ps1" -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
+    # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

@@ -56,7 +56,8 @@ $digestPath = Join-Path $outDir 'digest.md'
 $out = ''
 try {
     $prompt = Get-Content $promptPath -Raw
-    $out = ($prompt | & "$env:APPDATA\npm\claude.ps1" -p --dangerously-skip-permissions 2>&1 | Out-String)
+    # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
+    $out = ($prompt | & "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1
@@ -68,6 +69,21 @@ $blocked = ($out -replace '\s', '').Length -lt 200
 if ($code -eq 0 -and -not $blocked -and $out -notmatch 'WRAPPER EXCEPTION') {
     $out | Out-File -Encoding utf8 $digestPath
     "digest saved: $digestPath" | Out-File -Append -Encoding utf8 $log
+
+    # 3a. Deterministic platform-overlap guard (three-plan validation P4). Every `platform` item the
+    #     eval's pre-scan flagged as overlapping a project MUST be resolved to Recommend/Skip in the digest.
+    #     The model cannot police itself (work/25 no-model-verifier-chains). A miss fails RED and skills do
+    #     NOT install this week - fix the digest/prompt, do not paper over a dropped capability signal.
+    $overlapPath = Join-Path $outDir 'overlaps.json'
+    if (Test-Path $overlapPath) {
+        $ovOut = (& node "scripts\landscape-eval-check.js" $digestPath $overlapPath 2>&1 | Out-String)
+        $ovOut | Out-File -Append -Encoding utf8 $log
+        if ($LASTEXITCODE -ne 0) {
+            Push-HQ 'red' "evolution: RED - unresolved platform overlap ($stamp)"
+            Invoke-CloseOutCheck -Out ("$out`n`nOVERLAP GUARD FAILED:`n$ovOut") -Code 1 -Log $log -Project 'evolution'
+        }
+    }
+
     if (Get-Command gh -ErrorAction SilentlyContinue) {
         try {
             & gh label create ai-landscape-update --color 1f6feb --description "Weekly Alex evolution digest" 2>$null | Out-Null

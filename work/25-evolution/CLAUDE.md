@@ -60,7 +60,8 @@ as an open option for Shaheen, deliberately not built yet (no premature coupling
 - `scripts/landscape-eval.js` - P2-S2, deterministic half. Reads the last 7 days of the log. Empty week
   -> exit 3 (the wrapper posts nothing, stays GREEN). Otherwise assembles ONE prompt (the week's items +
   current automations + the MCP Reference section + the three questions + output format) and writes it
-  to `outputs/evolution/YYYY-MM-DD/eval-prompt.txt`. Zero-token; the model call lives in the wrapper.
+  to `outputs/evolution/YYYY-MM-DD/eval-prompt.txt` (+ `overlaps.json`, the P4 platform overlap pre-scan).
+  Zero-token; the model call lives in the wrapper. Requireable for tests (main guarded by require.main).
 - `scripts/run-landscape-monitor.ps1` - hardened wrapper (close-out gate, HQ heartbeat). Runs the node
   monitor; no claude call.
 - `scripts/run-landscape-eval.ps1` - hardened wrapper. Runs the assembler, feeds the prompt to a single
@@ -73,6 +74,28 @@ as an open option for Shaheen, deliberately not built yet (no premature coupling
 - `scripts/skills-installer.js` - deterministic zero-token auto-install engine (audit + install + 4b
   recall-architecture wiring + git commit per install). Reads the eval digest's json block; `--dry-run`
   or `--manifest <file>` for safe testing.
+- `scripts/landscape-eval-check.js` - P4 deterministic overlap guard. Given the saved digest + the
+  eval's `overlaps.json`, exits 1 if any flagged `platform` overlap was resolved to NEITHER Recommend nor
+  Skip. The wrapper runs it after saving the digest; a miss pushes RED + close-out RED (skills do not install).
+
+## Platform overlap scan (P4, 2026-07-17 - three-plan validation)
+The capabilities of the tools Alex RUNS ON (Claude Code, the Anthropic surface) are now a scan dimension,
+so the next Remote Control is caught by the Monday eval, not a manual brainstorm.
+- **New `platform` category** in `scripts/landscape-monitor.js` - source: the Claude Code releases Atom
+  (`github.com/anthropics/claude-code/releases.atom`). n8n releases already feed `patterns`, NOT duplicated
+  here. Row shape unchanged. LIMITATION: release titles are version bumps, so live item text is thin; the
+  overlap-scan's real fuel is the one-time backfill of named features + the human digest reading the link.
+- **Deterministic overlap pre-scan** in `scripts/landscape-eval.js` (`computeOverlaps`): keyword-matches
+  each new `platform` item against every non-retired project's name + one_liner + commands (tokens len>=5,
+  minus a stopword set), writes `outputs/evolution/YYYY-MM-DD/overlaps.json`, and injects a PLATFORM
+  CAPABILITY OVERLAP block into the eval prompt requiring the model to resolve EACH to Recommend or Skip.
+  Bias: a false overlap costs one digest row, the cheap direction.
+- **Digest rule, enforced in code** (not model self-policing, per the no-model-verifier-chains guardrail):
+  `landscape-eval-check.js`, wired into `run-landscape-eval.ps1`, fails the run RED if any overlap is dropped.
+- **One-time backfill** (P4 step 4): the Q1-Q2 2026 Claude Code set (Remote Control, Dispatch, Channels,
+  /loop, Agent View, Auto Mode, voice mode) seeded as historical `platform` rows (dated 2026-01-01 sentinel)
+  + a propose/skip resolution doc at `outputs/evolution/2026-07-17/backfill-claude-code-q1q2-2026.md`
+  (verdicts provisional pending P1's RC test). Voice mode marked already-adopted (Voice v3).
 
 ## Model routing (house rule)
 The monitor is zero-token by design (no model call). The eval's single weekly call is human-facing
@@ -236,3 +259,6 @@ one-liner and run `generate-alex.js` (now it is real). Effort: ~1-2 days, the ca
   install with no human gate. Models, MCPs and patterns still get the human gate (## Integration).
 - No invented items: the eval may only assess what the monitor actually logged; unknown stays unknown.
 - No model-verifier chains: one deterministic monitor + one model call + deterministic audited action.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=false, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Consumes untrusted landscape feeds. The skills auto-install lane is a LOCAL write gated by a deterministic audit, not external comm. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

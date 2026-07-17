@@ -188,3 +188,6 @@ High-conviction items get researched automatically, no manual greenlight, becaus
 - **Open:** confirm the ~20-40 X account list (Phase 2 only, not needed for Stream B start). Monday slot CONFIRMED + scheduled 2026-07-02 (Mondays 07:30).
 - **Pending wiring (done when Shaheen runs it as a new project):** add row 15 to the Routing Table in the root CLAUDE.md and register `/alex-radar`; create the `vault/projects/alex-ai-radar/` folder + `status.md`; add the "Alex AI Radar" row to the Sprint board.
 - Standup/output voice: Alex (soul.md). Lead with the one item that clears the bar (or "nothing cleared the bar today"), then the memory update, then any theme that is genuinely accelerating (after dedup). No digest-speak.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private taste memory + untrusted external AI-landscape feeds; writes vault/HQ only. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

@@ -24,7 +24,12 @@ const FETCH_TIMEOUT_MS = 15000;
 const MAX_PER_SOURCE_FIRST_RUN = 8; // don't dump a feed's entire history on the first ever run
 const MAX_PER_SOURCE_PER_RUN = 6;   // c8 (upgrade P13): a chatty feed can't flood one run's log
 
-// category = the three signal types the spec names (models | mcp | patterns).
+// category = the signal types (models | mcp | patterns | platform); + skills + deployed (below).
+// platform (three-plan validation P4, 2026-07-17): the capabilities of the tools Alex itself RUNS ON
+// (Claude Code, the Anthropic surface) - the dimension a manual brainstorm misses (Remote Control shipped
+// in the Claude Code changelog before Alex noticed). n8n releases already feed `patterns` below - NOT
+// duplicated here. Item text is the release TITLE (version bumps), so the overlap-scan's real fuel is the
+// one-time backfill of named features + the human digest reading the link; documented in P4.
 // kind = how to parse the response: 'atom' (GitHub release/commit feeds) or 'hn' (HN Algolia JSON).
 // b29 (upgrade P13, 2026-07-12): dropped two ~96%-noise feeds - 'anthropic-sdk-python releases' (SDK
 // point bumps, never a model launch: the launch signal lives in HN + the deployed-vs-released compare
@@ -36,6 +41,7 @@ const SOURCES = [
   { category: 'mcp',      name: 'HN: MCP',                       kind: 'hn',   minPoints: 20, url: 'https://hn.algolia.com/api/v1/search_by_date?query=model%20context%20protocol&tags=story&hitsPerPage=25' },
   { category: 'patterns', name: 'n8n releases',                  kind: 'atom', url: 'https://github.com/n8n-io/n8n/releases.atom' },
   { category: 'patterns', name: 'HN: n8n / automation',          kind: 'hn',   minPoints: 40, url: 'https://hn.algolia.com/api/v1/search_by_date?query=n8n&tags=story&hitsPerPage=25' },
+  { category: 'platform', name: 'Claude Code releases',          kind: 'atom', url: 'https://github.com/anthropics/claude-code/releases.atom' },
 ];
 // HN Algolia's server-side numericFilters returns 400 on search_by_date, so points are filtered here.
 

@@ -54,3 +54,6 @@ Read-only **WAHA Core** gateway on the Hetzner box, webhook -> n8n -> CRM/corpus
 ## Connections
 - Feeds into: soul.md (voice corpus - Shaheen's own lines), vault/people/ + the **Personal CRM** (`channel` + `last_contact` frontmatter -> #05 sync to Notion, since 2026-07-10), /morning-brief (unanswered-message flags).
 - Fed by: an encrypted iPhone backup (Phase 2, zero-risk, the committed path); later a read-only WAHA gateway (Phase 3, deferred). Phase 1 WhatsApp Desktop screen-scrape is retired.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private people/voice corpus + untrusted WhatsApp messages; read-only harvest. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

@@ -1,11 +1,13 @@
 {
-  "version": 1,
+  "version": 2,
+  "lockSemantic": "computedHash = sha256 of the INSTALLED skill file at .agents/skills/<name>/SKILL.md (hash-of-installed-disk). Re-baselined 2026-07-17 (three-plan validation P0a/S7-step-1): the prior v1 hashes were hash-at-fetch-of-source and had drifted from installed content for 22/31 skills - the drift traced cleanly to the install mechanism (npx-installed/description-curated skills drifted; raw-fetch DATA installs still matched), content-reviewed script-free markdown, not tampering. skillPath fields are the HISTORICAL source-repo-relative paths the skill was fetched from; they do NOT resolve on disk and are provenance only. Recovery check S7 (WS-A security sweep) recomputes this hash against installed content.",
+  "rebaselined": "2026-07-17",
   "skills": {
     "agent-development": {
       "source": "anthropics/claude-code",
       "sourceType": "github",
       "skillPath": "plugins/plugin-dev/skills/agent-development/SKILL.md",
-      "computedHash": "4931c2867890bfef5881225adb691c3d719fe9ad556e3d5fae15f83e0668fa60"
+      "computedHash": "ff3324078bbeef3e214157391795360e148892e9c6735f1fc049f397aa939c80"
     },
     "career-changer-translator": {
       "source": "davila7/claude-code-templates",
@@ -23,13 +25,13 @@
       "source": "anthropics/knowledge-work-plugins",
       "sourceType": "github",
       "skillPath": "small-business/skills/crm-cleanup/SKILL.md",
-      "computedHash": "48a1b991e144d7941d541214f735c24fbcaec7b85ad37e8adcf183fad773828f"
+      "computedHash": "4847d6f90e1e5cf8084beed95cc817e01c57d5cd1859784b6429c0b51a53f1e7"
     },
     "crm-maintenance": {
       "source": "anthropics/knowledge-work-plugins",
       "sourceType": "github",
       "skillPath": "small-business/skills/crm-maintenance/SKILL.md",
-      "computedHash": "2f06ece9fb15e3b52a86821e43752845b46a6c9e2c59642df379dd03b177cc02"
+      "computedHash": "658a0d5ea867f2fa71af421dfd27e11c041cfaec6190a96a804fc8058292730b"
     },
     "diagrammer": {
       "source": "davila7/claude-code-templates",
@@ -47,7 +49,7 @@
       "source": "anthropics/knowledge-work-plugins",
       "sourceType": "github",
       "skillPath": "human-resources/skills/interview-prep/SKILL.md",
-      "computedHash": "24c96c7c4db9c6741750225d9c9cc60a61e9b47d2e0f2c18cbc8465c1be109ac"
+      "computedHash": "a7395316c74277f8812cc338ec90c369fc6cc9a563d93eb39cd2e44f6c5bde8c"
     },
     "job-description-analyzer": {
       "source": "davila7/claude-code-templates",
@@ -72,79 +74,79 @@
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-code-javascript/SKILL.md",
-      "computedHash": "0fc21ecd6180fce3fc54cd2edfca1c63b0d8e8b49534ce4d2c609aeb1927f0d9"
+      "computedHash": "70062dd63cd3f9672c0393154a01c2dfff389e560a77c6468a6801e87cdb37ad"
     },
     "n8n-mcp-tools-expert": {
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-mcp-tools-expert/SKILL.md",
-      "computedHash": "e97d91ddf5b0b39239ba208aaa09866827e8276be66f01cb2dcd1f1cab315cc4"
+      "computedHash": "c07d0d67e76055b88742edd878f5c2a833a2c8a894002d78fd00997b79a87859"
     },
     "n8n-node-configuration": {
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-node-configuration/SKILL.md",
-      "computedHash": "8a8e8be5e10c10fe856f29991da21739a60a3393d2b38b3ee62faffe4894fd1d"
+      "computedHash": "305d90ad5a8c6e22fa20bcdfc4fac5fed43e1aca24ea066534ccd63c70a54739"
     },
     "n8n-validation-expert": {
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-validation-expert/SKILL.md",
-      "computedHash": "a4eb1e8528be6c9aeae10472362e7b79fd1e0dc016aa634584ccbe3e5b3fe4f2"
+      "computedHash": "52322ec67be8f1bc415ba4f95cd940befd882221e8b1168fa94762f394187d53"
     },
     "n8n-workflow-patterns": {
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-workflow-patterns/SKILL.md",
-      "computedHash": "01ce8f07d3054ea8d4ab40f884d37b8482a450dd94add0c2923c0ff7b124b9b9"
+      "computedHash": "85dee5bf1dc32c6fd3d65faac433714dd0b9919ec0d36c0359c2716b709a22d2"
     },
     "obsidian-bases": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
       "skillPath": "skills/obsidian-bases/SKILL.md",
-      "computedHash": "0d9958e07672384650f404bda4fc9268e1720e9234d42eeca29fc356b1e2a277"
+      "computedHash": "83bc04a2c306a61c216c0cfecbb4d032cc763896623d229cd2a6dab811083032"
     },
     "obsidian-cli": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
       "skillPath": "skills/obsidian-cli/SKILL.md",
-      "computedHash": "89ded0eb1499286d5c95217df0ff7015aa46b7efe4646fafaba38cbac3289392"
+      "computedHash": "b4d398c64e086d84cfd51bed896b9bdc243a5fd8a9ea2815a261cd9cb4da3155"
     },
     "obsidian-markdown": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
       "skillPath": "skills/obsidian-markdown/SKILL.md",
-      "computedHash": "d65bfcd6012560c61da9c88c79679a9a8218ac6b4928df9b55ae451949a1618a"
+      "computedHash": "ef409b7eeda59e2e0c5cdead334dcc997dc9459d689859b3a610ffa9af5cabc5"
     },
     "pdf": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/pdf/SKILL.md",
-      "computedHash": "37226d4220d844377e6b2a386c51a011df4cd130855ff0b80bcc22f9c28abd57"
+      "computedHash": "067401220db5745f719ff8c048d545d5edc8545e809668a3a6f9e2892fa51d48"
     },
     "power-bi-dax-optimization": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/power-bi-dax-optimization/SKILL.md",
-      "computedHash": "e98206e9864acfbfec475a1213c2687c293f0ed9e4903b6a9dc271ff313d0944"
+      "computedHash": "96885a9fbce12c3d797f0308287f9474d319780edbe8c20eda1137867826a11a"
     },
     "power-bi-model-design-review": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/power-bi-model-design-review/SKILL.md",
-      "computedHash": "0e1f4a853086b048036dbd6f21527c3557713d76bb036b4c0b51c370d73ea264"
+      "computedHash": "456f167db142b53b62a47873dde654eeea5468f9e68e3fb85a641c7f24fecf3d"
     },
     "power-bi-performance-troubleshooting": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/power-bi-performance-troubleshooting/SKILL.md",
-      "computedHash": "93b5d254c846d138ed8e60395f71e2e61c10826b2f53db24be5b13125f11ffb0"
+      "computedHash": "62507d22a45bc8bf39f83bf17a1bd3d07df8367ba5b621213175b89d48534d5d"
     },
     "resume-ats-optimizer": {
       "source": "davila7/claude-code-templates",
       "sourceType": "github",
       "skillPath": "cli-tool/components/skills/career/resume-ats-optimizer/SKILL.md",
-      "computedHash": "d09bf72dfbb72880b238c2f19f9575399467a7b953ef27f2f729693fa5d892e1"
+      "computedHash": "ded0fe1d10ea42e6d24485f5f01651e7ef2feb83f2cb2bc688e5aa5e2b647a6e"
     },
     "resume-bullet-writer": {
       "source": "davila7/claude-code-templates",
@@ -162,31 +164,31 @@
       "source": "davila7/claude-code-templates",
       "sourceType": "github",
       "skillPath": "cli-tool/components/skills/career/resume-tailor/SKILL.md",
-      "computedHash": "20ea68cefb92169958c8da174ad2aff2c52d6349799cf955be14dd1f2dc8f736"
+      "computedHash": "9365f57cda46f42dbce8ccf83e303c57ee22b2c19b630b682fd4c11be60214a6"
     },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/skill-creator/SKILL.md",
-      "computedHash": "7e3c9cd74e9e2b4828527a857170e86310f2dab5ea8030a9043df2c7e6c88857"
+      "computedHash": "e030e7685e26283b4a76f5202aa3ae8516fb41dde799be5ae8ea6393ec009fe9"
     },
     "skill-development": {
       "source": "anthropics/claude-code",
       "sourceType": "github",
       "skillPath": "plugins/plugin-dev/skills/skill-development/SKILL.md",
-      "computedHash": "8d262f08f33825947ea20204ebf5101e36056c98090251bd973a552ec8ef0c0c"
+      "computedHash": "d40080c45d652dd3cc481d1e381cd7e6258091a87351fa1de67c6c8ecec3446e"
     },
     "systematic-debugging": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/systematic-debugging/SKILL.md",
-      "computedHash": "792a368e074981d7e3138edb439e138489b2ac247cd1e5739fab52af680fb17b"
+      "computedHash": "3b20719eca4f0461cb51a195221320d775dcf03b6859271066a03a5132a6ce7a"
     },
     "webapp-testing": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/webapp-testing/SKILL.md",
-      "computedHash": "3f14af7f5690695209c22fbf8c8d133769a86d64892602c09bb13f135e14e857"
+      "computedHash": "8bc27790f6e6dfc2bfa6692326d4518baacf6a31dcc646d963c729adad2f7e34"
     }
   }
 }

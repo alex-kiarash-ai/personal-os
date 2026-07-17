@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-16. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-17. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -25,23 +25,23 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 - **Then hand-refine `soul.md`** (the biggest lever, that is your identity and voice).
 - Start building automations with `/new` and the per-project `work/{n}/CLAUDE.md` specs. `/new` writes the registry entry in `system/manifest.json` FIRST, then scaffolds.
 
-## 4. The automations (26 registered, non-retired)
+## 4. The automations (28 registered, non-retired)
 
 The registry `system/manifest.json` is the source of truth; this list is generated from it.
 
-- **01 Sprint Tracker** (LIVE; trigger: weekdays 9:00) - Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it.
+- **01 Sprint Tracker** (PARKED; trigger: PAUSED (Shaheen 2026-07-16, until re-enabled)) - Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it.
 - **02 Morning Brief** (LIVE; trigger: daily 8:00) - The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags.
-- **03 Application Engine (BI)** (LIVE; trigger: n8n 07:00 + watch 8:30) - Job pipeline, Power BI track: source, score, gate, draft, render daily; also an MCP server.
+- **03 Application Engine (BI)** (LIVE; trigger: n8n every 72h (07:00) + watch 8:30) - Job pipeline, Power BI track: source, score, gate, draft, render every 72h; also an MCP server.
 - **04 Research Team** (ON-DEMAND; trigger: on-demand) - Adaptive multi-agent research squads for EXTERNAL evidence, + an evidence-anchored Adversarial Verification Mode (`verify:` a claim - refuters grounded in external facts, converge to CONFIRMED/REFUTED/UNRESOLVED, never consensus-laundered; the sanctioned way to check an Alex conclusion).
 - **05 Personal CRM** (LIVE; trigger: Mon 8:30) - Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate.
 - **06 Meeting Intel** (ON-DEMAND; trigger: on-demand) - Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after.
-- **07 Email Triage** (LIVE; trigger: 9:00 / 13:00 / 17:00) - Inbox triage three times a day + voice-matched reply drafts; learns from Shaheen's edits.
+- **07 Email Triage** (LIVE; trigger: daily 05:00) - Inbox triage once each morning at 05:00 + voice-matched reply drafts; learns from Shaheen's edits.
 - **08 Expense Wrangler** (LIVE; trigger: monthly last day 20:00) - Receipts to the Notion Expenses DB + an all-formula branded monthly Excel.
 - **10 Weekly Exec Report** (LIVE; trigger: Fri 16:00) - The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.
 - **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup)) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
 - **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts.
 - **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway.
-- **14 AI Application Engine** (LIVE; trigger: n8n daily 07:30) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
+- **14 AI Application Engine** (LIVE; trigger: n8n every 72h (07:30)) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
 - **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.
@@ -55,6 +55,8 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **25 Evolution** (LIVE; trigger: daily monitor 07:10 + weekly eval Mon 07:50) - Keeps Alex current: a zero-token daily monitor logs new Claude models, MCPs, n8n patterns AND agent skills (skills.sh/skillsmp/skillhub) to system/landscape-log.jsonl; a weekly Claude digest proposes/skips each; models/MCPs/patterns route through a human-gated integration runbook, while matching skills AUTO-INSTALL via a deterministic audited installer (git-reversible). Alex proposes; Shaheen decides, except the skills lane self-installs.
 - **26 Prompting** (ON-DEMAND; trigger: on-demand) - The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot.
 - **27 Migration Engine** (ON-DEMAND; trigger: on-demand) - Run a large code/config migration as a dynamic workflow: parallel agents, per-unit self-verification, adversarial parity check, resumable + reversible. Refuses to run without a named target + a verification harness. No target committed yet (P9 dashboard.tsx extraction = the small hand-done precedent).
+- **28 Chat Gateway** (DORMANT, revisit 2026-09-15; trigger: poller-driven phone chat (planned) + phone via n8n instance MCP; build pending) - Two-way phone chat into Alex: a read-only pocket that captures notes and done:/action:/teach: commands from the phone into the existing alex_inbox pipeline, complementing the session and never replacing it. SCAFFOLDED 2026-07-17; live build pending the BotFather bot, Telegram user id, phone pairing and the RC test (all Shaheen-side).
+- **29 Trip Ops** (ON-DEMAND; trigger: on-demand + rides the 05:00 email lane (not event-driven)) - Booking confirmations Shaheen forwards become trip notes, read-back-verified Google Calendar events, and brief lines; a machine-readable travel flag (system/travel-state.json) drives timezone-aware scheduling (recovery C18).
 - **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 - **Alex Cost Tracker** (ON-DEMAND; trigger: monthly (piggybacks expense slot)) - What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + a zero-token per-project token-attribution collector (which project ate the quota).
 - **Modeling** (DORMANT, revisit 2026-08-01; trigger: -) - Modeling career run as an engineered system (shaheenkiarash.com on Cloudflare Workers). Content engine chosen 2026-07-15: self-hosted Postiz on the Hetzner box, auto-publish the approved queue, no auto-engagement. Config in work/modeling. DORMANT waiting on Shaheen: DNS, box deploy, an IG Business/Creator account. Own-n8n audience/lead-gen layers on after.
@@ -86,15 +88,15 @@ Nothing runs until you schedule it. On this machine the scheduler is Windows Tas
 | Job | Command | Frequency |
 |---|---|---|
 | Health Tracker (#17) - phone-side, NOT a Windows task | none (no /command, no Task Scheduler job). | **daily 23:59, triggered ON the iPhone** by a native Shortcuts time-automation (Shaheen builds it, guide `work/17-health-tracker/IPHONE-SHORTCUT.md`). It POSTs to the n8n webhook `/webhook/alex-health-ingest`; n8n scores + stores. Nothing to add to /cron-setup on this machine. **23:59 chosen (2026-07-04) so the day's steps are complete while "is today" still captures last night's sleep - one combined row/day.** |
-| Sprint Tracker | /sprint-tracker | weekdays at 9:00 AM |
+| Sprint Tracker | /sprint-tracker | weekdays at 9:00 AM (PAUSED, see Status above) |
 | Morning Brief | /morning-brief | daily at 8:00 AM |
 | Application Engine Watch | /application-engine | daily at 8:30 AM |
 | Personal CRM | /personal-crm | Monday at 8:30 AM |
-| Email Triage | /email-triage scheduled | 3x daily at 9:00 AM, 1:00 PM, 5:00 PM |
+| Email Triage | /email-triage scheduled | **daily at 5:00 AM** (changed 2026-07-16, cost cut: was 3x daily at 9/13/17). Model: claude-sonnet-4-6 (per-wrapper `--model`). |
 | Expense Wrangler | /expense-wrangler | monthly, last day of each month at 8:00 PM |
 | Weekly Exec Report | /weekly-exec-report | Friday at 4:00 PM |
 | WhatsApp Harvest (#11) | /whatsapp-harvest | on-demand (the retired Phase 1 slot was daily at 2:30 AM, a usage-based slot that ran while Shaheen slept; kept here as history only) |
-| Airbnb Host | /airbnb-host (monthly-sync) | monthly on the 24th at 10:00 AM (Task Scheduler job PersonalOS-airbnb-host, **Interactive only** so the headed Chromium can render; reuses the saved login session) |
+| Airbnb Host | /airbnb-host (monthly-sync) | monthly on the 24th at 10:00 AM (Task Scheduler job PersonalOS-airbnb-host, scheduled runs use **`--headless`** since 2026-07-14 so the harvest launches unattended under Task Scheduler; reuses the saved login session read-only. Manual runs you start yourself stay headed. See work/13 Data Access.) |
 | Alex AI Radar (weekly sweep) | /alex-radar --weekly | Monday at 7:30 AM (Task Scheduler job PersonalOS-alex-radar; 07:30 so the output is in the vault before the 08:00 Morning Brief surfaces it as the Radar section) |
 | Git Backup (Recovery Phase 0) | scripts/git-backup.ps1 (pure git, no claude call) | daily at 9:30 PM (Task Scheduler job PersonalOS-git-backup; RestartCount 2 / RestartInterval 30 min / ExecutionTimeLimit 30 min / StartWhenAvailable) |
 | Vault Backup - encrypted local-only (Recovery Phase 1) | scripts/vault-backup.ps1 (pure PowerShell, no claude call) | daily at 9:45 PM (Task Scheduler job PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push. |

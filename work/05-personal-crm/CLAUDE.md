@@ -129,3 +129,6 @@ Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not CO
 - DB created and seeded with the 9 real vault/people contacts. IDs in status.md.
 - **No emails on file for any seeded contact, and the only Warm contacts are in do-not-draft categories.** So the Monday drafter has zero eligible targets at build time - correct and expected, not a bug. It starts drafting once real professional contacts with emails enter the vault (via Morning Brief / job hunt).
 - Draft gate enforced in spec before any email logic runs. Contacts tagged `personal` and `do-not-contact` are explicitly excluded from drafting.
+
+## Trifecta
+Gate: **draft-only**. Legs: private_data=true, untrusted_content=true, external_comm=true (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). All three legs true: private relationships + untrusted incoming messages + reply drafts. Hard never-send, Shaheen sends. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

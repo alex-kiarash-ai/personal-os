@@ -25,7 +25,7 @@ $log = "outputs\logs\auth-check.log"
 
 $out = ''
 try {
-    $out = (& $ClaudeCmd -p "Reply with exactly: OK" 2>&1 | Out-String)
+    $out = (& $ClaudeCmd --model claude-sonnet-4-6 -p "Reply with exactly: OK" 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

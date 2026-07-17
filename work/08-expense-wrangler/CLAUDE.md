@@ -77,3 +77,6 @@ This is the LAST open build item of the run-24 upgrade program (with P3v's 08-01
 - **Currency:** SEK (kr) throughout. Excel uses `#,##0.00 "kr"`. Notion Amount set to `number_with_commas` (no symbol - Notion has no SEK format) so nothing implies USD. All amounts are kronor.
 - OCR: uses Tesseract if installed, else the Read tool's vision on the receipt image (no hard dependency at build).
 - No real expense processed at build (first receipt/batch run starts the data).
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private finances + untrusted vendor receipts; writes internal Notion/Excel only. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

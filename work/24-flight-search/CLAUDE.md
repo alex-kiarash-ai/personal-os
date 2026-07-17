@@ -130,3 +130,6 @@ Beyond the universal Close-Out list, a flight-search run verifies:
 - Built as spec + `/flight-search` command + registry entry (project 24) + status page. On-demand, so the first real search is the first live run.
 - Verified `✔ Connected` via `claude mcp list`: **Kiwi, Turkish, and Google Flights** (the last wired 2026-07-08). Google Flights' tools load at the **next session start**, so a fresh session runs on **three live lanes**. **Skyscanner** is deliberately unwired (decision below) - a pluggable slot awaiting a legit MCP, one `claude mcp add` away.
 - Guardrails carried from soul.md: never fabricate a result or a price; a down lane and an empty result are both honest findings; unknown stays unknown; no FX guessing; no cross-search price memory.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=false, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Queries external flight APIs (untrusted results); presents ranked options, no emit. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

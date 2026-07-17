@@ -95,3 +95,6 @@ Voice-matched guest-reply drafts (soul.md, per-language register) staged to **Gm
 - Browser automation built 2026-06-14: scrape_airbnb.py + ingest_airbnb.py + RUNBOOK.md. Deps installed (playwright, chromium, pandas). Scripts compile clean. NOT yet run against live Airbnb - needs Shaheen's first `--setup` login, and a selector-tuning pass on first real run (debug artifacts land in raw/_debug/).
 - Current bookings seeded from [[me/airbnb-studio]] (guest names + dates kept local, out of the spec).
 - Income gaps: nightly rate + monthly net unknown until payout emails are parsed; flagged in [[me/airbnb-studio]].
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private income + untrusted Airbnb/Gmail feed; writes internal Notion/Excel. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

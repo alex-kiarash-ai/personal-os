@@ -25,8 +25,9 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Added: 2026-07-04
 
 ### Sprint Tracker
+- **STATUS: DISABLED 2026-07-16 (Shaheen: "stop it FOR NOW until I tell you to turn it on"). Task PersonalOS-sprint-tracker set Disabled in Task Scheduler; do NOT `Enable-ScheduledTask` until Shaheen says. Wrapper + hardening left intact for instant re-enable.**
 - Command: /sprint-tracker
-- Frequency: weekdays at 9:00 AM
+- Frequency: weekdays at 9:00 AM (PAUSED, see Status above)
 - Description: Reads the Notion Progress Tracker board, writes a standup summary to vault + Notion, appends velocity.
 - Added: 2026-06-10
 - **Task settings (hardened 2026-07-02, MUST survive any task re-creation):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 1h, StartWhenAvailable. The wrapper (scripts/run-sprint-tracker.ps1) exits 1 on login/quota/blank-output failures and pushes sprint/run_status RED to Alex HQ. **CORRECTION 2026-07-06 (the quad failure): RestartCount does NOT fire on exit 1 (launch failures only), so the 10:30/12:00/13:30/15:00 ladder never actually ran. The working retry is now the close-out lib's self-scheduled one-shot task (+90 min, attempts 2-5) - see Task Hardening below.** If /cron-setup re-creates this task, re-apply: `Set-ScheduledTask -TaskName "PersonalOS-sprint-tracker" -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -WakeToRun -RestartCount 4 -RestartInterval (New-TimeSpan -Minutes 90) -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew)`
@@ -40,7 +41,8 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Application Engine Watch
 - Command: /application-engine
 - Frequency: daily at 8:30 AM
-- Description: Reads the Job Search Pipeline sheet (run_log + needs_review) after the 07:00 pipeline run; reports drafts, costs, flags, anomalies; updates vault. Surveillance only, never modifies the workflow.
+- **Box engines retimed 2026-07-16 (cost cut): the n8n Application Engine (#03) + AI Application Engine (#14) now run EVERY 72h (07:00 / 07:30, cron `0 7 */3 * *` and `30 7 */3 * *`), source window widened to "Past Week" so nothing in the last 72h is missed (the processed-log dedup keeps it exactly-once). This local watch stays daily; on off-days it simply reports "no new pipeline run".**
+- Description: Reads the Job Search Pipeline sheet (run_log + needs_review) after the pipeline run; reports drafts, costs, flags, anomalies; updates vault. Surveillance only, never modifies the workflow.
 - Added: 2026-06-11
 
 ### Personal CRM
@@ -51,9 +53,9 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### Email Triage
 - Command: /email-triage scheduled
-- Frequency: 3x daily at 9:00 AM, 1:00 PM, 5:00 PM
-- Description: Classifies unread mail (Act Now/Read Later/Archive), pulls CRM sender context, writes voice-matched reply drafts to outputs/ (scheduled mode never stages blind). Task Scheduler jobs PersonalOS-email-triage-0900, PersonalOS-email-triage-1300, PersonalOS-email-triage-1700.
-- Added: 2026-06-12
+- Frequency: **daily at 5:00 AM** (changed 2026-07-16, cost cut: was 3x daily at 9/13/17). Model: claude-sonnet-4-6 (per-wrapper `--model`).
+- Description: Classifies unread mail (Act Now/Read Later/Archive), pulls CRM sender context, writes voice-matched reply drafts to outputs/ (scheduled mode never stages blind). Task Scheduler job PersonalOS-email-triage.
+- Added: 2026-06-12 (retimed to a single 05:00 run 2026-07-16)
 
 ### Expense Wrangler
 - Command: /expense-wrangler
@@ -77,7 +79,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### Airbnb Host
 - Command: /airbnb-host (monthly-sync)
-- Frequency: monthly on the 24th at 10:00 AM (Task Scheduler job PersonalOS-airbnb-host, **Interactive only** so the headed Chromium can render; reuses the saved login session)
+- Frequency: monthly on the 24th at 10:00 AM (Task Scheduler job PersonalOS-airbnb-host, scheduled runs use **`--headless`** since 2026-07-14 so the harvest launches unattended under Task Scheduler; reuses the saved login session read-only. Manual runs you start yourself stay headed. See work/13 Data Access.)
 - Description: Read-only Playwright harvest of Shaheen's own Airbnb host dashboard. Wrapper runs scrape + ingest (rebuilds the income model Excel with real payouts), then the agent syncs the Notion Bookings DB + vault and flags new pending requests. No host API; guests stay transactional (no people pages). Spec: work/13-airbnb-host/CLAUDE.md.
 - Added: 2026-06-14
 
@@ -191,7 +193,7 @@ Every scheduled wrapper dot-sources `scripts/lib/close-out.ps1` (shared mechanis
 - **Landscape Monitor (#25, added 2026-07-09):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a zero-token fetch, light class like git-backup/vault-index.
 - **Auth-check (added 2026-07-06):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a probe, not a run.
 - **Sprint Tracker:** RestartCount 4, 90 min, ExecutionTimeLimit 1h (see its entry).
-- **Email Triage x3:** RestartCount 2, RestartInterval 60 min, ExecutionTimeLimit 2h - lighter because the 9/13/17 slots are only hours apart.
+- **Email Triage:** RestartCount 2, RestartInterval 60 min, ExecutionTimeLimit 2h (task PersonalOS-email-triage; single daily 05:00 run since 2026-07-16, was x3 at 9/13/17).
 - **Git Backup:** RestartCount 2, 30 min, ExecutionTimeLimit 30 min.
 
 Re-apply after any task re-creation (never `schtasks /change` - it hangs on a password prompt; use `Set-ScheduledTask`). Mutate-in-place preserves every other setting:
@@ -212,3 +214,17 @@ For each entry above:
 5. Prompt: use the command above (e.g., "Run /morning-brief")
 6. Frequency: match the frequency above
 7. Enable "Keep computer awake" in Cowork Settings if you want it to run while you're away
+
+## Timezone Policy (P8 scheduler timezone audit, 2026-07-17)
+
+**Scope.** This governs ONLY the local Windows Task Scheduler jobs. The n8n-side crons run on the Hetzner box in Europe/Stockholm and are IMMUNE to the laptop timezone. The laptop currently runs on "W. Europe Standard Time" (Stockholm/Sweden).
+
+**How Windows daily triggers behave.** A trigger whose StartBoundary carries a UTC offset (e.g. `...T05:00:00+02:00`) is "synchronize across time zones" = anchored to an absolute instant (it fires at the Stockholm-equivalent hour even if the laptop tz changes). A StartBoundary with NO offset floats with the local wall clock (fires at the same local time-of-day in whatever tz the machine is set to).
+
+**Classification (audit outcome, enumerated live 2026-07-16/17 - the count moves, do not hardcode it):**
+- **follows-Shaheen** (his local wall clock is the right time): morning-brief, email-triage, alex-hq push, sprint-tracker, personal-crm, application-engine watch, self-review, weekly-exec-report, expense-wrangler, runway, airbnb-host, whatsapp-harvest, lint-monthly, auth-check.
+- **must-anchor** (coordinate with the Stockholm-anchored box; keep near Stockholm time): n8n-active-check, landscape-monitor, landscape-eval, alex-radar, recovery-check, git-backup, vault-backup, vault-index.
+
+**Observed registration split (recorded, deliberately NOT changed).** The must-anchor jobs are all registered offset-anchored (`+02:00`); the follows-Shaheen jobs are mostly floating, with three (email-triage, alex-hq, whatsapp-harvest) also anchored - which is harmless (a 05:00 triage / 08:45 push / 02:30 harvest firing at the Stockholm instant abroad is fine). So the split already largely matches the classification and **no task was at risk, no task was changed** ("policy written down" is the declared success for this audit). IF a future normalization is wanted, re-register each trigger with/without `-Synchronize` to match its class, read-back verified per the Verify-after-write order.
+
+**The practical rule when Shaheen travels.** KEEP the laptop on Stockholm time (do not switch the Windows tz). That holds must-anchor jobs coordinated with the box and follows-Shaheen jobs at Stockholm hours (a few hours off his local morning is harmless). If he ever wants the brief on local time abroad, switch the tz AND accept the must-anchor jobs shift too. Either way, `system/travel-state.json` (P7 trip-ops) records the expectation and **recovery check C18** ambers on a machine-tz-vs-expectation mismatch.

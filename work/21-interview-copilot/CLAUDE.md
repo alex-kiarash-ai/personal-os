@@ -89,3 +89,6 @@ Claude: dossier, question prep, fit reasoning, note extraction. claude-sonnet-4-
 
 ## Build status
 - **2026-07-06:** scaffolded from roadmap brief 05 via `/new`. Answer bank seeded from the real CV + soul.md. Dossier/prep = on-demand `/interview`; detection flag rides the morning brief (no dedicated cron). Negotiation module = Phase 2, references #20. NOTE on numbering: this is roadmap brief 05 built as **work/21** (build order, not brief number); live work/05 is /personal-crm.
+
+## Trifecta
+Gate: **draft-only**. Legs: private_data=true, untrusted_content=true, external_comm=true (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). All three legs true: private financials/answer bank + untrusted company research + negotiation drafts. Never sends, Shaheen sends. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

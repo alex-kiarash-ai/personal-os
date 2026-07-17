@@ -37,7 +37,8 @@ if (-not (Test-AlexQuotaGate -Log $log -Project 'crm')) {
 # ---- 2. Claude pass (scoring, enrich, Notion sync, gated drafts; non-fatal shape kept) ----
 $out = ''
 try {
-    $out = (& "$env:APPDATA\npm\claude.ps1" -p "Run /personal-crm" --dangerously-skip-permissions 2>&1 | Out-String)
+    # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p "Run /personal-crm" --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

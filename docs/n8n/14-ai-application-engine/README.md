@@ -1,6 +1,6 @@
 # AI Application Engine - the job-hunting robot, aimed at AI roles
 
-**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** every day, 07:30 Stockholm (30 min after its twin) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-12 version, latest - P3 write-first reorder)
+**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** every 72h at 07:30 Stockholm (30 min after its twin; retimed 2026-07-16 for cost cut, was daily) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-16 refresh: 72h cron + "Past Week" window, on the P3 write-first base)
 
 ## What it does
 

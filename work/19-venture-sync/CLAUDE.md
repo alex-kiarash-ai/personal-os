@@ -48,3 +48,6 @@ The external venture repos named in `_sync-config.md` (read-only); soul.md (voic
 - **Reactivation trigger:** when the `~/Desktop/{venture}` repos actually land on this machine (confirmed absent 2026-07-04), verify the paths, run `/venture-sync --discover-only` first, then a real sync; flip status to active. Until then it stays parked.
 - **Schedule:** register `PersonalOS-venture-sync` (weekly) + scheduler/schedule.md entry once active (the command doc's schedule claim is corrected to reflect that it is NOT yet scheduled).
 - Decide whether the scaffolded `projects/{name}.md` pages should be full manifest projects or stay vault-only.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Mirrors external venture repos (untrusted) read-only into the vault. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.

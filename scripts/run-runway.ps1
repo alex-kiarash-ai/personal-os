@@ -16,7 +16,8 @@ if (-not (Test-AlexQuotaGate -Log $log -Project 'runway')) { exit 0 }
 
 $out = ''
 try {
-    $out = (& $ClaudeCmd -p "Run /runway" --dangerously-skip-permissions 2>&1 | Out-String)
+    # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
+    $out = (& $ClaudeCmd --model claude-sonnet-4-6 -p "Run /runway" --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

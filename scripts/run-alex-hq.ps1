@@ -13,7 +13,8 @@ if (-not (Test-AlexQuotaGate -Log $log -Project 'alex-hq')) { exit 0 }
 # No connector preflight needed: /alex-hq uses local files, ssh and curl only.
 $out = ''
 try {
-    $out = (& "$env:APPDATA\npm\claude.ps1" -p "Run /alex-hq" --dangerously-skip-permissions 2>&1 | Out-String)
+    # Model: Haiku (cost cut, Shaheen 2026-07-16). HQ just formats local metrics into tiles, no reasoning.
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-haiku-4-5-20251001 -p "Run /alex-hq" --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

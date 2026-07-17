@@ -6,11 +6,15 @@
 // guards G1-G4 from Phase 1, plus V9 first-fire aging (upgrade P4, 2026-07-12; WARNING-only),
 // plus V7 lifecycle-state drift lint and V8 HQ hex scan (upgrade P5, 2026-07-12, design 1.5/1.6),
 // plus V10 protected-file guard (2026-07-15, context-engineering run; COMMIT-TIME ONLY, enforces
-// vault/me/NEVER-TOUCH.md against the staged changeset - runs in pre-commit context with --changed).
+// vault/me/NEVER-TOUCH.md against the staged changeset - runs in pre-commit context with --changed),
+// plus V11 forced-add guard (2026-07-17, three-plan validation P0a; COMMIT-TIME ONLY, blocks a
+// `git add -f` of a gitignored path from being committed to the public repo),
+// plus V12 trifecta gate (2026-07-17, three-plan validation P3; every invocation, pure file checks:
+// a manifest project with all three trifecta legs true MUST declare a gate that is echoed in its CLAUDE.md).
 // Any failure exits 1 and names exactly what drifted and where.
 //
-// The full suite (G1-G4 + V1-V9) runs on EVERY invocation - generate-alex.js --only=X limits what
-// is staged/applied, never what is checked (c7 fix, upgrade P5).
+// The full suite (G1-G4 + V1-V9 + V12) runs on EVERY invocation (V10/V11 are commit-time only) -
+// generate-alex.js --only=X limits what is staged/applied, never what is checked (c7 fix, upgrade P5).
 //
 // Contract with generate-alex.js (orchestration step 3):
 //   const { runAll } = require('./validate-alex');
@@ -823,6 +827,72 @@ function v10ProtectedFileGuard({ context, changed }, failures, warnings) {
   for (const w of res.warnings) warnings.push(w);
 }
 
+// V11 - the forced-add guard (2026-07-17, three-plan validation run, plan phase P0a). COMMIT-TIME ONLY.
+// Lists every tracked-but-ignored path: a `git add -f` of a .gitignore'd file. On the PUBLIC repo where
+// .gitignore is the SOLE privacy barrier, one forced-added secret pushed at 21:30 is world-visible and
+// permanently cacheable even after deletion. This is the machine behind .gitignore's own "rotate it
+// immediately" line, fired at the only cadence that beats the nightly push: commit time. It lists ALL
+// such paths (not just this commit's), so a historical forced add surfaces on the next commit too.
+// The hook wrapper (scripts/hooks/pre-commit) fires this on interactive AND nightly-backup commits.
+function v11IgnoredStagedGuard({ context, changed }, failures, warnings) {
+  if (context !== 'pre-commit' || !changed) return; // armed only by the commit hook
+  const { execFileSync } = require('child_process');
+  let out;
+  try {
+    out = execFileSync('git', ['ls-files', '--cached', '--ignored', '--exclude-standard'],
+      { cwd: REPO, encoding: 'utf8', maxBuffer: 1 << 24 });
+  } catch (e) {
+    warnings.push(`WARNING V11 SKIPPED: could not list tracked-vs-ignored paths via git - ${e.message}`);
+    return;
+  }
+  const paths = out.split('\n').map(s => s.trim()).filter(Boolean);
+  if (paths.length) {
+    failures.push(
+      `FAILED V11: ${paths.length} gitignored path(s) are TRACKED (a forced 'git add -f' of an ignored file). ` +
+      `On the PUBLIC repo this PUBLISHES them at the next push: ${paths.join(', ')}. ` +
+      `Fix: 'git rm --cached <path>' (keeps the local file) or correct .gitignore. ` +
+      `Deliberate override: 'git commit --no-verify'.`);
+  }
+}
+
+// V12 - the trifecta gate (2026-07-17, three-plan validation P3). Pure file checks, no network.
+// The agent-security Rule-of-Two made a validated invariant. Each manifest project carries a
+// `trifecta` block {private_data, untrusted_content, external_comm} (raw capability/exposure) + a
+// `gate` (the mitigation). Rule: any project with ALL THREE legs true MUST declare a non-null gate
+// from the vocab, and that gate string MUST appear on a `## Trifecta` line in its work/NN/CLAUDE.md.
+// Any declared gate (even without all three) must be in the vocab and echoed in its CLAUDE.md.
+// v1 DROPS the read-only-vs-write integrations assertion (F7, master res 8: the manifest carries no
+// integrations data). meta.trifecta_doc holds the vocab + rules; vault/research/trifecta-map.md the map.
+const TRIFECTA_GATES = new Set(['draft-only', 'human-posts', 'queue-only', 'read-only']);
+function v12TrifectaGate({ stagedDir, manifest }, failures, warnings) {
+  for (const p of manifest.projects) {
+    const t = p.trifecta;
+    if (!t) { warnings.push(`WARNING V12: project ${pad(p.num)} ${p.title} has no trifecta block - classify it in system/manifest.json`); continue; }
+    const allThree = t.private_data && t.untrusted_content && t.external_comm;
+    const hasGate = t.gate != null && t.gate !== '';
+    // (a) all three legs true => a non-null gate is mandatory
+    if (allThree && !hasGate) {
+      failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} has all three trifecta legs true but no gate - it MUST declare one of {${[...TRIFECTA_GATES].join(', ')}}`);
+      continue;
+    }
+    // (b) any declared gate must be in the vocab
+    if (hasGate && !TRIFECTA_GATES.has(t.gate)) {
+      failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" not in the vocab {${[...TRIFECTA_GATES].join(', ')}}`);
+      continue;
+    }
+    // (c) a declared gate must appear in a `## Trifecta` section of the project's work/NN/CLAUDE.md
+    if (hasGate) {
+      if (!p.work_dir) { failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but has no work_dir to hold its ## Trifecta line`); continue; }
+      const rel = p.work_dir.replace(/\\/g, '/') + '/CLAUDE.md';
+      const cm = effective(stagedDir, rel);
+      if (!cm) { failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but ${rel} was not found`); continue; }
+      const sec = mdSection(cm.text, /^##\s+Trifecta\b/m);
+      if (sec === null) { failures.push(`FAILED V12: ${rel} is missing a "## Trifecta" section (project ${pad(p.num)} declares gate "${t.gate}")`); continue; }
+      if (!sec.includes(t.gate)) failures.push(`FAILED V12: the "## Trifecta" section of ${rel} does not name the declared gate "${t.gate}"`);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------------------------
 // runAll - the single entry point (async since Phase 3: V6 talks to the live n8n API).
 // ---------------------------------------------------------------------------------------------
@@ -866,11 +936,13 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   if (colorTokens) v8HqHexScan({ stagedDir, colorTokens }, failures);
   if (manifest) v9FirstFireAging({ stagedDir, manifest }, warnings);
   v10ProtectedFileGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
+  v11IgnoredStagedGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
+  if (manifest) v12TrifectaGate({ stagedDir, manifest }, failures, warnings); // trifecta gate (every run)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
   if (failures.length === 0)
-    console.log(`validate-alex: G1-G4 + V1-V10 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+    console.log(`validate-alex: G1-G4 + V1-V12 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
   return { ok: failures.length === 0, failures, warnings };
 }
 

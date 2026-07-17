@@ -32,8 +32,12 @@ Notion MCP (Content Library + sprint board), Google Drive MCP / n8n Drive node (
 ## Notion Integration
 No new database. Episodes are rows in the existing **Content Library** (db_id b7305101-b911-4b9e-9196-8e7ac259a7a7, data_source_id 0f511509-1c63-4b22-a328-976d6d56d6aa, see vault/projects/content-machine/status.md). Conventions: Title prefix "Building Alex ENN:", Platform=LinkedIn, Type=post, Source="Building Alex series", Status flow **Draft → Approved → Staged → Published** (Approved + Staged added to the select 2026-06-13), Publish Date = slot date, FULL post text in page body. Sprint board row: "LinkedIn Series (Personal Ops System)".
 
+**X-row convention (P9, three-plan validation, written BEFORE the first X row exists).** Every X-repurposing variant is a row in the SAME Content Library carrying **Platform=X** (Source stays "Building Alex series"). The `Platform` select gains the `X` option via the documented Notion ALTER sequence (root CLAUDE.md "Notion creation sequence" step 3, `notion-update-data-source` ALTER COLUMN) at the moment the first X row is created - the LinkedIn staging workflow filters `Platform=LinkedIn`, so an X row is excluded from LinkedIn staging **by construction**, no workflow change and no risk of an X variant staging as a LinkedIn episode. There is NO X API and NO auto-post: X stays a human-posts lane (Alex repurposes into a Draft, Shaheen posts).
+
 ## n8n workflow "LinkedIn Series" (staging only)
-Scheduled run → query Content Library for oldest "Building Alex" row with Status=Approved → create Drive folder "Building Alex"/episode-NN-slug/ → build post.txt from the page body (deterministic dash scan + bullet/number fidelity) → upload the TEXT ONLY into that episode folder → write Status=Staged + the Drive folder link back to Notion → read-back verify both writes. No image node: images are manual, Shaheen adds his image to the episode folder himself. Morning Brief flags posting days.
+Scheduled run → query Content Library for the oldest row matching the deployed three-way filter **Status=Approved AND Source="Building Alex series" AND Platform=LinkedIn** (the Platform=LinkedIn leg is what keeps a future Platform=X repurposing row from ever being staged as a LinkedIn episode; verified in docs/n8n/linkedin-series-staging/workflow.json) → create Drive folder "Building Alex"/episode-NN-slug/ → build post.txt from the page body (deterministic dash scan + bullet/number fidelity) → upload the TEXT ONLY into that episode folder → write Status=Staged + the Drive folder link back to Notion → read-back verify both writes. No image node: images are manual, Shaheen adds his image to the episode folder himself. Morning Brief flags posting days.
+
+**Cadence honesty (F14, three-plan validation).** The deployed cron is `0 8 * * 2,4` (Tue/Thu 08:00, Europe/Stockholm). The "weekly to mid-August" calendar is enforced by **approval supply**, not the cron: the workflow no-ops on an empty Approved queue, so it only stages when Shaheen has approved a row. Do NOT "fix" the cron to a weekly schedule blind - the twice-weekly cron + supply-gating is the intended design.
 
 ## Vault Structure
 - Tier 1: vault/projects/linkedin-series/status.md (per-run updates, open items)
@@ -60,3 +64,6 @@ status.md per run; soul.md edit-harvest; log.md; index.md for new pages.
 ## Open items
 - Posts 5-12 to draft from posts-5-12-plan.md: one per week until mid-August 2026, then two or three per week.
 - Staging-workflow quality fixes (dash scan, text fidelity, per-episode folder, Drive-link write-back, read-back verify) tracked in n8n-staging-fix-plan.md.
+
+## Trifecta
+Gate: **human-posts**. Legs: private_data=true, untrusted_content=false, external_comm=true (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private real numbers + external publish path (LinkedIn). n8n stages text only, Shaheen makes the image and posts. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.
