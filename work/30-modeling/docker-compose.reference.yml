@@ -1,9 +1,14 @@
+# !!! STALE (confirmed 2026-07-18) - DO NOT DEPLOY THIS SHAPE. !!!
+# This is the OLD pre-Temporal Postiz (app + Postgres + Redis only). Current Postiz
+# re-architected around Temporal: the canonical compose now ALSO bundles Temporal, a
+# Temporal-Postgres, Elasticsearch, Temporal-UI and admin-tools, and the app hard-depends
+# on TEMPORAL_ADDRESS. Deploying this file gives a broken Postiz.
+#   -> Deploy path: DEPLOY-RUNBOOK.md + docker-compose.override.yaml (layered on the
+#      freshly-cloned canonical gitroomhq/postiz-docker-compose). config/postiz.env = secrets.
+#   -> Postiz's own docs: always pull the compose from the repo, never a snapshot. Exactly why
+#      this snapshot went stale. Kept only as a historical shape reference.
+#
 # REFERENCE ONLY - do not treat as the source of truth.
-# Postiz changes services / images / env vars between releases. At deploy time:
-#   git clone https://github.com/gitroomhq/postiz-docker-compose
-# and reconcile this file against the canonical compose there. Postiz's own docs
-# say: always pull the compose from the repo, never a snapshot. This is the shape
-# to expect on the Hetzner box, kept here so the project lives in one place.
 #
 # Front on port 4007, put behind the box's reverse proxy as social.shaheenkiarash.com (TLS).
 # Real secrets go in ./config/postiz.env (gitignored via work/*/config/), never inline.

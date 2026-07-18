@@ -1,0 +1,80 @@
+# Postiz PRODUCTION override, layered on the CANONICAL gitroomhq/postiz-docker-compose
+# (the Temporal-era compose). Written 2026-07-18, updated 2026-07-18 for a DEDICATED box.
+#
+# TARGET: a SEPARATE Intel CX33 box (8 GB, EUR 10.61/mo), NOT the n8n box (Shaheen's decision
+# 2026-07-18 - isolates Postiz from production n8n; cheaper than rescaling the AMD box to CPX31).
+# This override adds a self-contained Caddy (the fresh box has no other reverse proxy).
+#
+# WHY an override (not a hand-copied compose): Postiz drifts services/env between
+# releases (it added the whole Temporal + Elasticsearch stack after our old reference
+# compose was written). Cloning the canonical repo and layering THIS thin override keeps
+# us on upstream's shape and survives a `git pull`.
+#
+# GOTCHA this file solves: the canonical base sets secrets inline under `environment:`
+# (e.g. JWT_SECRET: 'random...', POSTGRES_PASSWORD: postiz-password). Docker Compose merge
+# gives base `environment` PRECEDENCE over an override `env_file`, so env_file alone would
+# NOT override the hardcoded secrets. This override re-declares the secret keys under
+# `environment:` with ${...} interpolation, pulled from /opt/postiz/.env (compose auto-reads
+# `.env` in the compose dir). Override `environment` beats base `environment` on same keys.
+#
+# DEPLOY (full steps in DEPLOY-RUNBOOK.md - run + VALIDATE on the 8 GB box):
+#   git clone https://github.com/gitroomhq/postiz-docker-compose /opt/postiz
+#   cd /opt/postiz
+#   cp <this file> docker-compose.override.yaml
+#   cp <work/30-modeling/config/postiz.env> .env      # compose reads this for ${...}
+#   chmod 600 .env
+#   docker compose config        # <-- VALIDATE the merged result BEFORE up (secrets resolved, no :latest)
+#   docker compose up -d
+#
+# NOTE: `docker compose` auto-merges docker-compose.yaml + docker-compose.override.yaml.
+
+services:
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:v2.21.10   # PINNED (canonical ships :latest). Verify this ghcr tag exists at deploy.
+    ports:
+      - "127.0.0.1:4007:5000"                       # localhost-only; the box Caddy fronts it as social.shaheenkiarash.com
+    environment:
+      # secrets + public URLs, from /opt/postiz/.env (override beats the base's inline defaults)
+      MAIN_URL: ${MAIN_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS}
+      IS_GENERAL: ${IS_GENERAL}
+      RUN_CRON: ${RUN_CRON}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER}
+      UPLOAD_DIRECTORY: ${UPLOAD_DIRECTORY}
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: ${NEXT_PUBLIC_UPLOAD_DIRECTORY}
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION}   # start "false" to create the admin, then flip "true" + recreate
+
+  postiz-postgres:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+  # Self-contained TLS front for the DEDICATED CX33 box (this box has no other Caddy).
+  # Caddy sits on postiz-network and reverse-proxies to postiz:5000; auto-Let's-Encrypt
+  # needs DNS (social.shaheenkiarash.com -> the NEW box IP) live first.
+  caddy:
+    image: caddy:2-alpine
+    container_name: postiz-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - postiz-network
+    depends_on:
+      - postiz
+
+volumes:
+  caddy-data:
+  caddy-config:

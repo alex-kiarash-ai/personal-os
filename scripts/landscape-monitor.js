@@ -190,14 +190,19 @@ async function scanSkills() {
 async function probeDeployed() {
   const date = today();
   // n8n version: ask the box directly (ssh alias 'n8n' = the Hetzner host, same as the backups/cron).
-  let n8nVer = null;
+  let n8nVer = null, verErr = null;
   try {
+    // No `2>/dev/null || true`, and stderr is PIPED (not ignored): a real failure must be VISIBLE, not
+    // swallowed into an empty string. That silent-swallow is why the 07-13 upgrade never logged (error-log 2026-07-18).
     const out = execSync(
-      'ssh -o ConnectTimeout=8 -o BatchMode=yes n8n "cd /opt/n8n && docker compose exec -T n8n n8n --version 2>/dev/null || true"',
-      { timeout: 15000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+      'ssh -o ConnectTimeout=8 -o BatchMode=yes n8n "cd /opt/n8n && docker compose exec -T n8n n8n --version"',
+      { timeout: 15000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
     ).trim();
-    n8nVer = out.match(/\d+\.\d+\.\d+/) ? out.match(/\d+\.\d+\.\d+/)[0] : (out || null);
-  } catch { /* box unreachable / service renamed -> skip the version half */ }
+    const m = out.match(/\d+\.\d+\.\d+/);
+    n8nVer = m ? m[0] : (out || null);
+    if (!n8nVer) verErr = 'ssh returned empty output';
+  } catch (e) { verErr = ((e.stderr || e.message || '') + '').trim().slice(0, 200) || 'ssh failed'; }
+  if (!n8nVer) console.error(`landscape-monitor: deployed probe - n8n version read FAILED (${verErr})`);
   // Deployed writer model: read it off the live BI engine (#03) - env-gated on the n8n API key.
   let model = null;
   const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
@@ -210,7 +215,10 @@ async function probeDeployed() {
       if (res.ok) { const wf = await res.text(); const m = wf.match(/claude-[a-z0-9.-]+/i); model = m ? m[0] : null; }
     } catch { /* API unreachable -> skip the model half */ }
   }
-  if (!n8nVer && !model) return [];
+  if (!n8nVer && !model) {
+    console.error('landscape-monitor: deployed probe read NOTHING (n8n version + writer model both null) - no row logged; investigate the scheduled-context ssh + n8n API. Security-sweep S4 keeps reading the last good version until this succeeds.');
+    return [];
+  }
   const id = `deployed::n8n=${n8nVer || '?'}::model=${model || '?'}`;
   return [{
     date, category: 'deployed', source: 'box self-probe (P13/b30)',

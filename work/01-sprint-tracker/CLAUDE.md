@@ -4,7 +4,9 @@
 Automation
 
 ## Purpose
-Reads the Notion Progress Tracker board (the master list of automations to build), generates a daily standup summary (Done / In Progress / Next / Planned / Blocked with counts), and tracks build velocity over time. It is the heartbeat of the Personal Ops System build-out: one glance tells Shaheen what shipped, what's moving, and what's stuck.
+Reads the Progress Tracker (the master list of automations to build), generates a daily standup summary (Done / In Progress / Next / Planned / Blocked with counts), and tracks build velocity over time. It is the heartbeat of the Personal Ops System build-out: one glance tells Shaheen what shipped, what's moving, and what's stuck.
+
+**Read mode (Shaheen's call 2026-07-18): cache-mode is the ACCEPTED design, not a degradation.** The core reads the local snapshot table in status.md (cache fallback), not a live Notion board query - the integration token was never restored to `config/notion-token.txt`, and with #01 PARKED there's no reason to. This is deliberate: counts still compute; only the shipped/reconciled velocity split needs the live read, which nobody is watching while #01 is paused. If #01 is ever un-parked, restoring the token (Setup below) re-enables the live read. Docs must not claim a live board read while the token is absent.
 
 ## Entry Points
 - **Scheduled:** weekdays at 9:00 AM via system scheduler (`claude -p "Run /sprint-tracker"`)

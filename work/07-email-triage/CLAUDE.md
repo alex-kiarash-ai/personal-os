@@ -25,6 +25,12 @@ Every email body Alex reads is UNTRUSTED (an attacker can write anything into it
 - **The data-poisoning path to guard:** a booking-shaped forwarded mail -> trip-ops (#29) parse -> a Google **Calendar write**. Those Calendar writes are the exact target G8 named, so trip-ops writes trace ONLY to Shaheen-forwarded mail and are read-back verified (Verify-after-write standing order). If T-P6-3 ever shows spoofed mail reaching the label, add a per-forward subject token.
 - The funnel address + the two forward-only Gmail filters + the Cloudflare `alex@` routing rule are **Shaheen's live setup** (Cloudflare + Gmail UIs; native Gmail filter creation may not be exposed by the MCP - on that wall, append a human-actions row instead of stalling). Document the exact filters here verbatim the day they exist (invisible-infrastructure rule).
 
+**Execution-ready setup (P6, 2026-07-18 - the MCP cannot create Gmail filters or Cloudflare rules, so these three steps are Shaheen's, copy-paste-ready). Queue item `p6-email-funnel`.** Confirmed MCP-blocked: the Gmail tools expose labels/drafts/read only, no Settings/filters API; Cloudflare Email Routing has no MCP at all.
+1. **Cloudflare -> Email Routing -> Custom addresses.** Add `alex@shaheenkiarash.com`, action = **Send to** `shaheen.kiarash@gmail.com`. (Requires the MX records Email Routing auto-adds; verify the address shows "Active".)
+2. **Gmail filter A (keep + route the real mail).** Search box -> `to:alex@shaheenkiarash.com from:(shaheen.kiarash@gmail.com)` -> Create filter -> tick: **Skip the Inbox (Archive it)**, **Apply the label** `alex-inbox` (create it if missing), **Never send it to Spam**. Add any other address you forward from into the `from:(... OR ...)` list.
+3. **Gmail filter B (drop everything else to alex@).** Search box -> `to:alex@shaheenkiarash.com -from:shaheen.kiarash@gmail.com` -> Create filter -> tick: **Delete it**. (A -from exclusion, so a message you forward matches A only and B never fires; anything else to alex@ matches B only and is deleted. From is spoofable, so B + Gmail's SPF/DKIM/DMARC is the real wall, per the security model above.)
+- Order note: Gmail runs all matching filters; A and B are mutually exclusive by the `-from:` guard, so order is irrelevant. After creating them, replace the `from:(...)` address list here verbatim so this stays the source of truth.
+
 ## Entry Points
 - **Scheduled:** 05:00 daily (Task Scheduler `PersonalOS-email-triage`, mode=scheduled; was 3x/day at 9:00/13:00/17:00, cut to one 05:00 run 2026-07-16 for cost).
 - **On-demand:** `/email-triage` (interactive, default), `/email-triage scheduled` (headless batch).
@@ -45,7 +51,7 @@ Added 2026-07-10: 🎯 Job Applications `Label_6` · 🤖 AI & Learning `Label_7
 Control label (hidden, dedup): `alex/triaged` `Label_11`. (Ids live in `config/sender-rules.json`; re-verify with `list_labels` if labels are ever deleted/recreated.)
 
 **Per-run flow:**
-1. **Dedup pull:** new mail = `search_threads("in:inbox -label:alex/triaged")`. That's the only "new" query - no timestamp boundary.
+1. **Dedup pull:** new mail = `search_threads("in:inbox -label:alex/triaged -label:modeling/castings")`. That's the only "new" query - no timestamp boundary. (The `modeling/castings` exclusion, added 2026-07-18 at #30 registration: casting-platform alert mail belongs to the Modeling radar lane, work/30-modeling/mailbox.md. Its filter archives on arrival so it normally never hits the inbox; the exclusion covers the pre-filter window and any leak so the two lanes never double-touch a mail.)
 2. **Deterministic gate first:** apply `config/sender-rules.json` (first match wins). A matched thread gets its topic label with **zero LLM reasoning**.
 3. **LLM only for the rest:** threads no rule matched go to the classifier for topic + Act Now/Read Later/Archive. New high-frequency senders that always land the same way are candidates to add to sender-rules.json.
 4. **Stamp + keep in inbox:** every processed thread gets its topic label **and** `alex/triaged`. Leave `INBOX` on (stays in inbox while unread).

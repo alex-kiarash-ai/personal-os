@@ -16,7 +16,7 @@ The repo is public since 2026-07-16. `.gitignore` is the SOLE barrier between pe
 | Alex HQ basic-auth | Caddy config on the box (`/opt`) + password manager | Edit the Caddyfile hash + reload Caddy + password manager | Browser access to hq.shaheenkiarash.com only. |
 | Bright Data key | **data-gap - locate on first review** | Provider dashboard | Scraping lanes (radar/whatsapp Phase 3) if wired. |
 | GitHub backup PAT | Windows Credential Manager (age owned by recovery C15) | GitHub -> Settings -> Developer -> Tokens; update Credential Manager + `$patExpiry` in check.ps1 | The nightly 21:30 public push. Backup skips until fixed (RED HQ). |
-| vault-backup GPG passphrase | `C:\Users\Thinkpad\.alex-secrets\vault-backup.pass` (outside repo) + password manager | Re-encrypt existing backups with a new passphrase; update both stores; refresh C14's `passphrase-attested.txt` | The nightly 21:45 encrypted backup. **If the ThinkPad dies and this is not in the password manager, the off-machine backup is unrecoverable.** |
+| vault-backup GPG passphrase | local-only file, outside repo (path in `system/credentials-ledger.json`, gitignored) + password manager | Re-encrypt existing backups with a new passphrase; update both stores; refresh C14's `passphrase-attested.txt` | The nightly 21:45 encrypted backup. **If the ThinkPad dies and this is not in the password manager, the off-machine backup is unrecoverable.** |
 
 ## Per-assertion response
 - **S1 gitleaks hit** -> identify the secret + the commit; ROTATE it (table above); then optionally scrub history + force-push. Add a tuned baseline so a known false-positive doesn't re-fire.

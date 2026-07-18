@@ -16,8 +16,7 @@
     ],
     "known_work_folders": [
       "voice",
-      "quota-reset-autorun",
-      "modeling"
+      "quota-reset-autorun"
     ],
     "known_metric_slugs_no_project": {
       "human-actions": "the Waiting-on-you queue (upgrade P2, 2026-07-12): system/human-actions.jsonl summary pushed by /alex-hq step 1b; consumed by the P7 HQ strip. Not a project; claimed here so the slug is never mistaken for drift.",
@@ -36,11 +35,6 @@
         "name": "alex-costs",
         "status_md": "vault/projects/alex-costs/status.md",
         "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot"
-      },
-      {
-        "name": "modeling",
-        "status_md": "vault/projects/modeling/status.md",
-        "reason": "Modeling Career Project. Gained a work/ folder 2026-07-15 (work/modeling, Postiz self-hosted social engine config + runbook; allowlisted in known_work_folders). Kept in this list because its status_md registration here is what clears the C4 orphan-vault-project check for an unnumbered project. No routing command by design."
       }
     ],
     "unnumbered": [
@@ -79,24 +73,6 @@
         },
         "first_fire": null,
         "first_fire_kind": null
-      },
-      {
-        "name": "modeling",
-        "title": "Modeling",
-        "state": "DORMANT",
-        "revisit": "2026-08-01",
-        "trigger": "-",
-        "one_liner": "Modeling career run as an engineered system (shaheenkiarash.com on Cloudflare Workers). Content engine chosen 2026-07-15: self-hosted Postiz on the Hetzner box, auto-publish the approved queue, no auto-engagement. Config in work/modeling. DORMANT waiting on Shaheen: DNS, box deploy, an IG Business/Creator account. Own-n8n audience/lead-gen layers on after.",
-        "docs": "modeling.md",
-        "spec": "work/modeling/README.md",
-        "work_dir": "work/modeling",
-        "status_md": "vault/projects/modeling/status.md",
-        "cadence": {
-          "expected_hours": null,
-          "label": "dormant"
-        },
-        "first_fire": null,
-        "first_fire_kind": null
       }
     ]
   },
@@ -107,7 +83,7 @@
       "title": "Sprint Tracker",
       "state": "PARKED",
       "trigger": "PAUSED (Shaheen 2026-07-16, until re-enabled)",
-      "one_liner": "Standup + velocity from the Notion Progress Tracker board; every automation reports Done to it.",
+      "one_liner": "Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.",
       "docs": "01-sprint-tracker.md",
       "schedule_jobs": [
         "PersonalOS-sprint-tracker"
@@ -665,8 +641,8 @@
       "name": "recovery-layer",
       "title": "Recovery Layer",
       "state": "LIVE",
-      "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + Sun auth probe",
-      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the auth probe.",
+      "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe",
+      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe.",
       "docs": "18-recovery-layer.md",
       "schedule_jobs": [
         "PersonalOS-recovery-check",
@@ -675,7 +651,8 @@
         "PersonalOS-vault-index",
         "PersonalOS-n8n-active-check",
         "PersonalOS-lint-monthly",
-        "PersonalOS-auth-check"
+        "PersonalOS-auth-check",
+        "PersonalOS-security-sweep"
       ],
       "hq_project": "recovery",
       "revisit": null,
@@ -1040,6 +1017,36 @@
         "untrusted_content": true,
         "external_comm": false,
         "gate": "read-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 30,
+      "name": "modeling",
+      "title": "Modeling Growth Loop",
+      "state": "DORMANT",
+      "trigger": "Phase 0 build in progress; at Phase-0 verification the four local jobs arm: daily radar 06:45 + content M/W/F 17:00 + Mon weekly 09:30 + monthly review 1st 10:00",
+      "one_liner": "The modeling career loop (growth plan runs 29+30, Phase-0 build started 2026-07-18): a ToS-clean mailbox casting radar (platform alert emails to a castings@ alias, never scraping) scoring briefs into a Notion lead ledger + voice-gated Gmail application drafts; a content engine in staging mode (hand-post packs; Postiz draft-only queue after the deferred box+deploy); weekly Scout's Eye + collab pipeline; monthly strategy reviewer with the gate-then-rolling agency plan; vault rights register underneath. Every external send is a Gmail draft or an approval queue by construction. Postiz deploy stays HELD (new CX33 box deferred, Shaheen 2026-07-18); Phase 1 unblocks when the box lands. DORMANT until Phase-0 verification: first real platform alert parsed end-to-end + the signup calibration week (Shaheen-side).",
+      "docs": "30-modeling.md",
+      "schedule_jobs": [],
+      "hq_project": "modeling",
+      "revisit": "2026-08-01",
+      "work_dir": "work/30-modeling",
+      "commands": [],
+      "status_md": "vault/projects/modeling/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "dormant",
+        "note": "dormant while Phase 0 builds; flips LIVE (expected_hours 26, label daily) when Phase-0 verification passes and the four jobs register"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "queue-only"
       },
       "first_fire": null,
       "first_fire_kind": null,

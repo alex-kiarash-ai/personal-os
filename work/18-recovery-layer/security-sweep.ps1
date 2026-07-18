@@ -42,14 +42,29 @@ function Push-HQ($status, $headline) {
 
 try {
     # --- S1 gitleaks over full history ------------------------------------------------------------
-    $gitleaks = Get-Command gitleaks -ErrorAction SilentlyContinue
-    if ($gitleaks) {
-        $gl = (& gitleaks detect --source $repo --no-banner --exit-code 9 2>&1 | Out-String)
-        if ($LASTEXITCODE -eq 9) { Add-Finding 'FINDING' 'S1' "gitleaks flagged secret(s) in history - see the log; on a PUBLIC repo the rule is ROTATE, do not rewrite (forks/caches remember). Detail:`n$gl" }
-        elseif ($LASTEXITCODE -ne 0) { Add-Finding 'FINDING' 'S1' "gitleaks errored (exit $LASTEXITCODE): $gl" }
+    # Resolve gitleaks like vault-backup.ps1 resolves gpg: PATH first, then the winget Packages location
+    # (this package installs no Links shim, so Get-Command alone misses it under Task Scheduler).
+    # gitleaks 8.19+ replaced `detect` with the `git` subcommand (history); the path is positional.
+    $gitleaksExe = @(
+        (Get-Command gitleaks -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source),
+        (Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Gitleaks.Gitleaks_*\gitleaks.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)
+    ) | Where-Object { $_ } | Select-Object -First 1
+    if ($gitleaksExe) {
+        # gitleaks logs to stderr; under $ErrorActionPreference='Stop' a 2>&1 merge turns those lines into a
+        # terminating NativeCommandError (PS 5.1 trap). Localize to Continue + quiet the INFO log so a CLEAN
+        # scan does not false-throw. --exit-code 9 = leaks found; 0 = clean; anything else = a real gitleaks error.
+        $prevEap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        $glArgs = @('git', $repo, '--no-banner', '--exit-code', '9', '--log-level', 'error')
+        $glCfg = Join-Path $repo '.gitleaks.toml'
+        if (Test-Path $glCfg) { $glArgs += @('--config', $glCfg) }   # tuned allowlist for reviewed false positives
+        $gl = (& $gitleaksExe @glArgs 2>&1 | Out-String)
+        $glExit = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        if ($glExit -eq 9) { Add-Finding 'FINDING' 'S1' "gitleaks flagged secret(s) in history - see the log; on a PUBLIC repo the rule is ROTATE, do not rewrite (forks/caches remember). Detail:`n$gl" }
+        elseif ($glExit -ne 0) { Add-Finding 'FINDING' 'S1' "gitleaks errored (exit $glExit): $gl" }
         else { Say "S1 gitleaks: clean" }
     } else {
-        Add-Finding 'SETUP' 'S1' "gitleaks is not installed - install it (winget install gitleaks) + tune a committed baseline, then this becomes a live history scan. See SECURITY-PLAYBOOK.md."
+        Add-Finding 'SETUP' 'S1' "gitleaks is not installed - install it (winget install Gitleaks.Gitleaks) + tune a committed baseline, then this becomes a live history scan. See SECURITY-PLAYBOOK.md."
     }
 
     # --- S2 no gitignored path is tracked (the V11 assertion, monthly backstop) --------------------
@@ -88,8 +103,12 @@ try {
     if (-not (Test-Path $logFile)) {
         Add-Finding 'SETUP' 'S4' "system/landscape-log.jsonl missing - cannot read the deployed n8n version probe."
     } else {
-        $deployed = Get-Content $logFile | Where-Object { $_ -match '"category":"deployed"' } |
-            ForEach-Object { try { $_ | ConvertFrom-Json } catch { $null } } | Where-Object { $_ -and $_.extra.n8n_version }
+        # Parse-then-filter (NOT a raw-text regex): a deployed row can be written COMPACT by the node monitor
+        # OR SPACE-formatted (Python json.dumps: "category": "deployed"). The old `-match '"category":"deployed"'`
+        # silently dropped the spaced row, so S4 read stale 2.21.7 for days (error-log 2026-07-18). ConvertFrom-Json
+        # parses both; filter on the .category property, and read UTF8 so the middle-dot rows never mojibake.
+        $deployed = Get-Content $logFile -Encoding UTF8 | ForEach-Object { try { $_ | ConvertFrom-Json } catch { $null } } |
+            Where-Object { $_ -and $_.category -eq 'deployed' -and $_.extra.n8n_version }
         $latest = $deployed | Sort-Object date | Select-Object -Last 1
         if (-not $latest) {
             Add-Finding 'SETUP' 'S4' "no 'deployed' probe row carries an n8n_version - the b30 self-probe has not logged one."
@@ -183,8 +202,8 @@ catch {
 }
 
 # ---------------------------------------------------------------- report
-$nFind = ($findings | Where-Object { $_.sev -eq 'FINDING' }).Count
-$nSetup = ($findings | Where-Object { $_.sev -eq 'SETUP' }).Count
+$nFind = @($findings | Where-Object { $_.sev -eq 'FINDING' }).Count   # @() so .Count is always an int (0/1/2), never $null - the green/amber/red verdict depends on it
+$nSetup = @($findings | Where-Object { $_.sev -eq 'SETUP' }).Count
 Say "--- result: $nFind finding(s), $nSetup setup-needed, error=$([bool]$sweepError) ---"
 foreach ($f in $findings) { Say ("  [{0} {1}] {2}" -f $f.sev, $f.s, $f.msg) }
 

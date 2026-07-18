@@ -1,0 +1,23 @@
+# gitleaks config for the Alex repo - P5 security sweep S1, tuned 2026-07-18.
+# Extends the default gitleaks ruleset and allowlists KNOWN false positives that are NOT
+# secrets. Each was content-reviewed on 2026-07-18 (activating the monthly security sweep):
+#   - m6VkVeG9bym6OFID : the n8n "Alex HQ Token" CREDENTIAL ID (a reference used in docs +
+#                        health-tracker/HQ scripts). It names which credential to use; it is
+#                        NOT the token value. Knowing it grants nothing.
+#   - a1b2c3d4e5f6a7b8 : a fake token fixture inside scripts/tests/test-soul-canary.ps1.
+# A REAL secret in any other file is still caught (the allowlist keys on these exact values +
+# the one canary path, not on whole directories). Re-review this file whenever S1 goes amber.
+title = "Alex gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secret false positives (reviewed 2026-07-18)"
+regexes = [
+  '''m6VkVeG9bym6OFID''',
+  '''a1b2c3d4e5f6a7b8''',
+]
+paths = [
+  '''scripts/tests/test-soul-canary\.ps1''',
+]

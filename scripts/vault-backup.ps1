@@ -6,7 +6,7 @@
 # gpg-symmetric-encrypt it (AES256), and ship the single .gpg blob to the
 # Hetzner box. On any failure: log + RED run_status to Alex HQ (never silent).
 # The include set is DERIVED FROM .gitignore, so it can't drift from what's local.
-# Passphrase: C:\Users\Thinkpad\.alex-secrets\vault-backup.pass (out of repo).
+# Passphrase: %USERPROFILE%\.alex-secrets\vault-backup.pass (out of repo, local-only path).
 #   >>> The SAME passphrase must also live in Shaheen's password manager, or an
 #       off-machine .gpg is unrecoverable if this ThinkPad dies. <<<
 # Runbook: vault/projects/recovery/vault-backup-plan.md
@@ -25,7 +25,7 @@ $gpg = @("C:\Program Files\Git\usr\bin\gpg.exe","C:\Program Files (x86)\GnuPG\bi
        Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $gpg) { $c = Get-Command gpg -ErrorAction SilentlyContinue; if ($c) { $gpg = $c.Source } }
 
-$passFile = "C:\Users\Thinkpad\.alex-secrets\vault-backup.pass"
+$passFile = Join-Path $env:USERPROFILE '.alex-secrets\vault-backup.pass'  # local-only; concrete path kept out of the public repo
 $stamp   = Get-Date -Format 'yyyyMMdd-HHmm'
 $tmp     = Join-Path $env:TEMP "alex-vault-$stamp-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $tarFile = "$tmp.tar"

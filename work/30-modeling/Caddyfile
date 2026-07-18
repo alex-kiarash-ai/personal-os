@@ -1,0 +1,6 @@
+# Caddy for the dedicated Postiz CX33 box. Auto-TLS via Let's Encrypt.
+# REQUIRES the DNS A record social.shaheenkiarash.com -> the NEW box IP to be live first,
+# or the ACME challenge loops. Caddy reaches the app by service name on postiz-network.
+social.shaheenkiarash.com {
+	reverse_proxy postiz:5000
+}

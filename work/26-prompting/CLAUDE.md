@@ -93,8 +93,10 @@ Generated prompts reference files, they never restate file contents. No retyped 
 
 **CV**
 1. Skills: `resume-ats-optimizer` + `resume-tailor`.
-2. Confirm track (Senior Power BI Developer or AI/n8n Automation); pull role-tagged blocks from the #03/#14 pipeline masters.
+2. Confirm track (Senior Power BI Developer or AI/n8n Automation); pull role-tagged blocks from the #03/#14 pipeline masters (source of truth: [[me/cv-sources]]).
 3. Tailor to target, render (HTML then PDF).
+4. **Render safety (LOCKED 2026-07-18 after a clipped-CV incident, error-log):** the CV page CSS MUST be `.page { min-height: 296mm; overflow: visible }` - NEVER `height` + `overflow: hidden`, which silently CLIPS content past one page (it cut the Languages line off page 2 on all four 07-18 CVs). If a page overflows, tighten to fit: line-height ~1.27, tighter h2/bullet/role margins, trim a bullet, until it fits one sheet.
+5. **Verify by PIXELS, not text (the incident's real lesson):** reading the PDF text layer does NOT catch clipping (clipped text still extracts). Verification = (a) a deterministic page-count check (parse the PDF, assert it equals the intended count, e.g. 2), AND (b) LOOK at the rendered page images, especially the BOTTOM of the last page, confirming the final section is present and nothing is cut. Only then deliver. Applies to every rendered visual deliverable (CV, deck, diagram, dashboard).
 
 **Research**
 1. Route through `/research-team` (#04); do not invent ad-hoc agent squads.

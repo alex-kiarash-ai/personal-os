@@ -1,0 +1,23 @@
+{
+  "doc": "Hetzner box (n8n-server) listening-port baseline for the monthly security sweep S5. The sweep captures `ss -tlnp` and diffs against this expected set; any NEW public listener not here is flagged. Captured over ssh; process names need root, docker-published ports resolved against `docker ps`. Localhost-only + docker-internal ports are NOT attack surface. Regenerate this baseline deliberately (not automatically) whenever the box's intended topology changes (new published container port, SSH move, etc).",
+  "host": "n8n-server (Hetzner, 62.238.21.62, n8n.shaheenkiarash.com)",
+  "captured": "2026-07-18",
+  "captured_by": "P5 security sweep S5 - first baseline",
+  "source_cmd": "ssh n8n 'ss -tlnp'  (cross-checked with docker ps)",
+  "kernel": "Linux 6.8.0-124-generic x86_64 (Ubuntu)",
+  "public_listeners": [
+    { "port": 443, "proto": "tcp", "bind": "0.0.0.0 + [::]", "process": "docker-proxy -> n8n-caddy-1 (caddy:2-alpine)", "purpose": "HTTPS - Caddy terminates TLS, reverse-proxies n8n + Alex HQ + MCP", "expected": true },
+    { "port": 80, "proto": "tcp", "bind": "0.0.0.0 + [::]", "process": "docker-proxy -> n8n-caddy-1 (caddy:2-alpine)", "purpose": "HTTP - Caddy ACME + redirect to 443", "expected": true },
+    { "port": 22, "proto": "tcp", "bind": "0.0.0.0 + [::]", "process": "sshd", "purpose": "SSH admin access (key-based, alias 'n8n')", "expected": true }
+  ],
+  "localhost_only": [
+    { "port": 5678, "proto": "tcp", "bind": "127.0.0.1", "process": "docker-proxy -> n8nio/n8n:2.30.3", "purpose": "n8n editor/API - NOT public, only reachable through Caddy on 443", "expected": true },
+    { "port": 53, "proto": "tcp", "bind": "127.0.0.53 / 127.0.0.54", "process": "systemd-resolve", "purpose": "local DNS stub resolver", "expected": true }
+  ],
+  "docker_internal_not_published": [
+    { "container": "n8n-postgres-1", "image": "postgres:16-alpine", "port": "5432/tcp", "note": "n8n Postgres backend - internal to the docker network only, NOT host-published (absent from ss)" },
+    { "container": "n8n-gotenberg-1", "image": "gotenberg/gotenberg:8", "port": "3000/tcp", "note": "PDF render service for #03/#14 - docker-internal only" },
+    { "container": "n8n-alex-hq-1", "image": "n8n-alex-hq", "port": "3000/tcp", "note": "Alex HQ Next.js app - fronted by Caddy, docker-internal only" }
+  ],
+  "verdict": "CLEAN 2026-07-18. Only 22/80/443 face the internet; every app port (n8n 5678, Postgres 5432, Gotenberg/HQ 3000) is bound to localhost or the docker network and reached only through Caddy. No unexpected public listener. This is the intended topology."
+}
