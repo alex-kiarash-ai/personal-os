@@ -17,6 +17,7 @@ The modeling career run as a loop, on the existing stack, ToS-clean by construct
 4. **Quota:** budget_priority default 3 - modeling yields to the job hunt on capped days (quota gate in every wrapper). `-Floor` flag tightens the radar to top-fit-only.
 5. **Rights register discipline:** every UGC delivery gets a `vault/projects/modeling/rights-register.md` row (scope + expiry) the same run; Scout's Eye reds on a miss.
 6. **Every external write is read-back verified** (Verify-after-write standing order): Notion rows, Gmail drafts (list_drafts), /now deploys (GET).
+7. **Solo profile only (Shaheen 2026-07-19).** Never feature Shaheen's partner or any other private individual on the public modeling grid, profile, comp card, or site. Frames with a partner/third party are CUT or tight-cropped to Shaheen solo. Born from the eyes-on triage: the Ellen/MHL series (personal couple photos) and much of the "Joma campaign" (a couple sportswear shoot) were queued by mistake. The public modeling surface is Shaheen alone.
 
 ## State: DORMANT (Phase 0 build in progress)
 Waiting on (named, per states_doc): **Phase-0 verification** = (a) first real platform alert parsed end-to-end into digest + ledger row + voice-gated draft; (b) intent pages + /now live and GET-verified; (c) one full weekly run; (d) one staged post pack hand-posted. (a) additionally needs Shaheen's hands: the `castings@` Cloudflare alias + the six platform signups (human-actions rows filed; week 1 = alert-cadence calibration week). Revisit 2026-08-01.

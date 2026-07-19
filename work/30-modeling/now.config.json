@@ -1,0 +1,12 @@
+{
+  "_comment": "Render source for https://shaheenkiarash.com/now . Rebuilt by the #30 monthly strategy reviewer (step H) from this file + system/travel-state.json (#29 travel flag). Hand-seeded 2026-07-19 (plan A7). Keep every value factual: no invented bookings, no invented travel.",
+  "updated": "2026-07-19",
+  "status_label": "Open for bookings from August 2026",
+  "available": true,
+  "based": "Stockholm",
+  "now": "Relaunching the portfolio and open to test shoots and collaborations in Stockholm.",
+  "travel": "No travel booked. Stockholm through summer 2026.",
+  "next": "International availability from August 2026.",
+  "open_to": ["Commercial", "Hair", "Fitness", "Test shoots / TFP in Stockholm"],
+  "booking_email": "shaheen@shaheenkiarash.com"
+}
