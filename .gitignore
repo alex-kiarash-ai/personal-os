@@ -116,3 +116,9 @@ scripts/n8n-backups/
 # Personal-CRM runtime state (2026-07-20): cadence.json + monday-list.md hold real contact NAMES and
 # relationship context (dating/family/recruiter). Never on the public GitHub; encrypted-backup-covered.
 work/05-personal-crm/state/
+
+# Alex HQ dashboard data (2026-07-20): generated build artifacts (build-life/todos/projects.mjs,
+# n8n_liveness.py, build-graph.mjs). The LIVE dashboard serves from the box volume /opt/alex-hq-data
+# (scp'd, mounted over /app/public/data), NOT these repo copies. life.json = routine/health, graph.json =
+# vault topology + people names. Regenerated locally each /alex-hq run; never needed in git. Not public.
+work/16-alex-hq/app/public/data/*.json
