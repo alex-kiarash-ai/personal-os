@@ -1,5 +1,5 @@
 # security-sweep.ps1 - P5 (three-plan validation, 2026-07-17). Alex's monthly, zero-token, detect-never-
-# repair SECURITY conscience, a sibling of check.ps1. Eight assertions (S1-S8). Exit 0 clean / 2 findings /
+# repair SECURITY conscience, a sibling of check.ps1. Nine assertions (S1-S9). Exit 0 clean / 2 findings /
 # 1 sweep-error (Terraform -detailed-exitcode convention, same as check.ps1). Own script so check.ps1's
 # "no network except the HQ push" contract stays intact. Detect-only: it NEVER rotates, edits or repairs.
 #
@@ -86,7 +86,7 @@ try {
             if ($null -eq $c.last_rotated) {
                 Add-Finding 'SETUP' 'S3' "credential '$($c.id)' has never recorded a last_rotated date (where: $($c.where)). Set it after confirming/rotating."
             } else {
-                $lr = $null
+                $lr = [datetime]::MinValue   # pre-typed [datetime] so the PS 5.1 [ref] overload resolves (the C14 TryParseExact trap; a $null-init ref fails "no overload for arg count 5")
                 if ([datetime]::TryParseExact([string]$c.last_rotated, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$lr)) {
                     $age = [math]::Floor(((Get-Date) - $lr).TotalDays)
                     if ($age -gt $c.max_age_days) { Add-Finding 'FINDING' 'S3' "credential '$($c.id)' is ${age}d old (> $($c.max_age_days)d policy) - review/rotate, then update the ledger. Where: $($c.where)" }
@@ -195,6 +195,38 @@ try {
         else { Say "S8 visibility: live '$live' == declared '$declared'" }
     } catch {
         $sweepError = "S8: GitHub visibility read failed (configured live source unreachable): $($_.Exception.Message)"
+    }
+
+    # --- S9 personal-data scan (the PUBLIC-repo privacy conscience; gitleaks S1 is for SECRETS) -------
+    # Greps the git-TRACKED tree for personal data that must stay local-only: real NAMES (derived from
+    # vault/people/ at runtime), FINANCIAL amounts (kr/SEK), HEALTH values, SE phone. Detect-only; the
+    # reviewed-exception allowlist (system/personal-data-allowlist.json, gitignored) mirrors .gitleaks.toml.
+    # Born from the 2026-07-20 scan that found a cached HQ metrics dump + a runway builder hardcoding real
+    # salary/burn/severance sat public - things gitleaks never looks for.
+    $pdScript = "scripts\personal-data-scan.js"
+    $nodeExe = @(
+        (Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source),
+        (Get-Item "C:\Program Files\nodejs\node.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)
+    ) | Where-Object { $_ } | Select-Object -First 1
+    if (-not (Test-Path $pdScript)) {
+        Add-Finding 'SETUP' 'S9' "scripts/personal-data-scan.js is missing - the personal-data conscience. Restore it."
+    } elseif (-not $nodeExe) {
+        Add-Finding 'SETUP' 'S9' "node not found - cannot run the personal-data scan. Install Node.js / fix PATH."
+    } else {
+        $prevEap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        $pdOut = (& $nodeExe $pdScript '--json' 2>&1 | Out-String)
+        $pdExit = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        if ($pdExit -eq 1) { Add-Finding 'FINDING' 'S9' "personal-data scan errored: $pdOut" }
+        else {
+            $pd = $null; try { $pd = $pdOut | ConvertFrom-Json } catch {}
+            if ($null -eq $pd) { Add-Finding 'FINDING' 'S9' "personal-data scan output unparseable: $pdOut" }
+            elseif (-not $pd.clean) {
+                $cats = ($pd.byCat.PSObject.Properties | ForEach-Object { "$($_.Name):$($_.Value)" }) -join ' '
+                $samples = ($pd.hits | Select-Object -First 5 | ForEach-Object { "$($_.file):$($_.line)[$($_.cat)]" }) -join '; '
+                Add-Finding 'FINDING' 'S9' "personal-data in the PUBLIC tracked tree: $($pd.total) hit(s) [$cats]. First: $samples. Fix: move the value/name to a gitignored vault page + pointer, OR add a reviewed exception to system/personal-data-allowlist.json. Full list: node scripts/personal-data-scan.js"
+            } else { Say "S9 personal-data: clean ($($pd.namesWatched) names watched)" }
+        }
     }
 }
 catch {
