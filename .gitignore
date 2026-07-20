@@ -122,3 +122,9 @@ work/05-personal-crm/state/
 # (scp'd, mounted over /app/public/data), NOT these repo copies. life.json = routine/health, graph.json =
 # vault topology + people names. Regenerated locally each /alex-hq run; never needed in git. Not public.
 work/16-alex-hq/app/public/data/*.json
+
+# Personal-data files pulled 2026-07-20 (scan finding): a stale HQ metrics dump (financial/health/
+# bookings) + the runway Excel builder that hardcoded real salary/burn/severance/a-kassa/income figures.
+# Kept on disk, never public. Runway rebuild should read from vault/me/situation.md (gitignored).
+hq-summary.json
+work/20-runway/build_workbook.py
