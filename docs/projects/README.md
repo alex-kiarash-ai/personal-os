@@ -18,7 +18,7 @@ The system in one paragraph: Shaheen runs a personal AI agent ("Alex") that oper
 | 09 | [Content Machine](09-content-machine.md) | RETIRED | Retired 2026-07-06: folded into #12 (one content system, same Content Library DB). |
 | 10 | [Weekly Exec Report](10-weekly-exec-report.md) | LIVE | The Friday capstone: every automation + mail + calendar into one branded deck + Notion page. |
 | 11 | [WhatsApp Harvest](11-whatsapp-harvest.md) | ON-DEMAND | Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer. |
-| 12 | [LinkedIn Series](12-linkedin-series.md) | LIVE | Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. |
+| 12 | [LinkedIn Series](12-linkedin-series.md) | LIVE | Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds. |
 | 13 | [Airbnb Host](13-airbnb-host.md) | LIVE | Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway. |
 | 14 | [AI Application Engine](14-ai-application-engine.md) | LIVE | Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate. |
 | 15 | [Alex AI Radar](15-alex-ai-radar.md) | LIVE | The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane. |

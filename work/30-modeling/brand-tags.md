@@ -10,6 +10,6 @@ Rules:
 
 | Brand | IG handle | Category | Why it qualifies (real wear) | Added | Status |
 |---|---|---|---|---|---|
-| Shadyrays | @shadyrays | eyewear | The April Shadyrays set (profile-picture set, palapa/beach frames) is real owned+worn product on camera. VERIFY with Shaheen it is still current wear before first tag. | 2026-07-18 | needs-confirm |
+| Shadyrays | @shadyrays | eyewear | DROPPED 2026-07-20: Shaheen confirmed the sunglasses on his IG are HIS OWN, not Shadyrays product. NOT genuine brand wear - do NOT tag @shadyrays anywhere. | 2026-07-18 | DROPPED |
 
-*(Seed row only. Shaheen: confirm Shadyrays + name the wardrobe brands you actually wear on camera (gym wear, watches, grooming/hair products) and Alex adds the rows. Empty-but-honest beats padded.)*
+*(RESOLVED 2026-07-20, Shaheen: no genuine brand wear on camera - Shadyrays dropped (own sunglasses), and NO other brands ("NO!"). The allowlist is intentionally EMPTY. Empty-but-honest beats padded; no @-brand tags on any post until real product wear exists. Re-open only if he starts wearing an actual brand's product on camera.)*

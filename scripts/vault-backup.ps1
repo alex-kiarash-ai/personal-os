@@ -45,6 +45,24 @@ try {
     Say "ledger: $($lg | Select-Object -First 1)"
 } catch { Say "ledger reconcile failed (non-fatal): $($_.Exception.Message)" }
 
+# 0b. Outcome loop nightly aggregate (2026-07-20, agent-architecture decision run item 6.3):
+#     re-tally the application outcome table -> winners.json + report-section.md + the built-ready
+#     writer block. DETERMINISTIC, zero Claude calls, degrades to "accumulating" on an empty table.
+#     Best-effort like the ledger: it must NEVER block the backup (both are regenerable).
+try {
+    $ol = node "scripts\alex-outcome-loop.js" 2>&1
+    Say "outcome-loop: $($ol | Select-Object -First 1)"
+} catch { Say "outcome-loop aggregate failed (non-fatal): $($_.Exception.Message)" }
+
+# 0c. Content outcome loop nightly aggregate (2026-07-20, Content Agent build): the content twin of
+#     0b - re-tally the Building Alex posts table -> winners.json + report-section.md + the drafter
+#     block. DETERMINISTIC, zero Claude calls, degrades to "accumulating" on an empty table. Same
+#     best-effort contract: it must NEVER block the backup.
+try {
+    $cl = node "scripts\alex-content-loop.js" 2>&1
+    Say "content-loop: $($cl | Select-Object -First 1)"
+} catch { Say "content-loop aggregate failed (non-fatal): $($_.Exception.Message)" }
+
 # BUG-11 fix (2026-07-15): on a month-end night the expense (20:00, 2h limit) + runway (21:15) jobs can
 # still be writing their Excel workbooks to outputs/ when this 21:45 tar runs, so the backup could capture
 # a half-written .xlsx. Wait (bounded) for those month-end producers to finish before taring; proceed

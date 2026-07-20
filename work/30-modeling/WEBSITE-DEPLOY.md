@@ -1,6 +1,8 @@
 # shaheenkiarash.com — Deploy Runbook
 
-**Discovered + first used 2026-07-19** (closes the run-31 "deploy path UNDOCUMENTED" gap). This is how the modeling website ships.
+**Home: `work/30-modeling/` (project #30).** Written 2026-07-19 into the retired pre-promotion path `work/modeling/`; folded into #30 on 2026-07-20 (that folder no longer exists).
+
+**Discovered + first used 2026-07-19** (closes the run-31 "deploy path UNDOCUMENTED" gap). This is how the modeling website ships. The #30 monthly strategy reviewer (step H, CLAUDE.md) uses this exact path for its `/now` rebuild + `wrangler deploy`.
 
 ## What serves the site
 - **Cloudflare static-assets Worker** named **`plain-block-545a`** (account `36f1f2149fe6965f741e24c40f29c7aa`, zone `ec8e707d1dac7e1f144bfd5c60bd789a`).

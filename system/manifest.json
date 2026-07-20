@@ -448,13 +448,14 @@
       "title": "LinkedIn Series",
       "state": "LIVE",
       "trigger": "on-demand + n8n staging (scheduled)",
-      "one_liner": "Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts.",
+      "one_liner": "Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.",
       "docs": "12-linkedin-series.md",
       "schedule_jobs": [],
       "hq_project": "linkedin-series",
       "revisit": null,
       "work_dir": "work/12-linkedin-series",
       "commands": [
+        "content-agent",
         "post-episode",
         "post-publish"
       ],

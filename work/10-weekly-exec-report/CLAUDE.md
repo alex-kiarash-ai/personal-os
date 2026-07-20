@@ -29,6 +29,7 @@ Every Friday, reads from every other live automation + Gmail/Calendar and rolls 
 | Research | Research Team | vault/research/ |
 | Content | LinkedIn Series (#12) | `0f511509-1c63-4b22-a328-976d6d56d6aa` (Content Library DB, moved to #12 when #09 Content Machine retired 2026-07-06; /deep-audit D5) + vault/projects/linkedin-series/ |
 | Email flow | Email Triage | `9badd246-01a3-4e23-b7b4-9d2c843daef4` + vault/projects/email-triage/history/ |
+| Outcomes | Outcome loop (#03/#14) | vault/projects/job-pipeline/outcomes/report-section.md (GENERATED; include verbatim — see Outcomes section below) |
 | Raw | Gmail + Calendar | this week's window |
 
 Any source with no data this week → show "nothing this week" rather than omitting the section or erroring.
@@ -45,6 +46,13 @@ Any source with no data this week → show "nothing this week" rather than omitt
 6. **Blockers** - what's stuck and why (Blocked sprint items, gated drafts, unanswered threads) + the **Waiting-on-you weekly line** (upgrade P2): `node scripts/human-actions.js list` items that aged another week since last Friday.
 7. **Next Week Priorities** - the levers for next week, priority-filtered by soul.md (rent-moving first: job pipeline > learning > modeling).
 Brand: ALEX (brand-config.md, since 2026-07-03): canvas #001219, Dark Teal #005f73 / Dark Cyan #0a9396 structure, ONE Golden Orange #ee9b00 accent, Calibri, ALEX logo block every slide. Title + closing dark (#001219), content light.
+
+## Outcomes section (added 2026-07-20, agent-architecture decision run item 6.3)
+
+The report gains an **Outcomes** block: what actually WORKED, not just what shipped. Source it VERBATIM from `vault/projects/job-pipeline/outcomes/report-section.md`, which the zero-token outcome loop regenerates nightly (deterministic, no model). It is written as DECISIONS ("favor the `bi-core` CV set — it drew responses at 40%"; "stop spending variants on X"), never a dashboard — doc 1's Data Analyst reframed the Alex way. Rules:
+- Include the section as-is. Do NOT re-derive or re-interpret it in the deck; the collector is the source of truth.
+- While the loop is accumulating (< 5 resolved outcomes on any variant), the section honestly says so. Show that line rather than inventing a trend. An accumulating loop is a true state, not a gap to paper over.
+- In the deck this rides slide 7 (Next Week Priorities) as a "what the results say" lead-in, or a standalone slide once real winners exist. In the Notion page it is its own `## Outcomes` section.
 
 ## Notion weekly summary page
 One page per week under the Personal Ops System parent (`37bb5342-d7f1-81a4-8bf1-d5642d7c3e85`), titled "Weekly Report YYYY-MM-DD", with the FULL report as page content (all 7 sections as `##` headers). No new database - it's a page, not a DB row.
@@ -78,6 +86,7 @@ soul.md + every source in the table above. brand/config + template.
 ## Close-Out Extras (Close-Out Gate)
 Beyond the universal gate ([[research/alex-close-out-gate]]), this run is not COMPLETE until:
 - A new trend snapshot row is appended to the metrics-history file (the one named in Vault Writes above).
+- The **Outcomes** section was included from `vault/projects/job-pipeline/outcomes/report-section.md` (verbatim), or its absence is explained (loop not yet seeded).
 
 ## Implementation Notes (as built, 2026-06-12)
 - Aggregation spec + command + Friday 16:00 schedule wired. No new DB (reads all, writes a weekly page).

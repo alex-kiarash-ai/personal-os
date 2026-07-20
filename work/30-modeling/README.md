@@ -3,9 +3,9 @@
 This is the **code/config home** for the Modeling project. Knowledge lives in the vault:
 - Tier 1 status: `vault/projects/modeling/status.md`
 - Tier 2 infra: `vault/projects/modeling/infrastructure.md`
-- Human-readable: `docs/projects/modeling.md`
+- Human-readable: `docs/projects/30-modeling.md`
 
-Everything for this one project lives together: this folder (deploy config), the vault pages (status + infra + history), and the manifest entry (`system/manifest.json` meta.unnumbered "modeling"). Shaheen's call, 2026-07-15: one project, one place.
+Everything for this one project lives together: this folder (deploy config), the vault pages (status + infra + history), and the manifest entry (`system/manifest.json` numbered project **#30 "modeling"**; promoted from meta.unnumbered 2026-07-18, `git mv work/modeling work/30-modeling`). Shaheen's call, 2026-07-15: one project, one place. The last stray file left behind in the old `work/modeling/` path (`WEBSITE-DEPLOY.md`, written there 2026-07-19) was folded in here 2026-07-20; `work/modeling/` no longer exists.
 
 ## What this runs
 **Postiz** (self-hosted, open-source, `gitroomhq/postiz-app`, AGPL-3.0, ~33k stars) as the Instagram content engine for @shaheen.kiarash: writes captions (Claude, in Shaheen's voice), plans a visual calendar, and **auto-publishes the approved queue on schedule**.
@@ -21,6 +21,7 @@ Chosen from a 4-way comparison (Postiz vs own-n8n vs Mixpost vs Metricool) under
 - `docker-compose.reference.yml` - **REFERENCE ONLY.** Postiz changes services/images/env between releases; at deploy time clone the canonical `gitroomhq/postiz-docker-compose` and reconcile against it. This file is the shape to expect, not the source of truth.
 - `postiz.env.example` - env template. Copy to `config/postiz.env` (gitignored via `work/*/config/`), fill real values, never commit it.
 - `.gitignore` - keeps `config/`, data dirs, and any `.env` local.
+- `WEBSITE-DEPLOY.md` - the **shaheenkiarash.com** deploy runbook (Cloudflare static-assets Worker + wrangler + rollback). Not Postiz: this is the portfolio website's ship path, kept in the same project home per "one project, one place".
 
 ## Stand-up (mostly Shaheen's hands - see the "Waiting on you" queue)
 1. **DNS:** point `social.shaheenkiarash.com` -> the Hetzner box `62.238.21.62` (Cloudflare, proxied). One A record.

@@ -7,7 +7,8 @@ Automation (on-demand episode drafting + slot-scheduled staging via n8n). Never 
 Turn Shaheen's real Personal Ops System history into an ongoing LinkedIn series in his voice, with Shaheen as hero and Alex as a named but low-visibility character. Goal: visible AI building-in-public for recruiters (Power BI / AI automation roles) and entry into the AI community. Cadence: one post per week until mid-August 2026, then two or three per week when recruiters are back. Posted 08:30 Europe/Stockholm; Shaheen posts manually, n8n only stages. Material source of truth for what each post says: vault/projects/linkedin-series/posts-5-12-plan.md. Images are created by Shaheen manually; Alex only states the suggested screenshot per draft. No image automation anywhere.
 
 ## Entry Points
-- /post-episode (on-demand): draft the named or next episode from the material plan, with the published episodes 01-04 as the quality bar and the locked template + polished public register from soul.md; stop for review.
+- /content-agent (on-demand): the memory-fed drafter. Reads the outcome loop (what landed), ranks 8-10 hooks with rationale + variant tags, drafts 2-3 posts on the /post-episode quality bar behind the gates, registers each post's variant, stops for review. `/content-agent log ep-NN <impressions> <reactions> <comments> [reposts]` is the 30-second compounding step. SOP: content-agent.md. Never posts.
+- /post-episode (on-demand): draft the named or next episode from the material plan, with the published episodes 01-04 as the quality bar and the locked template + polished public register from soul.md; stop for review. (The lower-level primitive /content-agent builds on.)
 - /post-publish (n8n staging, scheduled): stage the next Approved episode as text into its own Drive folder and write the folder link back to Notion; Shaheen posts. Never posts to LinkedIn.
 
 ## HARD RULES (every run, no exceptions)
@@ -39,9 +40,19 @@ Scheduled run → query Content Library for the oldest row matching the deployed
 
 **Cadence honesty (F14, three-plan validation).** The deployed cron is `0 8 * * 2,4` (Tue/Thu 08:00, Europe/Stockholm). The "weekly to mid-August" calendar is enforced by **approval supply**, not the cron: the workflow no-ops on an empty Approved queue, so it only stages when Shaheen has approved a row. Do NOT "fix" the cron to a weekly schedule blind - the twice-weekly cron + supply-gating is the intended design.
 
+## Content Agent (memory-fed drafter, v1, 2026-07-20)
+The `/content-agent` upgrade adds a memory read-before and an outcome write-after around the existing /post-episode drafting. SOP: `content-agent.md` (governs the command; #12 HARD RULES + concept.md still win). It is Alex's SECOND outcome-loop data source (the first is the job pipeline), the one the run-33 reconcile named as the trigger to generalize the memory schema.
+- **Engine:** `scripts/alex-content-loop.js`, the deterministic zero-Claude twin of `scripts/alex-outcome-loop.js`. Table `vault/projects/linkedin-series/outcomes/posts.jsonl` (append-only, last row per post_id wins). Variant dims: hook_type, framing, format, topic. Metric: engagement rate = (reactions + comments + reposts) / impressions. Winner = highest mean rate at >= 4 resolved posts; below that it reports "accumulating" and the drafter's hook ranking flags itself as soul.md-based, not proven.
+- **Generated (never hand-edit):** `outcomes/winners.json`, `outcomes/report-section.md`, and the marker-wrapped drafter block `content-winners.block.md` (empty until a real winner clears the gate; same idempotent-marker shape as the SOUL_VOICE + job-winners blocks).
+- **Nightly:** re-aggregated in the 21:45 vault-backup chain (step 0c), beside the job loop. Best-effort, never blocks the backup.
+- **Honesty rail:** identical to the job loop. A variant needs >= 4 resolved; a 60-day window decides keep-or-shrink. Ranking output below the gate must say it is not proven. Full schema: `outcomes/README.md`.
+
+## Skills (bindings, 2026-07-20)
+- /content-agent drafting is VOICE output: the Brand + Soul Pre-Flight Gate + soul.md My Words (polished public register) bind every draft. No separate third-party skill is mandatory; the marketing pack (copywriting, content-strategy, marketing-psychology, social) is ADVISORY when a hook needs sharpening.
+
 ## Vault Structure
 - Tier 1: vault/projects/linkedin-series/status.md (per-run updates, open items)
-- Tier 2: vault/projects/linkedin-series/ (concept.md = locked decisions + never-share list; build-prompt.md = canonical spec)
+- Tier 2: vault/projects/linkedin-series/ (concept.md = locked decisions + never-share list; build-prompt.md = canonical spec; outcomes/ = the content outcome loop table + generated winners/section)
 
 ## Vault Reads
 soul.md, concept.md (every run), vault/log.md, vault/projects/, vault/research/.
@@ -61,8 +72,12 @@ status.md per run; soul.md edit-harvest; log.md; index.md for new pages.
 5. Sprint board: mark "LinkedIn Series" Done only after episode 1 is staged end-to-end
 - Alex HQ metrics push (added 2026-07-02): POST the run's key metric(s) to the build #16 ingest webhook per the contract in work/16-alex-hq/CLAUDE.md; exact curl in .claude/commands/post-publish.md. Failure-tolerant, token never printed.
 
+## Close-Out Extras
+Beyond the universal Close-Out list: (1) any post moved toward posting via /content-agent has a registered loop row (`alex-content-loop.js add`); (2) when Shaheen reports a post's numbers, the row is resolved (`alex-content-loop.js log`) IN THAT RUN; (3) the drafter's hook ranking states its basis (proven winner vs accumulating) on every output; (4) edits harvested to soul.md before Approved (HARD RULE 14).
+
 ## Open items
 - Posts 5-12 to draft from posts-5-12-plan.md: one per week until mid-August 2026, then two or three per week.
+- Backfill published episodes 01-05 into the content loop once Shaheen has their LinkedIn metrics (gives the loop a head start toward the 4-resolved gate).
 - Staging-workflow quality fixes (dash scan, text fidelity, per-episode folder, Drive-link write-back, read-back verify) tracked in n8n-staging-fix-plan.md.
 
 ## Trifecta

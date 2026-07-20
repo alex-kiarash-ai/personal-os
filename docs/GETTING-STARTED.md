@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-19. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-20. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -39,7 +39,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **08 Expense Wrangler** (LIVE; trigger: monthly last day 20:00) - Receipts to the Notion Expenses DB + an all-formula branded monthly Excel.
 - **10 Weekly Exec Report** (LIVE; trigger: Fri 16:00) - The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.
 - **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup)) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
-- **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts.
+- **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.
 - **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway.
 - **14 AI Application Engine** (LIVE; trigger: n8n every 72h (07:30)) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.

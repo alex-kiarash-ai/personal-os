@@ -31,6 +31,18 @@ An adaptive research system that designs its own team per question. Given a rese
    - PDF → Python reportlab/weasyprint, brand colors + fonts, dark teal header bar with the ALEX logo block
    - Save the exported PDF (and note the claude.ai/design project link) to outputs/research-team/YYYY-MM-DD/. Delete ALL build scripts and temp dirs after. Team-run deliverables are always branded, never just markdown.
 
+## Squad Templates (added 2026-07-20, agent-architecture decision run item 6.2)
+
+Doc 2's workflow-file idea applied to doc 1's roster idea, on Alex's #04. Instead of re-dictating the relay every time (Shaheen has dictated the same shape at least four times, My Words 07-13 + 07-15), the roster is a checked-in template Shaheen commissions by name. Three live templates in `work/04-research-team/squads/`:
+
+| Template | Class (doc 2 progression model) | Shape | Commission line |
+|---|---|---|---|
+| `research.md` | iterative (fan-out then converge) | 2-5 evidence lanes + 1 synthesizer; the #04 default | `/research-team squad=research question="..."` |
+| `build-review.md` | iterative (build -> adversarial review -> fix) | builder + adversarial reviewer(s) + master arbiter | `/research-team squad=build-review target="..." contract="..."` |
+| `merge-decide.md` | pipeline (validate -> cross-check -> merge -> decide) | one lane per input, staged handoff to a decision | `/research-team squad=merge-decide inputs="A,B" question="..."` |
+
+Every template encodes the same four gates: the **approval gate** (show the roster before spawning), the **anti-laundering rule** (same-model agreement is never corroboration; conclusions ride external evidence), the **master-only-writes-vault rule** (lanes report, only the master writes the validated result), and a **per-lane timebox** (an empty lane is a finding). Each also carries the environment note: parallel Agent spawns on the laptop, sequential isolated lanes in the claude.ai project env, identical discipline either way. This document's own 2026-07-20 run is the first `merge-decide` exemplar. No new project number — this is #04 capability, not a new automation.
+
 ## Pattern Format (patterns/{class}-{slug}.md)
 ```
 ---
