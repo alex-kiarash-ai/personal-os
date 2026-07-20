@@ -39,7 +39,7 @@ Locations locked by Shaheen 2026-06-16: Gulf (Dubai/Qatar/Saudi) on-site+hybrid 
 `config/clone-ai-engine.js` (Node, mirrors work/03 push patterns): fetch live workflow `9XuIEfxS71DEetVR` via n8n API → deep clone → rename "AI Application Engine" → swap CV text in the two Build nodes → patch match/writer system prompts → replace spreadsheet ID (`19puw…` → `11lvk…`) and Drive folder ID (`1o0z…` → `18HUz…`) everywhere → set schedule cron to `30 7 * * *` → POST as new workflow, `active:false`. n8n API key: `work/03-application-engine/config/n8n-api-key.txt`.
 
 ## Config knobs
-`FIT_THRESHOLD=70`, `INTEREST_WEIGHT=0.4` in `Stage 3 Gate`. `cl_word_min/max` in `QA + Fill Templates`. `time_range="Past 24 hours"` in `Filter Active Rows`. Mirror any change here.
+`FIT_THRESHOLD=70`, `INTEREST_WEIGHT=0.4` in `Stage 3 Gate`. `cl_word_min/max` in `QA + Fill Templates`. `time_range="Past week"` (lowercase, case-sensitive; widened from `"Past 24 hours"` 2026-07-16 for the 72h cadence) in `Filter Active Rows`. Mirror any change here.
 
 ## Skills (bindings, 2026-07-11)
 - Identical to #03: n8n-* skills MANDATORY for any workflow edit (n8n-workflow-patterns first); resume-ats-optimizer + resume-tailor advisory for writer-prompt work. See root CLAUDE.md "Skill Bindings".
@@ -49,7 +49,7 @@ Locations locked by Shaheen 2026-06-16: Gulf (Dubai/Qatar/Saudi) on-site+hybrid 
 - Reuses [[me/cv-sources]] (AI CV), [[projects/job-pipeline/infrastructure]] (shared Hetzner/Bright Data/Gotenberg stack).
 
 ## Known gotchas (inherited)
-- `time_range` must be the human label ("Past 24 hours").
+- `time_range` is CASE-SENSITIVE: VALID `Past 24 hours` / `Past week` / `Past month` (lowercase); `Past Week` / `Past Month` capitalized are REJECTED with HTTP 400. Live value = `Past week`. See #03 gotchas + [[projects/error-log]] 2026-07-20 (the capital-W typo broke both engines' Stage 1 on 07-19).
 - `remote` BD filter stays EMPTY; work condition verified downstream from the description against the per-row allow-list.
 - `discover_new` returns only never-seen records; repeated identical test queries return []. Vary keyword/location when testing.
 - Anthropic concurrency: batching 1/1000ms + retry 4x/5s.

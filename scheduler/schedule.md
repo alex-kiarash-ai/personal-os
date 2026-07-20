@@ -41,7 +41,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Application Engine Watch
 - Command: /application-engine
 - Frequency: daily at 8:30 AM
-- **Box engines retimed 2026-07-16 (cost cut): the n8n Application Engine (#03) + AI Application Engine (#14) now run EVERY 72h (07:00 / 07:30, cron `0 7 */3 * *` and `30 7 */3 * *`), source window widened to "Past Week" so nothing in the last 72h is missed (the processed-log dedup keeps it exactly-once). This local watch stays daily; on off-days it simply reports "no new pipeline run".**
+- **Box engines retimed 2026-07-16 (cost cut): the n8n Application Engine (#03) + AI Application Engine (#14) now run EVERY 72h (07:00 / 07:30, cron `0 7 */3 * *` and `30 7 */3 * *`), source window widened to "Past week" (lowercase - Bright Data's time_range label is case-sensitive; the capitalized "Past Week" typo in this change broke Stage 1 on 07-19, fixed 07-20) so nothing in the last 72h is missed (the processed-log dedup keeps it exactly-once). This local watch stays daily; on off-days it simply reports "no new pipeline run".**
 - Description: Reads the Job Search Pipeline sheet (run_log + needs_review) after the pipeline run; reports drafts, costs, flags, anomalies; updates vault. Surveillance only, never modifies the workflow.
 - Added: 2026-06-11
 

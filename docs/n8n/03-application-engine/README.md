@@ -1,6 +1,6 @@
 # Application Engine (BI) - the job-hunting robot
 
-**Workflow ID:** `9XuIEfxS71DEetVR` · **Runs:** every 72h at 07:00 Stockholm (every 3rd day; retimed 2026-07-16 for cost cut, was daily) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-16 refresh: 72h cron + "Past Week" source window, on the P3 write-first base)
+**Workflow ID:** `9XuIEfxS71DEetVR` · **Runs:** every 72h at 07:00 Stockholm (every 3rd day; retimed 2026-07-16 for cost cut, was daily) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-20 refresh: 72h cron + "Past week" source window, on the P3 write-first base)
 
 ## What it does
 
@@ -16,7 +16,7 @@ Applying to jobs properly means tailoring a CV and letter per job, which costs 1
 - **When clicking Test** - a manual start button, used only for testing.
 - **Daily 07:00 Stockholm** - the alarm clock. Despite the node name it now fires **every 72h** at 07:00 (cron `0 7 */3 * *`, retimed 2026-07-16 for cost; node not renamed).
 - **Read Search Config** - opens the Google Sheet tab that lists the searches to run (job title + city + allowed work conditions per row).
-- **Filter Active Rows** - keeps only the search rows marked active; skips the rest. Also sets the search window: **"Past Week"** since 2026-07-16 (was "Past 24 hours"), so a 72h-cadence run never misses a fresh posting; the processed-log dedup makes the wider window exactly-once.
+- **Filter Active Rows** - keeps only the search rows marked active; skips the rest. Also sets the search window: **"Past week"** (lowercase - Bright Data's `time_range` label is case-sensitive) since 2026-07-16, so a 72h-cadence run never misses a fresh posting; the processed-log dedup makes the wider window exactly-once. NOTE: the 07-16 change mistakenly capitalized it ("Past Week"), which Bright Data rejects with HTTP 400 - that silently broke Stage 1 (`BD Trigger Search`) on BOTH engines from 07-19 until the 07-20 fix (see [[projects/error-log]]).
 - **BD Trigger Search** - asks Bright Data (a web-scraping service) to go collect fresh LinkedIn postings for each search.
 - **Attach Row Context** - pins each search's settings (city, allowed conditions) to the scrape job so later steps know the rules that apply.
 - **Poll Wait / Poll Fetch Snapshot / Snapshot Ready?** - the waiting loop: check whether Bright Data is done; if not, wait and ask again; when ready, download the results.

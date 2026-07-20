@@ -46,7 +46,7 @@ After creating the two Google credentials, select them on every Sheets/Drive nod
 - `needs_review`: `date | stage | job_posting_id | job_title | company_name | job_location | url | fit_score | interest_score | rank_score | reasons`
 
 ## Config knobs (doc §6)
-`fit_threshold=70` and `interest_weight=0.4` live in the Stage 3 Gate code node. `cl_word_min=100` / `cl_word_max=280` live in the QA + Fill Templates code node. `time_range="Past 24 hours"` lives in Filter Active Rows. Change them there; mirror any change into the doc.
+`fit_threshold=70` and `interest_weight=0.4` live in the Stage 3 Gate code node. `cl_word_min=100` / `cl_word_max=280` live in the QA + Fill Templates code node. `time_range="Past week"` (lowercase, current live value; widened from `"Past 24 hours"` on 2026-07-16 for the 72h cadence) lives in Filter Active Rows - it is CASE-SENSITIVE, see the gotcha below. Change them there; mirror any change into the doc.
 
 ## Skills (bindings, 2026-07-11)
 - n8n work on this pipeline (nodes, expressions, Code-node JS, validation, the MCP server) is MANDATORY-gated on the n8n-* skills - see root CLAUDE.md "Skill Bindings". Consult n8n-workflow-patterns BEFORE touching workflow JSON; n8n-cli (+ `@n8n/cli` binary) for instance ops from shell.
@@ -63,9 +63,14 @@ Separate ADDITIVE n8n workflow **"Writer Voice Eval"** (`grMqmGzzbTXTEdKr`, INAC
 - **Dash-sanitizer added (2026-07-07, Shaheen's go):** the **Parse Writer** node of #03, #14 AND the eval now runs a deterministic pass over the prose fields - `deDashProse` (em-dash -> comma; en-dash -> comma with numeric ranges protected) on cover_letter/profile/role_line, `deEm` (em-dash -> comma only, date en-dashes kept) on experience/skills. Applied via the REST API (backup-first in scripts/n8n-backups/, syntax-checked, GET-verified; both engines stayed active, 37->37 nodes). Re-ran the eval: **6/6 ALL PASS** (was 4/6). The eval now grades the SHIPPED post-sanitize output, so a dash there = a sanitizer edge-case miss (not a routine writer slip).
 - Build script pattern (backup-first via API, verbatim node reuse): the writer node copy + metrics were created via the REST API, tested by executing in the editor (the public API can't trigger runs).
 
+## Outcome loop (added 2026-07-20, agent-architecture decision run item 6.3)
+The engines are the SOURCE side of Alex's outcome loop: they already log variant identifiers to the Job Search Pipeline Sheet (step 8). Those variant features + the outcome states (from email-triage classifications and Notion rows) feed the Tier 2 outcome table `vault/projects/job-pipeline/outcomes/` via the deterministic zero-token collector `scripts/alex-outcome-loop.js` (runs nightly in the vault-backup chain; see its README for the row schema and the `add` / `ingest-sheet` ingest paths). The loop resolves which CV/letter variants actually drew responses so the writers can favor them next cycle.
+- **Built-ready writer block:** `work/03-application-engine/outcome-winners.block.md` (marker-wrapped, `<<<OUTCOME_WINNERS_START/END>>>`, same idempotent-marker shape as the SOUL_VOICE sync). It is regenerated on every collector run but is **OFF from the live n8n push** for now — injecting an empty block into production is pointless.
+- **Activation trigger (do NOT fire before):** a real winner exists (a variant value with ≥ 5 resolved outcomes) AND the 60-day measurement shows the loop is read/acted on (honesty rail). Then wire it into the generator's n8n step beside the voice sync, with the same backup-first + GET read-back verification, and re-run the Writer Voice Eval to prove the added block did not break the voice.
+
 ## Vault Structure
 - Tier 1: vault/projects/job-pipeline/status.md (existing)
-- Tier 2: vault/projects/job-pipeline/infrastructure.md (existing)
+- Tier 2: vault/projects/job-pipeline/infrastructure.md (existing) + vault/projects/job-pipeline/outcomes/ (outcome loop, 2026-07-20)
 
 ## Vault Reads / Writes
 Reads: job-pipeline status + infrastructure pages. Writes: status.md after import/first run; vault/log.md per session.
@@ -86,7 +91,7 @@ Endpoint (streamable HTTP since 2026-07-02, bearer-gated): `https://n8n.shaheenk
 - Fed by: nothing. Independent of the Personal Ops System local automations.
 
 ## Known gotchas (from the doc, preserved)
-- `time_range` must be the human label (`Past 24 hours`); `past_week` etc. are rejected.
+- `time_range` is CASE-SENSITIVE and must be an exact Bright Data label. VALID: `Past 24 hours`, `Past week`, `Past month` (lowercase w/m - verified against the live BD trigger 2026-07-20). REJECTED with HTTP 400 `Invalid input provided`: `Past Week` / `Past Month` (capitalized) and `past_week`. Live value = `Past week` (widened 2026-07-16 for the 72h cadence; the capital-W typo in that change silently broke Stage 1 - `BD Trigger Search` 400 - on BOTH engines 2026-07-19, fixed 2026-07-20; see [[projects/error-log]]).
 - `remote` filter must stay EMPTY; work condition is verified downstream from the real description.
 - `discover_new` returns only never-seen records per query: repeated identical test queries legitimately return `[]`. Vary keyword/location/time_range when testing.
 - A 200 + empty array on a niche title is a legitimate zero-job day, not a failure.
