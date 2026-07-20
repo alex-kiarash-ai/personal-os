@@ -31,6 +31,7 @@ python "work\13-airbnb-host\ingest_airbnb.py"   2>&1 | Out-File -Append -Encodin
 $prompt = "Run /airbnb-host monthly-sync: scrape + ingest already ran this run, so raw/bookings-normalized.json and the Excel income model are fresh as of today. Do NOT re-scrape. Read raw/bookings-normalized.json, upsert the Notion Airbnb Bookings DB to match, refresh vault/me/airbnb-studio.md and vault/projects/airbnb-host/status.md and vault/log.md, and flag any new pending requests or discrepancies."
 $out = ''
 try {
+    $prompt = "$prompt $AlexVerdictInstruction"
     $out = (& "$env:APPDATA\npm\claude.ps1" -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {

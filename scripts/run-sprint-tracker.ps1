@@ -56,7 +56,7 @@ if (-not (Test-AlexQuotaGate -Log $log -Project 'sprint')) {
 $proseOut = ''
 try {
     # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16). (Task disabled 2026-07-16 until Shaheen re-enables.)
-    $proseOut = (& $ClaudeCmd --model claude-sonnet-4-6 -p "Run /sprint-tracker --prose-only" --dangerously-skip-permissions 2>&1 | Out-String)
+    $proseOut = (& $ClaudeCmd --model claude-sonnet-4-6 -p "Run /sprint-tracker --prose-only. $AlexVerdictInstruction" --dangerously-skip-permissions 2>&1 | Out-String)
     $proseCode = $LASTEXITCODE
 } catch {
     $proseOut = "PROSE EXCEPTION: $($_.Exception.Message)"; $proseCode = 1

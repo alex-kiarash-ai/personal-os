@@ -290,7 +290,7 @@ foreach ($p in $ffRows) {
 # label -> frequency-pattern map; a project passes when ANY of its schedule.md entries (matched by
 # job name, entries with a real '- Frequency:' line only) matches its label. Labels with no
 # frequency expectation (on-demand/event/dormant/parked/retired, expected_hours null) are skipped.
-# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below; C18 (machine-timezone vs travel-state, P8) is below. 18 checks total (C1-C18).
+# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below; C18 (machine-timezone vs travel-state, P8) is below; C19 (narrative numbers-drift, item 3) is below. 19 checks total (C1-C19).
 $freqPatterns = @{
     'daily'     = 'daily|nightly|every day'
     'weekdays'  = 'weekday'
@@ -414,6 +414,17 @@ if ($actualTz -ne $expectedTz) {
     Add-Drift 'timezone' "machine timezone is '$actualTz' but $tripCtx (scheduler TZ policy, schedule.md). Set the machine tz or update system/travel-state.json so scheduled jobs fire at the right wall clock."
 }
 
+# --- C19 narrative numbers-drift (item 3, 2026-07-20): the identity-carrying master reference must not
+# claim a recovery-check count the code disproves. A doc lying about the system IS structural drift, and
+# the same-session-update standing order for the narrative docs was the last place Alex trusted a habit
+# over a mechanism. Shells to the zero-token python checker (ONE source for the claim-set), like C12.
+# MVP scope = the master reference .md's check-count claims; the plain-English guide .docx is phase 2.
+try {
+    $nd = python "scripts\narrative-drift-check.py" 2>&1
+    if ($LASTEXITCODE -eq 2) { foreach ($ln in @($nd)) { if ("$ln".Trim()) { Add-Drift 'narrative-drift' ("$ln".Trim()) } } }
+    elseif ($LASTEXITCODE -ne 0) { Add-Drift 'narrative-drift' "narrative-drift-check errored (exit $LASTEXITCODE): $(($nd | Select-Object -First 1))" }
+} catch { Add-Drift 'narrative-drift' "narrative-drift-check could not run: $($_.Exception.Message)" }
+
 # ---------------------------------------------------------------- report
 $n = $drift.Count
 $byCat = $drift | Group-Object cat | Sort-Object Count -Descending
@@ -436,6 +447,15 @@ if ($n -eq 0) {
     }
     $report.Add("_Detect-only. Nothing was changed. Register/fix or retire-to-archive, then re-run. Content/semantic drift (stale prose) is the monthly /lint's job, not this sweep's._")
 }
+
+# Vault-read health (item 2, 2026-07-20): INFORMATIONAL only, NEVER a drift item - a soft usage signal
+# must not touch the checker's 0/2/1 drift semantics. Appends the analyzer's one line to the report the
+# Monday brief reads. Zero-token; its exit code is deliberately IGNORED (it never affects $n or exit).
+$report.Add("")
+$vrLine = ''
+try { $vrLine = (python "scripts\vault-reads-report.py" --days 60 2>&1 | Select-Object -First 1) } catch { $vrLine = "vault-read report unavailable: $($_.Exception.Message)" }
+$report.Add("**Vault-read health (informational, not drift):** $vrLine")
+
 Set-Content -Encoding utf8 "vault\projects\recovery\last-sweep.md" ($report -join "`n")
 
 # console summary

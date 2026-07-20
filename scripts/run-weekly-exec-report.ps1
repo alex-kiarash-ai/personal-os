@@ -13,7 +13,7 @@ if (-not (Test-AlexQuotaGate -Log $log -Project '')) { exit 0 }
 $out = ''
 try {
     # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
-    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p "Run /weekly-exec-report" --dangerously-skip-permissions 2>&1 | Out-String)
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p "Run /weekly-exec-report. $AlexVerdictInstruction" --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

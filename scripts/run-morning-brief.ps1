@@ -27,6 +27,7 @@ $out = ''
 try {
     $prompt = "Run /morning-brief" + (Get-SoulCanaryInstruction -Nonce $nonce)
     # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
+    $prompt = "$prompt $AlexVerdictInstruction"
     $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {

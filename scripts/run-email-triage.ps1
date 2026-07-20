@@ -23,7 +23,7 @@ if (-not $ready) { "WARNING: Gmail connector never attached; run may be blind." 
 $out = ''
 try {
     # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
-    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p "Run /email-triage scheduled" --dangerously-skip-permissions 2>&1 | Out-String)
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p "Run /email-triage scheduled. $AlexVerdictInstruction" --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

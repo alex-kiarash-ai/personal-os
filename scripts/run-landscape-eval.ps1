@@ -57,6 +57,7 @@ $out = ''
 try {
     $prompt = Get-Content $promptPath -Raw
     # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
+    $prompt = "$prompt $AlexVerdictInstruction"
     $out = ($prompt | & "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {

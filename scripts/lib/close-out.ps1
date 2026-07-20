@@ -15,6 +15,12 @@
 #   Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'crm'
 # Project '' (or omitted) = detect + exit only, no HQ push (for wrappers with no run_status tile).
 
+# --- Item 1 completion sentinel: the ONE home for the verdict-line instruction (2026-07-20) --------
+# Every claude-spawning wrapper appends this to its prompt so a run POSITIVELY proves it finished:
+# the Close-Out Report's verdict line is that proof, and a run that dies partway never reaches it.
+# Defined here (dot-sourced into every wrapper before the spawn), so a future format change is ONE edit.
+$AlexVerdictInstruction = "End your final message with the Close-Out Report line, ending in 'Verdict: COMPLETE' or 'Verdict: INCOMPLETE(<missed>)'."
+
 # --- P3 quota-state writer (upgrade 2026-07-12, design 1.7.1) -----------------------------------
 # One shared code path for flagging a detected cap. Kind 'plan' = the Claude subscription limit
 # (auto-resets in hours; the gate's 6h TTL handles recovery). Kind 'api' = the Anthropic Console
@@ -211,6 +217,22 @@ function Invoke-CloseOutCheck {
             $reason = if ($tl) { "mid-stream stop: " + $tl.Trim() } else { 'mid-stream usage/session limit (tail-detected, exit 0)' }
             if ($reason.Length -gt 140) { $reason = $reason.Substring(0, 140) }
             Set-AlexQuotaCapped -Kind $(if ($tail -match 'API usage limits') { 'api' } else { 'plan' }) -Log $Log
+        }
+    }
+
+    # --- Positive-completion sentinel (item 1, Stage 1 = WARN-ONLY, 2026-07-20) ---
+    # A run that emitted real work (>500 non-ws chars, so -not $short) and exited 0 but printed NO
+    # Close-Out verdict line in its TAIL is a candidate truncation / silent mid-stream stop - the one
+    # class the error-signature gates above cannot see (there is no error to match). The verdict line
+    # is a POSITIVE proof of finish; absence-of-error is not. STAGE 1 only OBSERVES: it LOGS the miss,
+    # it does NOT set $reason, push RED, or exit 1, so no running job flashes red for a marker it was
+    # only just told to print. Flip to enforcing after the warn-only week (uncomment the $reason line).
+    if ($null -eq $reason -and -not $short) {
+        $vtail = if ($Out.Length -gt 400) { $Out.Substring($Out.Length - 400) } else { $Out }
+        if ($vtail -notmatch 'Verdict:\s*(COMPLETE|INCOMPLETE)') {
+            "OBSERVE (sentinel warn-only): no Close-Out verdict line in a >500-char run (candidate truncation/mid-stream stop, exit 0). Stage-2 will fail this." | Out-File -Append -Encoding utf8 $Log
+            # STAGE 2 (enforce) - flip after the observation week proves the wrappers emit the line:
+            # $reason = 'no Close-Out verdict line in a >500-char run (truncated / mid-stream stop, exit 0)'
         }
     }
 

@@ -17,7 +17,7 @@ if (-not (Test-AlexQuotaGate -Log $log -Project 'self-review')) { exit 0 }
 $out = ''
 try {
     # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
-    $out = (& $ClaudeCmd --model claude-sonnet-4-6 -p "Run /self-review" --dangerously-skip-permissions 2>&1 | Out-String)
+    $out = (& $ClaudeCmd --model claude-sonnet-4-6 -p "Run /self-review. $AlexVerdictInstruction" --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

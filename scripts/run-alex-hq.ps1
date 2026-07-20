@@ -14,7 +14,7 @@ if (-not (Test-AlexQuotaGate -Log $log -Project 'alex-hq')) { exit 0 }
 $out = ''
 try {
     # Model: Haiku (cost cut, Shaheen 2026-07-16). HQ just formats local metrics into tiles, no reasoning.
-    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-haiku-4-5-20251001 -p "Run /alex-hq" --dangerously-skip-permissions 2>&1 | Out-String)
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-haiku-4-5-20251001 -p "Run /alex-hq. $AlexVerdictInstruction" --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1
