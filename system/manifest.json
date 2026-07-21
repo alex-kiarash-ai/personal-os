@@ -798,8 +798,8 @@
         "external_comm": false,
         "gate": null
       },
-      "first_fire": null,
-      "first_fire_kind": null,
+      "first_fire": "2026-07-21",
+      "first_fire_kind": "drill",
       "n8n": null,
       "claude_md_sha": null
     },

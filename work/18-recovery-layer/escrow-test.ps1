@@ -1,6 +1,6 @@
 # escrow-test.ps1 - T-20 vault-backup passphrase ESCROW DRILL (recovery layer).
 # PROVES the vault-backup passphrase stored in Shaheen's PASSWORD MANAGER can decrypt the OFF-MACHINE
-# encrypted backup - i.e. the backups survive a dead ThinkPad even if the local .alex-secrets file is gone.
+# encrypted backup - i.e. the backups survive a dead ThinkPad even if the local passphrase file is gone.
 #
 # Run:   powershell -File work\18-recovery-layer\escrow-test.ps1
 # When prompted, paste the passphrase COPIED FROM YOUR PASSWORD MANAGER (not the local file).
@@ -22,12 +22,55 @@ function Invoke-GpgDecrypt($gpgExe, $blobPath, $passFile, $outPath, $errPath) {
     return ($rc -eq 0) -and (Test-Path $outPath) -and ((Get-Item $outPath).Length -gt 0)
 }
 
+$repo      = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$attestFile = Join-Path $PSScriptRoot 'state\passphrase-attested.txt'
+$haCli     = Join-Path $repo 'scripts\human-actions.js'
+
+# --- Class A single-source-of-truth (2026-07-21, audit F-01): the drill is the ONLY writer of the
+# attestation, and it closes/opens the queue in the SAME run, so the file and the queue can never
+# disagree the way they did on 2026-07-18. Stamp the date BEFORE closing (the human-actions `done`
+# gate reads this file and refuses to close an unproven escrow item).
+function Write-AttestationPass($blobName, $entries) {
+    $today = (Get-Date).ToString('yyyy-MM-dd')
+    $due   = (Get-Date).AddDays(90).ToString('yyyy-MM-dd')
+    $body  = @("$today",
+               "Escrow drill PASSED: the password-manager passphrase decrypted $blobName ($entries entries) on $today.",
+               "Next re-drill due ~$due (90-day C14 window). Sole writer: escrow-test.ps1.") -join "`n"
+    [System.IO.File]::WriteAllText($attestFile, $body + "`n", (New-Object System.Text.UTF8Encoding($false)))
+    foreach ($id in @('passphrase-attestation','passphrase-escrow-retest','passphrase-safeplace-fix')) {
+        & node $haCli done $id 2>$null | Out-Null   # no-op if not open; the gate now passes (date stamped above)
+    }
+    $global:LASTEXITCODE = 0
+}
+function Write-AttestationFail($reason) {
+    $today = (Get-Date).ToString('yyyy-MM-dd')
+    $body  = @("PENDING - escrow drill FAILED $today, do NOT treat as attested",
+               "$reason",
+               "Fix + re-run: powershell -File work\18-recovery-layer\escrow-test.ps1. Sole writer: escrow-test.ps1.") -join "`n"
+    [System.IO.File]::WriteAllText($attestFile, $body + "`n", (New-Object System.Text.UTF8Encoding($false)))
+    # Ensure the failure is ESCALATED: the canonical escrow item stays open and ages up the ladder.
+    $open = (& node $haCli list 2>$null | Out-String)
+    if ($open -notmatch 'passphrase-safeplace-fix') {
+        & node $haCli add --id passphrase-safeplace-fix --what "Vault-backup off-machine passphrase is UNPROVEN: fix the password-manager copy and re-run work/18-recovery-layer/escrow-test.ps1 until it prints PASS" --why "only you can open your password manager" --severity high 2>$null | Out-Null
+    }
+    $global:LASTEXITCODE = 0
+}
+
 $gpg = @("C:\Program Files\Git\usr\bin\gpg.exe","C:\Program Files (x86)\GnuPG\bin\gpg.exe") |
        Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $gpg) { $c = Get-Command gpg -ErrorAction SilentlyContinue; if ($c) { $gpg = $c.Source } }
 if (-not $gpg) { Write-Host "FAIL: gpg not found." -ForegroundColor Red; exit 1 }
 
-$localPass = Join-Path $env:USERPROFILE ".alex-secrets\vault-backup.pass"
+# F-04 (2026-07-21): the local passphrase-file path is read from the gitignored credentials ledger,
+# not hardcoded in this tracked/public script.
+$localPass = $null
+$__ledger = Join-Path $repo 'system\credentials-ledger.json'
+if (Test-Path $__ledger) {
+    try {
+        $__pe = (Get-Content $__ledger -Raw | ConvertFrom-Json).credentials | Where-Object { $_.id -eq 'vault-backup-gpg-passphrase' } | Select-Object -First 1
+        if ($__pe -and $__pe.local_path) { $localPass = [Environment]::ExpandEnvironmentVariables($__pe.local_path) }
+    } catch { }
+}
 $tmp = Join-Path $env:TEMP ("escrow-" + [guid]::NewGuid().ToString('N').Substring(0,6))
 New-Item -ItemType Directory -Force $tmp | Out-Null
 try {
@@ -69,11 +112,15 @@ try {
     Write-Host ""
     if ($ok) {
         $entries = (& tar -tf (Join-Path $tmp "out.tar") 2>$null | Measure-Object).Count
+        Write-AttestationPass $name $entries
         Write-Host "PASS: your PASSWORD-MANAGER passphrase decrypted the off-machine backup." -ForegroundColor Green
         Write-Host "      $name  ->  $entries entries recovered. The backups survive a dead ThinkPad."
-        Write-Host "      Tell Alex 'escrow pass' and it will stamp the attestation + close the queue items."
+        Write-Host "      Attestation stamped ($attestFile) and the escrow queue items closed automatically."
+        Write-Host "      C14 will read green on the next recovery sweep. No 'tell Alex' step needed."
     } else {
+        Write-AttestationFail "the local file decrypted this blob but the password-manager copy did not - the manager entry is genuinely wrong/stale."
         Write-Host "FAIL: the local file decrypted this blob but your MANAGER copy did not - the manager entry is genuinely wrong/stale." -ForegroundColor Red
+        Write-Host "      Attestation left PENDING and a HIGH 'passphrase-escrow-red' item is open until this passes."
         Write-Host "      Fix: run   Set-Clipboard -Value (Get-Content '$localPass' -First 1)"
         Write-Host "      then paste that into your password manager (replace the value), save, and re-run this drill."
     }

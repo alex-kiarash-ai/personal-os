@@ -1,6 +1,7 @@
 # Daily git backup to GitHub (Recovery Phase 0, built 2026-07-02)
-# Commits the whole tree (respecting .gitignore) and pushes to the private
-# alex-kiarash-ai/personal-os repo. On any failure: log + RED run_status push
+# Commits the whole tree (respecting .gitignore) and pushes to the PUBLIC
+# alex-kiarash-ai/personal-os repo (public since 2026-07-16; .gitignore is the SOLE privacy barrier).
+# On any failure: log + RED run_status push
 # to Alex HQ so a dead backup is never silent. Success pushes GREEN.
 # Plan + runbook: vault/projects/recovery/github-backup-plan.md
 param([switch]$DryRun)

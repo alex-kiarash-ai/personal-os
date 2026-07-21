@@ -182,6 +182,35 @@ function upsertLock(name, repo, skillPath) {
 
 function sh(cmd) { return execSync(cmd, { cwd: REPO, stdio: 'pipe' }).toString(); }
 
+// --- Class E concurrency lock (2026-07-21): the 2026-07-20 sibling-session hazard (two installs racing
+// the skills-lock, one deleting the other's entry mid-run) cannot silently corrupt state. An atomic
+// mkdir mutex serializes installs; a lock older than 30 min (a crashed run) is stolen so it can't wedge.
+const LOCKDIR = path.join(REPO, '.skills-install.lock');
+function acquireLock() {
+  try { fs.mkdirSync(LOCKDIR); fs.writeFileSync(path.join(LOCKDIR, 'pid'), `${process.pid} ${new Date().toISOString()}`); return true; }
+  catch (e) {
+    if (e.code !== 'EEXIST') throw e;
+    try { if (Date.now() - fs.statSync(LOCKDIR).mtimeMs > 30 * 60 * 1000) { fs.rmSync(LOCKDIR, { recursive: true, force: true }); fs.mkdirSync(LOCKDIR); return true; } } catch (_) { /* lost the race */ }
+    return false;
+  }
+}
+function releaseLock() { try { fs.rmSync(LOCKDIR, { recursive: true, force: true }); } catch (_) { /* best effort */ } }
+
+// --- Class E security preflight (2026-07-21): the auto-install commit uses --no-verify, so the full
+// pre-commit suite (with its live-n8n V6) can't block a headless install - which leaves this the ONE
+// commit path that skips the hook. Run the SECURITY-critical guards here explicitly before committing to
+// the PUBLIC repo: V11 (no gitignored path forced-added, which would push a secret world-visible) + V10
+// (no protected/immutable NEVER-TOUCH file mutated). Throws to abort the commit on any violation; the
+// non-security checks stay skipped by design (that is why --no-verify is used).
+function securityPreflightOrThrow() {
+  const v11 = execSync('git ls-files --cached --ignored --exclude-standard', { cwd: REPO }).toString()
+    .split('\n').map(s => s.trim()).filter(Boolean);
+  if (v11.length) throw new Error(`V11 forced-add guard: gitignored path(s) staged for the PUBLIC repo: ${v11.join(', ')}`);
+  const { evaluateProtectedChangeset, readStagedChangeset } = require('./validate-alex');
+  const res = evaluateProtectedChangeset(readStagedChangeset());
+  if (res.failures.length) throw new Error(`V10 protected-file guard: ${res.failures.join('; ')}`);
+}
+
 function installSkill(repo, name) {
   sh(`npx -y skills add ${repo} --skill ${name}`);
   // Verify the universal copy exists; ensure the .claude/skills symlink is present (Windows gotcha).
@@ -197,6 +226,11 @@ function installSkill(repo, name) {
 
 // ---- main --------------------------------------------------------------------------------------
 (async () => {
+  if (!acquireLock()) {
+    console.log('skills-installer: another install holds .skills-install.lock - deferring this run (Class E concurrency guard, 2026-07-21).');
+    process.exitCode = 0; return;
+  }
+  try {
   const cfg = readJSON(CONFIG, {});
   if (!cfg.directories) { console.log('skills-installer: no skills-sources.json - skills lane off.'); return; }
   const manifest = readJSON(MANIFEST, { projects: [] });
@@ -245,6 +279,7 @@ function installSkill(repo, name) {
       let sha = '(commit skipped)';
       try {
         sh('git add -A');
+        securityPreflightOrThrow();   // Class E: V11 forced-add + V10 protected-file guards before the --no-verify commit
         sh(`git commit -m "evolution: auto-install ${name} for ${c.target_project} [skills lane #25]" --no-verify`);
         sha = sh('git rev-parse --short HEAD').trim();
       } catch (e) { sha = `(commit failed: ${e.message.split('\n')[0]})`; }
@@ -280,4 +315,5 @@ function installSkill(repo, name) {
   try { fs.mkdirSync(outDir, { recursive: true }); fs.writeFileSync(path.join(outDir, 'skills-install-report.md'), out, 'utf8'); } catch { /* ok */ }
   process.stdout.write(out);
   process.exitCode = 0;
+  } finally { releaseLock(); }
 })();

@@ -26,6 +26,23 @@ const path = require('path');
 const FILE = path.join(__dirname, '..', 'system', 'human-actions.jsonl');
 const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 
+// --- Class A single-source-of-truth gate (2026-07-21, audit F-01) ------------------------------
+// The escrow queue items may only close when the attestation FILE actually proves escrow works.
+// This makes "queue says done, attestation says FAILED" (the 2026-07-18 contradiction) impossible:
+// a `done` on these ids is refused unless work/18-recovery-layer/state/passphrase-attested.txt
+// carries a real yyyy-MM-dd first line (not "PENDING"/malformed). escrow-test.ps1 is the ONE writer
+// of that file and, on a PASS, stamps the date THEN closes these ids in the same run, so the honest
+// close path is automatic and the manual one is gated. Deliberate bypass: append the done row by hand.
+const ATTEST_GATED = new Set(['passphrase-attestation', 'passphrase-escrow-retest', 'passphrase-safeplace-fix']);
+const ATTEST_FILE = path.join(__dirname, '..', 'work', '18-recovery-layer', 'state', 'passphrase-attested.txt');
+
+function attestationIsProven() {
+  try {
+    const first = (fs.readFileSync(ATTEST_FILE, 'utf8').split('\n')[0] || '').trim();
+    return /^\d{4}-\d{2}-\d{2}\b/.test(first);   // a real dated attestation, not PENDING / malformed
+  } catch (_) { return false; }
+}
+
 function load() {
   if (!fs.existsSync(FILE)) return [];
   const byId = new Map();
@@ -76,6 +93,12 @@ if (cmd === 'add') {
 } else if (cmd === 'done') {
   const id = process.argv[3];
   if (!openItems().some(r => r.id === id)) { console.error(`no open item '${id}'`); process.exit(1); }
+  // Class A gate: an escrow item cannot be closed while the attestation file is unproven (F-01).
+  if (ATTEST_GATED.has(id) && !attestationIsProven()) {
+    console.error(`refusing to close '${id}': ${ATTEST_FILE} is not a fresh dated attestation (first line must be yyyy-MM-dd, not PENDING).`);
+    console.error(`Run the escrow drill: powershell -File work/18-recovery-layer/escrow-test.ps1 - it stamps the attestation and closes this item on PASS.`);
+    process.exit(1);
+  }
   append({ id, done: true, done_date: today });
   console.log(`closed: ${id}`);
 } else if (cmd === 'list') {

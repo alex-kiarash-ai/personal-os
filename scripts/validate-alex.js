@@ -964,4 +964,4 @@ if (require.main === module) {
     .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }
 
-module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED };
+module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED, readStagedChangeset };

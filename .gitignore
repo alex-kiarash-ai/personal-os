@@ -113,6 +113,9 @@ scripts/n8n-backups/
 .staging/
 .staging-backup/
 
+# skills-installer concurrency lock (Class E, 2026-07-21) - runtime mutex, never committed
+.skills-install.lock/
+
 # Personal-CRM runtime state (2026-07-20): cadence.json + monday-list.md hold real contact NAMES and
 # relationship context (dating/family/recruiter). Never on the public GitHub; encrypted-backup-covered.
 work/05-personal-crm/state/

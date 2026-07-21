@@ -230,17 +230,37 @@ $newHw = [math]::Max($logLines, $prevHw)
 @{ lines = $newHw; updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
     ConvertTo-Json | Set-Content -Encoding utf8 $hwFile
 
-# --- C10 manifest hash self-check: a work CLAUDE.md changed since the last -Init baseline ---
-if (Test-Path $baselineFile) {
+# --- C10 uncommitted-spec drift: a work CLAUDE.md differs from its COMMITTED version (git HEAD) ---
+# CHANGED 2026-07-21 (audit F-02 / Class B "auto-track committed state"). Was "changed since the last
+# -Init baseline", which flagged EVERY committed edit until a human re-ran -Init - chronic noise (13
+# stale rows at the audit) that masks the real signal. Now COMMITTED = ACCEPTED: C10 flags ONLY an
+# UNCOMMITTED / out-of-band edit (working tree != HEAD), which is the true "changed and not yet moved
+# through review + commit" drift. It is stateless (git IS the baseline), so it can never itself go
+# stale again. The "re-review the manifest one-liner when a spec changes" nudge moved to the weekly
+# /self-review, which diffs work/**/CLAUDE.md over the week. Falls back to the -Init baseline only when
+# git is unavailable (e.g. a pre-first-commit restore). C8 (stale-status) deliberately KEEPS the -Init
+# baseline: it catches a COMMITTED spec change whose status.md was not propagated, which git HEAD cannot see.
+$prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+$gitOk = $false
+try { git -C $repo rev-parse --is-inside-work-tree *> $null; $gitOk = ($LASTEXITCODE -eq 0) } catch { $gitOk = $false }
+if ($gitOk) {
+    foreach ($p in $manifest.projects) {
+        $rel = "$($p.work_dir)/CLAUDE.md"
+        if (-not (Test-Path (Join-Path $repo $rel))) { continue }
+        git -C $repo diff --quiet HEAD -- $rel *> $null
+        if ($LASTEXITCODE -ne 0) { Add-Drift 'manifest-stale' "#$($p.num) $($p.name): work CLAUDE.md has UNCOMMITTED changes vs HEAD (commit so the spec + baseline move together, or revert; the manifest-entry review is the weekly /self-review's job)" }
+    }
+} elseif (Test-Path $baselineFile) {
     $base = (Get-Content $baselineFile -Raw | ConvertFrom-Json).hashes
     foreach ($p in $manifest.projects) {
         $cur = Get-Sha (Join-Path $p.work_dir 'CLAUDE.md')
         $old = $base."$($p.num)"
-        if ($old -and $cur -and ($cur -ne $old)) { Add-Drift 'manifest-stale' "#$($p.num) $($p.name): CLAUDE.md changed since last -Init (review the manifest entry, then re-run -Init)" }
+        if ($old -and $cur -and ($cur -ne $old)) { Add-Drift 'manifest-stale' "#$($p.num) $($p.name): CLAUDE.md changed since last -Init (git unavailable; review the manifest entry, then re-run -Init)" }
     }
 } else {
-    Add-Drift 'manifest-stale' "no baseline yet - run 'check.ps1 -Init' to seed manifest hashes"
+    Add-Drift 'manifest-stale' "no baseline yet and git unavailable - run 'check.ps1 -Init' to seed manifest hashes"
 }
+$ErrorActionPreference = $prevEAP
 
 # --- C11 index catalog (index.md <-> disk): each manifest project's status page is catalogued in the index ---
 # Design piece-2 "index.md <-> disk diff": a registered project missing from the catalog goes undetected.

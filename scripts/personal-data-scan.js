@@ -37,6 +37,14 @@ const PATTERNS = [
   { cat: 'financial', re: '\\b[0-9][0-9.,\\s]*(kr|sek)\\b' },                // a number immediately followed by kr/SEK
   { cat: 'health',    re: '"(steps|sleep[_-]?score|sleepScore|sleep[_-]?hours|sleepHours)"\\s*:\\s*[0-9.]+' }, // health values in a JSON data blob
   { cat: 'contact',   re: '\\+46[\\s0-9]{7,}' },                            // a Swedish phone number
+  // infra-secret-path (F-04, 2026-07-21): a LOCAL secret-file storage path must never live in a tracked
+  // (world-readable) file - it hands an attacker the exact on-disk location of a credential. The canonical
+  // case is the vault-backup gpg passphrase; its path lives ONLY in the gitignored credentials ledger (read
+  // at runtime). This terminates the class - the concrete secret-location tokens are matched below; add a
+  // token here when a new local secret gets a fixed name. Live URLs (box host, MCP endpoint) are unavoidably
+  // public and deliberately NOT matched (only on-disk secret LOCATIONS are). Precise by design: a generic
+  // ".pass" extension false-matches PowerShell ".Pass" property access under the scanner's -i flag.
+  { cat: 'infra-secret-path', re: '\\.alex-secrets|vault-backup\\.pass' },
 ];
 
 // Vendored / generated / self trees to skip: third-party skills carry their own example names + word

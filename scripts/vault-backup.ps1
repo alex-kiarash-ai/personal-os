@@ -6,7 +6,9 @@
 # gpg-symmetric-encrypt it (AES256), and ship the single .gpg blob to the
 # Hetzner box. On any failure: log + RED run_status to Alex HQ (never silent).
 # The include set is DERIVED FROM .gitignore, so it can't drift from what's local.
-# Passphrase: %USERPROFILE%\.alex-secrets\vault-backup.pass (out of repo, local-only path).
+# Passphrase file: its path is read from the gitignored credentials ledger
+#   (system/credentials-ledger.json, id=vault-backup-gpg-passphrase, local_path) - NOT hardcoded here,
+#   so this tracked/public script never names the local secret path (F-04, 2026-07-21).
 #   >>> The SAME passphrase must also live in Shaheen's password manager, or an
 #       off-machine .gpg is unrecoverable if this ThinkPad dies. <<<
 # Runbook: vault/projects/recovery/vault-backup-plan.md
@@ -25,7 +27,17 @@ $gpg = @("C:\Program Files\Git\usr\bin\gpg.exe","C:\Program Files (x86)\GnuPG\bi
        Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $gpg) { $c = Get-Command gpg -ErrorAction SilentlyContinue; if ($c) { $gpg = $c.Source } }
 
-$passFile = Join-Path $env:USERPROFILE '.alex-secrets\vault-backup.pass'  # local-only; concrete path kept out of the public repo
+# F-04 (2026-07-21): the concrete passphrase-file path lives ONLY in the gitignored credentials
+# ledger (id=vault-backup-gpg-passphrase, local_path), never hardcoded in this tracked/public script.
+# Resolved here to $null if unavailable; the try-block below throws + RED-pushes if it stays unresolved.
+$passFile = $null
+$__ledger = Join-Path $repo 'system\credentials-ledger.json'
+if (Test-Path $__ledger) {
+    try {
+        $__pe = (Get-Content $__ledger -Raw | ConvertFrom-Json).credentials | Where-Object { $_.id -eq 'vault-backup-gpg-passphrase' } | Select-Object -First 1
+        if ($__pe -and $__pe.local_path) { $passFile = [Environment]::ExpandEnvironmentVariables($__pe.local_path) }
+    } catch { }
+}
 $stamp   = Get-Date -Format 'yyyyMMdd-HHmm'
 $tmp     = Join-Path $env:TEMP "alex-vault-$stamp-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $tarFile = "$tmp.tar"
@@ -81,7 +93,8 @@ if (-not $DryRun) {
 
 try {
     if (-not $gpg)               { throw "gpg not found (install Gpg4win or use the Git-bundled gpg)" }
-    if (-not (Test-Path $passFile)) { throw "passphrase file missing: $passFile" }
+    if (-not $passFile)          { throw "passphrase path not configured in system/credentials-ledger.json (id=vault-backup-gpg-passphrase, field local_path)" }
+    if (-not (Test-Path $passFile)) { throw "passphrase file missing at the ledger-configured path" }
 
     # 1. Build the include set from .gitignore (ignored files/dirs, dirs collapsed),
     #    minus regenerable build/runtime junk. This IS the local-only surface.

@@ -220,19 +220,20 @@ function Invoke-CloseOutCheck {
         }
     }
 
-    # --- Positive-completion sentinel (item 1, Stage 1 = WARN-ONLY, 2026-07-20) ---
+    # --- Positive-completion sentinel (item 1, STAGE 2 = ENFORCING since 2026-07-21, audit O-01) ---
     # A run that emitted real work (>500 non-ws chars, so -not $short) and exited 0 but printed NO
     # Close-Out verdict line in its TAIL is a candidate truncation / silent mid-stream stop - the one
     # class the error-signature gates above cannot see (there is no error to match). The verdict line
-    # is a POSITIVE proof of finish; absence-of-error is not. STAGE 1 only OBSERVES: it LOGS the miss,
-    # it does NOT set $reason, push RED, or exit 1, so no running job flashes red for a marker it was
-    # only just told to print. Flip to enforcing after the warn-only week (uncomment the $reason line).
+    # is a POSITIVE proof of finish; absence-of-error is not. Every claude-spawning wrapper appends
+    # $AlexVerdictInstruction, so a healthy run ALWAYS ends in the verdict line; its absence in a
+    # long run means the run died dark before finishing. STAGE 1 (warn-only, 2026-07-20) observed a
+    # week clean; flipped to ENFORCING here (audit O-01): the miss now sets $reason -> RED + self-retry,
+    # closing the last "died dark, reported green" gap. (Revert to warn-only by re-commenting $reason.)
     if ($null -eq $reason -and -not $short) {
         $vtail = if ($Out.Length -gt 400) { $Out.Substring($Out.Length - 400) } else { $Out }
         if ($vtail -notmatch 'Verdict:\s*(COMPLETE|INCOMPLETE)') {
-            "OBSERVE (sentinel warn-only): no Close-Out verdict line in a >500-char run (candidate truncation/mid-stream stop, exit 0). Stage-2 will fail this." | Out-File -Append -Encoding utf8 $Log
-            # STAGE 2 (enforce) - flip after the observation week proves the wrappers emit the line:
-            # $reason = 'no Close-Out verdict line in a >500-char run (truncated / mid-stream stop, exit 0)'
+            $reason = 'no Close-Out verdict line in a >500-char run (truncated / mid-stream stop, exit 0)'
+            "sentinel ENFORCING: $reason" | Out-File -Append -Encoding utf8 $Log
         }
     }
 
