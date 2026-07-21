@@ -37,9 +37,15 @@ function Write-AttestationPass($blobName, $entries) {
                "Escrow drill PASSED: the password-manager passphrase decrypted $blobName ($entries entries) on $today.",
                "Next re-drill due ~$due (90-day C14 window). Sole writer: escrow-test.ps1.") -join "`n"
     [System.IO.File]::WriteAllText($attestFile, $body + "`n", (New-Object System.Text.UTF8Encoding($false)))
+    # BUGFIX 2026-07-21: node prints "no open item" to stderr for an already-closed id; under this script's
+    # $ErrorActionPreference='Stop' that NativeCommandError was terminating and aborted the loop before it
+    # reached the still-open item (the drill PASSED but passphrase-safeplace-fix stayed open). Run the loop
+    # under 'Continue' + per-id try/catch so one benign stderr can never skip closing the real open item.
+    $prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
     foreach ($id in @('passphrase-attestation','passphrase-escrow-retest','passphrase-safeplace-fix')) {
-        & node $haCli done $id 2>$null | Out-Null   # no-op if not open; the gate now passes (date stamped above)
+        try { & node $haCli done $id 2>$null | Out-Null } catch { }   # no-op if not open; the gate passes (date stamped above)
     }
+    $ErrorActionPreference = $prevEAP
     $global:LASTEXITCODE = 0
 }
 function Write-AttestationFail($reason) {
@@ -49,10 +55,13 @@ function Write-AttestationFail($reason) {
                "Fix + re-run: powershell -File work\18-recovery-layer\escrow-test.ps1. Sole writer: escrow-test.ps1.") -join "`n"
     [System.IO.File]::WriteAllText($attestFile, $body + "`n", (New-Object System.Text.UTF8Encoding($false)))
     # Ensure the failure is ESCALATED: the canonical escrow item stays open and ages up the ladder.
+    # Same 'Continue' guard as the PASS branch (a native stderr under 'Stop' must never abort this).
+    $prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
     $open = (& node $haCli list 2>$null | Out-String)
     if ($open -notmatch 'passphrase-safeplace-fix') {
-        & node $haCli add --id passphrase-safeplace-fix --what "Vault-backup off-machine passphrase is UNPROVEN: fix the password-manager copy and re-run work/18-recovery-layer/escrow-test.ps1 until it prints PASS" --why "only you can open your password manager" --severity high 2>$null | Out-Null
+        try { & node $haCli add --id passphrase-safeplace-fix --what "Vault-backup off-machine passphrase is UNPROVEN: fix the password-manager copy and re-run work/18-recovery-layer/escrow-test.ps1 until it prints PASS" --why "only you can open your password manager" --severity high 2>$null | Out-Null } catch { }
     }
+    $ErrorActionPreference = $prevEAP
     $global:LASTEXITCODE = 0
 }
 
