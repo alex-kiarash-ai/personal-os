@@ -34,9 +34,14 @@ function plateau(x, c){ if(x==null) return null; const [lo,hi]=c.band;
   const frac=clamp((x-hi)/(c.taper_above-hi)); return c.w*(1-(1-c.floor_above)*frac); }
 function ramp(x, c){ if(x==null) return null; return c.w*clamp((x-c.zero_at)/(c.full_at-c.zero_at)); }
 function scoreNight(d){
-  const asleep = num(d.asleep_min);
-  if(!asleep || asleep<=0) return {score:null, eff:null};
-  const deep=num(d.deep_min)||0, rem=num(d.rem_min)||0, inbed=num(d.inbed_min);
+  // asleep-total is DERIVED from the sleep stages (deep+rem+core), which arrive correctly.
+  // The phone's own asleep_min (Shortcut Block 8) is unreliable - it ships the awakenings
+  // count, not the sum - so ignore it whenever stages exist; fall back to it only when there
+  // are no stages at all. (2026-07-21 fix; see error-log.)
+  const deep=num(d.deep_min)||0, rem=num(d.rem_min)||0, core=num(d.core_min)||0, inbed=num(d.inbed_min);
+  const stageSum = deep+rem+core;
+  const asleep = stageSum>0 ? stageSum : (num(d.asleep_min)||0);
+  if(!asleep || asleep<=0) return {score:null, eff:null, asleep:0};
   let eff = (inbed && inbed>=asleep) ? asleep/inbed : (d.efficiency!=null ? num(d.efficiency) : null);
   const comp={};
   comp.duration    = plateau(asleep, CFG.duration);
@@ -47,12 +52,20 @@ function scoreNight(d){
   comp.restfulness = wakes!=null ? Math.max(0, CFG.restfulness.w - Math.max(0, wakes-CFG.restfulness.free)*CFG.restfulness.penalty) : null;
   const keys = Object.keys(comp).filter(k => comp[k]!=null);
   const lw = keys.reduce((a,k)=>a+CFG[k].w, 0);
-  if(lw===0) return {score:null, eff};
+  if(lw===0) return {score:null, eff, asleep};
   const raw = keys.reduce((a,k)=>a+comp[k], 0);
-  return {score: Math.round(raw/lw*100), eff: eff!=null ? Math.round(eff*1000)/1000 : null};
+  return {score: Math.round(raw/lw*100), eff: eff!=null ? Math.round(eff*1000)/1000 : null, asleep};
 }
 
-const body = $input.first().json.body ?? {};
+const _item = $input.first();
+let _raw;
+if (_item.binary && _item.binary.data && _item.binary.data.data) { _raw = Buffer.from(_item.binary.data.data, 'base64').toString('utf8'); }
+else if (typeof _item.json.body === 'string') { _raw = _item.json.body; }
+else if (_item.json.body != null) { _raw = JSON.stringify(_item.json.body); }
+else { _raw = JSON.stringify(_item.json); }
+const _clean = _raw.split(':,').join(':0,').split(':}').join(':0}');
+let body;
+try { body = JSON.parse(_clean); } catch (e) { body = {}; }
 let days;
 if (Array.isArray(body)) days = body;
 else if (Array.isArray(body.days)) days = body.days;
@@ -63,11 +76,11 @@ const now = new Date().toISOString();
 const out = [];
 for (const d of days) {
   if (!d || !d.date) throw new Error('each day needs a date');
-  const {score, eff} = scoreNight(d);
+  const {score, eff, asleep} = scoreNight(d);
   out.push({ json: {
     date: String(d.date),
     steps: num(d.steps),
-    asleep_min: num(d.asleep_min),
+    asleep_min: asleep>0 ? Math.round(asleep*100)/100 : num(d.asleep_min),
     deep_min: num(d.deep_min),
     rem_min: num(d.rem_min),
     core_min: num(d.core_min),

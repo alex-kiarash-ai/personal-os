@@ -1,6 +1,6 @@
 # Alex HQ - Summary API: the dashboard's data tap
 
-**Workflow ID:** `GLcMPA4m0DRGjnQH` · **Runs:** always on, waiting at `GET /webhook/alex-hq-summary` (token-gated) · **Nodes:** 4 · **Export in this folder:** workflow.json (2026-07-01 version, latest)
+**Workflow ID:** `GLcMPA4m0DRGjnQH` · **Runs:** always on, waiting at `GET /webhook/alex-hq-summary` (token-gated) · **Nodes:** 6 · **Export in this folder:** workflow.json (2026-07-21 version, latest)
 
 ## What it does
 
@@ -13,8 +13,9 @@ The metrics table is a growing history (hundreds of rows); the dashboard needs a
 ## The steps, node by node
 
 - **Summary Webhook** - the tap: listens at `/webhook/alex-hq-summary`, token-checked.
+- **Get Health Rows** → **Stash Health** - reads the `alex_health` table and collapses it to one item, so the sleep-score and step tiles can be built alongside the metrics.
 - **Get All Rows** - pulls the rows from the `alex_metrics` data table.
-- **Reduce To Summary** - plain code that keeps the newest value of each metric per project, computes each project's worst status (one red metric makes the project red), and attaches "last seen" ages for staleness.
+- **Reduce To Summary** - plain code that keeps the newest value of each metric per project, computes each project's worst status (one red metric makes the project red), and attaches "last seen" ages for staleness. It also builds the `health` project from the sleep/steps rows. **Phantom-reading guard (2026-07-21):** a day with 0 steps or a night under 60 min "asleep" means the iPhone sent an empty reading (HealthKit gave it nothing), so instead of showing a fabricated score the tile reports "phone sync stalled since {last real date}" and keeps the real history behind it. That is why the sleep/steps tiles can read "–" even though a row landed last night.
 - **Respond Summary** - returns the finished summary as JSON to the app.
 
 ## Connected to

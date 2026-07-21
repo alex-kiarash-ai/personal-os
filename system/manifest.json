@@ -643,7 +643,7 @@
       "title": "Recovery Layer",
       "state": "LIVE",
       "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe",
-      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe.",
+      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest.",
       "docs": "18-recovery-layer.md",
       "schedule_jobs": [
         "PersonalOS-recovery-check",

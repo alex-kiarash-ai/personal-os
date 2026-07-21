@@ -3,23 +3,45 @@
 Spec: work/16-alex-hq/CLAUDE.md (read it first). Status + IDs: vault/projects/alex-hq/status.md.
 
 ## What this command does
-1. **Harvest local-only metrics** (the ones only this ThinkPad can see):
-   - `infra.mcp_tools`: count `mcp__` tool names available (or `claude mcp list`)
-   - `infra.vault_pages`: `Glob vault/**/*.md` count (+ people/business/research sub-counts as value_text)
-   - `infra.scheduled_jobs_active`: `schtasks /query` count of enabled Personal Ops System jobs (see vault/projects/cron-paths.md for names)
-   - `recovery.hours_since_last_push`: `git log -1 --format=%ct origin/main` → hours since the last GitHub backup push (added 2026-07-02, Recovery Phase 0; amber-worthy if > 30h since the job runs daily 21:30)
-   - `infra.n8n_up_today` + `infra.n8n_broken_today`: run `python work/16-alex-hq/scripts/n8n_liveness.py` - it queries the n8n REST API and prints a JSON **array** of TWO ready-to-push events: `n8n_up_today` (active workflows that ran today, over active count) and `n8n_broken_today` (workflows broken RIGHT NOW = latest run errored, OR an expected-daily workflow gone silent >26h; red with the offenders named). Merge BOTH array elements into the step-2 events push verbatim. If it exits non-zero (API unreachable), SKIP both - never push a fabricated 0. (up_today added 2026-07-04; broken_today added 2026-07-06 - it's the number behind the "Broken n8n today" HQ card, and the Pipeline Error Alert workflow pushes the same key RED the instant a guarded workflow throws.)
-1b. **Refresh the static data JSONs** (volume-mounted at /app/public/data, no rebuild ever needed; skip gracefully if SSH is unavailable):
-   - Brain graph (v1.2): `node work/16-alex-hq/scripts/build-graph.mjs`
-   - To-Do card (2026-07-06): `node work/16-alex-hq/scripts/build-todos.mjs` — parses the sprint vault snapshot (vault/projects/sprint-tracker/status.md board table + newer "New row" update lines) into todos.json (open items only)
-   - Gym + plants cards (2026-07-06): `node work/16-alex-hq/scripts/build-life.mjs` — parses vault/me/gym.md (Start date) + vault/me/plants.md (watering table) into life.json. If this session synced fresher Life Ops sheet data, update those vault pages FIRST, then build.
-   - Project roster (2026-07-07): `node work/16-alex-hq/scripts/build-projects.mjs` — reads the project registry (system/manifest.json) into projects.json so the Automation Health board shows EVERY registered project (not just the ones pushing telemetry). Add a project to the registry → it appears on HQ on the next harvest, no HQ edit. Non-reporting projects render an honest idle ticket; live metrics merge on by `hq_project` slug.
-   - n8n drill-down list: written by the step-1 `n8n_liveness.py` run as n8n-workflows.json (no extra command)
-   - Ship all five: `scp work/16-alex-hq/app/public/data/graph.json work/16-alex-hq/app/public/data/todos.json work/16-alex-hq/app/public/data/life.json work/16-alex-hq/app/public/data/n8n-workflows.json work/16-alex-hq/app/public/data/projects.json n8n:/opt/alex-hq-data/`
-1a2. **Own heartbeat (upgrade P4, 2026-07-12):** include `{"project":"alex-hq","metric_key":"run_status","value_num":1,"status":"green","headline":"local push clean {date}"}` in the push - the registry promises this slug a daily cadence, and the harvest previously pushed only under `infra`, leaving the alex-hq board row honestly-but-needlessly stale.
-1b. **Waiting-on-you metrics (upgrade P2, 2026-07-12):** run `node scripts/human-actions.js summary` and add ONE event to the push: `{"project":"human-actions","metric_key":"open_count","value_num":<open_count>,"status":"<red if worst_severity=critical, amber if any item 7d+, else green>","headline":"<headline> · oldest <oldest_days>d"}`. Pointer-style only, never a person's name. Feeds the P7 "Waiting on you" strip.
-2. **Push** them: `POST https://n8n.shaheenkiarash.com/webhook/alex-push` with header `X-Alex-Token: $(cat work/16-alex-hq/config/alex-hq-token.txt)`, body `{"events": [...]}` per the contract in the spec. NEVER print or log the token.
-3. **Fetch** `GET https://n8n.shaheenkiarash.com/webhook/alex-hq-summary` (same header) and present the summary in Alex voice: per-project status colors, stale projects (last_ts older than its cadence), red/amber first.
+1. **Deterministic harvest + build + ship + push + verify (ONE script, NOT the model):**
+   `python scripts/hq_harvest_push.py`. This is the whole number path. **Do NOT count MCP tools,
+   scheduled jobs, vault pages, or n8n liveness yourself, and do NOT scp by hand** - the script
+   does all of it from real sources, ships the 5 JSONs with a box-mtime read-back, POSTs the push,
+   and read-back-verifies the infra metrics. It exits non-zero + prints RED lines on a hard failure
+   (push rejected / ship stale / read-back mismatch). Surface those RED lines; do not paper over them.
+   **Why a script (2026-07-21):** the old flow asked the (headless, terse) model to count its own
+   `mcp__` tools - but tools went DEFERRED in the harness (~07-17), so the model saw none and pushed
+   `mcp_tools=0/"unknown"`; the scheduled-jobs count drifted to 0; and the scp silently stopped,
+   freezing every box data file at 07-20 06:47. None of that is model work. The script owns it now.
+   What the script gathers and pushes:
+   - `infra.mcp_tools` - CONNECTED MCP servers via `claude mcp list` (was tool-name counting; switched
+     to servers because deferred tools can't be self-counted). value_text names how many need re-auth.
+   - `infra.scheduled_jobs_active` - enabled `PersonalOS-*` Windows scheduled tasks (schtasks).
+   - `infra.vault_pages` - `vault/**/*.md` count + people/business/research sub-counts.
+   - `infra.n8n_up_today` + `infra.n8n_broken_today` - from `n8n_liveness.py` (also writes
+     n8n-workflows.json). `up_today` = **scheduled workflows ON-CADENCE** over the cadence-monitored count
+     (each measured against a window derived from its own trigger: daily 26h, 72h engines ~82h, Tue/Thu
+     LinkedIn ~144h; + the daily health webhook), NOT all 16 active. Silence-aware: a scheduled workflow
+     that quietly stops firing is flagged broken within its own window - the webhook/MCP workflows have no
+     cadence and are error-tested only (idle by design).
+   - The 5 static JSONs (graph, todos, life, projects, n8n-workflows), built + scp'd to
+     `/opt/alex-hq-data/` (volume-mounted, no rebuild) + mtime-verified fresh on the box.
+   - `alex-hq.run_status` heartbeat + `human-actions.open_count` (Waiting-on-you strip).
+   - **Life data note:** if this session synced fresher Life Ops sheet data, update vault/me/gym.md +
+     vault/me/plants.md FIRST, then run the script (build-life.mjs reads the vault).
+1c. **SELF-HEAL (every HQ update CHECKS + FIXES, not just displays):** `python scripts/hq_self_heal.py`.
+   Zero-token, deterministic. It re-derives ground truth for each metric and, per the risk class in
+   `system/hq-heal-map.json`: **AUTO-SAFE** mismatches (MCP count, stale box JSONs, n8n metric) are
+   re-derived + re-pushed + read-back-verified automatically; **PROPOSE** (a live workflow redeploy/
+   reactivation, a stuck-flag clear) and **HUMAN-ONLY** (phone/OAuth) items are queued to
+   `human-actions.jsonl` with a diagnosis, never auto-run (Shaheen's autonomy boundary). Every action ->
+   `system/heal-log.jsonl`; the printed "self-heal: N healed, M proposed ..." line is the audit surface.
+   Surface any HEALED/PROPOSED/ESCALATED lines in the output; the morning brief also reports them.
+   Home: recovery-layer (#18), the FIX half of the detect-only checker.
+2. **(covered by step 1)** The push + the read-back verify are inside the script. NEVER print the token.
+3. **Fetch + present.** GET `https://n8n.shaheenkiarash.com/webhook/alex-hq-summary` (header
+   `X-Alex-Token: $(cat work/16-alex-hq/config/alex-hq-token.txt)`) and present the summary in Alex
+   voice: per-project status colors, stale projects (last_ts older than its cadence), red/amber first.
 3a. **Quota mirror (upgrade P3, 2026-07-12):** if the summary carries `projects.quota.metrics.anthropic_api` with status red and a ts newer than `system/quota-state.json`'s anthropic_api.detected, update quota-state.json (state=capped, detected=that ts, keep/derive reset_date = first of next month). This is how an n8n-side cap detection reaches the local wrapper gate without a new channel.
 3b. **HQ inbox check (two-way notes; full runbook = work/16-alex-hq/CLAUDE.md "Inbox Contract").** GET `/webhook/alex-inbox` (same token header). If `count_new` > 0: voice notes get scp'd from n8n:/opt/alex-inbox-audio/ + transcribed with local Whisper; every note filed per the standing vault protocols; then POST `/webhook/alex-inbox-mark` (`{"marks":[{"id":N,"filed_to":"...","note":"<final text - REQUIRED>"}]}`); remote+local audio deleted after a voice mark. Report "HQ notes: N filed → destinations". Unreachable → one line, continue.
 4. Optional arg `status`: skip the push, just fetch + present.

@@ -134,3 +134,6 @@ work/20-runway/build_workbook.py
 
 # Personal-data-scan allowlist (S9): reviewed exceptions; references names, so local-only.
 system/personal-data-allowlist.json
+
+# Self-Heal Loop runtime log (headlines/project detail - local only, like human-actions)
+system/heal-log.jsonl

@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "purpose": "The remediation registry for the Alex HQ Self-Heal Loop (scripts/hq_self_heal.py). One entry per failure class: how to detect it (a named probe in the engine), whether Alex may fix it alone, and how to escalate what it can't. Data-driven so risk/enable/escalation text can be tuned (and /self-review can propose additions) without touching the engine.",
+    "version": 1,
+    "created": "2026-07-21",
+    "home": "recovery-layer (#18) - the FIX half of the detect-only checker",
+    "trigger": "runs as part of every HQ update (after scripts/hq_harvest_push.py), Shaheen 2026-07-21",
+    "risk_classes": {
+      "AUTO_SAFE": "deterministic, reversible, no external side-effect (re-ship, re-push, recount) - run automatically, always read-back-verified; escalate if the verify fails, never retry",
+      "PROPOSE": "a live mutation (workflow redeploy/reactivation, clearing a stuck flag) - queued to human-actions with a diagnosis, NEVER auto-run (Shaheen's autonomy boundary 2026-07-21)",
+      "HUMAN_ONLY": "needs Shaheen's hands or credentials (phone HealthKit, OAuth) - queued as his to do"
+    },
+    "rails": "one remedy attempt per check per run; every action appended to system/heal-log.jsonl; a new fix graduates in by adding a probe function + an entry here (git-reversible)."
+  },
+  "checks": [
+    {
+      "id": "mcp-count-truth",
+      "desc": "stored infra.mcp_tools must equal the live `claude mcp list` connected-server count",
+      "probe": "mcp_count",
+      "risk": "AUTO_SAFE",
+      "remedy": "re-derive via hq_infra_harvest and re-push the mcp event",
+      "escalate_fail": "MCP count re-pushed but the summary still disagrees - the ingest webhook or summary API may be down",
+      "enabled": true
+    },
+    {
+      "id": "box-data-fresh",
+      "desc": "the 5 channel-B JSONs on the box (/opt/alex-hq-data) must be fresh (mtime within 15 min of a harvest)",
+      "probe": "box_fresh",
+      "risk": "AUTO_SAFE",
+      "remedy": "re-scp the locally-built JSONs and re-verify each box mtime",
+      "escalate_fail": "box data files still stale after re-scp - SSH to the box is failing (key/agent) or the box is down",
+      "enabled": true
+    },
+    {
+      "id": "n8n-broken",
+      "desc": "no active n8n workflow may be errored or silent past its cadence (n8n_broken_today = 0)",
+      "probe": "n8n_broken",
+      "risk": "PROPOSE",
+      "remedy": "redeploy from the repo mirror / reactivate - a live mutation, queued not auto-run",
+      "escalate_fail": "",
+      "enabled": true
+    },
+    {
+      "id": "quota-stale-cap",
+      "desc": "quota.anthropic_api red but system/quota-state.json says the cap is ok = a stale flag no early-reset path cleared (the 07-13 class). Ground truth is the state file, so this is auto-clearable.",
+      "probe": "quota_stale",
+      "risk": "AUTO_SAFE",
+      "remedy": "push a truthful corrective green + verify (only when quota-state.json state==ok; a real cap is left red)",
+      "escalate_fail": "quota red won't clear despite quota-state.json ok - ingest issue",
+      "enabled": true
+    },
+    {
+      "id": "health-source-stalled",
+      "desc": "if the health tiles are stalled the phone data source is dead - not machine-fixable",
+      "probe": "health_stalled",
+      "risk": "HUMAN_ONLY",
+      "remedy": "check the iPhone Shortcut / HealthKit access",
+      "escalate_fail": "",
+      "enabled": true
+    },
+    {
+      "id": "stuck-red-status",
+      "desc": "a project sitting red on run_status for >3 days with no fresh push - likely a stale flag a clean run never cleared",
+      "probe": "stuck_status",
+      "risk": "PROPOSE",
+      "remedy": "confirm the project is actually healthy, then push a corrective green - queued (clearing needs per-project ground truth)",
+      "escalate_fail": "",
+      "enabled": true
+    },
+    {
+      "id": "unknown-red",
+      "desc": "CATCH-ALL: any project red that no check above claims - never let a red light be silently ignored",
+      "probe": "unknown_red",
+      "risk": "PROPOSE",
+      "remedy": "diagnose the red and either fix within the safe class or bring you the finding",
+      "escalate_fail": "",
+      "enabled": true
+    }
+  ]
+}

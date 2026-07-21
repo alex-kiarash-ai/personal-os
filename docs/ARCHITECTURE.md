@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-20. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-21. -->
 
 # Architecture: how Alex works
 
@@ -42,7 +42,7 @@ Walk this checklist every time:
 5. **Any cross-linked page** ([[wiki links]] on both sides), decisions.md / taste-profile where a decision was made, Notion rows if the pipeline uses them.
 6. **soul.md "My Words"** if Shaheen gave new phrasing this session.
 7. **The plain-English guide** (`Desktop\Alex Presentation\files\Alex-Plain-English-Guide.docx`, STANDING ORDER + ROLE, Shaheen 2026-07-15): ANY system-related work, an upgrade, a new function, or anything that changes how the system behaves, MUST update this .docx so it stays a document Shaheen reads and trusts is current. It is table-built (no images): the system map is table **T03** (section 3) and it IS the "chart" Shaheen means, redraw it ONLY when a change adds or moves a whole LAYER; update the project catalog (T07), the timetable (T08), or the fix-log tables where the change actually lands; and append a dated line to the running-changes section (13.7). Write in the guide's OWN plain-English register (honest, present-tense, short sentences, no em-dashes, "In plain English" asides), not generic prose, it is identity-carrying so the Brand + Soul Pre-Flight Gate applies. Edit via python-docx (installed). This is not optional and Shaheen should never have to ask for it.
-8. **The technical master reference** (`outputs\sessions\2026-07-15-alex-infra-audit\ALEX-OS-master.md`, STANDING ORDER + ROLE, Shaheen 2026-07-16): the sibling of item 7 for the *technical* reader. It is a LIVING ground-truth master doc (not a frozen audit snapshot anymore), local-only (gitignored) so fully detailed. ANY system-related work, an upgrade, a new function, or anything that changes how the system behaves, MUST update it: edit the numbered section where the change actually lands (§2 generated-surface pipeline, §3 catalog, §4 scheduler, §5 backup/recovery, §6 vault/ledgers, §7 n8n, §8 gates, §9 self-improvement loop, §10 health) AND append a dated line to its running-changes section (§11). Keep its register: verified ground truth, code/API/scheduler-accurate, "the file it points at is the source of truth." This is the deep-technical mirror of the plain-English guide; both move together on every real change, and Shaheen should never have to ask for either.
+8. **The technical master reference** (`Desktop\Alex Presentation\files\ALEX-OS-master.md`, STANDING ORDER + ROLE, Shaheen 2026-07-16; **moved out of the repo 2026-07-21 to sit beside the plain-English guide** in `Desktop\Alex Presentation\files\`, so the two identity docs share one home; the old `outputs\sessions\2026-07-15-alex-infra-audit\ALEX-OS-master.md` copy is retired): the sibling of item 7 for the *technical* reader. It is a LIVING ground-truth master doc (not a frozen audit snapshot anymore), local-only (**OUTSIDE the repo entirely now, not just gitignored**) so fully detailed. ANY system-related work, an upgrade, a new function, or anything that changes how the system behaves, MUST update it: edit the numbered section where the change actually lands (§2 generated-surface pipeline, §3 catalog, §4 scheduler, §5 backup/recovery, §6 vault/ledgers, §7 n8n, §8 gates, §9 self-improvement loop, §10 health) AND append a dated line to its running-changes section (§11). Keep its register: verified ground truth, code/API/scheduler-accurate, "the file it points at is the source of truth." This is the deep-technical mirror of the plain-English guide; both move together on every real change, and Shaheen should never have to ask for either.
 
 If you catch yourself about to end a session having touched only one or two files for a multi-file change, stop and finish the propagation. This is not optional and Shaheen should never have to ask for it.
 
@@ -258,6 +258,22 @@ When an MCP call fails:
 3. If new error, fix it, then log: date, MCP, what went wrong, fix
 4. Do NOT retry the same wrong approach
 
+### HQ Self-Heal Loop (LIVE 2026-07-21, Shaheen: "HQ checks AND fixes, it doesn't just display errors")
+The automated, HQ-metric-driven sibling of the loop above. HQ is not a passive dashboard - on **every HQ
+update** (folded into the harvest via `scripts/run-alex-hq.ps1` + `/alex-hq` step 1c) it runs
+`scripts/hq_self_heal.py`: re-derive ground truth for each metric, and per the risk class in the registry
+`system/hq-heal-map.json`:
+- **AUTO-SAFE** (deterministic, reversible, no side-effect: re-count MCP, re-ship stale box JSONs, re-push a
+  drifted metric) -> fix it automatically, then **read-back-verify**. One attempt; a fix that doesn't verify
+  ESCALATES, never retries (the "don't retry the wrong approach" rule, mechanized).
+- **PROPOSE** (a live mutation: workflow redeploy/reactivation, clearing a stuck flag) -> queued to
+  `human-actions.jsonl` with a diagnosis, NEVER auto-run (Shaheen's autonomy boundary 2026-07-21).
+- **HUMAN-ONLY** (phone/OAuth/credentials) -> queued as his.
+- A catch-all flags ANY red no check claims, so a red light is never silently displayed-and-ignored.
+Every action -> `system/heal-log.jsonl` + a "self-heal: N healed, M proposed..." line (brief surfaces it).
+Home: recovery-layer (#18), the FIX half of the detect-only checker. New fixes graduate in by adding a probe
+function + a map entry (git-reversible); `/self-review` proposes map additions. Zero-token.
+
 ## Model Routing in n8n Workflows (standing rule, set 2026-06-13; prose model corrected 2026-07-08)
 
 Applies to every n8n workflow, this project or any other.
@@ -316,7 +332,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 15 | /alex-radar | LIVE | Mon 07:30 + collector 06:00 | The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane. | work/15-alex-ai-radar - vault/projects/alex-ai-radar/status.md |
 | 16 | /alex-hq | LIVE | always-on + push 8:45 | The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here. | work/16-alex-hq - vault/projects/alex-hq/status.md |
 | 17 | (no command) | LIVE | phone 23:59 | Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side. | work/17-health-tracker - vault/projects/health-tracker/status.md |
-| 18 | (no command) | LIVE | Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. | work/18-recovery-layer - vault/projects/recovery/status.md |
+| 18 | (no command) | LIVE | Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. | work/18-recovery-layer - vault/projects/recovery/status.md |
 | 19 | /venture-sync | DORMANT (revisit 2026-10-01) | - | Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine. | work/19-venture-sync - vault/projects/venture-sync/status.md |
 | 20 | /runway | LIVE | monthly last day 21:15 | The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel. | work/20-runway - vault/projects/runway/status.md |
 | 21 | /interview | EVENT | brief flag + on-demand | Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends. | work/21-interview-copilot - vault/projects/interview-copilot/status.md |

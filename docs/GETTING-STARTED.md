@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-20. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-21. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -45,7 +45,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
 - **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.
-- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe.
+- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest.
 - **19 Venture Sync** (DORMANT, revisit 2026-10-01; trigger: -) - Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine.
 - **20 Runway** (LIVE; trigger: monthly last day 21:15) - The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel.
 - **21 Interview Copilot** (EVENT; trigger: brief flag + on-demand) - Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends.

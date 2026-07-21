@@ -72,25 +72,68 @@ for (const r of hrows) {
 }
 const dates = Object.keys(byDate).sort();
 const todayStr = new Date().toISOString().slice(0, 10);
-// steps: exclude today (always a partial day) -> report the last COMPLETE day (yesterday).
-// sleep: keep today (wake-date today = last night, the freshest and wanted).
-const stepSeries  = dates.filter(d => d < todayStr && byDate[d].steps != null).map(d => ({ ts: d, value_num: Number(byDate[d].steps) }));
-const scoreSeries = dates.filter(d => byDate[d].sleep_score != null).map(d => ({ ts: d, value_num: Number(byDate[d].sleep_score) }));
-if (stepSeries.length || scoreSeries.length) {
+// A PHANTOM reading = the iPhone Shortcut fired but HealthKit returned nothing (steps 0,
+// sleep a handful of minutes -> the Score node still emits a fake ~38). Never surface a
+// fabricated number off one: if the freshest reading is phantom, the tile says the phone
+// sync is stalled (the actual truth, fixable only phone-side) and shows no score, keeping
+// the real history behind it. If the freshest reading is real, behave as before.
+// (2026-07-21 fix; the phone POSTs nightly but HealthKit has been empty since ~07-09.)
+const MIN_REAL_SLEEP_MIN = 60;   // < 1h asleep for a whole night = no real HealthKit data
+const isRealNight   = (r) => r.asleep_min != null && Number(r.asleep_min) >= MIN_REAL_SLEEP_MIN;
+const isRealStepDay = (r) => r.steps != null && Number(r.steps) > 0;
+
+// STEPS: completed days only (exclude today's partial); freshest complete day = "yesterday".
+const realStepDates = dates.filter(d => d < todayStr && isRealStepDay(byDate[d]));
+const anyStepDates  = dates.filter(d => d < todayStr && byDate[d].steps != null);
+const stepSeries = realStepDates.map(d => ({ ts: d, value_num: Number(byDate[d].steps) }));
+const lastRealStepDay = realStepDates.length ? realStepDates[realStepDates.length - 1] : null;
+const freshStepDay    = anyStepDates.length  ? anyStepDates[anyStepDates.length - 1]   : null;
+
+// SLEEP: keep today (wake-date today = last night, the freshest and wanted).
+const realNightDates = dates.filter(d => isRealNight(byDate[d]) && byDate[d].sleep_score != null);
+const anyNightDates  = dates.filter(d => byDate[d].sleep_score != null || byDate[d].asleep_min != null);
+const scoreSeries = realNightDates.map(d => ({ ts: d, value_num: Number(byDate[d].sleep_score) }));
+const lastRealNight = realNightDates.length ? realNightDates[realNightDates.length - 1] : null;
+const freshNight    = anyNightDates.length  ? anyNightDates[anyNightDates.length - 1]   : null;
+
+if (stepSeries.length || scoreSeries.length || freshStepDay || freshNight) {
   const hp = { project: 'health', metrics: {}, last_ts: null, status: 'green' };
-  if (stepSeries.length) {
-    const last = stepSeries[stepSeries.length - 1]; const row = byDate[last.ts];
-    const st = last.value_num >= 10000 ? 'green' : last.value_num >= 5000 ? 'amber' : 'red';
-    hp.metrics.steps_today = { value_num: last.value_num, value_text: 'steps',
-      headline: 'yesterday · ' + last.ts, status: st, ts: row.ts || last.ts, history: stepSeries.slice(-14) };
+
+  const stepsStalled = freshStepDay && (!lastRealStepDay || freshStepDay > lastRealStepDay);
+  const todayHasSteps = byDate[todayStr] && isRealStepDay(byDate[todayStr]);
+  if (lastRealStepDay && !stepsStalled) {
+    // best case: the last COMPLETE real day, shown as "yesterday"
+    const v = Number(byDate[lastRealStepDay].steps); const row = byDate[lastRealStepDay];
+    const st = v >= 10000 ? 'green' : v >= 5000 ? 'amber' : 'red';
+    hp.metrics.steps_today = { value_num: v, value_text: 'steps',
+      headline: 'yesterday · ' + lastRealStepDay, status: st, ts: row.ts || lastRealStepDay, history: stepSeries.slice(-14) };
+  } else if (todayHasSteps) {
+    // no fresh COMPLETE day yet, but steps are flowing TODAY -> show "today so far" instead of a
+    // misleading "stalled". Proves the sync is alive now; reverts to "yesterday" once today completes.
+    const v = Number(byDate[todayStr].steps);
+    hp.metrics.steps_today = { value_num: v, value_text: 'today so far',
+      headline: 'today so far · ' + todayStr, status: 'green',
+      ts: byDate[todayStr].ts, history: stepSeries.slice(-14) };
+  } else if (freshStepDay) {
+    // a completed day landed but empty, and nothing today either -> genuinely stalled
+    hp.metrics.steps_today = { value_num: null, value_text: 'stalled',
+      headline: 'phone sync stalled - no HealthKit steps' + (lastRealStepDay ? ' since ' + lastRealStepDay : ''),
+      status: 'red', ts: byDate[freshStepDay].ts, history: stepSeries.slice(-14) };
   }
-  if (scoreSeries.length) {
-    const last = scoreSeries[scoreSeries.length - 1]; const row = byDate[last.ts];
+
+  const sleepStalled = freshNight && (!lastRealNight || freshNight > lastRealNight);
+  if (sleepStalled) {
+    hp.metrics.sleep_score_today = { value_num: null, value_text: 'stalled',
+      headline: 'phone sync stalled - no HealthKit sleep' + (lastRealNight ? ' since ' + lastRealNight : ''),
+      status: 'red', ts: byDate[freshNight].ts, history: scoreSeries.slice(-14) };
+  } else if (lastRealNight) {
+    const v = Number(byDate[lastRealNight].sleep_score); const row = byDate[lastRealNight];
     const hrs = row.asleep_min ? (Number(row.asleep_min) / 60).toFixed(1) + 'h' : '';
-    const st = last.value_num >= 85 ? 'green' : last.value_num >= 70 ? 'amber' : 'red';
-    hp.metrics.sleep_score_today = { value_num: last.value_num, value_text: '/ 100',
-      headline: ('night of ' + last.ts + (hrs ? ' · ' + hrs : '')), status: st, ts: row.ts || last.ts, history: scoreSeries.slice(-14) };
+    const st = v >= 85 ? 'green' : v >= 70 ? 'amber' : 'red';
+    hp.metrics.sleep_score_today = { value_num: v, value_text: '/ 100',
+      headline: 'night of ' + lastRealNight + (hrs ? ' · ' + hrs : ''), status: st, ts: row.ts || lastRealNight, history: scoreSeries.slice(-14) };
   }
+
   for (const m of Object.values(hp.metrics)) {
     if (!hp.last_ts || String(m.ts) > String(hp.last_ts)) hp.last_ts = m.ts;
     if ((rank[m.status] ?? 0) > (rank[hp.status] ?? 0)) hp.status = m.status;

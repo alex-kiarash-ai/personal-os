@@ -233,6 +233,22 @@ When an MCP call fails:
 3. If new error, fix it, then log: date, MCP, what went wrong, fix
 4. Do NOT retry the same wrong approach
 
+### HQ Self-Heal Loop (LIVE 2026-07-21, Shaheen: "HQ checks AND fixes, it doesn't just display errors")
+The automated, HQ-metric-driven sibling of the loop above. HQ is not a passive dashboard - on **every HQ
+update** (folded into the harvest via `scripts/run-alex-hq.ps1` + `/alex-hq` step 1c) it runs
+`scripts/hq_self_heal.py`: re-derive ground truth for each metric, and per the risk class in the registry
+`system/hq-heal-map.json`:
+- **AUTO-SAFE** (deterministic, reversible, no side-effect: re-count MCP, re-ship stale box JSONs, re-push a
+  drifted metric) -> fix it automatically, then **read-back-verify**. One attempt; a fix that doesn't verify
+  ESCALATES, never retries (the "don't retry the wrong approach" rule, mechanized).
+- **PROPOSE** (a live mutation: workflow redeploy/reactivation, clearing a stuck flag) -> queued to
+  `human-actions.jsonl` with a diagnosis, NEVER auto-run (Shaheen's autonomy boundary 2026-07-21).
+- **HUMAN-ONLY** (phone/OAuth/credentials) -> queued as his.
+- A catch-all flags ANY red no check claims, so a red light is never silently displayed-and-ignored.
+Every action -> `system/heal-log.jsonl` + a "self-heal: N healed, M proposed..." line (brief surfaces it).
+Home: recovery-layer (#18), the FIX half of the detect-only checker. New fixes graduate in by adding a probe
+function + a map entry (git-reversible); `/self-review` proposes map additions. Zero-token.
+
 ## Model Routing in n8n Workflows (standing rule, set 2026-06-13; prose model corrected 2026-07-08)
 
 Applies to every n8n workflow, this project or any other.
@@ -291,7 +307,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 15 | /alex-radar | LIVE | Mon 07:30 + collector 06:00 | The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane. | work/15-alex-ai-radar - vault/projects/alex-ai-radar/status.md |
 | 16 | /alex-hq | LIVE | always-on + push 8:45 | The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here. | work/16-alex-hq - vault/projects/alex-hq/status.md |
 | 17 | (no command) | LIVE | phone 23:59 | Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side. | work/17-health-tracker - vault/projects/health-tracker/status.md |
-| 18 | (no command) | LIVE | Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. | work/18-recovery-layer - vault/projects/recovery/status.md |
+| 18 | (no command) | LIVE | Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. | work/18-recovery-layer - vault/projects/recovery/status.md |
 | 19 | /venture-sync | DORMANT (revisit 2026-10-01) | - | Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine. | work/19-venture-sync - vault/projects/venture-sync/status.md |
 | 20 | /runway | LIVE | monthly last day 21:15 | The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel. | work/20-runway - vault/projects/runway/status.md |
 | 21 | /interview | EVENT | brief flag + on-demand | Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends. | work/21-interview-copilot - vault/projects/interview-copilot/status.md |

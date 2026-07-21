@@ -42,9 +42,15 @@ all from the bottom search bar. Only two patterns repeat:
 2. **Set Variable** → **Today**
 
 ### Block 2 - Steps (Pattern A, 3 lines)
-3. **Find Health Samples** → Sample Type **Steps** · filter **Start Date is today** · filter **Source is iPhone**
+3. **Find Health Samples** → Sample Type **Steps** · filter **Start Date is today** *(NO source filter)*
 4. **Calculate Statistics** → **Sum** (if it asks "of ___", leave the default)
 5. **Set Variable** → **Steps**
+
+> **FIXED 2026-07-21 - the "Source is iPhone" filter was the steps bug.** The build originally
+> filtered **Source is iPhone**, but the phone's step samples aren't labelled exactly `iPhone`
+> (they carry the device/model name or are merged), so the filter matched ZERO samples and
+> steps shipped empty (`"steps":,`) every single night from day one. Removing the source filter
+> fixed it - real steps land now. Sleep readers never had a source filter, which is why they worked.
 
 ### Block 3 - Deep (Pattern B, 4 lines)
 6. **Find Health Samples** → Sample Type **Sleep** · filter **Value is deep** · filter **Start Date is today**
@@ -92,6 +98,15 @@ After this, a Watch-less night sends zeros (score comes back blank, which is cor
 25. **Calculate Expression** → insert **DeepMin + RemMin + CoreMin** (the three chips, `+` between them).
     *(No "Calculate Expression" action? Use two plain Calculate lines: DeepMin + RemMin, then that result + CoreMin.)*
 26. **Set Variable** → **AsleepMin**
+
+> **NO LONGER LOAD-BEARING (2026-07-21).** This block proved unreliable on the phone: it kept
+> shipping the **awakenings count** as `asleep_min` (2 nights, 2 exact matches: 4/4, then 3/3),
+> not the sum of the stages - a classic Shortcuts magic-variable trap where Set Variable grabs
+> the last "Calculate Statistics" result (the Awake Count) instead of the Calculate Expression.
+> Rather than keep fighting it, **the server now DERIVES total-asleep from the stages it receives**
+> (`deep_min + rem_min + core_min`) in the ingest Score node, and ignores whatever `asleep_min`
+> the phone sends when stages are present. So Block 8 can stay wrong and the score is still right.
+> Keep the block (harmless), but it is not what the score depends on anymore.
 
 ### Block 9 - Build the payload (1 line)
 27. **Text** → type this exactly, replacing each **⟨Name⟩** with the matching variable chip. Quotes stay

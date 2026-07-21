@@ -9,8 +9,17 @@ keeps the system verifiably healthy. The [[research/alex-recovery-layer|Change P
 order]] is edge-triggered: it fires per change and, if a session dies mid-propagation (context loss,
 quota), the miss is permanent and invisible. This is the **level-triggered** layer (Kubernetes/
 Terraform style): a scheduled sweep re-checks the WHOLE system against a desired-state manifest,
-forgiving of missed events. It **detects, never auto-repairs** (IaC warning); judgment stays with
-Shaheen and the monthly LLM /lint. Design + evidence: [[research/alex-recovery-layer]] (pieces 1-2).
+forgiving of missed events. The **checker (`check.ps1`) detects, never auto-repairs** (IaC warning);
+judgment stays with Shaheen and the monthly LLM /lint. Design + evidence: [[research/alex-recovery-layer]] (pieces 1-2).
+
+**FIX half added 2026-07-21 - the HQ Self-Heal Loop** (`scripts/hq_self_heal.py` + registry `system/hq-heal-map.json`).
+The checker stays detect-only, but HQ-metric drift now gets an automatic scoped repair on **every HQ update**
+(folded into the harvest): AUTO-SAFE mismatches (MCP count, stale box JSONs, drifted metric) are re-derived +
+re-pushed + read-back-verified; PROPOSE (live workflow mutation, stuck-flag clear) + HUMAN-ONLY (phone/OAuth)
+are queued to human-actions with a diagnosis, never auto-run (Shaheen's autonomy boundary 2026-07-21); a
+catch-all flags any unclaimed red. So recovery now DETECTS across the whole system (checker) AND FIXES the safe
+HQ class automatically (heal loop). Full spec: root CLAUDE.md "HQ Self-Heal Loop" + [[projects/recovery/status]].
+The IaC "detect-only" warning still governs `check.ps1`; the heal loop is the deliberate, bounded exception.
 
 ## Entry Points
 - **Scheduled:** `PersonalOS-recovery-check`, Monday 07:30 (shares the Alex Radar sweep slot). Pure PowerShell, no `claude` call, zero tokens.
