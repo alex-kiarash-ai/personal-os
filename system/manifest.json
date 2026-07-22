@@ -1029,10 +1029,10 @@
       "name": "modeling",
       "title": "Modeling Growth Loop",
       "state": "DORMANT",
-      "trigger": "Phase 0 build in progress; at Phase-0 verification the four local jobs arm: daily radar 06:45 + content M/W/F 17:00 + Mon weekly 09:30 + monthly review 1st 10:00",
+      "trigger": "Calibration week (2026-07-22 to 07-29, Shaheen finished all 6 platform signups 07-22): radar (daily 06:45) + weekly Scout's Eye (Mon 09:30) ARMED to measure real casting-alert cadence; content (T/W/Th 17:00) + monthly review (1st 10:00) held. Flips LIVE at Phase-0 verification: first real alert parsed end-to-end + one weekly run + one hand-posted pack.",
       "one_liner": "The modeling career loop (growth plan runs 29+30, Phase-0 build started 2026-07-18): a ToS-clean mailbox casting radar (platform alert emails to a castings@ alias, never scraping) scoring briefs into a Notion lead ledger + voice-gated Gmail application drafts; a content engine in staging mode (hand-post packs; Postiz draft-only queue after the deferred box+deploy); weekly Scout's Eye + collab pipeline; monthly strategy reviewer with the gate-then-rolling agency plan; vault rights register underneath. Every external send is a Gmail draft or an approval queue by construction. Postiz deploy stays HELD (new CX33 box deferred, Shaheen 2026-07-18); Phase 1 unblocks when the box lands. DORMANT until Phase-0 verification: first real platform alert parsed end-to-end + the signup calibration week (Shaheen-side).",
       "docs": "30-modeling.md",
-      "schedule_jobs": [],
+      "schedule_jobs": ["PersonalOS-modeling-radar", "PersonalOS-modeling-weekly"],
       "hq_project": "modeling",
       "revisit": "2026-08-01",
       "work_dir": "work/30-modeling",
@@ -1041,7 +1041,7 @@
       "cadence": {
         "expected_hours": null,
         "label": "dormant",
-        "note": "dormant while Phase 0 builds; flips LIVE (expected_hours 26, label daily) when Phase-0 verification passes and the four jobs register"
+        "note": "DORMANT-calibrating since 2026-07-22: radar + weekly armed to measure casting cadence (zero mail reads green pre-first_fire by design, mailbox.md). Flips LIVE (expected_hours 26, label daily) at Phase-0 verification when all four jobs register."
       },
       "trifecta": {
         "private_data": true,

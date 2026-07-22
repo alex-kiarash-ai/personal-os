@@ -19,11 +19,13 @@ platform -> castings@shaheenkiarash.com -> Cloudflare Email Routing -> shaheen.k
 
 F2 exists because the ModelManagement account predates the alias (registered under the old address; email-change surgery on a live profile is riskier than a filter). Any future platform that cannot use the alias gets its own F-row here; this table is part of the parser-registry review (a new sender = a new `parsers.md` entry + possibly an F-row).
 
+**MM web-UI reality (Shaheen, 2026-07-22 signup pass):** the ModelManagement web app has **no saved-search feature and no job-category filter** - only an online-job vs in-person-job toggle. So `modeling-signup-mm` reduced to nothing configurable on-site; MM's default match/casting emails are the fuel and F2 catches them. Account is **PAID tier**, so the "one-free-application wall" does not apply to Shaheen. If MM calibration comes back zero, the lever is MM's account-level email/notification preferences (turn casting-match emails ON), not a per-search alert.
+
 ## Cloudflare side (Shaheen, ~2 min)
 Email Routing already runs the domain (shaheen@ live since the funnel work). Add: `castings@shaheenkiarash.com` -> forward to `shaheen.kiarash@gmail.com`. Nothing else changes.
 
 ## Calibration week (week 1 after signups)
-The debate's weakest assumption is alert cadence on free tiers - MEASURED here, not assumed. During week 1 the radar logs per-platform mail counts into `vault/projects/modeling/metrics.jsonl` (`kind:"loop"` rows). Expected walls (v2, priced): ModelManagement's one-free-application limit; StagePool free tier only; never auto-renew anything. Outcome decides the ONE-premium contingency (0-200 SEK/mo) or an honest weekly-cadence downgrade.
+The debate's weakest assumption is alert cadence on free tiers - MEASURED here, not assumed. During week 1 the radar logs per-platform mail counts into `vault/projects/modeling/metrics.jsonl` (`kind:"loop"` rows). Expected walls (v2, priced): ~~ModelManagement's one-free-application limit~~ **[corrected 2026-07-22: Shaheen is on a PAID MM membership, no free-app wall applies]**; StagePool free tier only; never auto-renew anything. Outcome decides the ONE-premium contingency (0-200 SEK/mo) or an honest weekly-cadence downgrade.
 
 ## Starvation + drift alarms (wired in the radar + weekly run)
 - 7 consecutive zero-mail days AFTER first_fire = RED (starvation, risk R1).
