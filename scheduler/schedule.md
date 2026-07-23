@@ -188,6 +188,18 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Description: #25 Evolution evaluation layer. Reads the week's landscape log, one Claude call assesses each item (add/replace/relevance) with a recommend/skip verdict, writes outputs/evolution/YYYY-MM-DD/digest.md and opens an ai-landscape-update GitHub issue if gh is installed (else local fallback). Empty week posts nothing, stays GREEN. Alex proposes, Shaheen decides. Spec: work/25-evolution/CLAUDE.md.
 - Added: 2026-07-09 (activated with the v2 refactor merge)
 
+### Modeling Casting Radar (#30, calibration)
+- Command: scripts/run-modeling-radar.ps1 (headless claude -p, pins claude-sonnet-4-6)
+- Frequency: **every 2nd day at 6:45 AM** (Task Scheduler job PersonalOS-modeling-radar; Daily trigger DaysInterval 2; StartWhenAvailable + WakeToRun + battery-safe). Changed from daily to every-2-days by Shaheen 2026-07-22.
+- Description: Reads the Gmail label modeling/castings (7-day catch-up, -done idempotency), parses ONLY the 3 active senders (ModelManagement / ACasting / Statist - StagePool/Jooble/StarNow deactivated in parsers.md), scores vs fit-rubric.md (worldwide in scope, male-only, nude briefs dropped), writes keepers to the Notion Modeling Leads ledger (read-back verified), drafts top 0-2 fits as Gmail drafts, digest to outputs/modeling/YYYY-MM-DD/. Project DORMANT-calibrating; zero mail reads green pre-first_fire. Spec: work/30-modeling/CLAUDE.md.
+- Added: 2026-07-22
+
+### Modeling Weekly Scout's Eye (#30, calibration)
+- Command: scripts/run-modeling-weekly.ps1 (zero-token scout-checks.mjs core + a light claude judgment layer)
+- Frequency: **Monday at 9:30 AM** (Task Scheduler job PersonalOS-modeling-weekly; StartWhenAvailable + WakeToRun + battery-safe).
+- Description: Deterministic scout-checks.mjs (site + intent pages + /now GETs, /now staleness, rights-register completeness, metrics freshness, ledger hygiene) + Cloudflare analytics snapshot to metrics.jsonl + judgment fix-list / collab drafts / follow-ups. Its first real run completes Phase-0 verification item (c). Spec: work/30-modeling/CLAUDE.md.
+- Added: 2026-07-22
+
 ---
 
 ## Task Hardening (Close-Out Gate, 2026-07-03)
@@ -195,7 +207,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 Every scheduled wrapper dot-sources `scripts/lib/close-out.ps1` (shared mechanism). On a failed run (blank output, wrapper crash, not-logged-in, usage/session limit including the "reached your <model> limit" wording, non-zero exit) it logs `FAILED: reason`, pushes `run_status` RED to Alex HQ where a tile exists, **registers its own one-shot retry task** (`PersonalOS-retry-{wrapper}-{n}`, +90 min, attempts 2-5 via `$env:ALEX_RETRY_ATTEMPT`, StartWhenAvailable + WakeToRun, auto-deletes after its window), and exits 1. No scheduled run can die silent (exit 0) anymore, and a transient quota/auth window self-heals without touching any wrapper.
 
 **RestartCount is NOT the retry (proven 2026-07-06, the quad failure):** Task Scheduler's restart-on-failure only fires when the task fails to LAUNCH; a wrapper that runs and exits 1 counts as "completed", so the 2026-07-02 RestartCount ladders below never fired once. They stay in place (they still cover true launch failures), but the working retry is the close-out lib's self-scheduled one-shot task above. All tasks keep `MultipleInstances IgnoreNew`, `StartWhenAvailable`, `WakeToRun`, battery-safe.
-- **Standard (daily/weekly/monthly):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 2h - morning-brief, application-engine, personal-crm, expense-wrangler, weekly-exec-report, airbnb-host, alex-radar, alex-hq, whatsapp-harvest (disabled), runway, self-review, lint-monthly (all three added 2026-07-06), landscape-eval (added 2026-07-09, the #25 weekly claude job).
+- **Standard (daily/weekly/monthly):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 2h - morning-brief, application-engine, personal-crm, expense-wrangler, weekly-exec-report, airbnb-host, alex-radar, alex-hq, whatsapp-harvest (disabled), runway, self-review, lint-monthly (all three added 2026-07-06), landscape-eval (added 2026-07-09, the #25 weekly claude job), modeling-radar + modeling-weekly (#30 calibration, added 2026-07-22).
 - **Landscape Monitor (#25, added 2026-07-09):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a zero-token fetch, light class like git-backup/vault-index.
 - **Auth-check (added 2026-07-06):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a probe, not a run.
 - **Security Sweep (P5, added 2026-07-18):** NO restart policy (exit 2 = findings/setup is normal, not failure - same convention as recovery-check); ExecutionTimeLimit 30 min, StartWhenAvailable + WakeToRun. Registered directly (powershell -File), not wrapped: it does its own HQ push + exit codes, like check.ps1.

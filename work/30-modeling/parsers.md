@@ -24,7 +24,12 @@ Flags, any hit -> the brief lands in the digest's **SCAM-SUSPECT band** (shown, 
 - Fake-scout patterns (2025 twist, Model Alliance canon): unsolicited "scout" DM/mail claiming an agency wants to sign, pushing to move to WhatsApp/Telegram fast, asking for personal documents or money. Response ritual: verify the agency independently (own domain, published roster, callback via the public number), never through the contact the mail provides.
 - Wire-money / cheque-overpayment mechanics anywhere in the thread.
 
-## Sender entries (6 at launch; few-shot examples pasted from REAL mails during calibration week)
+## Content filter (deterministic, runs BEFORE scoring - Shaheen 2026-07-22)
+Any hit -> the brief is DROPPED with a one-line `declined: nude brief` note in the digest (shown, never silently swallowed, never scored, never drafted):
+- Full nudity, implied nudity, topless-as-the-point, erotic/adult, boudoir, fetish, or "artistic nude" briefs.
+- NOT triggered by shirtless / swimwear / underwear / physique-fitness commercial work - that is in scope and normal for the fitness lane. The filter targets nude/erotic REQUIREMENTS, not skin.
+
+## Active sender entries (3 since Shaheen's 2026-07-22 narrowing: ModelManagement + ACasting + Statist ONLY; few-shot examples pasted from REAL mails during calibration week)
 
 ### 1. modelmanagement.com (ModelManagement)
 - Sender match: `from:*@modelmanagement.com` (arrives via the F2 fallback filter - legacy account, old address)
@@ -32,10 +37,10 @@ Flags, any hit -> the brief lands in the digest's **SCAM-SUSPECT band** (shown, 
 - Extraction: title from the casting headline; apply_url = the casting deep link (strip tracking params); location + gender + comp from the brief body table.
 - Few-shot: `[CALIBRATION-SLOT - paste the first real alert here verbatim, then the extracted JSON]`
 
-### 2. stagepool.se / stagepool.com (StagePool)
+### 2. stagepool.se / stagepool.com (StagePool) - DEACTIVATED 2026-07-22
+- **DEACTIVATED as a radar source (Shaheen 2026-07-22):** mail from this sender is IGNORED - not scored, not drafted, not counted as unparsed. Kept here so its arrival is recognized, not mistaken for a new sender. Re-activate by deleting this line.
 - Sender match: `from:*@stagepool.*`
 - Notes: Swedish-language mails expected; comp often "arvode" lines; TFP marked as "obetalt/mot bilder".
-- Few-shot: `[CALIBRATION-SLOT]`
 
 ### 3. acasting.se (ACASTING)
 - Sender match: `from:*@acasting.se`
@@ -46,15 +51,15 @@ Flags, any hit -> the brief lands in the digest's **SCAM-SUSPECT band** (shown, 
 - Notes: statist (extra) briefs flow in too; the rubric scores them down unless paid + low-effort.
 - Few-shot: `[CALIBRATION-SLOT]`
 
-### 5. jooble.org / jooble.se (Jooble alerts)
+### 5. jooble.org / jooble.se (Jooble alerts) - DEACTIVATED 2026-07-22
+- **DEACTIVATED as a radar source (Shaheen 2026-07-22):** mail ignored - not scored, not drafted, not counted as unparsed. Re-activate by deleting this line.
 - Sender match: `from:*@jooble.*`
 - Notes: job-board digest format, multiple items per mail: parse EACH item as its own brief ("modell Stockholm" + "harmodell Stockholm" alerts, the hair-lane B2 play).
-- Few-shot: `[CALIBRATION-SLOT]`
 
-### 6. starnow.com (StarNow)
+### 6. starnow.com (StarNow) - DEACTIVATED 2026-07-22
+- **DEACTIVATED as a radar source (Shaheen 2026-07-22):** mail ignored - not scored, not drafted, not counted as unparsed. Re-activate by deleting this line.
 - Sender match: `from:*@starnow.*`
 - Notes: worldwide digest; remote/travel briefs lane; watch for the free-tier application wall.
-- Few-shot: `[CALIBRATION-SLOT]`
 
 ## Maintenance
 New sender under the label = new entry here (and possibly an F-row in `mailbox.md`) the same week it appears; Phase 3 marketplaces (Influee/Collabstr/Twirl) get entries when their notification mails arrive. This file is reviewed whenever the weekly run reports a parse-drift RED.

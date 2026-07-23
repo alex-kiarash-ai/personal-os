@@ -11,6 +11,9 @@ platform -> castings@shaheenkiarash.com -> Cloudflare Email Routing -> shaheen.k
 - Skip-inbox keeps the personal stream clean; email-triage (#07, 05:00) additionally carries a `-label:modeling/castings` exclusion so the two lanes never double-touch a mail even if one lands in the inbox.
 - The radar's idempotency labels: `modeling/castings` (Label_13) = unprocessed feed; `modeling/castings-done` (Label_14) = processed. Both created 2026-07-18 via MCP, read-back verified. Query: `label:modeling/castings -label:modeling/castings-done newer_than:7d`.
 
+## Active sources narrowed (Shaheen, 2026-07-22)
+The radar scores mail from **Statist, ModelManagement, ACasting ONLY**. StagePool / Jooble / StarNow are **deactivated as sources** in `parsers.md` (their mail, if any, is ignored - not scored, not counted as unparsed). This is a parser-registry decision, not a Gmail-filter change: the plumbing below stays as-is; the six signups Shaheen did all remain valid, three just aren't consumed. Criteria the radar applies: **worldwide** (location is a travel-cost discount, never a drop), **male** castings only, **no nude/erotic** briefs (dropped). Radar cadence: **every 2nd day 06:45** (Shaheen 2026-07-22, down from daily).
+
 ## Gmail filters (Shaheen creates in the Gmail UI - the MCP cannot create filters)
 | # | Match | Action |
 |---|---|---|
