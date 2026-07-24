@@ -445,6 +445,35 @@ try {
     elseif ($LASTEXITCODE -ne 0) { Add-Drift 'narrative-drift' "narrative-drift-check errored (exit $LASTEXITCODE): $(($nd | Select-Object -First 1))" }
 } catch { Add-Drift 'narrative-drift' "narrative-drift-check could not run: $($_.Exception.Message)" }
 
+# --- C20 backup destinations (F1, 2026-07-25): >=2 INDEPENDENT off-machine destinations must each have
+# verified a copy this cycle. The SPOF this kills: the sole off-machine backup home was the PRODUCTION
+# n8n box, so a box+laptop loss (or box loss + a laptop-passphrase problem) was unrecoverable. This is
+# the invariant that makes "add a 2nd destination" permanent: a silently-rotted 2nd leg (expired key,
+# deleted bucket) can no longer hide behind a green primary. Declared destinations live in manifest
+# meta.paths.backup_destinations; vault-backup.ps1 stamps state/backup-destinations.json per verified
+# ship. Detect-only. Ambers (never reds) until >=2 are live - so the B2 provisioning stays visible.
+$destDecl = @()
+if ($manifest.meta.paths -and $manifest.meta.paths.backup_destinations) { $destDecl = @($manifest.meta.paths.backup_destinations) }
+if ($destDecl.Count -ge 1) {
+    $windowH = 72   # daily backup + slack; a destination not verified within this window does not count
+    $verFile = "work\18-recovery-layer\state\backup-destinations.json"
+    $verified = @{}
+    if (Test-Path $verFile) {
+        try { (Get-Content $verFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $verified[$_.Name] = $_.Value } } catch {}
+    }
+    $freshCount = 0; $missing = @()
+    foreach ($d in $destDecl) {
+        $ts = $verified[$d.name]; $ok = $false
+        if ($ts) { try { if (((Get-Date) - [datetime]$ts).TotalHours -le $windowH) { $ok = $true } } catch {} }
+        if ($ok) { $freshCount++ }
+        elseif ("$($d.note)" -match 'INERT|pending') { $missing += "$($d.name) (pending provisioning)" }
+        else { $missing += "$($d.name) (no verified copy in ${windowH}h)" }
+    }
+    if ($freshCount -lt 2) {
+        Add-Drift 'backup-spof' "only $freshCount of $($destDecl.Count) independent backup destination(s) verified a copy in the last ${windowH}h - a correlated single-point loss risks the backups until >=2 are live: $($missing -join '; ') (provision: human-actions f1-b2-backup)"
+    }
+}
+
 # ---------------------------------------------------------------- report
 $n = $drift.Count
 $byCat = $drift | Group-Object cat | Sort-Object Count -Descending

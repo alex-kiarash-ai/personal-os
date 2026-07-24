@@ -32,7 +32,7 @@ $prompt = "Run /lint in GATED mode (Recovery Phase 3). The deterministic checker
 $out = ''
 try {
     $prompt = "$prompt $AlexVerdictInstruction"
-    $out = (& $ClaudeCmd -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
+    $out = (& $ClaudeCmd --model claude-sonnet-4-6 -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

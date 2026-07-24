@@ -1,6 +1,7 @@
 #!/bin/sh
 # pre-commit - the permanent validation gate (refactor P3-S3, decision D7).
-# Runs scripts/validate-alex.js (G1-G4 + V1-V12) on every commit; a red check blocks the commit.
+# Runs scripts/validate-alex.js (G1-G4 + V1-V13) on every commit; a red check blocks the commit.
+# A staged-content gitleaks scan runs FIRST (F3, 2026-07-25): a found secret blocks the commit.
 # V10 (protected-file guard, 2026-07-15) reads the staged changeset via --changed and enforces
 # vault/me/NEVER-TOUCH.md (immutable / append-only / flagged); override with git commit --no-verify.
 # V11 (forced-add guard, 2026-07-17) blocks committing a `git add -f`'d gitignored path - the public
@@ -30,6 +31,39 @@
 
 ROOT="$(git rev-parse --show-toplevel)" || exit 1
 
+# --- F3 (2026-07-25 stress-test fix): content secret scan on the STAGED diff, BEFORE the node gate.
+#     PREVENT layer - a secret blocked here never enters history. Backstops: security-sweep S1
+#     (monthly full-history) + GitHub push protection (server-side, the guard a local hook cannot be).
+#     gitleaks 8.30.1 is installed (winget); .gitleaks.toml carries the reviewed allowlist.
+#     Fail policy (deliberate): a FOUND secret (exit 9) or a gitleaks that RUNS and errors BLOCKS
+#     (fail-closed on the result). gitleaks ABSENT => loud WARN + PROCEED (fail-OPEN), so a PATH/
+#     machine without gitleaks - including the nightly Task Scheduler backup - is never wedged; the
+#     monthly S1 + push protection are the guarantees. (Unlike the node gate below, which fails
+#     CLOSED because node is machine-scope and truly always present; gitleaks is user-scope.)
+GITLEAKS=""
+if command -v gitleaks >/dev/null 2>&1; then
+  GITLEAKS="gitleaks"
+else
+  GL="$(ls /c/Users/*/AppData/Local/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_*/gitleaks.exe 2>/dev/null | head -n1)"
+  [ -x "$GL" ] && GITLEAKS="$GL"
+fi
+if [ -n "$GITLEAKS" ]; then
+  "$GITLEAKS" git --staged --no-banner --redact --config "$ROOT/.gitleaks.toml" --exit-code 9 "$ROOT"
+  GLS=$?
+  if [ "$GLS" -eq 9 ]; then
+    echo "pre-commit: BLOCKED - gitleaks found a secret in the STAGED content (redacted above)." >&2
+    echo "pre-commit: remove it, or add a reviewed allowlist entry to .gitleaks.toml. PUBLIC repo: a pushed secret must be ROTATED, not just deleted." >&2
+    exit 1
+  elif [ "$GLS" -ne 0 ]; then
+    echo "pre-commit: BLOCKED - gitleaks ran but errored (exit $GLS); fail-closed (cannot certify the commit is secret-free)." >&2
+    echo "pre-commit: fix gitleaks/.gitleaks.toml, or 'git commit --no-verify' to override deliberately." >&2
+    exit 1
+  fi
+  echo "pre-commit: gitleaks staged scan clean."
+else
+  echo "pre-commit: WARNING - gitleaks not found; STAGED secret scan SKIPPED (fail-open). Monthly S1 + GitHub push protection remain the backstops. Install: winget install Gitleaks.Gitleaks" >&2
+fi
+
 # Locate node: PATH first, then the machine-scope install location.
 if command -v node >/dev/null 2>&1; then
   NODE=node
@@ -55,7 +89,7 @@ if [ -z "$N8N_API_URL" ]; then
   export N8N_API_URL
 fi
 
-echo "pre-commit: validate-alex (G1-G4 + V1-V12, context=pre-commit; V10 = NEVER-TOUCH guard, V11 = forced-add guard on the staged changeset, V12 = trifecta gate)"
+echo "pre-commit: validate-alex (G1-G4 + V1-V13, context=pre-commit; V10 = NEVER-TOUCH guard, V11 = forced-add guard on the staged changeset, V12 = trifecta gate, V13 = local wrapper model-pin contract)"
 "$NODE" "$ROOT/scripts/validate-alex.js" --context=pre-commit --changed
 STATUS=$?
 if [ $STATUS -ne 0 ]; then

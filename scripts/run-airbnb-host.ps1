@@ -32,7 +32,7 @@ $prompt = "Run /airbnb-host monthly-sync: scrape + ingest already ran this run, 
 $out = ''
 try {
     $prompt = "$prompt $AlexVerdictInstruction"
-    $out = (& "$env:APPDATA\npm\claude.ps1" -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1

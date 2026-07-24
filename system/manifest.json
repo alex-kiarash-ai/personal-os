@@ -13,6 +13,41 @@
                 { "workflow": "9XuIEfxS71DEetVR", "name": "Application Engine (BI)", "model": "claude-opus-4-8", "reason": "Shaheen 2026-07-24: both job engines moved to Opus 4.8 (reasoning + prose)" },
                 { "workflow": "9x9M3EnEEeX3O8dy", "name": "AI Application Engine", "model": "claude-opus-4-8", "reason": "Shaheen 2026-07-24: both job engines moved to Opus 4.8 (reasoning + prose)" },
                 { "workflow": "grMqmGzzbTXTEdKr", "name": "Writer Voice Eval (regression)", "model": "claude-opus-4-8", "reason": "regression harness mirrors the live writers; warn-only (not a production engine)" }
+            ],
+            "local_wrappers": {
+                "doc": "LOCAL model-pin contract for the scheduled `claude -p` wrappers under scripts/ (added 2026-07-25, stress-test fix F4). The n8n side is V6; this is its local twin, enforced by validate-alex V13. Root fix for the 'a wrapper forgets --model and inherits the global opus default' cost-leak class (the 2026-07-16 cut was convention-only until now). `pins` = every wrapper that makes a real `claude -p` reasoning call -> the exact --model it MUST pass. `deterministic_no_pin` = wrappers that make NO claude call (zero-token). V13 is COMPLETE by construction: every scripts/run-*.ps1 (+ auth-check.ps1) that calls `claude -p` MUST appear in pins or deterministic_no_pin, else V13 FAILS - so a new/copied wrapper cannot silently inherit the default. To change a pin or add a wrapper: edit here, run the generator.",
+                "pins": {
+                    "run-airbnb-host.ps1": "claude-sonnet-4-6",
+                    "run-lint.ps1": "claude-sonnet-4-6",
+                    "run-alex-hq.ps1": "claude-haiku-4-5-20251001",
+                    "run-application-engine.ps1": "claude-sonnet-4-6",
+                    "run-email-triage.ps1": "claude-sonnet-4-6",
+                    "run-alex-radar.ps1": "claude-sonnet-4-6",
+                    "run-expense-wrangler.ps1": "claude-sonnet-4-6",
+                    "run-landscape-eval.ps1": "claude-sonnet-4-6",
+                    "run-modeling-radar.ps1": "claude-sonnet-4-6",
+                    "run-personal-crm.ps1": "claude-sonnet-4-6",
+                    "run-modeling-weekly.ps1": "claude-sonnet-4-6",
+                    "run-self-review.ps1": "claude-sonnet-4-6",
+                    "run-morning-brief.ps1": "claude-sonnet-4-6",
+                    "run-weekly-exec-report.ps1": "claude-sonnet-4-6",
+                    "run-runway.ps1": "claude-sonnet-4-6",
+                    "run-sprint-tracker.ps1": "claude-sonnet-4-6",
+                    "run-whatsapp-harvest.ps1": "claude-sonnet-4-6",
+                    "auth-check.ps1": "claude-sonnet-4-6"
+                },
+                "deterministic_no_pin": [
+                    "run-vault-index.ps1",
+                    "run-landscape-monitor.ps1"
+                ]
+            }
+        },
+        "paths": {
+            "doc": "Machine-checkable filesystem pointers that must survive file moves without silently rotting (added 2026-07-25, stress-test fixes F1+F2). SSOT so a validator/check reads the path from here, never a hardcoded literal. %USERPROFILE% is expanded at read time so a restore to a different Windows user does not perma-fail.",
+            "master_reference_md": "%USERPROFILE%\\Desktop\\Alex Project\\Alex Presentation\\files\\ALEX-OS-master.md",
+            "backup_destinations": [
+                { "name": "hetzner-n8n", "kind": "scp", "target": "n8n:/opt/alex-backups", "correlated_with": "production-n8n", "note": "primary; same box as production n8n (F1 SPOF)" },
+                { "name": "backblaze-b2", "kind": "rclone", "target": "alex-b2:alex-vault-backups", "correlated_with": null, "note": "second independent failure domain; INERT until Shaheen provisions the B2 account + rclone remote (human-actions f1-b2-backup)" }
             ]
         },
         "utility_commands": [

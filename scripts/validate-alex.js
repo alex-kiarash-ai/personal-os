@@ -881,6 +881,70 @@ function v12TrifectaGate({ stagedDir, manifest }, failures, warnings) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// V13 - local wrapper model-pin contract (2026-07-25, stress-test fix F4). The LOCAL twin of V6.
+//       V6 asserts n8n node models against meta.model_routing; V13 asserts the scheduled `claude -p`
+//       wrappers under scripts/ against meta.model_routing.local_wrappers. Pure file reads, no
+//       network, so it runs in EVERY context (generator + pre-commit) - unlike V6 which is async/
+//       n8n-bound and SKIPs when n8n is unreachable. Root fix for "a wrapper omits --model and
+//       inherits the global opus default" (the 2026-07-16 cost cut was convention-only until now).
+//       COMPLETE by construction: every scripts/run-*.ps1 (+ auth-check.ps1) that makes a real
+//       `claude -p` call MUST be in `pins` (with the matching model) or `deterministic_no_pin`
+//       (makes no claude call), else FAIL - so a new/copied wrapper cannot slip through uncovered.
+//       This is the bidirectional shape V2 uses for scheduled jobs, applied to the model contract.
+// ---------------------------------------------------------------------------------------------
+function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
+  const lw = manifest.meta && manifest.meta.model_routing && manifest.meta.model_routing.local_wrappers;
+  if (!lw || !lw.pins) {
+    warnings.push('WARNING V13: system/manifest.json meta.model_routing.local_wrappers.pins is not set - the local wrapper model-pin contract is unenforced (add it to enable V13)');
+    return;
+  }
+  const pins = lw.pins;
+  const detNoPin = new Set(lw.deterministic_no_pin || []);
+  const scriptsDir = path.join(REPO, 'scripts');
+  let files;
+  try {
+    files = fs.readdirSync(scriptsDir).filter(f => /^run-.*\.ps1$/.test(f) || f === 'auth-check.ps1');
+  } catch (e) { failures.push(`FAILED V13: cannot read scripts/ to enforce the wrapper pin contract - ${e.message}`); return; }
+
+  // the real reasoning-call line: a non-comment line that invokes claude(.ps1 / $ClaudeCmd) with -p.
+  // (mcp-list warmups use `& claude.ps1 mcp list` with no -p, so they are correctly ignored.)
+  const claudeCallLine = text => {
+    for (const line of text.split(/\r?\n/)) {
+      if (/^\s*#/.test(line)) continue;              // skip comments
+      if (!line.includes('&')) continue;             // needs the call operator
+      if (!/claude/i.test(line)) continue;           // names claude.ps1 or $ClaudeCmd
+      if (!/(^|\s)-p(\s|$)/.test(line)) continue;    // the prompt flag
+      return line;
+    }
+    return null;
+  };
+  const modelOf = line => { const m = line.match(/--model\s+([A-Za-z0-9._-]+)/); return m ? m[1] : null; };
+
+  for (const f of files) {
+    const eff = effective(stagedDir, `scripts/${f}`);
+    if (!eff) continue;
+    const line = claudeCallLine(eff.text);
+    const inPins = Object.prototype.hasOwnProperty.call(pins, f);
+    const inDet = detNoPin.has(f);
+    if (line) {
+      if (inDet)
+        failures.push(`FAILED V13: scripts/${f} is declared deterministic_no_pin but makes a real 'claude -p' call - move it to pins with its model, or the flag is a bug`);
+      if (!inPins) {
+        if (!inDet) failures.push(`FAILED V13: scripts/${f} makes a 'claude -p' call but is in NEITHER meta.model_routing.local_wrappers.pins NOR deterministic_no_pin - an unlisted wrapper inherits the global model default; add it to the contract`);
+        continue;
+      }
+      const want = pins[f], got = modelOf(line);
+      if (!got) failures.push(`FAILED V13: scripts/${f} 'claude -p' call has no --model (the contract wants ${want}; without it the wrapper inherits the global default)`);
+      else if (got !== want) failures.push(`FAILED V13: scripts/${f} pins --model ${got} but meta.model_routing.local_wrappers wants ${want}`);
+    } else if (inPins) {
+      warnings.push(`WARNING V13: scripts/${f} is in local_wrappers.pins but has no 'claude -p' call - stale pin entry (remove it, or the wrapper lost its reasoning call)`);
+    }
+  }
+  for (const f of Object.keys(pins)) if (!files.includes(f)) failures.push(`FAILED V13: local_wrappers.pins names scripts/${f} which does not exist`);
+  for (const f of detNoPin) if (!files.includes(f)) warnings.push(`WARNING V13: local_wrappers.deterministic_no_pin names scripts/${f} which does not exist`);
+}
+
+// ---------------------------------------------------------------------------------------------
 // runAll - the single entry point (async since Phase 3: V6 talks to the live n8n API).
 // ---------------------------------------------------------------------------------------------
 async function runAll({ stagedDir, context = 'generator', changed = false } = {}) {
@@ -925,11 +989,12 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   v10ProtectedFileGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
   v11IgnoredStagedGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
   if (manifest) v12TrifectaGate({ stagedDir, manifest }, failures, warnings); // trifecta gate (every run)
+  if (manifest) v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings); // local wrapper model-pin contract (every run)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
   if (failures.length === 0)
-    console.log(`validate-alex: G1-G4 + V1-V12 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+    console.log(`validate-alex: G1-G4 + V1-V13 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
   return { ok: failures.length === 0, failures, warnings };
 }
 

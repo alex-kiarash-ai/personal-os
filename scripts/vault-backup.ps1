@@ -27,6 +27,13 @@ $gpg = @("C:\Program Files\Git\usr\bin\gpg.exe","C:\Program Files (x86)\GnuPG\bi
        Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $gpg) { $c = Get-Command gpg -ErrorAction SilentlyContinue; if ($c) { $gpg = $c.Source } }
 
+# Resolve rclone for the SECOND backup destination (F1, 2026-07-25). Optional: if rclone is absent the
+# B2 leg is simply skipped (the primary Hetzner ship is unaffected). INERT until Shaheen provisions the
+# B2 account + the 'alex-b2' rclone remote (human-actions f1-b2-backup).
+$rclone = @("C:\Program Files\rclone\rclone.exe","$env:LOCALAPPDATA\Microsoft\WinGet\Links\rclone.exe") |
+          Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $rclone) { $rc = Get-Command rclone -ErrorAction SilentlyContinue; if ($rc) { $rclone = $rc.Source } }
+
 # F-04 (2026-07-21): the concrete passphrase-file path lives ONLY in the gitignored credentials
 # ledger (id=vault-backup-gpg-passphrase, local_path), never hardcoded in this tracked/public script.
 # Resolved here to $null if unavailable; the try-block below throws + RED-pushes if it stays unresolved.
@@ -48,6 +55,7 @@ $KEEP = 14
 
 $reason = $null
 $sizeMB = 0
+$b2ok   = $null   # F1: $null = B2 not attempted/not configured; $true/$false = the verified 2nd-copy result
 
 # 0. Outputs-ledger nightly self-heal (2026-07-11, the amended-Ledger build): append skeleton
 #    rows for any deliverable that missed its Close-Out A6 append, re-render INDEX. Best-effort:
@@ -146,6 +154,29 @@ try {
         ssh -o BatchMode=yes n8n "cd /opt/alex-backups && ls -1t vault-*.tar.gpg 2>/dev/null | tail -n +$($KEEP+1) | xargs -r rm -f" 2>&1 | Out-File -Append -Encoding utf8 $log
         $kept = (ssh -o BatchMode=yes n8n "ls -1 /opt/alex-backups/vault-*.tar.gpg 2>/dev/null | wc -l").Trim()
         Say "shipped: $remoteName ($remoteSize bytes remote), $kept kept on box"
+
+        # 4b. SECOND independent destination (Backblaze B2, a different failure domain than the n8n box
+        #     that is ALSO production, F1 SPOF fix). BEST-EFFORT relative to the primary: wrapped so a
+        #     B2 problem can NEVER set $reason or fail the real backup. Its OWN verify is HARD (read the
+        #     remote byte size back and compare). $gpgFile still exists here (finally shreds it later).
+        if ($rclone) {
+            try {
+                & $rclone copyto $gpgFile "alex-b2:alex-vault-backups/$remoteName" 2>&1 | Out-File -Append -Encoding utf8 $log
+                $b2json = (& $rclone size "alex-b2:alex-vault-backups/$remoteName" --json 2>$null | Out-String)
+                $b2bytes = -1; try { $b2bytes = [int64]((ConvertFrom-Json $b2json).bytes) } catch {}
+                if ($b2bytes -eq (Get-Item $gpgFile).Length) {
+                    $b2ok = $true
+                    $b2old = (& $rclone lsf "alex-b2:alex-vault-backups/" --include "vault-*.tar.gpg" 2>$null | Sort-Object -Descending | Select-Object -Skip $KEEP)
+                    foreach ($o in $b2old) { & $rclone deletefile "alex-b2:alex-vault-backups/$o" 2>&1 | Out-Null }
+                    Say "B2: shipped + verified $remoteName ($b2bytes bytes), pruned to $KEEP"
+                } else {
+                    $b2ok = $false
+                    Say "B2 VERIFY FAILED: local $((Get-Item $gpgFile).Length) vs remote $b2bytes"
+                }
+            } catch { $b2ok = $false; Say "B2 ship failed (non-fatal): $($_.Exception.Message)" }
+        } else {
+            Say "B2 skipped: rclone not found (provision alex-b2 to enable the 2nd destination; human-actions f1-b2-backup)"
+        }
     }
 } catch {
     $reason = $_.Exception.Message
@@ -156,13 +187,38 @@ try {
     }
 }
 
+# --- F1: stamp the verified-destinations state file (read by recovery check C20 = ">=2 independent
+#     destinations verified this cycle"). Only a destination that VERIFIED this run is stamped: Hetzner
+#     iff the run succeeded (reason null), B2 iff its own read-back passed ($b2ok true). Local runtime
+#     state (gitignored), best-effort, never fails the backup.
+if (-not $DryRun) {
+    $destState = Join-Path $repo 'work\18-recovery-layer\state\backup-destinations.json'
+    $existing = @{}
+    if (Test-Path $destState) {
+        try { (Get-Content $destState -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $existing[$_.Name] = $_.Value } } catch {}
+    }
+    $nowIso = (Get-Date).ToString('o')
+    if ($null -eq $reason) { $existing['hetzner-n8n'] = $nowIso }
+    if ($b2ok -eq $true)   { $existing['backblaze-b2'] = $nowIso }
+    try {
+        New-Item -ItemType Directory -Force (Split-Path $destState) | Out-Null
+        ($existing | ConvertTo-Json) | Out-File -Encoding utf8 $destState
+        Say "backup-destinations state: $((@($existing.Keys) | Sort-Object) -join ', ')"
+    } catch { Say "backup-destinations state write failed (non-fatal): $($_.Exception.Message)" }
+}
+
 # --- Alex HQ push (build #16 contract). Distinct metric_key from git-backup's run_status. ---
 $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"
 if ((Test-Path $tokenFile) -and -not $DryRun) {
     $token = (Get-Content $tokenFile -Raw).Trim()
     if ($null -eq $reason) {
+        # F1: the primary succeeded. A CONFIGURED B2 leg that FAILED its verify => amber (the 2nd copy
+        # is missing). B2 not configured yet ($b2ok null) stays green - the persistent SPOF is surfaced
+        # by C20, not by a nightly amber. B2 verified => green with a +B2 ok note.
+        $b2note = switch ($b2ok) { $true { ' +B2 ok' } $false { ' +B2 FAILED' } default { ' +B2 pending' } }
+        $st = if ($b2ok -eq $false) { 'amber' } else { 'green' }
         $body = @{ project='recovery'; metric_key='vault_backup'; value_num=1
-                   headline="vault encrypted -> Hetzner ($sizeMB MB)"; status='green' } | ConvertTo-Json
+                   headline="vault encrypted -> Hetzner ($sizeMB MB)$b2note"; status=$st } | ConvertTo-Json
     } else {
         $body = @{ project='recovery'; metric_key='vault_backup'; value_num=0
                    headline="vault backup FAILED: $reason"; status='red' } | ConvertTo-Json
