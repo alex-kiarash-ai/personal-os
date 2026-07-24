@@ -4,10 +4,10 @@
 Automation (n8n workflow on the Hetzner box - NOT a local Claude Code automation). This folder holds the regenerated workflow exports + the import runbook. The single source of truth for design is `C:\Users\Thinkpad\Desktop\Job Applications\CV\LinkdIn Automation (1)\job_pipeline_documentation.md` (v1.17).
 
 ## Purpose
-Daily 07:00 Stockholm: discover LinkedIn jobs per city via Bright Data, score fit + automation-interest with one Claude call, gate deterministically, write tailored CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job Google Drive folder, log every job + cost to the Google Sheet. Review-ready drafts; no auto-submit. Two reasoning calls wrapped in deterministic gates, not a chain of model verifiers.
+Tuesday & Thursday 15:00 Stockholm (was every-72h 07:00 until 2026-07-24): discover LinkedIn jobs per city via Bright Data, score fit + automation-interest with one Claude call, gate deterministically, write tailored CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job Google Drive folder, log every job + cost to the Google Sheet. Review-ready drafts; no auto-submit. Two reasoning calls wrapped in deterministic gates, not a chain of model verifiers.
 
 ## Entry Points
-- n8n Schedule Trigger: cron `0 7 * * *`, workflow timezone Europe/Stockholm
+- n8n Schedule Trigger (node "Tue & Thu 15:00 Stockholm"): cron `0 15 * * 2,4`, workflow timezone Europe/Stockholm (changed 2026-07-24 from the every-72h `0 7 */3 * *`)
 - Manual Trigger node for tests
 
 ## Exports (work/03-application-engine/export/)
@@ -53,13 +53,13 @@ After creating the two Google credentials, select them on every Sheets/Drive nod
 - resume-ats-optimizer + resume-tailor (advisory): check writer/CV prompt upgrades against their ATS + tailoring checklists.
 
 ## Cost instrumentation
-Compute Costs node: claude-sonnet-4-6 at $3/M input + $15/M output across stage2+stage4 tokens; Bright Data $0.00075/record (pay-as-you-go). Every drafted job appends a run_log row; every gate/QA failure appends a needs_review row; every scored job appends processed_jobs (dedup ground truth).
+Compute Costs node: **claude-opus-4-8 at $5/M input + $25/M output** (repriced from claude-sonnet-4-6 $3/$15 on 2026-07-24 when both engines moved to Opus 4.8, Shaheen's call) across stage2+stage4 tokens; Bright Data $0.00075/record (pay-as-you-go). Every drafted job appends a run_log row; every gate/QA failure appends a needs_review row; every scored job appends processed_jobs (dedup ground truth).
 
 ## Writer Voice Eval (regression harness, added 2026-07-07, upgrade-scan item 5)
 Separate ADDITIVE n8n workflow **"Writer Voice Eval"** (`grMqmGzzbTXTEdKr`, INACTIVE - the live 07:00 cron `9XuIEfxS71DEetVR` is untouched). Reuses the writer nodes VERBATIM (Build Writer Request + Claude Writer + Parse Writer) so it exercises the EXACT production prompt, fed by a "Build Match Request" node of 6 seeded cases carrying every field the writer reads (job_title, company_name, job_location, description, target_role, fit/interest scores + rationales, matched_keywords, gaps, company_facts, work_condition_detected). Then two Code nodes: **Writer Metrics** (deterministic, per case: em/en dashes in cover+profile prose = 0 with CV dates excluded, no AI-tell phrases, cover word-count in [100,280], all structure fields present, JSON parses) and **Eval Summary** (total/passed/failed/pass_rate/verdict + labelled failures). No judge tokens.
 - **Run:** n8n editor → open the workflow → **Execute workflow**. Do this after every generator run that re-syncs the voice block (`node scripts/generate-alex.js`; the soul-voice sync lives inside it since 2026-07-08, and the eval is a sync TARGET, so its writer stays in lockstep with the live engines).
 - **Requires:** the n8n box **registered** for the free Community-edition key (done 2026-07-07) so the Evaluations feature area is available; the workflow itself uses standard nodes so it runs regardless.
-- **First run (2026-07-07):** 4/6 pass. Caught 2/6 cover letters with dashes despite the no-dash rule and confirmed the live writer is `claude-sonnet-4-6` (matches the model-routing rule since its 2026-07-08 correction; the old gpt-4.1-mini wording was never applied in production).
+- **First run (2026-07-07):** 4/6 pass. Caught 2/6 cover letters with dashes despite the no-dash rule and confirmed the live writer was `claude-sonnet-4-6` at that time (**the eval writer moved to `claude-opus-4-8` on 2026-07-24 in lockstep with the two live engines**; the old gpt-4.1-mini wording was never applied in production).
 - **Dash-sanitizer added (2026-07-07, Shaheen's go):** the **Parse Writer** node of #03, #14 AND the eval now runs a deterministic pass over the prose fields - `deDashProse` (em-dash -> comma; en-dash -> comma with numeric ranges protected) on cover_letter/profile/role_line, `deEm` (em-dash -> comma only, date en-dashes kept) on experience/skills. Applied via the REST API (backup-first in scripts/n8n-backups/, syntax-checked, GET-verified; both engines stayed active, 37->37 nodes). Re-ran the eval: **6/6 ALL PASS** (was 4/6). The eval now grades the SHIPPED post-sanitize output, so a dash there = a sanitizer edge-case miss (not a routine writer slip).
 - Build script pattern (backup-first via API, verbatim node reuse): the writer node copy + metrics were created via the REST API, tested by executing in the editor (the public API can't trigger runs).
 
@@ -79,7 +79,7 @@ Reads: job-pipeline status + infrastructure pages. Writes: status.md after impor
 None new, by design: the review surface is the Google Sheet (doc decision 1.5, "no push digest"). The Progress Tracker row "Job-application pipeline (n8n)" tracks build status; mark it Done only after the first validated end-to-end run with Google OAuth in place.
 
 ## MCP Server (added 2026-07-01, from Alex AI Radar decision #1)
-Separate, additive n8n workflow "Application Engine (MCP)" (`CnhvoIVLSc6cUQZG`, active) exposes this pipeline to Shaheen's own Claude/Cursor over MCP via a native **MCP Server Trigger** node. The live 07:00 cron (`9XuIEfxS71DEetVR`) is untouched. Three read-only tools, each backed by an active worker sub-workflow reading the Job Search Pipeline Sheet:
+Separate, additive n8n workflow "Application Engine (MCP)" (`CnhvoIVLSc6cUQZG`, active) exposes this pipeline to Shaheen's own Claude/Cursor over MCP via a native **MCP Server Trigger** node. The live Tue+Thu 15:00 cron (`9XuIEfxS71DEetVR`) is untouched. Three read-only tools, each backed by an active worker sub-workflow reading the Job Search Pipeline Sheet:
 - `pipeline_status` (worker `k4p4TUoGrAuFt3Gg`) - today's jobs/drafts/cost from run_log.
 - `search_jobs` (worker `K4OGYfB5g77VU2Jr`) - filter already-scored jobs by `{location,keyword,min_fit}`. **Read-only over run_log history, NO Bright Data crawl / no spend** (a live paid search would be a separate spend-gated tool).
 - `needs_review_list` (worker `0AAbgjjezs16BCCX`) - the gate/QA-failure queue, `{limit}`.

@@ -382,31 +382,31 @@ function v5HexTokens({ stagedDir, allHexes }, failures) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// V6 - model routing, reality-aware (A3): the prose-model rule in CLAUDE.md ("Text-generation
-//      nodes use <model>") vs the model id actually deployed in the live n8n 'Build Writer
-//      Request' nodes of the production engines (the sync-n8n-voice TARGETS that are registered
-//      in system/manifest.json - i.e. #03 and #14; the Writer Voice Eval is a harness, not a
-//      production engine, and is out of scope per the Phase 3 handoff).
+// V6 - model routing, CONTRACT-DRIVEN (rewritten 2026-07-24). The model each n8n sync-target
+//      workflow runs, live, must match the machine-authoritative contract in
+//      system/manifest.json `meta.model_routing` (a `default` model + per-workflow `overrides`).
+//      This REPLACED the old prose-derived check that regex-read "Text-generation nodes use
+//      <model>" out of CLAUDE.md. That version broke the day the two engines got a documented
+//      Opus 4.8 exception: a regex over one sentence cannot see an exception paragraph, so the
+//      check false-failed and blocked the generator. The general rule this now embodies: a
+//      validator NEVER derives its expectation from prose - desired state lives in structured
+//      data and the check reads THAT. Registered production engines (#03/#14) FAIL on a mismatch;
+//      non-registered sync targets (the Writer Voice Eval harness) WARN.
 //      Credentials come ONLY from env (N8N_API_URL, N8N_API_KEY). Missing creds or an unreachable
 //      API: hard FAIL in generator context (ground rule 7), LOUD SKIP in pre-commit context.
-//      A real mismatch fails in every context.
+//      A real mismatch fails (prod) / warns (harness) in every context.
 // ---------------------------------------------------------------------------------------------
-function ruleModel(claudeText) {
-  const sec = mdSection(claudeText, /^## Model Routing in n8n Workflows[^\n]*$/m);
-  if (!sec) return null;
-  const m = sec.match(/Text-generation nodes use \**([A-Za-z0-9._-]+)/);
-  if (!m) return null;
-  return m[1].replace(/[.*]+$/, ''); // strip sentence period / closing bold
-}
-
-async function v6ModelRouting({ stagedDir, manifest, context }, failures, warnings) {
-  const claude = effective(stagedDir, 'CLAUDE.md');
-  if (!claude) { failures.push('FAILED V6: CLAUDE.md not found (staged or repo)'); return; }
-  const rule = ruleModel(claude.text);
-  if (!rule) {
-    failures.push(`FAILED V6: cannot parse the prose-model rule from the "Model Routing in n8n Workflows" section of CLAUDE.md (${claude.from}) - expected "Text-generation nodes use <model>"`);
+async function v6ModelRouting({ manifest, context }, failures, warnings) {
+  const mr = manifest.meta && manifest.meta.model_routing;
+  if (!mr || !mr.default) {
+    failures.push('FAILED V6: system/manifest.json meta.model_routing is missing or has no `default` - it is the source-of-truth contract this check enforces (a validator must never re-derive the model rule from prose)');
     return;
   }
+  const node = mr.checked_node || NODE;
+  const expectedFor = id => {
+    const ov = (mr.overrides || []).find(o => o.workflow === id);
+    return ov ? ov.model : mr.default;
+  };
 
   const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
   if (!base || !key) {
@@ -417,50 +417,37 @@ async function v6ModelRouting({ stagedDir, manifest, context }, failures, warnin
   }
 
   const registered = new Set(manifest.projects.map(p => p.n8n).filter(Boolean));
-  const engines = TARGETS.filter(t => registered.has(t.id));
-  if (engines.length === 0) { failures.push('FAILED V6: no sync-n8n-voice target workflow is registered in system/manifest.json - nothing to verify'); return; }
+  if (!TARGETS.some(t => registered.has(t.id))) {
+    failures.push('FAILED V6: no sync-n8n-voice target workflow is registered in system/manifest.json - nothing to verify');
+    return;
+  }
 
-  for (const t of engines) {
+  for (const t of TARGETS) {
+    const isProd = registered.has(t.id);           // registered engine -> FAIL; harness -> WARN
+    const flag = m => isProd ? failures.push(`FAILED ${m}`) : warnings.push(`WARNING ${m} - regression harness, not a production engine`);
     let wf;
     try {
       wf = await fetchJson(`${base.replace(/\/$/, '')}/workflows/${t.id}`, { 'X-N8N-API-KEY': key });
     } catch (e) {
       const msg = `V6: live n8n workflow ${t.id} (${t.name}) unreachable - ${e.message}`;
-      if (context === 'pre-commit') { warnings.push(`WARNING V6 SKIPPED (pre-commit): ${msg}`); continue; }
+      if (context === 'pre-commit' || !isProd) { warnings.push(`WARNING V6 ${isProd ? 'SKIPPED (pre-commit)' : '(harness)'}: ${msg}`); continue; }
       failures.push(`FAILED ${msg}`);
       continue;
     }
-    const node = (wf.nodes || []).find(n => n.name === NODE);
-    if (!node || typeof (node.parameters || {}).jsCode !== 'string') {
-      failures.push(`FAILED V6: live workflow ${t.id} (${t.name}) has no '${NODE}' code node - the live pipeline no longer matches what CLAUDE.md describes`);
+    const codeNode = (wf.nodes || []).find(n => n.name === node);
+    if (!codeNode || typeof (codeNode.parameters || {}).jsCode !== 'string') {
+      flag(`V6: live workflow ${t.id} (${t.name}) has no '${node}' code node - the live pipeline no longer matches the model-routing contract`);
       continue;
     }
-    const models = [...new Set([...node.parameters.jsCode.matchAll(/\bmodel\s*:\s*["']([A-Za-z0-9._-]+)["']/g)].map(m => m[1]))];
+    const models = [...new Set([...codeNode.parameters.jsCode.matchAll(/\bmodel\s*:\s*["']([A-Za-z0-9._-]+)["']/g)].map(m => m[1]))];
     if (models.length === 0) {
-      failures.push(`FAILED V6: no model id found in the '${NODE}' node of live workflow ${t.id} (${t.name})`);
+      flag(`V6: no model id found in the '${node}' node of live workflow ${t.id} (${t.name})`);
       continue;
     }
+    const exp = expectedFor(t.id);
     for (const m of models) {
-      if (m !== rule)
-        failures.push(`FAILED V6: model routing mismatch - CLAUDE.md (${claude.from}) rule says ${rule}, live workflow ${t.id} (${t.name}) '${NODE}' runs ${m}`);
-    }
-  }
-
-  // BUG-10 fix (2026-07-15): also model-check the sync TARGETS that are NOT registered production
-  // engines (the Writer Voice Eval) - WARN, not fail. The eval reuses the writer node verbatim and is
-  // the "re-test the sanitizer" regression harness, so if it silently drifts to a different model its
-  // pass/fail stops representing production; surface it without failing a build.
-  for (const t of TARGETS.filter(x => !registered.has(x.id))) {
-    try {
-      const wf = await fetchJson(`${base.replace(/\/$/, '')}/workflows/${t.id}`, { 'X-N8N-API-KEY': key });
-      const node = (wf.nodes || []).find(n => n.name === NODE);
-      if (!node || typeof (node.parameters || {}).jsCode !== 'string') continue;
-      const models = [...new Set([...node.parameters.jsCode.matchAll(/\bmodel\s*:\s*["']([A-Za-z0-9._-]+)["']/g)].map(m => m[1]))];
-      for (const m of models) {
-        if (m !== rule) warnings.push(`WARNING V6: sync harness ${t.id} (${t.name}) '${NODE}' runs ${m}, not the rule ${rule} - the regression harness has drifted from production`);
-      }
-    } catch (e) {
-      warnings.push(`WARNING V6: sync harness ${t.id} (${t.name}) unreachable for model-check - ${e.message}`);
+      if (m !== exp)
+        flag(`V6: model routing mismatch - manifest.meta.model_routing expects ${exp} for ${t.id} (${t.name}) '${node}', live runs ${m}`);
     }
   }
 }

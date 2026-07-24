@@ -12,7 +12,8 @@ const ROUTES = [
   'https://shaheenkiarash.com/commercial-model-stockholm',
   'https://shaheenkiarash.com/hair-model-stockholm',
   'https://shaheenkiarash.com/fitness-model-stockholm',
-  'https://shaheenkiarash.com/digitals',
+  // '/digitals' hidden while reworked (Shaheen, 2026-07-24): unlinked + excluded from deploy so it 404s.
+  // Re-add this route when the digitals page relaunches, or Scout's Eye will (correctly) miss it.
   'https://shaheenkiarash.com/now',
   'https://shaheenkiarash.com/sitemap.xml',
   'https://shaheenkiarash.com/robots.txt',

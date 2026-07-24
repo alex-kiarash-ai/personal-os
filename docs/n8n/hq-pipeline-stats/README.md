@@ -4,7 +4,9 @@
 
 ## What it does
 
-Every morning at 07:50 - after both job engines have finished their 07:00 and 07:30 runs - this workflow opens **both** pipelines' Google Sheets (the BI ledger and the AI ledger), reads their run logs and job tables in two batch calls, computes the day's stats (jobs processed, drafts produced, spend, review-queue depth, whether today's run actually happened), and pushes those numbers into the [metrics mailbox](../hq-metrics-ingest/) so the dashboard's pipeline tiles are fresh by breakfast.
+Every morning at 07:50 this workflow opens **both** pipelines' Google Sheets (the BI ledger and the AI ledger), reads their run logs and job tables in two batch calls, computes the latest stats (jobs processed, drafts produced, spend, review-queue depth, whether the most recent run happened), and pushes those numbers into the [metrics mailbox](../hq-metrics-ingest/) so the dashboard's pipeline tiles are fresh by breakfast.
+
+**Timing note (2026-07-24):** the two engines were retimed from every-72h 07:00/07:30 to **Tue & Thu 15:00/15:30**. The stats sweep still runs 07:50 daily, so on a run day (Tue/Thu) the 07:50 read reports the *previous* completed run, and that afternoon's fresh run first shows in the NEXT morning's 07:50 sweep (or on the on-demand `/webhook/alex-hq-stats-run` trigger). The tiles stay correct, just up to one cycle behind on run afternoons. If Shaheen wants same-day freshness, retime this workflow to fire after 15:30 on Tue/Thu (not done here - out of scope of the engine retiming).
 
 ## Why it exists
 

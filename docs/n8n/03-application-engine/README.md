@@ -1,10 +1,10 @@
 # Application Engine (BI) - the job-hunting robot
 
-**Workflow ID:** `9XuIEfxS71DEetVR` · **Runs:** every 72h at 07:00 Stockholm (every 3rd day; retimed 2026-07-16 for cost cut, was daily) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-20 refresh: 72h cron + "Past week" source window, on the P3 write-first base)
+**Workflow ID:** `9XuIEfxS71DEetVR` · **Runs:** Tuesday & Thursday 15:00 Stockholm (cron `0 15 * * 2,4`; retimed 2026-07-24, was every-72h 07:00) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-24 refresh: Tue+Thu 15:00 cron + "Past week" source window, on the P3 write-first base)
 
 ## What it does
 
-Every morning at 07:00, before Shaheen wakes up, this workflow hunts LinkedIn for fresh Power BI / data jobs in his chosen cities (Gulf, London remote, Stockholm, Europe remote). It reads every posting like a picky recruiter: scores how well the job fits Shaheen's CV, checks the working conditions (remote/hybrid/on-site) against his rules, and throws out anything weak. For the jobs that survive, it writes a tailored CV and a personal cover letter, turns both into polished PDFs, files them in a Google Drive folder named after the job, and logs everything (including what each job cost in AI fees, usually a few cents) in a Google Sheet. Shaheen opens the sheet with his coffee, reviews the drafts, and clicks submit himself. The robot never applies on its own.
+Every Tuesday and Thursday at 15:00, this workflow hunts LinkedIn for fresh Power BI / data jobs in his chosen cities (Gulf, London remote, Stockholm, Europe remote). It reads every posting like a picky recruiter: scores how well the job fits Shaheen's CV, checks the working conditions (remote/hybrid/on-site) against his rules, and throws out anything weak. For the jobs that survive, it writes a tailored CV and a personal cover letter, turns both into polished PDFs, files them in a Google Drive folder named after the job, and logs everything (including what each job cost in AI fees, usually a few cents) in a Google Sheet. Shaheen opens the sheet with his coffee, reviews the drafts, and clicks submit himself. The robot never applies on its own.
 
 ## Why it exists
 
@@ -14,9 +14,9 @@ Applying to jobs properly means tailoring a CV and letter per job, which costs 1
 
 **Stage 1 - Find the jobs**
 - **When clicking Test** - a manual start button, used only for testing.
-- **Daily 07:00 Stockholm** - the alarm clock. Despite the node name it now fires **every 72h** at 07:00 (cron `0 7 */3 * *`, retimed 2026-07-16 for cost; node not renamed).
+- **Tue & Thu 15:00 Stockholm** - the trigger. Fires **Tuesday and Thursday at 15:00** (cron `0 15 * * 2,4`, retimed 2026-07-24 from the every-72h `0 7 */3 * *`; node renamed to match).
 - **Read Search Config** - opens the Google Sheet tab that lists the searches to run (job title + city + allowed work conditions per row).
-- **Filter Active Rows** - keeps only the search rows marked active; skips the rest. Also sets the search window: **"Past week"** (lowercase - Bright Data's `time_range` label is case-sensitive) since 2026-07-16, so a 72h-cadence run never misses a fresh posting; the processed-log dedup makes the wider window exactly-once. NOTE: the 07-16 change mistakenly capitalized it ("Past Week"), which Bright Data rejects with HTTP 400 - that silently broke Stage 1 (`BD Trigger Search`) on BOTH engines from 07-19 until the 07-20 fix (see [[projects/error-log]]).
+- **Filter Active Rows** - keeps only the search rows marked active; skips the rest. Also sets the search window: **"Past week"** (lowercase - Bright Data's `time_range` label is case-sensitive) since 2026-07-16, so a twice-weekly run (max 4-day Thu->Tue gap) never misses a fresh posting; the processed-log dedup makes the wider window exactly-once. NOTE: the 07-16 change mistakenly capitalized it ("Past Week"), which Bright Data rejects with HTTP 400 - that silently broke Stage 1 (`BD Trigger Search`) on BOTH engines from 07-19 until the 07-20 fix (see [[projects/error-log]]).
 - **BD Trigger Search** - asks Bright Data (a web-scraping service) to go collect fresh LinkedIn postings for each search.
 - **Attach Row Context** - pins each search's settings (city, allowed conditions) to the scrape job so later steps know the rules that apply.
 - **Poll Wait / Poll Fetch Snapshot / Snapshot Ready?** - the waiting loop: check whether Bright Data is done; if not, wait and ask again; when ready, download the results.

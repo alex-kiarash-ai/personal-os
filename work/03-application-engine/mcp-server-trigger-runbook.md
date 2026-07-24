@@ -3,7 +3,7 @@
 Repointed measurement for Alex AI Radar decision #1 (n8n native MCP). Origin + correction: [[research/n8n-native-mcp-concept]], [[projects/alex-ai-radar/decisions]] #5. The original "refactor the application-engine's Notion ops" plan was void (this pipeline has no Notion ops - it writes Sheets + Drive). This is the real measurement: expose the pipeline **as** an MCP server his own Claude can call, via the **MCP Server Trigger** node.
 
 ## Non-negotiable safety
-- **A NEW, SEPARATE workflow.** The live "Application Engine" (daily 07:00 Stockholm cron) is **not touched, not duplicated-then-mutated, not paused.**
+- **A NEW, SEPARATE workflow.** The live "Application Engine" (Tue & Thu 15:00 Stockholm cron since 2026-07-24; was daily/every-72h 07:00) is **not touched, not duplicated-then-mutated, not paused.**
 - **Read-only first tool.** `pipeline_status` only READS the Google Sheet. No Bright Data call, no Claude tokens, no writes. Zero incremental cost.
 - **Bearer auth on the endpoint** from the first minute. The MCP URL is public via Caddy TLS, so it is never left open.
 

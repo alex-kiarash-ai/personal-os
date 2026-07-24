@@ -4,14 +4,14 @@
 Automation (n8n workflow on the Hetzner box). A faithful CLONE of the BI Application Engine (work/03, workflow `9XuIEfxS71DEetVR`), retargeted to AI / automation roles and embedding the AI CV. Same two-reasoning-calls-wrapped-in-deterministic-gates architecture.
 
 ## Purpose
-Daily 07:30 Stockholm: discover LinkedIn AI/automation jobs per location via Bright Data, score fit against the AI CV + AI-centrality with one Claude call, gate deterministically, write a tailored AI CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job folder under the AI Drive folder, log every job + cost to the AI sheet. Review-ready drafts, no auto-submit. Runs ALONGSIDE the BI pipeline (does not replace it).
+Tuesday & Thursday 15:30 Stockholm (was every-72h 07:30 until 2026-07-24): discover LinkedIn AI/automation jobs per location via Bright Data, score fit against the AI CV + AI-centrality with one Claude call, gate deterministically, write a tailored AI CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job folder under the AI Drive folder, log every job + cost to the AI sheet. Review-ready drafts, no auto-submit. Runs ALONGSIDE the BI pipeline (does not replace it).
 
 ## What differs from the BI pipeline (the only changes; everything else is identical)
 1. **Embedded CV** in `Build Match Request` + `Build Writer Request` code nodes → swapped from the combined master to `master_cv_ai.md` (AI-direction CV).
 2. **Match system prompt** (`Build Match Request`) → scores fit against AI/automation roles. `target_role` ∈ {"ai", "neither"} (was powerbi/consultant/neither). `interest_score` = how central AI/agents/automation are to the role (now the headline signal).
 3. **Gate** (`Stage 3 Gate`) → allowed `target_role` = ['ai'] (plus 'consultant' back-compat). `INTEREST_WEIGHT` left at 0.4 for launch (tuning knob; AI-centrality may warrant 0.5 later). `FIT_THRESHOLD` 70 unchanged.
-4. **Writer prompt** (`Build Writer Request`) → AI positioning, leads with Building Alex + automation; data/BI is supporting credibility. (Model: claude-sonnet-4-6, mirroring the live BI pipeline and matching the model-routing rule since its 2026-07-08 correction. The old "migrate to gpt-4.1-mini" TODO is dead: the rule now follows production.)
-5. **External IDs + schedule** → new sheet, new Drive folder, cron `30 7 * * *`.
+4. **Writer prompt** (`Build Writer Request`) → AI positioning, leads with Building Alex + automation; data/BI is supporting credibility. (Model: **claude-opus-4-8** since 2026-07-24, moved from claude-sonnet-4-6 when both engines went to Opus 4.8, Shaheen's call; still mirrors the live BI pipeline. `Compute Costs` repriced to $5/$25. The old "migrate to gpt-4.1-mini" TODO is dead: the rule follows production.)
+5. **External IDs + schedule** → new sheet, new Drive folder, cron `30 15 * * 2,4` (Tue & Thu 15:30; changed 2026-07-24 from the every-72h `30 7 */3 * *`).
 
 ## External IDs (bake into the clone)
 - Spreadsheet "AI Job Search Pipeline": `11lvksV5NmLK7vWvt4oHIPTXZ1pwRVi67UrWVI3lrAHQ`

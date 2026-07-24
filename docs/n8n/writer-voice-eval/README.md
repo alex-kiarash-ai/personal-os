@@ -22,7 +22,7 @@ It is a SEPARATE workflow and does NOT touch the live 07:00 pipeline.
    rationales, matched_keywords, gaps, company_facts, work_condition_detected).
 3. **Build Writer Request** (code) - a VERBATIM copy of the live writer node, so the eval tests the
    exact production prompt (includes the CV, the SYSTEM prompt, the TONE table, and the injected
-   `<<<SOUL_VOICE>>>` block). Builds `writer_body` for `claude-sonnet-4-6`.
+   `<<<SOUL_VOICE>>>` block). Builds `writer_body` for `claude-opus-4-8` (moved from claude-sonnet-4-6 on 2026-07-24 in lockstep with the two live engines).
 4. **Claude Writer** (HTTP) - POST to api.anthropic.com/v1/messages, Anthropic credential, batched 1.
    VERBATIM copy of the live node.
 5. **Parse Writer** (code) - VERBATIM copy; parses the writer JSON (role_line/profile/experience/
@@ -55,8 +55,9 @@ eval's writer node too. Costs ~6 Sonnet calls per run (occasional, only after a 
 - **Re-run after the fix: 6/6 ALL PASS.** Proves the sanitizer works on real writer output. Because
   this eval's Parse Writer is sanitized too, it now grades the SHIPPED (post-sanitize) artifact - a
   dash appearing here would mean a sanitizer edge-case miss, not a routine model slip.
-- Resolved 2026-07-08: the model-routing rule now says prose nodes run `claude-sonnet-4-6`, matching
-  what this writer actually runs (the rule was corrected to production; the gpt-4.1-mini switch was
-  never applied).
+- Resolved 2026-07-08: the model-routing rule matched what this writer actually ran (the rule was
+  corrected to production; the gpt-4.1-mini switch was never applied). **Updated 2026-07-24: the writer
+  moved to `claude-opus-4-8` in lockstep with the two live engines (Shaheen's call); re-run this eval to
+  confirm Opus prose still passes the no-dash + voice checks.**
 
 _Latest JSON export: `workflow.json` in this folder (gitignored; local-only)._

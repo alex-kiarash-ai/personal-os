@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-23. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-24. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -31,7 +31,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 
 - **01 Sprint Tracker** (PARKED; trigger: PAUSED (Shaheen 2026-07-16, until re-enabled)) - Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.
 - **02 Morning Brief** (LIVE; trigger: daily 8:00) - The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags.
-- **03 Application Engine (BI)** (LIVE; trigger: n8n every 72h (07:00) + watch 8:30) - Job pipeline, Power BI track: source, score, gate, draft, render every 72h; also an MCP server.
+- **03 Application Engine (BI)** (LIVE; trigger: n8n Tue+Thu 15:00 + watch 8:30) - Job pipeline, Power BI track: source, score, gate, draft, render every Tue & Thu; also an MCP server.
 - **04 Research Team** (ON-DEMAND; trigger: on-demand) - Adaptive multi-agent research squads for EXTERNAL evidence, + an evidence-anchored Adversarial Verification Mode (`verify:` a claim - refuters grounded in external facts, converge to CONFIRMED/REFUTED/UNRESOLVED, never consensus-laundered; the sanctioned way to check an Alex conclusion).
 - **05 Personal CRM** (LIVE; trigger: Mon 8:30) - Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate.
 - **06 Meeting Intel** (ON-DEMAND; trigger: on-demand) - Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after.
@@ -41,7 +41,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup)) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
 - **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.
 - **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway.
-- **14 AI Application Engine** (LIVE; trigger: n8n every 72h (07:30)) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
+- **14 AI Application Engine** (LIVE; trigger: n8n Tue+Thu 15:30) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
 - **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.

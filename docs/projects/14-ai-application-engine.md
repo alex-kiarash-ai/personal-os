@@ -1,7 +1,7 @@
 # 14 - AI Application Engine
 
 ## What it actually does
-The second job-hunting robot: an exact clone of the [BI Application Engine](03-application-engine.md), running 30 minutes later (07:30) and aimed at **AI and automation roles** - AI Automation Engineer, n8n Developer, LLM Engineer, AI Consultant - across the Gulf, London remote, Stockholm, and remote Europe. It carries Shaheen's AI-direction CV instead of the BI one, scores each job on how *central* AI is to the role (not just whether he qualifies), and keeps its own ledger, Drive folder, and cost log. Verified at scale: 905 jobs processed, 48 tailored applications drafted, total AI spend under $3.
+The second job-hunting robot: an exact clone of the [BI Application Engine](03-application-engine.md), running 30 minutes later (Tue & Thu 15:30, retimed 2026-07-24 from every-72h 07:30) and aimed at **AI and automation roles** - AI Automation Engineer, n8n Developer, LLM Engineer, AI Consultant - across the Gulf, London remote, Stockholm, and remote Europe. It carries Shaheen's AI-direction CV instead of the BI one, scores each job on how *central* AI is to the role (not just whether he qualifies), and keeps its own ledger, Drive folder, and cost log. Verified at scale: 905 jobs processed, 48 tailored applications drafted, total AI spend under $3.
 
 ## Why it exists
 The pivot in machine form. One CV can't credibly chase both the safe lane (senior Power BI, pays the bills) and the desired lane (AI automation, the future) - so the hunt runs two engines with two identities. This one is the aspirational lane; the numbers it produces are also proof for that very lane: "I built the robot that applies for AI jobs" is itself an AI-automation credential.

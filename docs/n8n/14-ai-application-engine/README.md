@@ -1,10 +1,10 @@
 # AI Application Engine - the job-hunting robot, aimed at AI roles
 
-**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** every 72h at 07:30 Stockholm (30 min after its twin; retimed 2026-07-16 for cost cut, was daily) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-20 refresh: 72h cron + "Past week" window, on the P3 write-first base)
+**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** Tuesday & Thursday 15:30 Stockholm (cron `30 15 * * 2,4`; 30 min after its twin; retimed 2026-07-24, was every-72h 07:30) · **Nodes:** 41 · **Export in this folder:** workflow.json (2026-07-24 refresh: Tue+Thu 15:30 cron + "Past week" window, on the P3 write-first base)
 
 ## What it does
 
-Exactly what the [BI Application Engine](../03-application-engine/) does - hunt LinkedIn every morning, judge every posting, write a tailored CV + cover letter for the winners, render PDFs, file them in Drive, log everything in a sheet - but pointed at a different target: **AI and automation jobs** (AI Automation Engineer, n8n Developer, LLM Engineer, AI Consultant, Workflow Automation) instead of Power BI jobs. It embeds Shaheen's AI-direction CV instead of the BI one, and its scoring asks an extra question: how central is AI/automation to this role, not just "does he qualify". It runs alongside the BI engine, never instead of it - two lanes of the same job hunt.
+Exactly what the [BI Application Engine](../03-application-engine/) does - hunt LinkedIn every Tuesday and Thursday, judge every posting, write a tailored CV + cover letter for the winners, render PDFs, file them in Drive, log everything in a sheet - but pointed at a different target: **AI and automation jobs** (AI Automation Engineer, n8n Developer, LLM Engineer, AI Consultant, Workflow Automation) instead of Power BI jobs. It embeds Shaheen's AI-direction CV instead of the BI one, and its scoring asks an extra question: how central is AI/automation to this role, not just "does he qualify". It runs alongside the BI engine, never instead of it - two lanes of the same job hunt.
 
 ## Why it exists
 
@@ -19,7 +19,7 @@ The 41 nodes are identical in shape to the BI engine's - same five stages, inclu
 3. **Claude Match+Research** scores `target_role` as "ai" or "neither", and its interest score measures AI-centrality of the role (the headline signal for this lane).
 4. **Stage 3 Gate** only lets `ai` roles through (fit threshold 70, same as BI).
 5. **Create Drive Folder / uploads** file into the AI Drive folder (`18HUzkLQtKCBd_VGMjBxS94jy8UAJIP4Z`).
-6. **Daily 07:30 Stockholm** - offset 30 minutes so the two engines never fight over the same API limits at once.
+6. **Tue & Thu 15:30 Stockholm** - fires Tuesday and Thursday at 15:30 (cron `30 15 * * 2,4`), offset 30 minutes from its twin so the two engines never fight over the same API limits at once.
 
 ## Connected to
 
