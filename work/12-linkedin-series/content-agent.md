@@ -40,6 +40,7 @@ is the human at the trigger, always.
 4. **Gates (blocking).** Brand + Soul Pre-Flight Gate runs before generating a byte (voice output):
    print the pre-flight line, re-read soul.md. Deterministic dash scan (em/en dash codepoints) on
    every draft; any hit = rewrite. Apply the never-share list to every name and number.
+4b. **AI-SEO (advisory, optional, non-blocking; added 2026-07-24, item 1 of the AI-guide upgrade plan).** If the draft will ALSO live as a public web page (a Kit/product page, a #30 surface, a cross-posted article), consult the `ai-seo` skill so it is citable by AI search (ChatGPT/Perplexity/Google AI Overviews). Skip it for a pure LinkedIn post: LinkedIn is not LLM-indexed the same way, so the value is light and it is not worth a step there. It NEVER overrides the step-4 gates, the never-share list, or the voice register.
 5. **Register the variant.** For each drafted post that Shaheen moves toward posting, register it in
    the loop so its features are on record before the outcome is known:
    `node scripts/alex-content-loop.js add --post-id ep-NN --episode NN --title "..." --hook <type>

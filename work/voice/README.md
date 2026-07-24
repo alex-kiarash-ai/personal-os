@@ -234,3 +234,10 @@ v1 was push-to-talk (Enter) + Esc interrupt + OpenAI TTS (died on quota) with a 
 fallback - parked on voice quality. v2: hands-free wake word, natural free multilingual voice with a
 never-mute chain, voice barge-in, and talks-while-thinking. The persistent-brain transport and the
 sentence-chunked interruptible playback carried over from v1 unchanged.
+
+# Explainer lane - free narrated video (on-demand, added 2026-07-24)
+A third use of the voice organs, off to the side: `work/voice/explainer/make-explainer.py` turns branded
+slide PNGs + per-slide narration into one narrated MP4 at $0, reusing `tts_chain.py` (`edge_tts_mp3` +
+`clean_for_speech`) for the voice and ffmpeg for the mux. It never touches the audio device (bytes only),
+so it cannot disturb live speech-out. LIGHT tool, not a registered project. Spec, guardrails, and the
+worked demo: `work/voice/explainer/README.md`. Item 3 of [[research/alex-upgrade-from-ai-guide]].

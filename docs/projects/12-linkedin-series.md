@@ -6,6 +6,8 @@ Produces and stages a LinkedIn series where Shaheen publicly builds this very sy
 ## Why it exists
 The pivot's public proof. A CV says "AI automation engineer"; a twice-weekly series showing an actual agent being built - with costs, failures, and fixes - demonstrates it. It also forces honest documentation: an episode can't ship unless the build really happened. The absolute no-auto-posting gate exists because this is Shaheen's professional face during a job hunt; the automation's reach ends one step before publish, by design.
 
+Since 24 July 2026, if a post also goes onto a public web page, Alex can run an optional AI-SEO check so AI search tools like ChatGPT and Perplexity can quote it. It stays off by default for plain LinkedIn posts and never changes the voice or the privacy rules.
+
 ## Works together with
 - **[Content Machine](09-content-machine.md)** - shares the Content Library database and voice rules.
 - **Every project** - they're the raw material; the [Application Engine](03-application-engine.md) and [Alex HQ](16-alex-hq.md) star in key episodes.

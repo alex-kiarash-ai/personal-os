@@ -48,3 +48,4 @@ Gate: **queue-only**. Legs: private_data=true, untrusted_content=true, external_
 
 ## Skills
 image-manipulation-image-magick (crops, ADVISORY) - frontend-design (site/intent pages, MANDATORY for visuals per the standing picture rule) - obsidian-markdown (vault pages, ADVISORY) - pdf (comp card / portfolio checks, ADVISORY). n8n skills only from Phase 2.
+- **ai-seo / GEO (ADVISORY, added 2026-07-24, item 1 of the AI-guide upgrade plan):** run `ai-seo` (+ `seo-audit` for on-page) before publishing any public web copy (the site, intent pages, a Kit surface) so it is citable by AI search. Never blocks; the pre-flight line + #30 hard rules always win. Real value here since these ARE public web pages, unlike a LinkedIn post.

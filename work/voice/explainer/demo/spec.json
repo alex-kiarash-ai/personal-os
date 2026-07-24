@@ -1,0 +1,19 @@
+{
+  "title": "alex-in-60s",
+  "resolution": [1920, 1080],
+  "fps": 30,
+  "slides": [
+    {
+      "image": "slide-01.png",
+      "narration": "This is Alex. Not a chatbot, a personal ops system. It runs the work the way you would run a machine, on a steady daily rhythm, and it keeps a written memory of everything it learns."
+    },
+    {
+      "image": "slide-02.png",
+      "narration": "It does a lot. It sources and tailors job applications and stops one step before submit. It briefs the morning from the inbox, the calendar and a news radar. It runs research squads that argue with each other before they conclude. And it watches its own health and reviews itself every week."
+    },
+    {
+      "image": "slide-03.png",
+      "narration": "The part that matters most is not how much it does. It is that it can be trusted. It runs gates before it acts, it reads back every change to check it landed, and it keeps every private detail off the public code. One correction becomes a rule it never breaks again. That is Alex."
+    }
+  ]
+}

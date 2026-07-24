@@ -49,6 +49,7 @@ The `/content-agent` upgrade adds a memory read-before and an outcome write-afte
 
 ## Skills (bindings, 2026-07-20)
 - /content-agent drafting is VOICE output: the Brand + Soul Pre-Flight Gate + soul.md My Words (polished public register) bind every draft. No separate third-party skill is mandatory; the marketing pack (copywriting, content-strategy, marketing-psychology, social) is ADVISORY when a hook needs sharpening.
+- **AI-SEO / GEO (added 2026-07-24, item 1 of the AI-guide upgrade plan):** `ai-seo` is ADVISORY on the publish path, see content-agent.md step 4b. Skip-by-default for a pure LinkedIn post (LinkedIn is not LLM-indexed the same way); it earns its keep when a post also has a public web home (a Kit/product page, a cross-posted article). It never blocks and never overrides HARD RULE 2 (no dashes), the never-share list, or the voice gate.
 
 ## Vault Structure
 - Tier 1: vault/projects/linkedin-series/status.md (per-run updates, open items)
