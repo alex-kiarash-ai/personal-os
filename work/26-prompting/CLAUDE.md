@@ -170,6 +170,17 @@ soul.md (voice), root CLAUDE.md (bindings + gates + routing table), `system/mani
 - Feeds #23 self-review: saved prompts in outputs/prompting/ are minable for which prompts worked.
 - Durable-automation requests hand off to the /new flow. Overlapping requests hand off to the existing automation's spec.
 
+## Prompt regression cases (Phase 1, 2026-07-25)
+Prompt edits stop being silent behavior changes. Each production prompt/runbook that matters gets a case in
+`work/26-prompting/regression-cases/cases.json` pinning its load-bearing SHAPE (must_contain / must_not_contain
+regexes + an illustrative example input). `scripts/prompt-regression-check.js` replays them - STRING-SHAPE
+assertions only, ZERO Claude calls, no LLM judging in v1. Strict mode exits 1 on a dropped/added shape;
+`--advisory` warns and exits 0. **Phase 2 (wired):** `scripts/generate-alex.js` runs the checker in advisory
+mode after validation (step 3b) - a warning, never a build failure (a shape change can be intentional; the
+human updates the case). Backfilled with the 5 highest-blast-radius prompts (morning-brief index, email-triage
+safety+rules, content-agent gates, weekly-exec deltas, research-team claims table). The V6 lesson (expectations
+live as DATA) extended to the prompt layer. Add a case whenever /prompting ships a prompt into production.
+
 ## Close-Out Extras
 - Generated prompt saved to `outputs/prompting/YYYY-MM-DD/{slug}.md` and referenced in status.md.
 - If a first-principles sequence was built, the new pattern is appended to this file's Task patterns section (that is how the library grows).

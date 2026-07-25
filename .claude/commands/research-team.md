@@ -14,6 +14,7 @@ Usage: `/research-team {question or topic}`. If no question given, ask for one -
 3. Design the team (2-5 sub-agents, parallel where independent) or adapt the matched pattern.
 4. AskUserQuestion: approve / modify / answer-without-team. NO sub-agents before approval.
 5. Execute, synthesize in Alex voice. Unknown stays unknown; cite sources.
+5b. **Claims table (output contract, 2026-07-25).** End every deliverable with a claims table: `| Claim | Source (URL) | Retrieved | Confidence |`, one row per load-bearing claim. A claim with no external source = `source: none (reasoning)`, confidence capped `med` (label inference, never dress it as a fact). An empty lane = `nothing found | - | date | -`. Spec: work/04-research-team/CLAUDE.md step 6b.
 6. Write vault/research/{topic-slug}.md + Notion page "Research: {topic}" under the Personal Ops System parent.
 7. Save/refresh the pattern in patterns/ + index.md.
 8. AskUserQuestion: "Claude Design deck or PDF?" → **Deck = Claude Design (DesignSync)** on claude.ai/design (slides as components, finalize_plan → write_files, branded from brand config), export PDF; OR PDF = reportlab with brand config. NOT /pptx (standing rule 2026-06-15). Output the PDF (+ note the claude.ai/design link) to outputs/research-team/YYYY-MM-DD/. Delete build scripts and temp artifacts after.

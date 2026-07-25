@@ -83,6 +83,25 @@ Top 3-4 options, markdown:
 6. **Booking links as markdown.**
 7. **30-minute result memory, then expire.** Memory is conversation context, not a price store.
 
+## Fare-watch (the October corridor watch, #24/#29 Phase 1, 2026-07-25)
+A standing, low-cost watch on concrete demand instead of only reactive one-off searches. Config + last-seen
+state: `work/24-flight-search/watch-state.json` (LOCAL-ONLY, gitignored - real travel intent; the SCHEMA
+here is the tracked, safe copy). Each `watches[]` entry: `{id, label, legs:[{from,to,depart_window,target_date}],
+cabin, pax, max_price_sek, alert_on:{threshold_sek, drop_pct}, last_price_sek, last_checked, history[]}`.
+
+**Poll:** every ~72h a run reads watch-state.json, prices each watch's legs through the EXISTING search lane
+(Kiwi + Turkish + Google Flights, cheapest-only per the hard constraints), and updates `last_price_sek` +
+appends `{date, price}` to `history`. **Alert (brief line) ONLY on:** a threshold cross (price <=
+`threshold_sek`, when set) OR a fall of `>= drop_pct` (default 15%) from `last_price_sek`. Silent otherwise
+- the watch costs nothing until it fires. Seed watch: `oct-corridor-2026` = STO->TFS (Tenerife, ~Oct 22)
+then TFS->USM (Koh Phangan).
+
+**Phase 2 (booking -> chain):** when Shaheen forwards the booking confirmation, it flows the existing #29
+trip-ops G8-guarded path into Google Calendar + `system/travel-state.json`, which then drives #17's
+travel-aware baselines and the scheduler's C18 timezone check automatically - one forwarded email, the whole
+travel chain (flights, calendar, health baselines, timezone policy) updates. Fresh-every-search (constraint 1)
+still holds: the watch stores last-seen for the DROP comparison only, never reuses a price as a quote.
+
 ## Sources (as built 2026-07-07)
 - **Kiwi.com** - LIVE. `mcp__claude_ai_Kiwi_com__search-flight`. Connected via the claude.ai connector. Returns deep booking links. Seeded the original one-off flight lookup ([[research/flight-stockholm-istanbul-aug2026]], research-team run 2) and the `other-flight-search` pattern (flex-date tiling, parse locally, nonstop handling, rank by price).
 - **Turkish Airlines** - LIVE. `mcp__turkish-airlines__*` (HTTP MCP). `search_flights` + `search_inbound_flights` + `find_flight_price_calendar`.

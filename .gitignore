@@ -90,16 +90,27 @@ work/16-alex-hq/app/public/data/graph.json
 # gitignored -> auto-covered by the encrypted vault backup (its set derives from this file)
 system/human-actions.jsonl
 system/pending-writes.jsonl
+# Waiting-on-them ledger (#07 P1): outbound threads awaiting THEIR reply; carries recipient labels
+# + subject snippets (personal). Local-only, encrypted-backup-covered like the siblings above.
+system/waiting-on-them.jsonl
 # read-experiment instrument (2026-07-15, /prompting item 7): logs vault search queries, local-only
 system/vault-reads.jsonl
 # quota truth = live runtime state (cap status + internal incident notes), churns on every cap event
 # and carries no reproducible value in git. Local-only, encrypted-backup-covered (BUG-06, 2026-07-16).
 system/quota-state.json
+# cost tripwires = derived monthly-budget state, churns nightly, no reproducible value in git. Local-only.
+system/cost-tripwires.json
+# HQ focus slot state (#16 P1): carries human-action text (pointer-ish personal). Local-only, derived.
+work/16-alex-hq/state/focus.json
+work/16-alex-hq/state/last-focus.json
 # credential-age ledger (P5 security sweep S3): points at WHERE each secret lives + rotation dates.
 # Not the secrets themselves, but the map is sensitive on a public repo. Local-only, backup-covered.
 system/credentials-ledger.json
 # travel-state (P7 trip-ops 1b + recovery C18): home/current timezone + active trip. Local-only.
 system/travel-state.json
+# fare-watch carries real travel intent (routes + dates). Schema is documented in work/24 CLAUDE.md
+# (tracked, safe); this instance with real dates is local-only, encrypted-backup-covered.
+work/24-flight-search/watch-state.json
 # raw personal dumps + personal ops data + ingested notes + personal-story episodes
 I want you to brainstorm with me, I.txt
 notion_rows.txt

@@ -97,11 +97,56 @@ function classify(text, map) {
   return 'interactive';
 }
 
+// budget tripwires (alex-costs upgrade, 2026-07-25): compare month-to-date per-project cost to the
+// manifest budgets and fire a tripwire when a project crosses warn_pct, or when its MTD pace projects
+// to blow the month. Deterministic, level-triggered. Writes system/cost-tripwires.json + returns the md.
+function computeTripwires(roll) {
+  const m = JSON.parse(fs.readFileSync(path.join(REPO, 'system', 'manifest.json'), 'utf8'));
+  const cb = (m.meta && m.meta.cost_budgets) || {};
+  const def = Number(cb.default_monthly_usd) || 0;
+  const warn = Number(cb.warn_pct) || 0.8;
+  const overrides = cb.overrides || {};
+  // validate override keys against real names (fail loud on a typo - the V-checkable discipline, in-code)
+  const known = new Set(Object.keys(CMD).map((c) => CMD[c]));
+  ((m.projects || [])).forEach((p) => known.add(p.name));
+  ((m.meta && m.meta.unnumbered) || []).forEach((p) => known.add(p.name));
+  known.add('interactive'); known.add('utility');
+  for (const k of Object.keys(overrides)) {
+    if (!known.has(k)) { console.error(`cost_budgets: override key '${k}' is not a known project/utility name`); process.exit(3); }
+  }
+  const now = new Date();
+  const daysInMonth = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 0).getUTCDate();
+  const dayOfMonth = now.getUTCDate();
+  const monthFrac = dayOfMonth / daysInMonth;
+  const tripwires = [];
+  for (const [name, r] of Object.entries(roll)) {
+    const mtd = r.mtd || 0;
+    const budget = overrides[name] != null ? Number(overrides[name]) : def;
+    if (!budget) continue;
+    const pct = mtd / budget;
+    const projected = monthFrac > 0 ? mtd / monthFrac : mtd; // straight-line month-end projection
+    if (pct >= warn) {
+      tripwires.push({ project: name, kind: 'crossed', mtd: +mtd.toFixed(2), budget, pct: +(pct * 100).toFixed(0),
+        severity: pct >= 1 ? 'red' : 'amber', day: `${dayOfMonth}/${daysInMonth}` });
+    } else if (projected >= budget) {
+      tripwires.push({ project: name, kind: 'pace', mtd: +mtd.toFixed(2), budget, pct: +(pct * 100).toFixed(0),
+        projected_month_end: +projected.toFixed(2), severity: 'amber', day: `${dayOfMonth}/${daysInMonth}` });
+    }
+  }
+  tripwires.sort((a, b) => (b.pct - a.pct));
+  const out = { generated: now.toISOString(), month: now.toISOString().slice(0, 7),
+    default_monthly_usd: def, warn_pct: warn, tripwires };
+  fs.writeFileSync(path.join(REPO, 'system', 'cost-tripwires.json'), JSON.stringify(out, null, 2), 'utf8');
+  return out;
+}
+
 function main() {
   const args = process.argv.slice(2);
+  const budgetCheckOnly = args.includes('--budget-check');
   const weeksArg = args.includes('--weeks') ? parseInt(args[args.indexOf('--weeks') + 1], 10) : 8;
   const sinceArg = args.includes('--since') ? args[args.indexOf('--since') + 1] : null;
   const since = sinceArg ? new Date(sinceArg + 'T00:00:00Z') : null;
+  const thisMonth = new Date().toISOString().slice(0, 7);
 
   const slug = REPO.replace(/[\\/:]/g, '-'); // C:\...\personal-os -> C--...-personal-os (one dash per sep)
   const dir = process.env.ALEX_CC_PROJECTS_DIR || path.join(os.homedir(), '.claude', 'projects', slug);
@@ -148,10 +193,26 @@ function main() {
     const project = classify(cmdText, CMD);
     const wk = isoWeek(sessDate);
     weeksSeen.add(wk);
-    const r = (roll[project] = roll[project] || { cost: 0, sessions: 0, in: 0, out: 0, cr: 0, cw: 0, weeks: {} });
+    const r = (roll[project] = roll[project] || { cost: 0, sessions: 0, in: 0, out: 0, cr: 0, cw: 0, weeks: {}, mtd: 0 });
     r.cost += cost; r.sessions += 1; r.in += totals.in; r.out += totals.out; r.cr += totals.cr; r.cw += totals.cw;
     r.weeks[wk] = (r.weeks[wk] || 0) + cost;
+    if (sessDate.toISOString().slice(0, 7) === thisMonth) r.mtd += cost;
   });
+
+  // budget tripwires: computed before any markdown so --budget-check is a fast nightly path.
+  const budget = computeTripwires(roll);
+  if (budget.tripwires.length) {
+    console.log(`\nCOST TRIPWIRES (${budget.month}):`);
+    for (const t of budget.tripwires) {
+      const bar = t.severity === 'red' ? 'RED' : 'AMBER';
+      const tail = t.kind === 'pace' ? `pace -> ~$${t.projected_month_end}/mo` : `${t.pct}% of $${t.budget}`;
+      console.log(`  [${bar}] ${t.project}: $${t.mtd} MTD (day ${t.day}), ${tail}`);
+    }
+    console.log(`  -> system/cost-tripwires.json (nightly path pushes amber/red to HQ)`);
+  } else {
+    console.log(`\ncost tripwires: none this month (all projects under ${Math.round((budget.warn_pct) * 100)}% of budget).`);
+  }
+  if (budgetCheckOnly) return; // fast nightly mode: tripwires only, skip the full attribution markdown
 
   const recentWeeks = [...weeksSeen].sort().slice(-weeksArg);
   const projects = Object.entries(roll).sort((a, b) => b[1].cost - a[1].cost);

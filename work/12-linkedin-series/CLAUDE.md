@@ -47,6 +47,29 @@ The `/content-agent` upgrade adds a memory read-before and an outcome write-afte
 - **Nightly:** re-aggregated in the 21:45 vault-backup chain (step 0c), beside the job loop. Best-effort, never blocks the backup.
 - **Honesty rail:** identical to the job loop. A variant needs >= 4 resolved; a 60-day window decides keep-or-shrink. Ranking output below the gate must say it is not proven. Full schema: `outcomes/README.md`.
 
+### Engagement harvest (Phase 1, 2026-07-25) - feed the loop without the human
+The loop starves: variant registration is automatic, but RESOLUTION needed Shaheen to type the numbers.
+This automates it. **`/content-agent harvest`** (weekly, read-only): a claude-in-chrome pass over
+**Shaheen's OWN** LinkedIn posts (his session, his data - read-only Trifecta, never other people's posts,
+never a write). For each Building Alex post still `pending` in `posts.jsonl` (and posted >= 3 days ago so
+numbers have settled), read impressions / reactions / comments / reposts off the post's own analytics card
+and resolve the row deterministically:
+```
+node scripts/alex-content-loop.js log ep-NN <impressions> <reactions> <comments> [reposts]
+```
+**Read-back verify** (per the standing order): after logging, `node scripts/alex-content-loop.js status`
+must show the resolved count rose by the number of posts logged; a mismatch = PARTIAL, log it, never claim
+resolved. Numbers Alex cannot read confidently are LEFT pending, never guessed (the phantom-reading
+discipline, applied to engagement). Schedule: rides the existing weekly content cadence; on a browser wall
+(login expired, DOM change) it degrades to one morning-brief line "content harvest needs a hand" and files
+nothing, never a fabricated metric. This is the second outcome loop's path to a reachable >= 4-resolved
+winner gate instead of a theoretical one.
+
+**Phase 2 (inline citation):** `/content-agent`'s hook ranking cites loop data INLINE per hook, e.g.
+"hook_type=contrarian: mean ER 4.2% over 6 resolved posts (proven)" or "framing=lesson: accumulating,
+2/4 resolved (soul.md-based, not proven)", so every drafting decision shows its evidence, not just a
+lean. Reads `winners.json` + the per-dim tallies. Below the gate it still says "not proven" out loud.
+
 ## Skills (bindings, 2026-07-20)
 - /content-agent drafting is VOICE output: the Brand + Soul Pre-Flight Gate + soul.md My Words (polished public register) bind every draft. No separate third-party skill is mandatory; the marketing pack (copywriting, content-strategy, marketing-psychology, social) is ADVISORY when a hook needs sharpening.
 - **AI-SEO / GEO (added 2026-07-24, item 1 of the AI-guide upgrade plan):** `ai-seo` is ADVISORY on the publish path, see content-agent.md step 4b. Skip-by-default for a pure LinkedIn post (LinkedIn is not LLM-indexed the same way); it earns its keep when a post also has a public web home (a Kit/product page, a cross-posted article). It never blocks and never overrides HARD RULE 2 (no dashes), the never-share list, or the voice gate.

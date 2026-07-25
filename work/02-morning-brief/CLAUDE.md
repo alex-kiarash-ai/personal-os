@@ -6,6 +6,36 @@ Automation
 ## Purpose
 Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calendar, and relevant Notion/vault project context, filtered hard through soul.md priorities (priority order: job pipeline > learning > modeling; personal flagged warmly). Output is scannable in under 3 minutes: Urgent / Today's Calendar / Key Context / FYI. Noise (newsletters, promos) is counted, not listed.
 
+## Output format: the Index (7-line cap, added #02 Phase 1, 2026-07-25)
+Community consensus on daily agent briefs is unanimous: **length kills them.** The brief is an INDEX, not
+a report. The lead output is **at most 7 pointer lines**, each a single scannable line that says what
+changed and how to drill in. Everything below (Life Ops, Radar, Pipeline detail, full email list) is a
+**drill-down**: it moves into the Notion page BODY (so nothing is lost) and is shown in chat only when
+Shaheen asks ("pipeline", "life ops", "show all", or interactive `/morning-brief`).
+
+**The 7 slots, in order (each SILENT when empty - a silent slot is not a wasted line):**
+1. **Urgent** - count + the single most urgent pointer ("3 urgent, top: recruiter reply due today").
+2. **Waiting on them** - `node scripts/waiting-on-them.js briefline` (Reply Zero; silent when nobody owes).
+3. **Waiting on you** - `node scripts/human-actions.js sessionline` (only surfaces 7+ day items; else silent).
+4. **Calendar** - collisions/prep-gaps only, not the full agenda ("2 events, 1 collision 14:00").
+5. **Loop-status** - `node scripts/alex-outcome-loop.js loopstatus` (the moat's distance-to-activation).
+6. **Contact note** - "1 hiring-contact note ready" flag when #03 Phase 3 has staged one (silent until then).
+7. **Ready work** - the task-graph ready count (Recall-Spine Phase 4; ARMED not built, so silent for now).
+
+Rules: no slot may expand past one line in the index; if a slot needs detail, it names the drill-down word.
+Missed-run / dead-sweep flags (below) OVERRIDE the cap - a silent multi-day outage must never be hidden to
+honor a line budget, so those prepend as an 8th/9th line when they fire. The cap governs the calm-morning
+case, which is the common one.
+
+## Brief effectiveness metric (Phase 2, 2026-07-25)
+The brief is subject to the same honesty rail as everything else: does anyone ACT on it? Each run appends
+one row per surfaced index line to `vault/projects/morning-brief/brief-effectiveness.jsonl`
+(`{date, slot, item_ref}`), and the NEXT run's deterministic pre-pass checks whether each prior line's
+referenced item changed state within 48h (urgent thread got a reply/archive, human-action closed,
+waiting-on-them resolved, calendar event passed). `/self-review` reviews this monthly: a slot that never
+drives action gets demoted or dropped. Zero-token, pure state-diff. No personal-dashboard project in the
+inspiration sweep measures its own brief this way; this is the differentiator.
+
 ## Entry Points
 - **Scheduled:** daily at 8:00 AM via system scheduler (`claude -p "Run /morning-brief"`)
 - **On-demand:** `/morning-brief`
@@ -40,6 +70,7 @@ Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calen
 - brand/config/brand-config.md (only if a file deliverable is requested; the daily brief itself is markdown + Notion)
 
 ## Vault Writes
+- `vault/projects/morning-brief/brief-effectiveness.jsonl` - one `{date, slot, item_ref}` row per surfaced index line (Phase 2 effectiveness metric; deterministic, reviewed monthly by /self-review)
 - New history file per run
 - vault/people/{name}.md for every new person in emails or calendar (flag unknowns as data gaps)
 - vault/business/{company}.md for new companies that matter (employers viewing applications, partners; NOT newsletter senders)
