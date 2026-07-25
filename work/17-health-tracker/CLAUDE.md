@@ -33,6 +33,27 @@ From Apple Watch sleep stages. Weights sum to 95, rescaled to 100 (graceful: unc
 | Restfulness | 10 | 0-1 awakenings | −1.5 per extra wake |
 The formula lives in TWO mirrored places (keep in sync): the n8n Code node (daily) and `scripts/backfill_health.py` `score()`. **Consistency (bedtime vs 14-night avg, +5)** is deferred to Phase 2 (needs a trailing-history lookup on the daily path; would be added to both places together).
 
+## Data-quality grading (Phase 1, 2026-07-25) - no health number can lie again, structurally
+The ingest once fabricated a 38/100 sleep score from empty HealthKit data (the phantom-reading bug). The
+per-metric guard that fixed it is now GENERALIZED to every stream by `scripts/health-grade.js`
+(deterministic, zero-token, server-side-portable). `gradeDay(row)` grades each stream **complete / partial
+/ phantom** with sufficiency rules (floors: real night >= 180 min asleep; steps 0-or-missing = phantom, not
+a rest day; a null stage minute is phantom, a real 0 awakenings is complete - the num() guard distinguishes
+missing from real-zero), and returns a **score gate**: the Alex Sleep Score is emitted ONLY when Duration is
+complete AND >= 2 of {Efficiency, Deep, REM} are usable, else `sleep_score = null` with a stated reason
+("insufficient data: ..."). The graceful component-drop-and-rescale still runs, but can no longer
+manufacture a number from one thin stream.
+
+**Three mirrors, keep in sync (like the score formula):** (1) `scripts/health-grade.js` = the source of
+truth + the local test; (2) the n8n "Score + Normalize" Code node inlines `gradeDay` and, when
+`sleep_score_ok` is false, writes `sleep_score = null` + a `grade_reason` field instead of a number;
+(3) `scripts/backfill_health.py` applies the same gate on the history path. **n8n wiring status: PENDING the
+next Health Ingest redeploy** - workflow `WtOKBY00Cq1FhQ8T` is currently broken (human-actions
+`heal-n8n-broken`, Shaheen-gated) and the redeploy is where `gradeDay` gets inlined into the Code node
+(backup-first + read-back verified per the n8n discipline). The grading core + local test ship now; the
+node inline lands with the repair. Consumers (brief Body line, HQ tiles) render "insufficient data" when
+`sleep_score` is null rather than a fabricated figure.
+
 ## Rules / conventions
 - **Step dedup:** minute-bucket max across sources (one source credited per minute ≈ Apple's daily total). The phone sends ONE source's steps; the backfill dedups across sources. Validate against the Health app.
 - **Timezone / night attribution:** parse `%z` (local offset baked in). Steps → local calendar day. A sleep night = samples grouped with <60min gaps, attributed to the local date of its **wake (end)** time. Naps (<45min asleep) excluded from main sleep.

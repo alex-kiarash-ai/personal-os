@@ -83,6 +83,14 @@ try {
     Say "content-loop: $($cl | Select-Object -First 1)"
 } catch { Say "content-loop aggregate failed (non-fatal): $($_.Exception.Message)" }
 
+# 0d. Cost budget tripwires (alex-costs upgrade, 2026-07-25): level-triggered per-project monthly
+#     budget check. Deterministic, zero Claude calls, best-effort (NEVER blocks the backup). Writes
+#     system/cost-tripwires.json; a crossing project surfaces on HQ + the morning brief next run.
+try {
+    $ct = node "scripts\alex-cost-attribution.js" --budget-check 2>&1 | Select-Object -Last 1
+    Say "cost-tripwires: $ct"
+} catch { Say "cost budget-check failed (non-fatal): $($_.Exception.Message)" }
+
 # BUG-11 fix (2026-07-15): on a month-end night the expense (20:00, 2h limit) + runway (21:15) jobs can
 # still be writing their Excel workbooks to outputs/ when this 21:45 tar runs, so the backup could capture
 # a half-written .xlsx. Wait (bounded) for those month-end producers to finish before taring; proceed

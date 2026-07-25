@@ -39,6 +39,14 @@ const DRY = process.argv.includes('--dry-run');
 const PRO_FOLDERS = ['recruiters', 'prospects', 'clients', 'colleagues', 'network'];
 const SOFT_CHANNELS = ['whatsapp', 'linkedin', 'in-person', 'in person'];
 
+// Dunbar-style cadence circles (#05 Phase 1, 2026-07-25): an explicit per-contact tier Shaheen sets in
+// the people-page frontmatter (`circle: A|B|C|X`). A=monthly, B=quarterly, C=twice-yearly, X=no cadence
+// (never listed as due). Precedence: a numeric cadence.json override (Claude-pass computed) > circle >
+// channel/category default. last_contact stays the recency source (email-triage maintains it from Gmail
+// sent); the circle is only the cadence, not a second recency field, so nothing is duplicated.
+const CIRCLE_DAYS = { A: 30, B: 90, C: 180, X: null };
+const RELBLOCK = path.join(STATE_DIR, 'relationships-block.md');
+
 function frontmatter(txt) {
   const m = txt.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!m) return {};
@@ -69,7 +77,10 @@ for (const dir of fs.readdirSync(PEOPLE, { withFileTypes: true })) {
     const fm = frontmatter(fs.readFileSync(path.join(PEOPLE, dir.name, f), 'utf8'));
     const channel = (fm.channel || 'unknown').toLowerCase();
     const soft = SOFT_CHANNELS.includes(channel) || (channel === 'mixed' && !PRO_FOLDERS.includes(dir.name));
+    const circle = fm.circle && /^[ABCX]$/i.test(fm.circle.trim()) ? fm.circle.trim().toUpperCase() : null;
+    // precedence: numeric cadence.json override > circle tier > channel/category default
     const cadence = Number.isInteger(overrides[base]) ? overrides[base]
+      : circle ? CIRCLE_DAYS[circle]
       : soft ? 45
       : PRO_FOLDERS.includes(dir.name) ? 30
       : 45;
@@ -79,12 +90,28 @@ for (const dir of fs.readdirSync(PEOPLE, { withFileTypes: true })) {
     }
     const days = daysSince(fm.last_contact);
     if (days === null) { gaps.push({ base, folder: dir.name, channel, bad_date: fm.last_contact }); continue; }
-    contacts.push({ base, folder: dir.name, channel, soft, days, cadence, last: fm.last_contact });
+    // circle X = no cadence: tracked but never due (cadence null). Others: due when days > cadence.
+    contacts.push({ base, folder: dir.name, channel, soft, days, cadence, circle, last: fm.last_contact });
   }
 }
 
-const due = contacts.filter(c => c.days > c.cadence).sort((a, b) => (b.days - b.cadence) - (a.days - a.cadence));
+const due = contacts.filter(c => c.cadence != null && c.days > c.cadence).sort((a, b) => (b.days - b.cadence) - (a.days - a.cadence));
 const today = new Date().toISOString().slice(0, 10);
+
+// #10 relationships block (#05 Phase 1): overdue contacts grouped by circle, capped at 5 total. Only
+// contacts with an explicit circle tier appear here (the circles view); the full due list is below.
+const CIRCLE_LABEL = { A: 'A (monthly)', B: 'B (quarterly)', C: 'C (twice-yearly)' };
+const overdueCircled = due.filter(c => c.circle && c.circle !== 'X').slice(0, 5);
+const relLines = ['## Relationships (cadence circles)', ''];
+if (!overdueCircled.length) {
+  relLines.push('All circled contacts are within cadence. Nobody overdue.');
+} else {
+  relLines.push(`${overdueCircled.length} circled contact(s) overdue (top 5 by how far past cadence):`);
+  for (const c of overdueCircled) {
+    relLines.push(`- **${c.base}** [circle ${CIRCLE_LABEL[c.circle] || c.circle}]: ${c.days}d since ${c.last} (cadence ${c.cadence}d, ${c.days - c.cadence}d over).`);
+  }
+}
+relLines.push('');
 
 const lines = [];
 lines.push(`# Monday follow-up list (deterministic core) - ${today}`);
@@ -111,6 +138,7 @@ try {
   if (!DRY) {
     fs.mkdirSync(STATE_DIR, { recursive: true });
     fs.writeFileSync(LIST, lines.join('\n'), 'utf8');
+    fs.writeFileSync(RELBLOCK, relLines.join('\n'), 'utf8'); // the #10 relationships block
     // verify-after-write
     if (!fs.readFileSync(LIST, 'utf8').includes(today)) { console.error('crm-core: list write verify FAILED'); process.exit(1); }
   }

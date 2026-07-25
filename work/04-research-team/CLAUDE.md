@@ -24,6 +24,13 @@ An adaptive research system that designs its own team per question. Given a rese
 4. **Approval gate.** Show the design via AskUserQuestion: approve / modify / answer-without-team (for questions too small for a team). Do NOT spawn agents before approval - sub-agents are the expensive path.
 5. **Execute.** Spawn approved sub-agents (parallel calls in one block where independent). Each returns findings + sources. **Timebox every lane:** each sub-agent's mission includes "if reasonable effort turns up nothing, report 'nothing found' with what was tried; do not keep digging." A lane that comes back empty is a finding, not a failure. Never re-spawn an agent to retry an empty lane without a changed approach.
 6. **Synthesize.** Main session writes the answer: findings first, confidence levels, what's unknown stays unknown. Alex voice, no padding.
+6b. **Claims table (OUTPUT CONTRACT, 2026-07-25).** Every squad deliverable (vault page, Notion page, deck/PDF) ENDS with a claims table so downstream consumers and /deep-audit can verify instead of trust. This makes the Adversarial Verification Mode's evidence discipline the default OUTPUT FORMAT, not an optional mode - it closes the known "detects inconsistency, not incorrectness" gap at the research layer, where wrong facts enter the system. Format:
+
+   | Claim | Source (URL) | Retrieved | Confidence |
+   |---|---|---|---|
+   | one load-bearing claim | https://... | YYYY-MM-DD | high/med/low |
+
+   Rules: one row per load-bearing claim (the ones a decision rests on), not every sentence. A claim with no external source is marked `source: none (reasoning)` and confidence capped at `med` - inference is allowed but must be LABELLED as inference, never dressed as a cited fact. A lane that found nothing contributes the row `nothing found | - | date | -`. The table is deterministic to produce (the sub-agents already return findings + sources per step 5); this just fixes where they land.
 7. **Save knowledge.** vault/research/{topic-slug}.md (concise findings, key insights, sources, [[wiki links]]). Notion page "Research: {topic}" under the Personal Ops System parent (ID in vault/projects/notion-parent-id.md) with the full findings as content.
 8. **Save the pattern.** If the team design was new or meaningfully adapted: write patterns/{class}-{slug}.md (see Pattern Format) and update patterns/index.md.
 9. **Deliverable (team runs only).** If the run went through the answer-without-team path, the vault page + Notion page IS the deliverable - do not build a file for a two-paragraph answer. For team runs, ask via AskUserQuestion: "Claude Design deck or PDF?" Then:

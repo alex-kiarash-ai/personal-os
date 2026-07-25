@@ -95,6 +95,16 @@ const want = name => !ONLY || ONLY.includes(name);
     const result = await validate({ stagedDir: aw.STAGING });
     if (!result.ok) throw new Error(`validation failed:\n${result.failures.join('\n')}`);
 
+    // 3b. Prompt regression (ADVISORY, #26 Phase 2, 2026-07-25): assert production prompts/runbooks still
+    //     carry their load-bearing shape (work/26-prompting/regression-cases/cases.json). WARN ONLY - a
+    //     shape change may be intentional; the human sees the warning and updates the case. Never fails.
+    try {
+      const cp = require('child_process');
+      const out = cp.execSync('node scripts/prompt-regression-check.js --advisory',
+        { cwd: require('path').resolve(__dirname, '..') }).toString().trim();
+      log.step('  prompt-regression (advisory): ' + out);
+    } catch (e) { log.step('  prompt-regression advisory skipped (non-fatal): ' + e.message); }
+
     // 4. External integrations. Dry-run reports; full run applies. n8n is idempotent (an unchanged
     //    soul.md is a verified no-op); the scheduler only ever CREATES missing jobs, never touches
     //    existing ones (their hand-applied hardening must survive).

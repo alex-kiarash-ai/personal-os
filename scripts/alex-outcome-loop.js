@@ -187,15 +187,31 @@ function aggregate() {
   fs.writeFileSync(SECTION, renderSection(meta, winners, dims), 'utf8');
   writeReadyBlock(meta, winners);
 
+  console.log(loopStatusLine(meta, winners));
   console.log(`outcome-loop: ${apps.length} applications, ${resolvedCount} resolved. ${windowStatus}.`);
   if (anyWinner) for (const [dim, w] of Object.entries(winners)) if (w) console.log(`  winner[${dim}] = ${w.value} (${w.positive}/${w.resolved} = ${(w.rate * 100).toFixed(0)}%)`);
   else console.log('  no winner yet - insufficient signal (loop accumulating, fabricating nothing).');
   console.log(`  -> ${path.relative(REPO, WINNERS)} , ${path.relative(REPO, SECTION)}`);
 }
 
+// --- the loop-status line (#03/#14 Phase 1, 2026-07-25): distance-to-activation, always one line -----
+// Makes the moat's readiness visible in the #10 report + brief BEFORE any winner exists. Deterministic.
+function loopStatusLine(meta, winners) {
+  const anyWinner = winners && Object.values(winners).some(Boolean);
+  const need = Math.max(0, MIN_RESOLVED - meta.resolved);
+  const gate = meta.resolved >= MIN_RESOLVED
+    ? `gate CLEARED (${meta.resolved}/${MIN_RESOLVED} resolved)`
+    : `${meta.resolved}/${MIN_RESOLVED} resolved toward the gate (need ${need} more)`;
+  const winnerBit = anyWinner
+    ? `winner declared -> marker block READY to flip ON (see outcome-loop-activation-runbook.md)`
+    : (meta.resolved >= MIN_RESOLVED ? 'gate cleared but no variant separated yet' : 'no winner yet (accumulating, fabricating nothing)');
+  return `loop-status: ${gate} · day ${meta.days_in_window}/${MEASURE_DAYS} of the 60-day rail · ${winnerBit}`;
+}
+
 // --- the #10 "Outcomes" section, written as DECISIONS not a dashboard --------------------------------
 function renderSection(meta, winners, dims) {
   let md = `## Outcomes (what actually worked)\n\n`;
+  md += `**${loopStatusLine(meta, winners)}**\n\n`;
   md += `_Generated ${meta.generated.slice(0, 16).replace('T', ' ')} by the zero-token outcome loop from ${meta.applications} applications (${meta.resolved} resolved). ${meta.window_status}._\n\n`;
   if (meta.resolved < MIN_RESOLVED) {
     md += `**No decisions yet — the loop is accumulating.** ${meta.resolved} of ${meta.applications} applications have a resolved outcome; a variant needs ${MIN_RESOLVED} resolved before it earns a call. Fabricating a winner from thin signal is exactly what this loop refuses to do. Day ${meta.days_in_window}/${MEASURE_DAYS} of the measurement window.\n`;
@@ -248,11 +264,21 @@ function cmdStatus() {
   console.log(`table: ${fs.existsSync(TABLE) ? path.relative(REPO, TABLE) : '(not created yet)'}`);
 }
 
+// --- loop-status one-liner for the #10 report + morning brief (reads the last aggregate) -------------
+function cmdLoopStatus() {
+  if (!fs.existsSync(WINNERS)) { aggregate(); return; } // aggregate() already prints the loop-status line
+  try {
+    const j = JSON.parse(fs.readFileSync(WINNERS, 'utf8'));
+    process.stdout.write(loopStatusLine(j.meta, j.winners) + '\n');
+  } catch { console.log('loop-status: no application data yet (loop idle, nothing to report)'); }
+}
+
 function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (cmd === 'add') return cmdAdd(rest);
   if (cmd === 'ingest-sheet') return cmdIngestSheet(rest[0]);
   if (cmd === 'status') return cmdStatus();
+  if (cmd === 'loopstatus') return cmdLoopStatus();
   if (cmd && cmd !== 'aggregate') { console.error(`unknown command '${cmd}' (add | ingest-sheet | status | <none>)`); process.exit(1); }
   aggregate();
 }

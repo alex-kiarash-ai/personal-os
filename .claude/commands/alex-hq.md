@@ -29,6 +29,14 @@ Spec: work/16-alex-hq/CLAUDE.md (read it first). Status + IDs: vault/projects/al
    - `alex-hq.run_status` heartbeat + `human-actions.open_count` (Waiting-on-you strip).
    - **Life data note:** if this session synced fresher Life Ops sheet data, update vault/me/gym.md +
      vault/me/plants.md FIRST, then run the script (build-life.mjs reads the vault).
+1b2. **FOCUS SLOT (one glance, one decision, #16 P1, 2026-07-25):** `node scripts/hq-focus.js`. Zero-token,
+   deterministic rule stack (CRITICAL red > oldest human-action past SLA > waiting-on-them oldest >
+   loop-status milestone) with the focus-trap rider (never the same item+status twice without a state
+   change -> demote to the next candidate). Writes `work/16-alex-hq/state/focus.json` + best-effort pushes
+   metric_key `focus` to HQ. Surface the focus line in the output. **HQ tile render** of the focus slot at
+   the top of the dashboard is a follow-on (an HQ redeploy, Shaheen-gated like the other HQ deploys); the
+   data + push land now, the tile lands on the next approved deploy. Phase 2: the brand-guard graduates
+   ADVISORY -> ENFORCING on deploy after 2 clean weeks (tracked, not flipped this session).
 1c. **SELF-HEAL (every HQ update CHECKS + FIXES, not just displays):** `python scripts/hq_self_heal.py`.
    Zero-token, deterministic. It re-derives ground truth for each metric and, per the risk class in
    `system/hq-heal-map.json`: **AUTO-SAFE** mismatches (MCP count, stale box JSONs, n8n metric) are
