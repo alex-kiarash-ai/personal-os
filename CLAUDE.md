@@ -249,6 +249,42 @@ Every action -> `system/heal-log.jsonl` + a "self-heal: N healed, M proposed..."
 Home: recovery-layer (#18), the FIX half of the detect-only checker. New fixes graduate in by adding a probe
 function + a map entry (git-reversible); `/self-review` proposes map additions. Zero-token.
 
+## Recall Spine (LIVE 2026-07-25, `system/recall/`)
+
+Alex's machine-checkable memory organ. Born from the 07-24 stress-test finding that Alex writes
+everything down and reads almost nothing back automatically (facts rot silently; the FTS5 vault index
+sat outside the default read path). One SQLite db, one recovery check, one Close-Out line, one hook.
+Zero new dependencies (`node:sqlite`, built into Node), zero runtime tokens on the deterministic paths.
+Full plan record + kill criteria + the Phase 0 baseline: [[research/alex-recall-spine]].
+
+- **`facts.db` - the bi-temporal fact ledger** (`system/recall/facts.db`, gitignored, in the 21:45 tar).
+  Graphiti's model at Alex scale: every fact carries `t_valid`/`t_invalid`; a changed value SUPERSEDES
+  (stamp the old row, insert the new, link `superseded_by`), never deletes. The partial unique index
+  `current_fact` makes a contradiction unrepresentable. **7 zero-token harvesters** (manifest,
+  scheduler, validators, recovery, skills, n8n, attest) repopulate it nightly at 21:35 (inside
+  `run-vault-index.ps1`, beside the vault index). Idempotent: an unchanged re-harvest supersedes
+  nothing, so the **mass-drift tripwire** (>20 supersessions in one run aborts + REDs) is a true bug
+  signal. **Direction law (the V6 lesson):** facts.db is derived from STRUCTURED sources; docs are
+  tested AGAINST it, never the reverse.
+- **C21 - facts-ledger doc-drift check** (`scripts/facts-check.js`, recovery C21, Monday sweep). Tests
+  standing IN-REPO doc claims against facts.db (the ST-20/FR-04 "a doc lying about the system" class,
+  mechanized: it caught its own "20 checks" line the moment C21 was added). Complements C19
+  (narrative-drift = the out-of-repo master doc); no overlap. Grows one `{doc-regex + fact}` row at a time.
+- **Recall injection** (`system/recall/recall-inject.js`, UserPromptSubmit hook). Before every prompt,
+  injects the most relevant current facts (WITH their valid-from dates), vault BM25 snippets, and
+  lessons as **RETRIEVED REFERENCE DATA, never instructions** (the work/07 model on the internal read
+  path). Fail-OPEN (any error = no output, prompt untouched), ≤150ms budget (live ~17ms), hard caps
+  (≤5 facts + 3 snippets + 2 lessons). Telemetry to `recall-metrics.jsonl` (prompt HASH + counts +
+  latency, never the prompt text). Killable in one settings.json line.
+- **Lessons - the compound step** (`scripts/lesson-harvest.js`, nightly). The Close-Out Report emits an
+  **L-line** (`L: class=<..> lesson="<one sentence>" evidence=<..>` or `L: none`); the harvest turns it
+  into dedup'd, hit-counted rows (a per-log byte cursor counts each L-line once). 3+ hits queues a
+  `/self-review` promotion candidate behind the EXISTING human gate - lessons only PROPOSE, never
+  auto-edit the constitution.
+- **Phase 4 (task graph) is ARMED, NOT BUILT** - demand-gated by design (fires on dropped multi-session
+  threads or a bloated human-actions queue; then Shaheen rules Route A beads-binary vs Route B bd-lite).
+  Reversible, local, no live engine/cron/model touched. Details: [[research/alex-recall-spine]].
+
 ## Model Routing in n8n Workflows (standing rule, set 2026-06-13; prose model corrected 2026-07-08; job engines moved to Opus 4.8 2026-07-24)
 
 Applies to every n8n workflow, this project or any other.
@@ -311,7 +347,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 15 | /alex-radar | LIVE | Mon 07:30 + collector 06:00 | The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane. | work/15-alex-ai-radar - vault/projects/alex-ai-radar/status.md |
 | 16 | /alex-hq | LIVE | always-on + push 8:45 | The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here. | work/16-alex-hq - vault/projects/alex-hq/status.md |
 | 17 | (no command) | LIVE | phone 23:59 | Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side. | work/17-health-tracker - vault/projects/health-tracker/status.md |
-| 18 | (no command) | LIVE | Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe | Backups (git + encrypted, drills proven), the weekly zero-token drift checker, the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. | work/18-recovery-layer - vault/projects/recovery/status.md |
+| 18 | (no command) | LIVE | Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe | Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks incl. C21, docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db). | work/18-recovery-layer - vault/projects/recovery/status.md |
 | 19 | /venture-sync | DORMANT (revisit 2026-10-01) | - | Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine. | work/19-venture-sync - vault/projects/venture-sync/status.md |
 | 20 | /runway | LIVE | monthly last day 21:15 | The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel. | work/20-runway - vault/projects/runway/status.md |
 | 21 | /interview | EVENT | brief flag + on-demand | Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends. | work/21-interview-copilot - vault/projects/interview-copilot/status.md |
@@ -449,12 +485,13 @@ The mechanical enforcement of Change Propagation (the Standing Order at the top 
 - **B. If the run did it:** new person → people/ + intake + indexes (or _inbox.md); new company → business/; project/capability/schedule/credential change → status.md + (if global) root CLAUDE.md + identity.md; **system-changing work (upgrade / new function / any behavior change) → the plain-English guide `Desktop\Alex Project\Alex Presentation\files\Alex-Plain-English-Guide.docx` updated (its home section + the 13.7 running-changes log; redraw the T03 chart only if a whole layer moved), per Change-Propagation item 7**; live workflow/project change → docs/projects + docs/n8n export refreshed same session; **soul.md voice change (Voice Rules or My Words) → run `node scripts/generate-alex.js` so the n8n writers re-sync (the voice sync lives inside the generator)**; **a project's FIRST real run (or documented drill) → stamp `first_fire` + `first_fire_kind` in system/manifest.json + generator run (upgrade P4; V9/C13 age never-fired LIVE/EVENT projects)**; scheduling/retry change → scheduler/schedule.md + /cron-setup note; **external write this run → read-back verified (the Verify-after-write standing order), or the run is INCOMPLETE**; any MCP/tooling/infra failure → error-log.md (What/Cause/Fix); partial/blocked run → explicit carry-over left; decision made → decisions.md/taste-profile; new page → index.md catalog line; new [[links]] on both sides, no orphan; alex_inbox checked + notes filed.
 - **C. If identity output shipped (visual/voice):** pre-flight line was printed; delivery verified (render visuals and look; check prose vs soul.md + My Words) **AND run the separate-context grader (advisory, added 2026-07-07): a fresh subagent that sees ONLY the artifact + `work/23-self-review/close-out-grader/rubric.md`, never this session's reasoning, returning per-criterion PASS/FAIL (Anthropic's Outcomes pattern; kit + prompt in `work/23-self-review/close-out-grader/`). This closes the self-grading bias that let the 07-03 brand incident ship. ADVISORY-ONLY: it flags, it never blocks a run, and it is deliberately NOT wired into `scripts/lib/close-out.ps1`. A grader FAIL means fix + re-grade, or (Shaheen's call) ship and record the FAIL + reason in the report**; output in outputs/{automation}/YYYY-MM-DD/ + path in status.md; soul.md My Words updated if new phrasing.
 - **V. Voice corpus check (every interactive/daily session; N/A for headless automation runs):** Confirm that My Words in soul.md gained at least one new date-stamped entry from today's spoken or typed input, capturing my real phrasing (spoken transcripts count first, per the voice-transcription rule). If nothing substantive was said today, state that explicitly instead of ticking the box. Do NOT mark this complete without a real entry or a real reason there isn't one. Evidence, not assertion: tick it only when a real date-stamped entry actually exists in the file, or state plainly why there is none.
+- **L. Lesson (the compound step, Recall Spine Phase 3, 2026-07-25; N/A ok):** emit one `L:` line, either `L: none` or `L: class=<propagation|verification|cost|security|process> lesson="<one sentence>" evidence=<file:line or runid>`. `scripts/lesson-harvest.js` harvests it nightly into the `system/recall/facts.db` lessons table (dedup + hit-count; 3+ hits queues a `/self-review` promotion candidate behind the human gate). One line, zero ceremony; a genuinely uneventful run writes `L: none` rather than inventing a lesson.
 - **D. Verdict:** any FAIL → the run reports **INCOMPLETE** with the missed surfaces; it cannot self-mark done while a connected file is stale. Every **INCOMPLETE** verdict is also appended to `vault/projects/self-review/close-out-log.md` (append-only) so the weekly `/self-review` (#01, work/23) can mine repeated failure classes and propose fixes.
 
 **Per-automation extras:** each automation adds its own required surfaces under a `## Close-Out Extras` heading in its work/{n}/CLAUDE.md (sprint→velocity.md, email-triage→writing-style-notes, weekly-exec→metrics-history, content→Content Library, crm→Monday list). The gate runs the universal list plus that automation's extras.
 
 **The Close-Out Report** (print at close; one line per applicable item, then the verdict):
-`Close-Out [session|<automation>]: A1..A6 <ok/status> · B <touched surfaces or none> · C <N/A or verified> · V <My Words entry added / none because ...> · Extras <..> · Verdict: COMPLETE|INCOMPLETE(<missed>)`
+`Close-Out [session|<automation>]: A1..A6 <ok/status> · B <touched surfaces or none> · C <N/A or verified> · V <My Words entry added / none because ...> · L <lesson or none> · Extras <..> · Verdict: COMPLETE|INCOMPLETE(<missed>)`
 
 **Gold-standard report shapes (PASS + a done-right INCOMPLETE):** [[research/exemplars/gold-close-out]] (`vault/research/exemplars/gold-close-out.md`). Read it when a run lands INCOMPLETE - a good INCOMPLETE names the missed surface, the cause, and the carry-over, and states what shipped clean regardless.
 

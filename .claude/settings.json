@@ -40,6 +40,11 @@
           {
             "type": "command",
             "command": "node ./scripts/capture-typed-input.js"
+          },
+          {
+            "type": "command",
+            "command": "node ./system/recall/recall-inject.js",
+            "timeout": 2
           }
         ]
       }

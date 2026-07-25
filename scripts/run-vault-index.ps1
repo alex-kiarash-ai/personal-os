@@ -43,6 +43,31 @@ try {
     Say "FAILED: $reason"
 }
 
+# --- Recall Spine bi-temporal fact ledger (2026-07-25): populate facts.db beside the vault index.
+# Zero-token node/SQLite, same class as the index build. Independent of the index result: a harvest
+# tripwire/failure pushes its OWN red metric but does not mark the index job red (and vice versa).
+$recallReason = $null; $recallSummary = ''
+try {
+    $rout = (& node "system\recall\harvest.js" --quiet 2>&1 | Out-String)
+    $rout.TrimEnd() | Out-File -Append -Encoding utf8 $log
+    if ($LASTEXITCODE -ne 0) { throw "harvest exit $LASTEXITCODE (mass-drift tripwire or fatal - see log)" }
+    $recallSummary = ($rout -split "`r?`n" | Where-Object { $_ -match 'inserted=' } | Select-Object -Last 1)
+    Say "recall harvest: $recallSummary"
+} catch {
+    $recallReason = $_.Exception.Message
+    Say "recall harvest FAILED: $recallReason"
+}
+
+# --- Recall Spine Phase 3: harvest Close-Out L-lines into the lessons table (idempotent, cursor-based).
+# Best-effort: a lesson-harvest failure never fails the job (lessons are a compounding nicety, not a
+# correctness gate); it logs and moves on.
+try {
+    $lout = (& node "scripts\lesson-harvest.js" 2>&1 | Out-String)
+    ($lout -split "`r?`n" | Where-Object { $_ -match 'processed=' } | Select-Object -Last 1) |
+        ForEach-Object { Say "lesson harvest: $_" }
+    if ($LASTEXITCODE -ne 0) { Say "lesson harvest exit $LASTEXITCODE" }
+} catch { Say "lesson harvest FAILED: $($_.Exception.Message)" }
+
 # --- Alex HQ push (best-effort; never log the token, never let a push crash the job). ---
 $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"
 if ((Test-Path $tokenFile) -and -not $DryRun) {
@@ -59,6 +84,20 @@ if ((Test-Path $tokenFile) -and -not $DryRun) {
             -Headers @{ 'X-Alex-Token'=$token } -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null
         Say "HQ push sent"
     } catch { Say "HQ push failed: $($_.Exception.Message)" }
+
+    # Recall ledger push (infra/recall_facts): green with the summary, red on a tripwire/failure.
+    if ($null -eq $recallReason) {
+        $rbody = @{ project='infra'; metric_key='recall_facts'; value_num=0
+                    headline=("recall ledger ok" + $(if($recallSummary){": $recallSummary"}else{""})); status='green' } | ConvertTo-Json -Compress
+    } else {
+        $rbody = @{ project='infra'; metric_key='recall_facts'; value_num=0
+                    headline="recall harvest FAILED: $recallReason"; status='red' } | ConvertTo-Json -Compress
+    }
+    try {
+        Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
+            -Headers @{ 'X-Alex-Token'=$token } -ContentType 'application/json' -Body $rbody -TimeoutSec 10 | Out-Null
+        Say "recall HQ push sent"
+    } catch { Say "recall HQ push failed: $($_.Exception.Message)" }
 }
 
 if ($null -eq $reason) { Say "OK ($chunks chunks)"; exit 0 }
