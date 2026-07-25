@@ -310,7 +310,7 @@ foreach ($p in $ffRows) {
 # label -> frequency-pattern map; a project passes when ANY of its schedule.md entries (matched by
 # job name, entries with a real '- Frequency:' line only) matches its label. Labels with no
 # frequency expectation (on-demand/event/dormant/parked/retired, expected_hours null) are skipped.
-# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below; C18 (machine-timezone vs travel-state, P8) is below; C19 (narrative numbers-drift, item 3) is below. 19 checks total (C1-C19).
+# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below; C18 (machine-timezone vs travel-state, P8) is below; C19 (narrative numbers-drift, item 3) is below; C20 (backup destinations, F1) is below; C21 (facts-ledger doc drift, Recall Spine) is below. 21 checks total (C1-C21).
 $freqPatterns = @{
     'daily'     = 'daily|nightly|every day'
     'weekdays'  = 'weekday'
@@ -473,6 +473,19 @@ if ($destDecl.Count -ge 1) {
         Add-Drift 'backup-spof' "only $freshCount of $($destDecl.Count) independent backup destination(s) verified a copy in the last ${windowH}h - a correlated single-point loss risks the backups until >=2 are live: $($missing -join '; ') (provision: human-actions f1-b2-backup)"
     }
 }
+
+# --- C21 facts-ledger doc drift (Recall Spine Phase 1, 2026-07-25): standing IN-REPO docs tested
+# against the bi-temporal fact ledger system/recall/facts.db. The DOC is the test subject; facts.db
+# (derived from manifest/validate-alex.js/check.ps1/schtasks/skills-lock/attestation) is the
+# expectation - so this does NOT reintroduce the V6 anti-pattern (deriving expectation FROM prose).
+# Pays the ST-20/FR-04 "a doc lying about the system" debt for the machine-checkable claim class.
+# Complements C19 (narrative-drift, the OUT-OF-REPO master doc): C21 owns the in-repo prose surface,
+# no overlap. Shells to the node checker (self-harvests to stay fresh), the C12/C19 shell-out pattern.
+try {
+    $fc = node "scripts\facts-check.js" 2>&1
+    if ($LASTEXITCODE -eq 2) { foreach ($ln in @($fc)) { if ("$ln".Trim()) { Add-Drift 'facts-drift' ("$ln".Trim()) } } }
+    elseif ($LASTEXITCODE -ne 0) { Add-Drift 'facts-drift' "facts-check errored (exit $LASTEXITCODE): $(($fc | Select-Object -First 1))" }
+} catch { Add-Drift 'facts-drift' "facts-check could not run: $($_.Exception.Message)" }
 
 # ---------------------------------------------------------------- report
 $n = $drift.Count

@@ -42,6 +42,18 @@ work/29-trip-ops/state/
 # gitignored so it stays off GitHub but IS inside the repo tree, so the encrypted vault backup covers it)
 scripts/vault-index/
 
+# Recall Spine bi-temporal fact ledger (2026-07-25): facts.db is DERIVED from structured sources
+# (manifest, validate-alex.js, check.ps1, schtasks, skills-lock, the attestation file) and fully
+# regenerable via `node system/recall/harvest.js`. It mirrors private ledger dates + never leaves the
+# machine; gitignored so it stays off the PUBLIC repo but IS in the repo tree, so the encrypted vault
+# backup covers it. recall-metrics.jsonl is per-prompt injection telemetry (hit/miss/latency, no prompt text).
+system/recall/facts.db
+system/recall/facts.db-wal
+system/recall/facts.db-shm
+system/recall/recall-metrics.jsonl
+system/recall/lesson-cursors.json
+system/recall/lesson-promotions.jsonl
+
 # === deliverables (decision D2 2026-07-02: excluded from backup v1) ===
 outputs/
 
