@@ -87,6 +87,26 @@ Pages missing required YAML frontmatter (`tags`, `date_created`, `date_updated`,
 
 Auto-safe: yes, fill in defaults from file mtime and infer tags from path.
 
+### Check 11 - Command-layer semantic drift (added 2026-07-28, command-layer review)
+Read every `.claude/commands/*.md` against its `system/manifest.json` entry and flag SEMANTIC
+contradictions, the class no deterministic check can catch.
+
+**Not state or trigger.** Those are generated into the `ALEX:CMD-HEADER` block and asserted by validator
+V15, so they cannot drift. This check owns what a regex cannot judge:
+- **A retired METHOD documented as the live one.** `/whatsapp-harvest` carried six steps of the retired
+  Phase 1 screen-scrape with no mention of the proven Phase 2 path, so invoking it sent an agent down a
+  route the registry calls a dead end, with nothing to fall back to (F-4).
+- **Two competing sources of truth** feeding one generative command, where the wrong pick is invisible in
+  the artifact because every downstream gate still passes (F-12 class).
+- **A count or scope that has quietly narrowed** as the system grew: `/weekly-exec-report` said it
+  aggregates "all 9 automations" while the registry carries 32 (F-14).
+- **Direction inverted:** a command naming X as primary and Y as fallback while the registry says the
+  reverse. Check which one reality agrees with before assuming the command is the stale side; on
+  `/airbnb-host` the command was right and the manifest was wrong (F-5).
+
+Suggest: name both sides and which one ground truth supports. **Auto-safe: no** - every one of these is a
+judgment call, and one of them was resolved in the opposite direction to the obvious guess.
+
 ## Step 3: Report
 
 In soul.md voice. Group by severity:

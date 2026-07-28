@@ -1,5 +1,11 @@
 # /self-review - Alex Reviews Alex
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#23 /self-review · LIVE · Trigger: Sun 20:00**
+> Registry: `system/manifest.json` · Spec: `work/23-self-review/CLAUDE.md` · Status: `vault/projects/self-review/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Full spec: `work/23-self-review/CLAUDE.md` (read it first).
 
 Once a week Alex reads its own mistakes and learnings and proposes upgrades to its own rules, voice, and taste, behind Shaheen's approval. Nothing about the identity files is ever applied without an explicit yes. The moat: an agent that improves itself, gated by a human.

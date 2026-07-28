@@ -1,5 +1,11 @@
 # /alex-hq - Push Local Metrics + Show HQ Summary
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#16 /alex-hq · LIVE · Trigger: always-on + push 8:45**
+> Registry: `system/manifest.json` · Spec: `work/16-alex-hq/CLAUDE.md` · Status: `vault/projects/alex-hq/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Spec: work/16-alex-hq/CLAUDE.md (read it first). Status + IDs: vault/projects/alex-hq/status.md.
 
 ## What this command does

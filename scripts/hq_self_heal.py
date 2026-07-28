@@ -16,7 +16,7 @@ Autonomy boundary (Shaheen 2026-07-21):
 Zero-token + deterministic. Every action -> system/heal-log.jsonl. Prints a one-line summary
 (picked up by the harvest output + the morning brief). Map: system/hq-heal-map.json.
 """
-import sys, json, subprocess, datetime, urllib.request, urllib.error
+import os, sys, json, subprocess, datetime, urllib.request, urllib.error
 from pathlib import Path
 
 # headless Windows console is cp1252; metric headlines carry '·' etc. Never let a print crash the loop.
@@ -234,6 +234,90 @@ def probe_unknown_red(summary, entry, claimed):
         log("unknown-red", "ok", "no unclaimed FAULT reds")
 
 
+def probe_identity_views(summary, entry):
+    """The identity docs must stay ONE file object each, reached through a directory junction.
+
+    Added 2026-07-25. The permanent fix for doc-copy drift is structural (one file, plus a junction at
+    every legacy location), and this probe is the layer that NOTICES if that structure is destroyed -
+    daily, on every HQ update, instead of weekly.
+
+    AUTO_SAFE is justified ONLY because the remedy touches ZERO document bytes: removing a junction
+    provably leaves its target intact, `mklink /J` is idempotent and non-elevated, and the read-back is
+    one samefile call. The split is absolute:
+      nothing-has-bytes (view missing, or an EMPTY directory sits there) -> re-link + verify
+      anything-has-bytes (a real file is there)                          -> ESCALATE, never touch it
+    That second branch is the whole safety property: a human who edited the wrong location must never
+    lose that work to an automatic repair. Needs no HQ summary (needs_summary: false in the map).
+    """
+    mani = json.loads((REPO / "system" / "manifest.json").read_text(encoding="utf-8"))
+    paths = mani.get("meta", {}).get("paths", {}) or {}
+    real_raw = paths.get("identity_doc_real_dir")
+    views = paths.get("identity_doc_views") or []
+    if not real_raw or not views:
+        return log("identity-doc-views", "skip", "no identity_doc_real_dir / identity_doc_views declared")
+    real = Path(os.path.expandvars(real_raw))
+    if not real.is_dir():
+        escalate("identity-docs-real-dir-missing", "critical",
+                 f"the identity docs' real folder {real} is GONE - restore it from the encrypted backup "
+                 f"before touching the views (both documents live only there)")
+        return log("identity-doc-views", "escalated", f"real dir missing: {real}", "HUMAN_ONLY")
+
+    JUNCTION = 0xA0000003
+    for v in views:
+        vp = Path(os.path.expandvars(v.get("path", "")))
+        if not str(vp):
+            continue
+        try:
+            tag = os.lstat(vp).st_reparse_tag if vp.exists() else None
+        except OSError:
+            tag = None
+        if vp.exists() and tag == JUNCTION:
+            names = [p.name for p in real.iterdir() if p.is_file()]
+            forked = [n for n in names if not os.path.samefile(real / n, vp / n)]
+            if forked:
+                escalate("identity-doc-view-forked", "high",
+                         f"{vp} is a junction but {forked} do not resolve to the same file - investigate by hand")
+                log("identity-doc-views", "escalated", f"junction present but forked: {forked}", "HUMAN_ONLY")
+            else:
+                log("identity-doc-views", "ok", f"{vp.name}: one file object per doc ({len(names)} files)")
+            continue
+
+        # the view is not a junction. Decide ONLY on whether anything there has bytes.
+        has_bytes = []
+        if vp.exists():
+            try:
+                has_bytes = [p.name for p in vp.iterdir()] if vp.is_dir() else [vp.name]
+            except OSError as e:
+                escalate("identity-doc-view-unreadable", "high", f"cannot inspect {vp} ({e})")
+                log("identity-doc-views", "escalated", f"unreadable: {vp} ({e})", "HUMAN_ONLY")
+                continue
+        if has_bytes:
+            escalate("identity-doc-view-replaced", "high",
+                     f"{vp} is no longer a junction and CONTAINS FILES ({has_bytes[:5]}). Refusing to touch "
+                     f"it: those bytes may be edits that exist nowhere else. Compare them against {real} by "
+                     f"hand, keep what is newer, then re-link with: mklink /J \"{vp}\" \"{real}\"")
+            log("identity-doc-views", "escalated", f"{vp} replaced by real content - not auto-repaired", "PROPOSE")
+            continue
+
+        # nothing to lose: re-link and read back
+        try:
+            if vp.exists():
+                os.rmdir(vp)                      # empty dir only; raises if not empty
+            r = run(["cmd", "/c", "mklink", "/J", str(vp), str(real)], timeout=30)
+            ok = vp.exists() and os.lstat(vp).st_reparse_tag == JUNCTION
+            names = [p.name for p in real.iterdir() if p.is_file()]
+            ok = ok and all(os.path.samefile(real / n, vp / n) for n in names)
+            if ok:
+                log("identity-doc-views", "healed", f"re-linked {vp} -> {real}, verified samefile", "AUTO_SAFE")
+            else:
+                escalate("identity-doc-view-relink-failed", "high",
+                         f"{entry.get('escalate_fail', 'view re-link did not verify')} ({r.stdout.strip()[:120]})")
+                log("identity-doc-views", "escalated", "re-link did not verify", "AUTO_SAFE->escalate")
+        except OSError as e:
+            escalate("identity-doc-view-relink-failed", "high", f"could not re-link {vp}: {e}")
+            log("identity-doc-views", "escalated", f"re-link error: {e}", "AUTO_SAFE->escalate")
+
+
 PROBES = {
     "mcp_count": probe_mcp_count,
     "box_fresh": probe_box_fresh,
@@ -241,18 +325,31 @@ PROBES = {
     "quota_stale": probe_quota_stale,
     "health_stalled": probe_health_stalled,
     "stuck_status": probe_stuck_status,
+    "identity_views": probe_identity_views,
 }
 
 
 def main():
     heal_map = json.loads(HEAL_MAP.read_text(encoding="utf-8"))
-    summary = get_summary()
+    # The HQ summary comes off the network. It used to be fetched UNCONDITIONALLY here, so an n8n
+    # outage meant ZERO probes ran - including probes that need no summary at all (2026-07-25).
+    # Fetch it defensively and let summary-free checks run regardless.
+    try:
+        summary = get_summary()
+    except Exception as e:
+        summary = {}
+        log("hq-summary", "skip", f"summary unavailable ({e}); running summary-free probes only")
     # projects a specific check owns (so the catch-all doesn't double-flag them)
     claimed = {"infra", "health", "quota"}
     for entry in heal_map["checks"]:
         if not entry.get("enabled", True):
             continue
         pid = entry["probe"]
+        # A check that needs the summary cannot run without it; one that does not (a filesystem
+        # invariant, say) must still run on an n8n-outage day - which is exactly a heavy-edit day.
+        if not summary and entry.get("needs_summary", True):
+            log(entry["id"], "skip", "needs the HQ summary, which is unavailable this run")
+            continue
         if pid == "unknown_red":
             probe_unknown_red(summary, entry, claimed)
         elif pid in PROBES:
@@ -270,8 +367,12 @@ def main():
     proposed = [a for a in actions if a["state"] == "proposed"]
     esc = [a for a in actions if a["state"] == "escalated"]
     oks = [a for a in actions if a["state"] == "ok"]
-    print(f"self-heal: {len(healed)} healed, {len(proposed)} proposed, {len(esc)} escalated, {len(oks)} ok")
-    for a in healed + proposed + esc:
+    # A crashed probe used to be logged as "error" and then omitted from BOTH the counts and the
+    # printed lines, so it vanished into an exit-0 summary (2026-07-25). Surface it.
+    errs = [a for a in actions if a["state"] == "error"]
+    print(f"self-heal: {len(healed)} healed, {len(proposed)} proposed, {len(esc)} escalated, "
+          f"{len(errs)} errored, {len(oks)} ok")
+    for a in healed + proposed + esc + errs:
         print(f"  {a['state'].upper()} [{a['check']}] {a['detail']}")
 
 

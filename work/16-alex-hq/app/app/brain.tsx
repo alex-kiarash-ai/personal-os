@@ -64,6 +64,27 @@ export function BrainGraph() {
     return () => ro.disconnect();
   }, []);
 
+  /* R2-21: TOUCH TRAP, now measured instead of assumed. The run-25 review deferred this behind
+     "one touch-scroll pass decides" and the pass was never run; run 37 ran it and the graph ate
+     the gesture outright (a real touch drag over the canvas moved the page 0px). Since this canvas
+     sits in the middle of a scroll the reader must pass THROUGH, the fix is opt-in: on touch
+     devices a veil takes the first tap, page scroll passes through it untouched (no
+     preventDefault, touch-action: pan-y), and only after a deliberate tap does the graph get the
+     gestures. Scrolling the card away disarms it again. Pointer devices never see any of this. */
+  const [touchDevice, setTouchDevice] = useState(false);
+  const [graphActive, setGraphActive] = useState(false);
+  useEffect(() => {
+    setTouchDevice(window.matchMedia?.("(hover: none) and (pointer: coarse)").matches ?? false);
+  }, []);
+  useEffect(() => {
+    if (!graphActive) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => !e.isIntersecting && setGraphActive(false), { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [graphActive]);
+
   return (
     <motion.div
       className="tile flex flex-col gap-3 p-5"
@@ -92,7 +113,12 @@ export function BrainGraph() {
             height={size.h}
             graphData={data}
             backgroundColor="rgba(0,0,0,0)"
-            linkColor={() => "rgba(148,210,189,0.13)"}
+            /* R2-16: the graph was the page's brightest, most colorful mass — sitting at the
+               BOTTOM, while TODAY (the whole premise) was the flattest region. A half-step
+               quieter here plus the TODAY lift rebalances attention toward information
+               hierarchy. Deliberately half, not the full step: this is the page's one organic
+               element and over-quieting sterilizes it. Re-judge after the lift lands. */
+            linkColor={() => "rgba(148,210,189,0.10)"}
             linkWidth={0.5}
             enableNodeDrag={true}
             cooldownTicks={140}
@@ -106,7 +132,7 @@ export function BrainGraph() {
               ctx.beginPath();
               ctx.arc(n.x!, n.y!, r, 0, 2 * Math.PI);
               ctx.fillStyle = color;
-              ctx.globalAlpha = 0.8; // data stays quieter than the UI accent
+              ctx.globalAlpha = 0.7; // data stays quieter than the UI accent (R2-16)
               ctx.fill();
               ctx.shadowBlur = 0;
               ctx.globalAlpha = 1;
@@ -125,20 +151,23 @@ export function BrainGraph() {
             waking the brain…
           </p>
         )}
+        {touchDevice && !graphActive && data && !failed ? (
+          <button type="button" className="graph-veil" onClick={() => setGraphActive(true)}>
+            <span className="kicker">tap to explore</span>
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         {LEGEND.map(([g, label]) => (
           <span key={g} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--mute)" }}>
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: GROUP_COLORS[g], boxShadow: `0 0 6px ${GROUP_COLORS[g]}` }}
-            />
+            {/* R2-16: legend dots lose their glow — pure attention cost, zero information */}
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: GROUP_COLORS[g] }} />
             {label}
           </span>
         ))}
         <span className="ml-auto text-xs" style={{ color: "var(--mute)" }}>
-          drag · zoom · index + log excluded
+          {touchDevice && !graphActive ? "tap the graph to explore · index + log excluded" : "drag · zoom · index + log excluded"}
         </span>
       </div>
     </motion.div>

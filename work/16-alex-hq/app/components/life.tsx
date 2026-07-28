@@ -33,7 +33,10 @@ export function GymCard({ life, now, index }: { life: LifeData | null | "failed"
         <span className="kicker">Body · gym today</span>
         <Dot status="green" />
       </div>
-      <div className="big">{big}</div>
+      {/* R2-17: GYM/REST are display WORDS, and D6-as-amended names them explicitly for Chakra
+          Petch — they were rendering in the Plex Mono numeral slot. Drift from a recorded
+          decision, not a new proposal; the "–" fallback is a word here too. */}
+      <div className="big font-display">{big}</div>
       <p className="line-clamp-2 text-sm leading-snug" style={{ color: "var(--mute)" }}>
         {sub}
       </p>

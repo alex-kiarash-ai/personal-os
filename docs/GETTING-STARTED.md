@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-25. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-28. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -15,9 +15,24 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 
 1. **Install Claude Code:** desktop app from claude.com/claude-code, or the CLI installer (`irm https://claude.ai/install.ps1 | iex` on Windows, `curl -fsSL https://claude.ai/install.sh | bash` on Mac; `npm install -g @anthropic-ai/claude-code` also works).
 2. **Get the files:** a direct copy (USB/zip) from Shaheen, OR `git clone -c core.longpaths=true` the **public** repo (public since 2026-07-16; the long-paths flag is mandatory on Windows). **Important:** the repo is scrubbed, so a git clone gives you a **vault-less skeleton** (the entire `vault/`, `soul.md`, and `work/*/config` are gitignored and local-only). Only a direct copy from Shaheen carries personal data. Because the repo is public, anyone can clone this skeleton, so the scrub + `.gitignore` are the only things keeping personal data off it.
-3. **First boot:** open Claude Code *inside* the personal-os folder, then run `/status`. If you cloned the repo there is no soul.md yet, so the first reply is plain Claude, that is expected; personality appears after `/setup` writes soul.md. If you *have* soul.md and still get plain Claude, the session hook needs `cat` (ships with Git for Windows).
-4. **Connect services** at claude.ai, Settings, Connectors: Gmail, Calendar, Drive (one Google sign-in), Notion (optional). The in-app `/mcp` manager inside Claude Code is an alternative path to the same connectors. These are one-time authentications; they persist across sessions. Install the "Claude in Chrome" extension for browser control. (GitHub is used only for backup via git + a token, not a connector.)
-5. **Optional phone control:** pair the Claude Code Desktop app (Cowork) with the mobile app so you can send Alex tasks from your phone. The Alex HQ dashboard is a separate phone surface for reading metrics.
+3. **Point Claude Code at the folder. This is the step everything else depends on, and it is the one people get wrong.** Claude Code only becomes Alex inside the folder it is *opened in*. Dragging the folder into the chat, attaching `CLAUDE.md`, or pasting a file path does **not** work: you get plain Claude, no commands, no memory, no personality. You do this once per machine and Claude Code remembers it.
+   - **Desktop app (Cowork):** start a new session, and when it asks for a folder pick the `personal-os` folder you just downloaded. It stays in your recent folders from then on, so every later session is one click.
+   - **Command line:** move into the folder *first*, then start Claude Code. On Windows:
+     ```
+     cd "C:\Users\YOURNAME\Desktop\personal-os"
+     claude
+     ```
+     On Mac or Linux: `cd ~/Desktop/personal-os` then `claude`. Replace the path with wherever you actually saved the folder. Starting `claude` from your home folder and opening files from there is the single most common first-session mistake.
+   - **Do not** open a *subfolder* (like `work/` or `docs/`) and expect the commands to work. The folder you open must be the one that directly contains `CLAUDE.md` and `soul.md`.
+4. **First boot: check it worked before you do anything else.** Type `/status`.
+   - If Alex answers with a status report, the folder is loaded correctly. Go to step 5.
+   - If you get "unknown command" or plain-Claude chat, the folder is **not** loaded. Close the session and redo step 3. Nothing below will work until `/status` responds.
+   - If you cloned the repo there is no soul.md yet, so the first reply is plain Claude even when the folder *is* loaded correctly. That is expected: `/status` still answers, and personality appears after `/setup` writes soul.md. If you *have* soul.md and still get plain Claude, the session hook needs `cat` (ships with Git for Windows).
+5. **Run `/setup` as your first real prompt.** That is the whole first-session instruction: open the folder, `/status` to confirm, then type `/setup` and answer its questions. It walks you through identity, brand, and the vault one step at a time.
+6. **Connect services** at claude.ai, Settings, Connectors: Gmail, Calendar, Drive (one Google sign-in), Notion (optional). The in-app `/mcp` manager inside Claude Code is an alternative path to the same connectors. These are one-time authentications; they persist across sessions. Install the "Claude in Chrome" extension for browser control. (GitHub is used only for backup via git + a token, not a connector.)
+7. **Optional phone control:** pair the Claude Code Desktop app (Cowork) with the mobile app so you can send Alex tasks from your phone. The Alex HQ dashboard is a separate phone surface for reading metrics.
+
+**The first session, in four lines.** Open the `personal-os` folder in Claude Code (not the file, the folder). Type `/status` to confirm it loaded. Type `/setup` and answer the questions. Then `/brand`. Every session after that, open the same folder and just talk.
 
 ## 3. Make it yours
 
@@ -25,7 +40,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 - **Then hand-refine `soul.md`** (the biggest lever, that is your identity and voice).
 - Start building automations with `/new` and the per-project `work/{n}/CLAUDE.md` specs. `/new` writes the registry entry in `system/manifest.json` FIRST, then scaffolds.
 
-## 4. The automations (29 registered, non-retired)
+## 4. The automations (31 registered, non-retired)
 
 The registry `system/manifest.json` is the source of truth; this list is generated from it.
 
@@ -40,12 +55,12 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **10 Weekly Exec Report** (LIVE; trigger: Fri 16:00) - The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.
 - **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup)) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
 - **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.
-- **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway.
+- **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from a local read-only Playwright harvest of his own Airbnb dashboard (Airbnb has no host API; Gmail feed is the FALLBACK, not the primary - corrected 2026-07-28, the command file was right and this line was the stale side); feeds the brief + runway.
 - **14 AI Application Engine** (LIVE; trigger: n8n Tue+Thu 15:30) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
 - **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.
-- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks incl. C21, docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db).
+- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks (C1-C22, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db).
 - **19 Venture Sync** (DORMANT, revisit 2026-10-01; trigger: -) - Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine.
 - **20 Runway** (LIVE; trigger: monthly last day 21:15) - The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel.
 - **21 Interview Copilot** (EVENT; trigger: brief flag + on-demand) - Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends.
@@ -58,6 +73,8 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **28 Chat Gateway** (DORMANT, revisit 2026-09-15; trigger: poller-driven phone chat (planned) + phone via n8n instance MCP; build pending) - Two-way phone chat into Alex: a read-only pocket that captures notes and done:/action:/teach: commands from the phone into the existing alex_inbox pipeline, complementing the session and never replacing it. SCAFFOLDED 2026-07-17; live build pending the BotFather bot, Telegram user id, phone pairing and the RC test (all Shaheen-side).
 - **29 Trip Ops** (ON-DEMAND; trigger: on-demand + rides the 05:00 email lane (not event-driven)) - Booking confirmations Shaheen forwards become trip notes, read-back-verified Google Calendar events, and brief lines; a machine-readable travel flag (system/travel-state.json) drives timezone-aware scheduling (recovery C18).
 - **30 Modeling Growth Loop** (DORMANT, revisit 2026-08-01; trigger: Calibration (from 2026-07-22, Shaheen finished platform signups 07-22): radar (EVERY 2nd DAY 06:45, sources narrowed to Statist + ModelManagement + ACasting ONLY; criteria worldwide / male / no-nude) + weekly Scout's Eye (Mon 09:30) ARMED to measure real casting-alert cadence; content (T/W/Th 17:00) + monthly review (1st 10:00) held. Flips LIVE at Phase-0 verification: first real alert parsed end-to-end + one weekly run + one hand-posted pack.) - The modeling career loop (growth plan runs 29+30, Phase-0 build started 2026-07-18): a ToS-clean mailbox casting radar (platform alert emails to a castings@ alias, never scraping) scoring briefs into a Notion lead ledger + voice-gated Gmail application drafts; a content engine in staging mode (hand-post packs; Postiz draft-only queue after the deferred box+deploy); weekly Scout's Eye + collab pipeline; monthly strategy reviewer with the gate-then-rolling agency plan; vault rights register underneath. Every external send is a Gmail draft or an approval queue by construction. Postiz deploy stays HELD (new CX33 box deferred, Shaheen 2026-07-18); Phase 1 unblocks when the box lands. DORMANT until Phase-0 verification: first real platform alert parsed end-to-end + the signup calibration week (Shaheen-side).
+- **31 Portal Scanner** (LIVE; trigger: n8n Tue & Thu 15:13 (scan + bank)) - Standalone company-portal job lane, STAGE 1 of 2: detect each company ATS once, hit its free public JSON, prefilter, and BANK matching jobs to the queue that #32 drains. Split from the engine 2026-07-28 so both workflows carry their own n8n id + cron and come under V6 leg (c) and the daily active-flag watcher.
+- **32 Portal Application Engine** (LIVE; trigger: n8n Tue & Thu 15:43 (drain + draft)) - Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28.
 - **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 - **Alex Cost Tracker** (ON-DEMAND; trigger: monthly (piggybacks expense slot)) - What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + a zero-token per-project token-attribution collector (which project ate the quota).
 
@@ -89,8 +106,8 @@ Nothing runs until you schedule it. On this machine the scheduler is Windows Tas
 |---|---|---|
 | Health Tracker (#17) - phone-side, NOT a Windows task | none (no /command, no Task Scheduler job). | **daily 23:59, triggered ON the iPhone** by a native Shortcuts time-automation (Shaheen builds it, guide `work/17-health-tracker/IPHONE-SHORTCUT.md`). It POSTs to the n8n webhook `/webhook/alex-health-ingest`; n8n scores + stores. Nothing to add to /cron-setup on this machine. **23:59 chosen (2026-07-04) so the day's steps are complete while "is today" still captures last night's sleep - one combined row/day.** |
 | Sprint Tracker | /sprint-tracker | weekdays at 9:00 AM (PAUSED, see Status above) |
-| Morning Brief | /morning-brief | daily at 8:00 AM |
-| Application Engine Watch | /application-engine | daily at 8:30 AM |
+| Morning Brief | /morning-brief | daily at 8:00 AM (Task Scheduler job PersonalOS-morning-brief) |
+| Application Engine Watch | /application-engine | daily at 8:30 AM (Task Scheduler job PersonalOS-application-engine) |
 | Personal CRM | /personal-crm | Monday at 8:30 AM |
 | Email Triage | /email-triage scheduled | **daily at 5:00 AM** (changed 2026-07-16, cost cut: was 3x daily at 9/13/17). Model: claude-sonnet-4-6 (per-wrapper `--model`). |
 | Expense Wrangler | /expense-wrangler | monthly, last day of each month at 8:00 PM |

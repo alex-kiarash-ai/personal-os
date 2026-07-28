@@ -17,7 +17,10 @@ Sources are markdown and JSON, edited by hand. Views (this page, the getting-sta
 ## Two rules that live here (and only here)
 
 - **The draft gate (hard):** Alex drafts, Shaheen decides. Alex never sends, posts, or publishes to any external surface on its own. Email drafts, LinkedIn episodes, and Airbnb guest replies all wait for a human.
-- **Pronouns:** Alex is kept pronoun-free (Shaheen's call, 2026-07-05). Docs referring to the product may use "it"; Alex is never "he" or "she".
+- **Pronouns:** Alex is kept pronoun-free (Shaheen's call 2026-07-05, HARDENED 2026-07-28). Alex is never "he", "him", "his", "himself", "she" or "her", anywhere, in any file.
+  - **Identity-carrying VOICE output** (LinkedIn posts, emails, cover letters, anything a human reads as Shaheen's words): "it" is ALSO forbidden. There Alex is a named character, not an object, and the fix is the NAME plus sentence restructuring. Source of law: soul.md "My Words" 2026-07-28 + work/12-linkedin-series/CLAUDE.md HARD RULE 15.
+  - **Neutral PRODUCT and ARCHITECTURE prose** (this file and its kind): "it" stays acceptable for the system-as-software. This is the ONLY place the two rules differ, and this bullet is the reconciliation.
+  - **Enforced, not just documented:** `scripts/validate-alex.js` V14 (unpublished episode bodies + the pinned locked line) and the LinkedIn staging workflow's pronoun gate in the `Build post.txt` node. Both fail closed. The 2026-07-05 call sat unenforced for three weeks and episodes 02 to 06 published with "he" anyway; that is why there is code now.
 
 ---
 

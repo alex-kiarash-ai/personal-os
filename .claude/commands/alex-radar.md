@@ -1,5 +1,11 @@
 # /alex-radar - Daily AI Capability + Opportunity Radar
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#15 /alex-radar · LIVE · Trigger: Mon 07:30 + collector 06:00**
+> Registry: `system/manifest.json` · Spec: `work/15-alex-ai-radar/CLAUDE.md` · Status: `vault/projects/alex-ai-radar/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Spec: work/15-alex-ai-radar/CLAUDE.md (read it first, it is authoritative).
 
 One engine, three taps, sequenced. Stream B (tools) ships first; content tap second; Stream A (build-and-sell ideas) stays dark behind the drop-rule until Stream B earns trust. Alex proposes, Shaheen decides. Alex never advances a Notion row past "Interesting."
@@ -19,7 +25,7 @@ One engine, three taps, sequenced. Stream B (tools) ships first; content tap sec
    - Rows with `urgent=1` were already pushed to the alex_inbox the day they landed (the urgent lane); treat them as pre-flagged, not new.
 3b. **Capability diff + flywheel retro (first Monday of the month only, --weekly runs).** Two halves, skip both entirely on non-first Mondays:
    - **Diff:** inventory local reality: `claude --version`, installed MCP servers, skills list, Hetzner n8n version (API base in work/03-application-engine/config/). Diff against self-watch releases since the last diff (note the date in status.md). Upgrade proposals become normal Tools rows at Status <= Interesting; NEVER install without a yes.
-   - **Flywheel:** retro Alex herself. Scan vault/projects/error-log.md, failed/flagged runs in outputs/logs/*.log since the last diff, and wrong assumptions caught mid-build. Propose up to 3 concrete spec/runbook fixes in the presentation (what broke, the pattern, the exact file+change). Apply only on Shaheen's yes, then propagate per the Change Propagation standing order. If the logs are clean, say so in one line and move on.
+   - **Flywheel:** retro Alex. Scan vault/projects/error-log.md, failed/flagged runs in outputs/logs/*.log since the last diff, and wrong assumptions caught mid-build. Propose up to 3 concrete spec/runbook fixes in the presentation (what broke, the pattern, the exact file+change). Apply only on Shaheen's yes, then propagate per the Change Propagation standing order. If the logs are clean, say so in one line and move on.
 4. **Run Checks (spec, before any output):** 1 dedup-before-count · 2 permission status gate (stop at Interesting) · 3 corroboration (2+ independent sources for high-confidence) · 4 cold-start guard (seed from vault run 1; low-confidence until >=20 dated decisions) · 5 recency cap + weekly drift sweep · 6 Stream A leash (drop-rule, Tap 3 dark until Stream B proven) · 7 missed-run · 8 outcome metric.
 5. **Friction match, then score.** Check every survivor against friction-list.md FIRST: a match is named in the presentation ("kills friction #5"), justifies a maxed Leverage score, and a friction-killer gets presented even in a zero-item week. Then score on the rubric (Stream B: real-vs-hype, fit-to-stack, leverage, effort-inverse). Route to the right tap. Maintain the list: new workaround built → add a row; friction killed → strikethrough + date.
 6. **Write** to Notion `AI Radar Tools` at Status <= Interesting only. Update landscape-memory.md (dedup'd counts). Write radars/YYYY-MM-DD.md.

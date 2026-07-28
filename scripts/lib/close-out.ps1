@@ -176,6 +176,17 @@ function Invoke-CloseOutCheck {
         [int]$Code = 0,                                          # claude $LASTEXITCODE
         [Parameter(Mandatory)][string]$Log,                      # log file path
         [string]$Project = '',                                   # Alex HQ project key; '' = no push
+        # -DegradedReason (2026-07-25, stress-test fix F-04): a caller-supplied degradation reason. A
+        # wrapper that detects its OWN degraded condition (the soul canary missing on a voice-shipping
+        # lane is the first case) passes it here instead of inventing a parallel failure path - so the
+        # miss inherits this ONE path's semantics: precise RED headline, the self-scheduled retry
+        # ladder, exit 1. A1's own detections take precedence (they carry side effects like the quota
+        # writer).
+        # NAME MATTERS: PowerShell variables are CASE-INSENSITIVE, so a parameter named $Reason would be
+        # the SAME variable as the internal $reason that A1 initializes to $null - the parameter was
+        # silently clobbered and the run failed with a BLANK reason. Caught by the F-04 negative test
+        # before it shipped. Never reuse an internal variable name as a parameter name in this file.
+        [string]$DegradedReason = '',
         [switch]$DryRun
     )
 
@@ -235,6 +246,14 @@ function Invoke-CloseOutCheck {
             $reason = 'no Close-Out verdict line in a >500-char run (truncated / mid-stream stop, exit 0)'
             "sentinel ENFORCING: $reason" | Out-File -Append -Encoding utf8 $Log
         }
+    }
+
+    # Caller-supplied degradation (-DegradedReason), applied only if A1 found nothing itself: a real A1
+    # error (blank output, cap, exit code) is the more urgent diagnosis AND carries side effects, so it
+    # wins. Guarded on non-empty so an omitted parameter can never fail a healthy run.
+    if (($null -eq $reason) -and (-not [string]::IsNullOrWhiteSpace($DegradedReason))) {
+        $reason = $DegradedReason
+        "caller-reported degradation: $reason" | Out-File -Append -Encoding utf8 $Log
     }
 
     if ($null -eq $reason) {

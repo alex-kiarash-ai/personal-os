@@ -163,6 +163,8 @@ from this morning. Next morning's 08:00 brief reads that row and calls it "yeste
 `count:1` (one combined row), not two.
 
 ## Notes
-- **Sleep source:** only the Watch tracks sleep (worn at night), so sleep readers need NO source filter. Steps
-  come from the phone (Watch charges by day), so the steps reader DOES filter Source is iPhone.
+- **Source filters: NONE, anywhere (corrected 2026-07-21).** Only the Watch tracks sleep (worn at night), so
+  sleep readers never had a source filter. The steps reader **also has no source filter** - the `Source is
+  iPhone` filter it originally carried matched ZERO samples and shipped empty steps every night (see the
+  FIXED note under Block 2). If you are re-adding a filter to any block, you are re-introducing that bug.
 - **Token safety:** HTTPS only, token scoped to this one webhook and rotatable. Never share/export the Shortcut.

@@ -1,5 +1,11 @@
 # /airbnb-host - Airbnb Hosting Tracker + Income
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#13 /airbnb-host · LIVE · Trigger: monthly 24th 10:00 + brief**
+> Registry: `system/manifest.json` · Spec: `work/13-airbnb-host/CLAUDE.md` · Status: `vault/projects/airbnb-host/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Spec: work/13-airbnb-host/CLAUDE.md (read it first). Knowledge: vault/me/airbnb-studio.md.
 
 ## Bootstrap (first run only)

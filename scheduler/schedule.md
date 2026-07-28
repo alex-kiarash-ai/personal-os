@@ -34,13 +34,13 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### Morning Brief
 - Command: /morning-brief
-- Frequency: daily at 8:00 AM
+- Frequency: daily at 8:00 AM (Task Scheduler job PersonalOS-morning-brief)
 - Description: Unread Gmail (12h) + today's calendar + project context, priority-filtered. Writes vault history + Daily Briefs row in Notion.
 - Added: 2026-06-10
 
 ### Application Engine Watch
 - Command: /application-engine
-- Frequency: daily at 8:30 AM
+- Frequency: daily at 8:30 AM (Task Scheduler job PersonalOS-application-engine)
 - **Box engines retimed 2026-07-24: the n8n Application Engine (#03) + AI Application Engine (#14) now run TUESDAY & THURSDAY afternoon (15:00 / 15:30, cron `0 15 * * 2,4` and `30 15 * * 2,4`), the 30-min stagger preserved. (Prior state, from 2026-07-16 cost cut: every-72h 07:00/07:30.) Source window is "Past week" (lowercase - Bright Data's time_range label is case-sensitive; the capitalized "Past Week" typo broke Stage 1 on 07-19, fixed 07-20) so nothing in the last week is missed even across the 4-day Thu->Tue gap (the processed-log dedup keeps it exactly-once). This local watch stays daily; on off-days it simply reports "no new pipeline run".**
 - Description: Reads the Job Search Pipeline sheet (run_log + needs_review) after the pipeline run; reports drafts, costs, flags, anomalies; updates vault. Surveillance only, never modifies the workflow.
 - Added: 2026-06-11
@@ -106,7 +106,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Recovery Layer sweep (Recovery Phase 2)
 - Command: work/18-recovery-layer/check.ps1 (pure PowerShell, no claude call, zero tokens)
 - Frequency: Mondays at 7:30 AM (Task Scheduler job PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure.
-- Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against system/manifest.json (19 checks: quad completeness, orphans x3, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check, index↔disk, outputs naming, first-fire aging, cadence-vs-schedule, passphrase attestation, PAT expiry, skills-symlink restore guard, machine timezone vs travel-state, narrative numbers-drift). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
+- Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against system/manifest.json (21 checks, C1-C22 with C16 retired: quad completeness, orphans x3, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check, index↔disk, outputs naming, first-fire aging, passphrase attestation, PAT expiry, skills-symlink restore guard, machine timezone vs travel-state, narrative numbers-drift, backup destinations, facts-ledger doc drift, soul-corpus monotonicity). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
 - Added: 2026-07-04
 
 ### n8n active-flag watcher (Recovery Layer, BUG-01 fix)

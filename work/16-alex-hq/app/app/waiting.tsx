@@ -49,7 +49,7 @@ export function WaitingStrip({ metric }: { metric: Metric | null }) {
     <motion.div
       aria-live="polite"
       aria-label={`Waiting on you: ${count} ${count === 1 ? "item" : "items"}${oldest ? `, ${oldest}` : ""}`}
-      className={`tile ${critical ? "strip-red" : ""} flex w-full items-center gap-3 px-5 py-3 text-left`}
+      className={`tile ${critical ? "strip-red" : "strip-amber"} flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 text-left`}
       style={{ borderRadius: "1rem", cursor: "default" }}
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -60,12 +60,14 @@ export function WaitingStrip({ metric }: { metric: Metric | null }) {
       <span className="kicker whitespace-nowrap" style={critical ? { color: "var(--paper)" } : undefined}>
         Waiting on you
       </span>
-      {/* C8: the waiting count is an unactioned action-count, so it burns Rusty Spice like its
-          tile siblings; on the critical red face it stays white — max contrast wins there */}
-      {/* C12: the count is a data numeral, so it speaks Plex Mono like every other numeral */}
+      {/* C8: the waiting count is an unactioned action-count and must still burn; C12: it is a
+          data numeral, so Plex Mono. R2-5 corrects HOW it burns — Rusty Spice measured ~2.93:1
+          here, which fails 4.5:1 at 18px AND the 3:1 large-text floor, so no size could rescue
+          that color on this canvas. Vanilla Custard at 24px keeps the warm burn and the numeral
+          weight while clearing contrast with room to spare; the amber ring + dot carry the state. */}
       <span
-        className="num-display flex-none text-lg"
-        style={critical ? undefined : { color: "var(--warn)" }}
+        className="num-display flex-none text-2xl"
+        style={critical ? undefined : { color: "var(--custard)" }}
       >
         {count}
       </span>
@@ -75,7 +77,15 @@ export function WaitingStrip({ metric }: { metric: Metric | null }) {
         </span>
       ) : null}
       {top ? (
-        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--aqua)" }}>
+        /* R2-7: at 390 `truncate` cut the top item to "Verify #..." — the page's highest-stakes
+           queue could not name a single one of its items, which is its whole reason to exist.
+           Clamping alone wasn't enough: sharing the row with the kicker, count and age badge left
+           it ~120px, so it still said nothing. On mobile it takes its own full-width line (two
+           clamped lines of real text); desktop has room and keeps it inline on one. */
+        <span
+          className="min-w-0 basis-full line-clamp-2 text-sm sm:flex-1 sm:basis-auto sm:truncate"
+          style={{ color: "var(--aqua)" }}
+        >
           {top}
         </span>
       ) : null}

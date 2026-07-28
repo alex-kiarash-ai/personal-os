@@ -1,8 +1,14 @@
 # /teach-alex - The Teach-Alex Button
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#22 /teach-alex · EVENT · Trigger: inbox note + on-demand**
+> Registry: `system/manifest.json` · Spec: `work/22-teach-alex/CLAUDE.md` · Status: `vault/projects/teach-alex/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Full spec: `work/22-teach-alex/CLAUDE.md` (read it first).
 
-Frictionless corrections from anywhere. Drop a note ("you got X wrong, here is the rule") typed or by voice; Alex classifies it, files it to the right home, confirms before touching any identity file, and logs it so the weekly `/self-review` (#01) can batch it. The "correct it" verb of the system.
+Frictionless corrections from anywhere. Drop a note ("you got X wrong, here is the rule") typed or by voice; Alex classifies it, files it to the right home, confirms before touching any identity file, and logs it so the weekly `/self-review` (#23) can batch it. The "correct it" verb of the system.
 
 ## Modes
 - `/teach-alex "<correction>"` - correct Alex on the spot.

@@ -6,11 +6,17 @@ Automation (n8n workflow on the Hetzner box). A faithful CLONE of the BI Applica
 ## Purpose
 Tuesday & Thursday 15:30 Stockholm (was every-72h 07:30 until 2026-07-24): discover LinkedIn AI/automation jobs per location via Bright Data, score fit against the AI CV + AI-centrality with one Claude call, gate deterministically, write a tailored AI CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job folder under the AI Drive folder, log every job + cost to the AI sheet. Review-ready drafts, no auto-submit. Runs ALONGSIDE the BI pipeline (does not replace it).
 
+## 2026-07-28 SIMPLIFY (Shaheen's call): live graph is now 32 nodes, dedup/ledger/review layer DELETED
+Applied in lockstep with #03 via `scripts/simplify-engine.js` (2026-07-28 01:45): both engines **50 -> 32 nodes** (verified live). The 18-node dedup/bank/drain/ledger/`needs_review`/timeout layer was deleted, `Compute Costs` gutted to a run_log row builder (no cost maths), `Append Run Log` cut to 9 columns. Net: no dedup ledger (Bright Data `discover_new` only), no banking/drain, **no cross-lane dedup (this engine's `Read Sibling Log` -> #03 is gone, so both engines can now draft the same vacancy)**, no needs_review queue, no cost tracking. The F09 `consultant` match-schema edit SURVIVES (it lives in `Build Match Request`, not a deleted node). Full detail + node list: `work/03-application-engine/CLAUDE.md` §"2026-07-28 SIMPLIFY". Backup: `scripts/n8n-backups/9x9M3EnEEeX3O8dy-pre-simplify-2026-07-28T0145.json`. The remediation section below is now HISTORY.
+
+## 2026-07-27 Remediation (F01-F22): took the graph to 49/50 nodes (SINCE REDUCED to 32 by the 07-28 simplify above)
+Applied in lockstep with #03 (both engines 41 -> 49 nodes, active throughout). Everything below that describes the 41-node flow (the "P3 write-first reorder" 37->41 note, the differences list) predates it. The shape changes are identical to #03 - full walkthrough in `work/03-application-engine/CLAUDE.md` §"2026-07-27 Remediation" and the per-finding record `work/03-application-engine/remediation/STATUS.md`. New nodes here too: `Poll Gate`, `All Resolved?`, `Snapshot Ready Item?`, `Format Timeout Row`, `Append Timeout Review`, `CV One Page?`, `Read Sibling Log`, `Read Bank`, `Append Seen Id` (removed: `Snapshot Ready?`). **One #14-only finding: F09 added `consultant` to this engine's match schema** so client-facing automation/AI-consulting postings reach the gate's `['ai','consultant']` allow-list and get the consultant tone instead of the dead-code direct-engineering voice. This engine's `Read Sibling Log` points at #03's `seen_ids`; #03's points here. First live exercise = the first Tue/Thu 15:30 cron after 07-27; no runtime acceptance test has run yet.
+
 ## What differs from the BI pipeline (the only changes; everything else is identical)
 1. **Embedded CV** in `Build Match Request` + `Build Writer Request` code nodes → swapped from the combined master to `master_cv_ai.md` (AI-direction CV).
 2. **Match system prompt** (`Build Match Request`) → scores fit against AI/automation roles. `target_role` ∈ {"ai", "neither"} (was powerbi/consultant/neither). `interest_score` = how central AI/agents/automation are to the role (now the headline signal).
 3. **Gate** (`Stage 3 Gate`) → allowed `target_role` = ['ai'] (plus 'consultant' back-compat). `INTEREST_WEIGHT` left at 0.4 for launch (tuning knob; AI-centrality may warrant 0.5 later). `FIT_THRESHOLD` 70 unchanged.
-4. **Writer prompt** (`Build Writer Request`) → AI positioning, leads with Building Alex + automation; data/BI is supporting credibility. (Model: **claude-opus-4-8** since 2026-07-24, moved from claude-sonnet-4-6 when both engines went to Opus 4.8, Shaheen's call; still mirrors the live BI pipeline. `Compute Costs` repriced to $5/$25. The old "migrate to gpt-4.1-mini" TODO is dead: the rule follows production.)
+4. **Writer prompt** (`Build Writer Request`) → AI positioning, leads with Building Alex + automation; data/BI is supporting credibility. (Model: **kimi-k3** (Moonshot, `reasoning_effort:'high'`, flipped from `'max'` the same day after a measured comparison) since 2026-07-27, moved from claude-opus-4-8 when all four job lanes went to Kimi K3, Shaheen's call; still mirrors the live BI pipeline. This was a provider swap, NOT a string swap: the `Claude *` HTTP nodes now call `api.moonshot.ai/v1/chat/completions` via the `Kimi K3 (Moonshot header)` cred, OpenAI-format bodies, `max_tokens` raised to 16384. `Compute Costs` repriced to kimi-k3 $3/$0.30/$15. See root CLAUDE.md Model Routing + manifest `meta.model_routing`.)
 5. **External IDs + schedule** → new sheet, new Drive folder, cron `30 15 * * 2,4` (Tue & Thu 15:30; changed 2026-07-24 from the every-72h `30 7 */3 * *`).
 
 ## External IDs (bake into the clone)
@@ -21,7 +27,8 @@ Tuesday & Thursday 15:30 Stockholm (was every-72h 07:30 until 2026-07-24): disco
 
 ## Credentials (n8n) - ALL REUSED, no new OAuth
 - `Bright Data Header Auth` - exists, validated
-- `Anthropic account` - exists, validated
+- `Kimi K3 (Moonshot header)` (httpHeaderAuth, id `OffvMkWR01zcpqxo`) - the model credential since 2026-07-27; the `Claude Match+Research` + `Claude Writer` nodes call Moonshot through it.
+- `Anthropic account 2 (AI engine, split 2026-07-06)` - exists, NO LONGER USED by the model nodes (kept for rollback).
 - `Google Sheets account` (OAuth2) - exists (created for the BI pipeline)
 - `Google Drive account` (OAuth2) - exists
 After cloning, the new nodes must point at these existing credential IDs (the clone script copies them from the live BI workflow, so they should carry over; verify in the UI).

@@ -36,12 +36,22 @@ const URL = process.env.HQ_URL || "http://localhost:3000";
 
 // Brand law (brand/config/color-system.md + the HQ instrument-surface deviation, brand-config.md).
 const EXPECT = {
-  canvasBg: "rgb(0, 18, 25)",        // Ink Black #001219
+  canvasBg: "rgb(0, 18, 25)",        // Ink Black #001219 (the canvas identity never moves)
   kickerFont: "Chakra Petch",         // display / kicker WORDS
   numeralFont: "Plex Mono",           // all data numerals (IBM Plex Mono)
   accentOrange: "rgb(238, 155, 0)",   // Golden Orange #ee9b00, the ONE accent
   accentMax: 40,                       // one-accent law: sparse, never an explosion (calibrated)
   minTiles: 4,
+  /* R2 luminance ladder (2026-07-25 round-2 review): healthy tile faces were lifted so health
+     reads BRIGHTER than sickness, while alarm faces stay on --elev #00232e. The guard asserts the
+     ladder itself — flattening it in either direction is a brand regression, not cosmetic drift.
+     These are the relative luminance of the DECLARED face tokens (--card / --elev), not sampled
+     pixels: the ladder is made of those two tokens, so testing them is testing the thing itself,
+     and it stays content-independent. Reference values: --card rgba(0,53,66,.6) = 42.7,
+     --elev #00232e = 28.4. */
+  healthyFaceMinLuma: 38,   // lifted healthy face ~#00303C (regression = the R2 lift got reverted)
+  alarmFaceMaxLuma: 29,     // alarm face must STAY ~#00232e: Rusty burn numerals only clear it here
+  ladderMinGap: 8,          // healthy must stay visibly above alarm, never collapse into it
 };
 
 const VIEWPORTS = [
@@ -67,6 +77,23 @@ async function probe(page, vp) {
       .map((s) => getComputedStyle(s).gridTemplateColumns)
       .filter((c) => c && c !== "none")
       .map((c) => c.split(" ").length);
+    /* the luminance ladder: composited face brightness of a healthy tile vs an alarm tile.
+       backgroundColor on .tile is a gradient layer, so read the resolved background-image's first
+       color stop via getComputedStyle().backgroundImage — simpler and stabler: sample the declared
+       --card / --elev customs, which is what the ladder is actually made of. */
+    const luma = (css) => {
+      const mm = css.match(/rgba?\(([^)]+)\)/) || css.match(/#([0-9a-f]{6})/i);
+      if (!mm) return null;
+      let r, g, b;
+      if (css.trim().startsWith("#") || (mm[1] && mm[1].length === 6 && !mm[1].includes(","))) {
+        const h = (mm[1] || "").replace("#", "");
+        r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+      } else {
+        [r, g, b] = mm[1].split(",").map((n) => parseFloat(n));
+      }
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const rootCs = getComputedStyle(document.documentElement);
     return {
       bodyBg: cs(document.body).backgroundColor,
       htmlBg: cs(document.documentElement).backgroundColor,
@@ -78,6 +105,8 @@ async function probe(page, vp) {
       tileCount: document.querySelectorAll(".tile").length,
       maxGridCols: contentGrids.length ? Math.max(...contentGrids) : 0,
       accentCount: accent,
+      healthyFaceLuma: luma(rootCs.getPropertyValue("--card")),
+      alarmFaceLuma: luma(rootCs.getPropertyValue("--elev")),
     };
   }, EXPECT.accentOrange);
 }
@@ -96,6 +125,14 @@ function checkViewport(vp, p, fails) {
     `accent-law: golden-orange count ${p.accentCount} outside [1, ${EXPECT.accentMax}]`);
   if (vp.gridCols) add(p.maxGridCols === vp.gridCols, `grid should be ${vp.gridCols}-col, got ${p.maxGridCols}`);
   if (vp.gridColsMin) add(p.maxGridCols >= vp.gridColsMin, `grid should be >=${vp.gridColsMin}-col, got ${p.maxGridCols}`);
+  // R2 luminance ladder: healthy above alarm, and neither collapsing into the other
+  add(p.healthyFaceLuma != null && p.healthyFaceLuma >= EXPECT.healthyFaceMinLuma,
+    `healthy tile face too dark (luma ${p.healthyFaceLuma}, need >=${EXPECT.healthyFaceMinLuma}) - the R2 lift regressed`);
+  add(p.alarmFaceLuma != null && p.alarmFaceLuma <= EXPECT.alarmFaceMaxLuma,
+    `alarm tile face too bright (luma ${p.alarmFaceLuma}, need <=${EXPECT.alarmFaceMaxLuma}) - burn numerals lose contrast there`);
+  add(p.healthyFaceLuma != null && p.alarmFaceLuma != null &&
+    p.healthyFaceLuma - p.alarmFaceLuma >= EXPECT.ladderMinGap,
+    `luminance ladder collapsed (healthy ${p.healthyFaceLuma} vs alarm ${p.alarmFaceLuma}) - state stops reading as brightness`);
 }
 
 async function main() {
@@ -110,7 +147,8 @@ async function main() {
       const p = await probe(page, vp);
       console.log(`[${vp.name}] bg=${p.bodyBg} kicker="${(p.kickerFont||'').split(',')[0]}" ` +
         `numeral="${(p.numeralFont||'').split(',')[0]}" logo=${p.logoOk} tiles=${p.tileCount} ` +
-        `grid=${p.maxGridCols}col accent=${p.accentCount}`);
+        `grid=${p.maxGridCols}col accent=${p.accentCount} ` +
+        `ladder=${p.healthyFaceLuma?.toFixed(1)}/${p.alarmFaceLuma?.toFixed(1)}`);
       checkViewport(vp, p, fails);
       await page.close();
     }

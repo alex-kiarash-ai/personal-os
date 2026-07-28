@@ -182,19 +182,22 @@ function upsertLock(name, repo, skillPath) {
 
 function sh(cmd) { return execSync(cmd, { cwd: REPO, stdio: 'pipe' }).toString(); }
 
-// --- Class E concurrency lock (2026-07-21): the 2026-07-20 sibling-session hazard (two installs racing
-// the skills-lock, one deleting the other's entry mid-run) cannot silently corrupt state. An atomic
-// mkdir mutex serializes installs; a lock older than 30 min (a crashed run) is stolen so it can't wedge.
-const LOCKDIR = path.join(REPO, '.skills-install.lock');
+// --- Class E concurrency lock (2026-07-21; PROMOTED to the shared lib 2026-07-25, stress-test F-08).
+// The 2026-07-20 sibling-session hazard (two installs racing the skills-lock, one deleting the other's
+// entry mid-run) cannot silently corrupt state. The mutex used to be local to this file, which left the
+// REAL incident shape - parallel sessions and the generator touching the same CLAUDE.md - unguarded.
+// It now lives in scripts/lib/write-lock.js under ONE shared lock name, so this installer (which writes
+// the CLAUDE.md ALEX-AUTO-SKILLS region + skills-lock.json) and generate-alex.js (which writes the
+// CLAUDE.md routing region + docs) can never interleave on the same file. Semantics here stay DEFER:
+// the weekly run is opportunistic, so the next run picks it up.
+const writeLock = require('./lib/write-lock');
+let heldLock = null;
 function acquireLock() {
-  try { fs.mkdirSync(LOCKDIR); fs.writeFileSync(path.join(LOCKDIR, 'pid'), `${process.pid} ${new Date().toISOString()}`); return true; }
-  catch (e) {
-    if (e.code !== 'EEXIST') throw e;
-    try { if (Date.now() - fs.statSync(LOCKDIR).mtimeMs > 30 * 60 * 1000) { fs.rmSync(LOCKDIR, { recursive: true, force: true }); fs.mkdirSync(LOCKDIR); return true; } } catch (_) { /* lost the race */ }
-    return false;
-  }
+  heldLock = writeLock.acquire({ label: 'skills-installer', log: m => console.log(m) });
+  if (!heldLock.ok) console.log(`skills-installer: lock ${heldLock.reason}`);
+  return heldLock.ok;
 }
-function releaseLock() { try { fs.rmSync(LOCKDIR, { recursive: true, force: true }); } catch (_) { /* best effort */ } }
+function releaseLock() { if (heldLock) heldLock.release(); }
 
 // --- Class E security preflight (2026-07-21): the auto-install commit uses --no-verify, so the full
 // pre-commit suite (with its live-n8n V6) can't block a headless install - which leaves this the ONE
@@ -227,7 +230,7 @@ function installSkill(repo, name) {
 // ---- main --------------------------------------------------------------------------------------
 (async () => {
   if (!acquireLock()) {
-    console.log('skills-installer: another install holds .skills-install.lock - deferring this run (Class E concurrency guard, 2026-07-21).');
+    console.log('skills-installer: another repo-surface mutator holds the shared write lock - deferring this run (Class E concurrency guard, 2026-07-21; shared lock since 2026-07-25 F-08).');
     process.exitCode = 0; return;
   }
   try {

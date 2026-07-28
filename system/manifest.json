@@ -1,1112 +1,1232 @@
 {
-    "meta": {
-        "generated": "2026-07-06",
-        "repo_visibility": "public",
-        "purpose": "THE project registry, at system/manifest.json since 2026-07-08 (moved from work/18-recovery-layer, refactor amendment A2) (audit step 3, 2026-07-06): desired-state source of truth for BOTH the Recovery checker (check.ps1) AND the generated surfaces (CLAUDE.md routing table + docs/projects/README.md table + docs/GETTING-STARTED.md + docs/README.md quick start, written by scripts/generate-alex.js, the unified generator since 2026-07-08). Curated by hand: when a project is added, retired, renamed, or changes state/trigger, edit THIS file first, then run the generator. /new writes its entry here before scaffolding. The per-project CLAUDE.md baseline hashes are stored by `check.ps1 -Init` in state/baseline.json (NOT here); the claude_md_sha fields below are reserved/unused. The `hq_project` field is THE authoritative project->Alex-HQ metric-slug map (2026-07-07): work/16-alex-hq/scripts/build-projects.mjs reads it to render the HQ Automation Health board FROM this registry, so every registered project shows (not just the ones that push telemetry). null = the project pushes no live metric (its ticket shows an honest idle state).",
-        "states_doc": "LIVE = scheduled/event-driven + producing (needs wrapper/error-handler + HQ push). ON-DEMAND = runs when invoked. EVENT = triggered by a detected event, no cron by design. DORMANT = built, waiting on an external dependency (name it + revisit date; two unchanged revisits force activate-or-retire). PARKED = deliberately stopped (resume context + revisit date; same two-strike rule). RETIRED = superseded, tombstoned, strikethrough row. A project may carry LIVE or EVENT for at most 14 days with first_fire null (aging measured from its status.md frontmatter created date); past that the generator V9 warns and check.ps1 C13 goes amber until it fires (a documented drill counts, first_fire_kind=drill) or is re-stated with a reason.",
-        "cadence_doc": "Upgrade P4 (2026-07-12, design 1.3/MR2-3): `cadence` replaced the old per-day integer field. {expected_hours: N|null, label, note?} - expected_hours is the staleness window HQ/checks age against (null = never stale by age: on-demand/event/dormant/parked/retired); label drives the per-class render rules (design 4.2); note is the human phrase shown on monthly/odd cadences. Multi-job projects are keyed to the tightest job. `first_fire`/`first_fire_kind` (design 1.4/MR2-5): the date a project FIRST produced for real (null = never fired; kind live|drill - a documented drill counts as proof, marked honestly). RULING (2026-07-25, upgrade #18 P4 reconciling the 07-25 FR-02 downgrade): `expected_hours` is AUTHORITATIVE ONLY for HQ tile age-render (work/16-alex-hq/app/lib/types.ts cadenceStale ages the metric-push ts against it) - it is NOT the silence monitor. The authoritative outage detector is scripts/../work/16-alex-hq/scripts/n8n_liveness.py, which derives each workflow's window from its own scheduleTrigger, never this field. So a wrong expected_hours only mis-colors a tile, it can never miss a real outage. Field is KEPT (not deleted): it drives render and reads honestly; it is deliberately not load-bearing for detection, so it is never a cry-wolf source.",
-        "model_routing": {
-            "doc": "THE machine-authoritative model-routing contract (added 2026-07-24, born from the V6-blocked-generator bug: V6 used to derive its expectation by regex-parsing the CLAUDE.md prose rule, so the day the two engines got a documented Opus exception the prose gained a paragraph a regex could not read, and the checker false-failed and blocked the generator). Fix, general principle: a validator NEVER derives its expectation from prose - desired state lives here in structured data, and the check reads THIS. `default` = the model every n8n Claude node runs unless overridden. `overrides` = deliberate per-workflow exceptions (keyed by n8n workflow id). `checked_node` = the node whose model V6 asserts against the live n8n API. To change a model: edit here, then run the generator; validate-alex V6 enforces live-n8n == this contract (undocumented drift still fails; a documented change made here passes). Workflows in overrides that are NOT registered production engines (the eval harness) are warn-only, matching the prior semantics.",
-            "default": "claude-sonnet-4-6",
-            "checked_node": "Build Writer Request",
-            "overrides": [
-                { "workflow": "9XuIEfxS71DEetVR", "name": "Application Engine (BI)", "model": "claude-opus-4-8", "reason": "Shaheen 2026-07-24: both job engines moved to Opus 4.8 (reasoning + prose)" },
-                { "workflow": "9x9M3EnEEeX3O8dy", "name": "AI Application Engine", "model": "claude-opus-4-8", "reason": "Shaheen 2026-07-24: both job engines moved to Opus 4.8 (reasoning + prose)" },
-                { "workflow": "grMqmGzzbTXTEdKr", "name": "Writer Voice Eval (regression)", "model": "claude-opus-4-8", "reason": "regression harness mirrors the live writers; warn-only (not a production engine)" }
-            ],
-            "local_wrappers": {
-                "doc": "LOCAL model-pin contract for the scheduled `claude -p` wrappers under scripts/ (added 2026-07-25, stress-test fix F4). The n8n side is V6; this is its local twin, enforced by validate-alex V13. Root fix for the 'a wrapper forgets --model and inherits the global opus default' cost-leak class (the 2026-07-16 cut was convention-only until now). `pins` = every wrapper that makes a real `claude -p` reasoning call -> the exact --model it MUST pass. `deterministic_no_pin` = wrappers that make NO claude call (zero-token). V13 is COMPLETE by construction: every scripts/run-*.ps1 (+ auth-check.ps1) that calls `claude -p` MUST appear in pins or deterministic_no_pin, else V13 FAILS - so a new/copied wrapper cannot silently inherit the default. To change a pin or add a wrapper: edit here, run the generator.",
-                "pins": {
-                    "run-airbnb-host.ps1": "claude-sonnet-4-6",
-                    "run-lint.ps1": "claude-sonnet-4-6",
-                    "run-alex-hq.ps1": "claude-haiku-4-5-20251001",
-                    "run-application-engine.ps1": "claude-sonnet-4-6",
-                    "run-email-triage.ps1": "claude-sonnet-4-6",
-                    "run-alex-radar.ps1": "claude-sonnet-4-6",
-                    "run-expense-wrangler.ps1": "claude-sonnet-4-6",
-                    "run-landscape-eval.ps1": "claude-sonnet-4-6",
-                    "run-modeling-radar.ps1": "claude-sonnet-4-6",
-                    "run-personal-crm.ps1": "claude-sonnet-4-6",
-                    "run-modeling-weekly.ps1": "claude-sonnet-4-6",
-                    "run-self-review.ps1": "claude-sonnet-4-6",
-                    "run-morning-brief.ps1": "claude-sonnet-4-6",
-                    "run-weekly-exec-report.ps1": "claude-sonnet-4-6",
-                    "run-runway.ps1": "claude-sonnet-4-6",
-                    "run-sprint-tracker.ps1": "claude-sonnet-4-6",
-                    "run-whatsapp-harvest.ps1": "claude-sonnet-4-6",
-                    "auth-check.ps1": "claude-sonnet-4-6"
-                },
-                "deterministic_no_pin": [
-                    "run-vault-index.ps1",
-                    "run-landscape-monitor.ps1"
-                ]
-            }
-        },
-        "cost_budgets": {
-            "doc": "Per-project monthly NOTIONAL-USD token budgets (alex-costs upgrade, 2026-07-25). Units match scripts/alex-cost-attribution.js's notional cost (a flat-Max quota-consumption proxy, NOT a cash bill; the numbers are large because they price the full token volume on a flat plan). The collector computes month-to-date cost per project and, when a project crosses warn_pct of its budget mid-month, writes a tripwire to system/cost-tripwires.json + a loud line (HQ push on the nightly path) - LEVEL-triggered, replacing the reactive 'the $40 bill crossed' discovery that forced the 07-16 cut. default_monthly_usd applies to any project without an override. Also fires a PACE tripwire when the month-to-date run rate projects to exceed 100% by month-end. CALIBRATION: values are set with ~20-40% headroom above the 2026-07 baseline (day-25 snapshot: interactive ~$27k/mo projected, prompting/email-triage ~$2k, morning-brief ~$0.6k, app-engine ~$0.6k, rest < $0.4k) so normal operation is QUIET and only a genuine spike trips it - NOT cry-wolf. Retune monthly against the real attribution table. The collector validates every override key against real project/utility/unnumbered names at read time and fails loud on a typo (a formal V14 can graduate that later without churning the V-count contract).",
-            "default_monthly_usd": 400,
-            "warn_pct": 0.8,
-            "overrides": { "interactive": 32000, "prompting": 2500, "email-triage": 2500, "morning-brief": 900, "application-engine": 750, "ai-application-engine": 750 }
-        },
-        "paths": {
-            "doc": "Machine-checkable filesystem pointers that must survive file moves without silently rotting (added 2026-07-25, stress-test fixes F1+F2). SSOT so a validator/check reads the path from here, never a hardcoded literal. %USERPROFILE% is expanded at read time so a restore to a different Windows user does not perma-fail.",
-            "master_reference_md": "%USERPROFILE%\\Desktop\\Alex Project\\Alex Presentation\\files\\ALEX-OS-master.md",
-            "backup_destinations": [
-                { "name": "hetzner-n8n", "kind": "scp", "target": "n8n:/opt/alex-backups", "correlated_with": "production-n8n", "note": "primary; same box as production n8n (F1 SPOF)" },
-                { "name": "backblaze-b2", "kind": "rclone", "target": "alex-b2:alex-vault-backups", "correlated_with": null, "note": "second independent failure domain; INERT until Shaheen provisions the B2 account + rclone remote (human-actions f1-b2-backup)" }
-            ]
-        },
-        "utility_commands": [
-            "setup",
-            "ingest",
-            "status",
-            "lint",
-            "new",
-            "cron-setup",
-            "brand"
-        ],
-        "known_work_folders": [
-            "voice",
-            "quota-reset-autorun"
-        ],
-        "known_metric_slugs_no_project": {
-            "human-actions": "the Waiting-on-you queue (upgrade P2, 2026-07-12): system/human-actions.jsonl summary pushed by /alex-hq step 1b; consumed by the P7 HQ strip. Not a project; claimed here so the slug is never mistaken for drift.",
-            "quota": "cap-detection metric (upgrade P3, 2026-07-12): pushed by the Pipeline Error Alert on an API-cap hit; mirrored into system/quota-state.json by /alex-hq 3a + brief 4e2. Not a project."
-        },
-        "budget_priority_doc": "Upgrade P3 (2026-07-12, design 1.7.2): consulted by Test-AlexQuotaGate (scripts/lib/close-out.ps1) ONLY while the Claude PLAN is freshly capped (claude_plan in system/quota-state.json, <=6h old). <=1 = the wrapper still spawns claude -p; absent/default 3 = degraded to deterministic-core-only/skip with an amber PARTIAL push. Kept deliberately dumb (QC over-engineering note 3): an integer, no scheduling logic. Only non-default rows carry the field.",
-        "trifecta_doc": "Trifecta classification (three-plan validation P3, 2026-07-17): the agent-security Rule-of-Two made declarative. Each project carries {private_data, untrusted_content, external_comm} booleans (the raw capability/exposure, classified honestly) + a `gate` (the mitigation). VOCAB: draft-only (Alex drafts, a human sends) | human-posts (Alex stages, a human posts) | queue-only (Alex queues an action for human approval) | read-only (never autonomously emits/writes externally) | null (no meaningful external exposure). RULE (validator V12, pure file checks): any project with ALL THREE legs true MUST carry a non-null gate from the vocab, AND that gate string MUST appear on a `## Trifecta` line in the project's work/NN/CLAUDE.md. v1 DROPS the read-only-vs-write integrations assertion (no integrations data in the manifest; deferred, see vault/research/trifecta-map.md). v1 is DECLARATIVE, not runtime-enforced. Full classification + reasoning + system-level channels: vault/research/trifecta-map.md.",
-        "known_work_folders_note": "Non-project work/ folders that are legit tooling, not numbered automations. voice = the on-demand two-way voice loop (alex_voice.py; registered as an unnumbered project below). quota-reset-autorun = the P3 quota-cap auto-run tooling (local poller + the n8n 'Quota Reset Auto-Run (one-shot gate)' workflow ardWIfcbe5TwkMm8); registered 2026-07-14 (/deep-audit S1) so it stops flagging as orphan-work. Open sub-item for Shaheen: the documented PersonalOS-qra-poller job is not in Task Scheduler - register via /cron-setup or drop from scheduler/schedule.md if the n8n one-shot supersedes it. C3 allowlists these so a real rogue folder still flags.",
-        "known_extra_projects_no_work_folder": [
-            {
-                "name": "recovery",
-                "status_md": "vault/projects/recovery/status.md",
-                "reason": "system layer; code in scripts/ + work/18-recovery-layer"
-            },
-            {
-                "name": "alex-costs",
-                "status_md": "vault/projects/alex-costs/status.md",
-                "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot"
-            }
-        ],
-        "unnumbered": [
-            {
-                "name": "voice",
-                "title": "Voice",
-                "state": "EVENT",
-                "revisit": null,
-                "trigger": "every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand",
-                "one_liner": "Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.",
-                "docs": "voice.md",
-                "spec": "work/voice/README.md",
-                "status_md": null,
-                "cadence": {
-                    "expected_hours": null,
-                    "label": "event"
-                },
-                "first_fire": "2026-07-12",
-                "first_fire_kind": "live"
-            },
-            {
-                "name": "alex-costs",
-                "title": "Alex Cost Tracker",
-                "state": "ON-DEMAND",
-                "revisit": null,
-                "trigger": "monthly (piggybacks expense slot)",
-                "one_liner": "What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + a zero-token per-project token-attribution collector (which project ate the quota).",
-                "hq_project": "alex-costs",
-                "docs": "alex-costs.md",
-                "spec": null,
-                "status_md": "vault/projects/alex-costs/status.md",
-                "cadence": {
-                    "expected_hours": 800,
-                    "label": "monthly",
-                    "note": "merging into #08 per D10 (P9a)"
-                },
-                "first_fire": null,
-                "first_fire_kind": null
-            }
-        ]
-    },
-    "projects": [
+  "meta": {
+    "generated": "2026-07-06",
+    "repo_visibility": "public",
+    "purpose": "THE project registry, at system/manifest.json since 2026-07-08 (moved from work/18-recovery-layer, refactor amendment A2) (audit step 3, 2026-07-06): desired-state source of truth for BOTH the Recovery checker (check.ps1) AND the generated surfaces (CLAUDE.md routing table + docs/projects/README.md table + docs/GETTING-STARTED.md + docs/README.md quick start, written by scripts/generate-alex.js, the unified generator since 2026-07-08). Curated by hand: when a project is added, retired, renamed, or changes state/trigger, edit THIS file first, then run the generator. /new writes its entry here before scaffolding. The per-project CLAUDE.md baseline hashes are stored by `check.ps1 -Init` in state/baseline.json (NOT here); the claude_md_sha fields below are reserved/unused. The `hq_project` field is THE authoritative project->Alex-HQ metric-slug map (2026-07-07): work/16-alex-hq/scripts/build-projects.mjs reads it to render the HQ Automation Health board FROM this registry, so every registered project shows (not just the ones that push telemetry). null = the project pushes no live metric (its ticket shows an honest idle state).",
+    "states_doc": "LIVE = scheduled/event-driven + producing (needs wrapper/error-handler + HQ push). ON-DEMAND = runs when invoked. EVENT = triggered by a detected event, no cron by design. DORMANT = built, waiting on an external dependency (name it + revisit date; two unchanged revisits force activate-or-retire). PARKED = deliberately stopped (resume context + revisit date; same two-strike rule). RETIRED = superseded, tombstoned, strikethrough row. A project may carry LIVE or EVENT for at most 14 days with first_fire null (aging measured from its status.md frontmatter created date); past that the generator V9 warns and check.ps1 C13 goes amber until it fires (a documented drill counts, first_fire_kind=drill) or is re-stated with a reason.",
+    "cadence_doc": "Upgrade P4 (2026-07-12, design 1.3/MR2-3): `cadence` replaced the old per-day integer field. {expected_hours: N|null, label, note?} - expected_hours is the staleness window HQ/checks age against (null = never stale by age: on-demand/event/dormant/parked/retired); label drives the per-class render rules (design 4.2); note is the human phrase shown on monthly/odd cadences. Multi-job projects are keyed to the tightest job. `first_fire`/`first_fire_kind` (design 1.4/MR2-5): the date a project FIRST produced for real (null = never fired; kind live|drill - a documented drill counts as proof, marked honestly). RULING (2026-07-25, upgrade #18 P4 reconciling the 07-25 FR-02 downgrade): `expected_hours` is AUTHORITATIVE ONLY for HQ tile age-render (work/16-alex-hq/app/lib/types.ts cadenceStale ages the metric-push ts against it) - it is NOT the silence monitor. The authoritative outage detector is scripts/../work/16-alex-hq/scripts/n8n_liveness.py, which derives each workflow's window from its own scheduleTrigger, never this field. So a wrong expected_hours only mis-colors a tile, it can never miss a real outage. Field is KEPT (not deleted): it drives render and reads honestly; it is deliberately not load-bearing for detection, so it is never a cry-wolf source. `scope` (added 2026-07-25, stress-test F-06 follow-on): 'n8n-engine' means this cadence describes the project's REMOTE n8n workflow, not its local Windows job, so recovery C16 (a doc-vs-doc label compare against scheduler/schedule.md) SKIPS it and validator V6 leg (c) owns it instead by asserting `n8n_cron` against the live scheduleTrigger (doc-vs-reality, strictly stronger). Omitted/any other value = the cadence describes the local jobs and C16 checks it normally. #03 is why this exists: its engine runs Tue & Thu 15:00 on the box while PersonalOS-application-engine is a deliberately DAILY 08:30 local watch, so the two cadences are both correct and comparing them reports permanent false drift.",
+    "n8n_cron_doc": "Per-project SCHEDULE INTENT for a remote n8n workflow (added 2026-07-25, stress-test fix F-06). Optional; declare it on any project whose `n8n` workflow runs on a schedule. Validator V6 leg (c) asserts this string against the LIVE scheduleTrigger on every generator run and every commit, so an accidental or PUT-side-effect cron change FAILS instead of silently re-tuning the monitor. Root cause it kills: the HQ liveness monitor derives each workflow's silence window FROM the live trigger (self-referential, so a drifted cron looks healthy), and recovery C16 only compares two docs to each other. Format = a 5-field cron expression in the workflow's own timezone; n8n's interval-days trigger form is normalized to `<min> <hour> * * *` before comparison, and any other interval shape warns instead of failing. To retime a workflow deliberately: change the live trigger, then update this field in the same session (verify-after-write).",
+    "model_routing": {
+      "doc": "THE machine-authoritative model-routing contract (added 2026-07-24, born from the V6-blocked-generator bug: V6 used to derive its expectation by regex-parsing the CLAUDE.md prose rule, so the day the two engines got a documented Opus exception the prose gained a paragraph a regex could not read, and the checker false-failed and blocked the generator). Fix, general principle: a validator NEVER derives its expectation from prose - desired state lives here in structured data, and the check reads THIS. `default` = the model every n8n Claude node runs unless overridden. `overrides` = deliberate per-workflow exceptions (keyed by n8n workflow id). `checked_node` = the node whose model V6 asserts against the live n8n API. To change a model: edit here, then run the generator; validate-alex V6 enforces live-n8n == this contract (undocumented drift still fails; a documented change made here passes). Workflows in overrides that are NOT registered production engines (the eval harness) are warn-only, matching the prior semantics. NOTE (2026-07-27, kimi-k3 migration): the four job-lane overrides are now a NON-ANTHROPIC provider (Moonshot kimi-k3, OpenAI-compatible API), so `kimi`/`moonshot` were added to validate-alex's LLM_ID_RE model-id recognizer (without it V6 could not SEE the model string). The nodes call api.moonshot.ai/v1/chat/completions via the httpHeaderAuth credential 'Kimi K3 (Moonshot header)' (OffvMkWR01zcpqxo), not the anthropicApi credential; request bodies are OpenAI-format with reasoning_effort:'high' (rolled out at 'max' on 2026-07-27 morning, flipped to 'high' the same day after a measured comparison, see the override reasons). `default` stays claude-sonnet-4-6 for every other Claude node (e.g. #25 landscape-eval).",
+      "default": "claude-sonnet-4-6",
+      "checked_node": "Build Writer Request",
+      "overrides": [
         {
-            "num": 1,
-            "name": "sprint-tracker",
-            "title": "Sprint Tracker",
-            "state": "PARKED",
-            "trigger": "PAUSED (Shaheen 2026-07-16, until re-enabled)",
-            "one_liner": "Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.",
-            "docs": "01-sprint-tracker.md",
-            "schedule_jobs": [
-                "PersonalOS-sprint-tracker"
-            ],
-            "hq_project": "sprint",
-            "revisit": null,
-            "work_dir": "work/01-sprint-tracker",
-            "commands": [
-                "sprint-tracker"
-            ],
-            "status_md": "vault/projects/sprint-tracker/status.md",
-            "cadence": {
-                "expected_hours": 26,
-                "label": "weekdays"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": "2026-06-10",
-            "first_fire_kind": "drill",
-            "n8n": null,
-            "claude_md_sha": null
+          "workflow": "9XuIEfxS71DEetVR",
+          "name": "Application Engine (BI)",
+          "model": "kimi-k3",
+          "reason": "Shaheen 2026-07-27: all four job lanes moved from Opus 4.8 to Moonshot kimi-k3 (his call, 'best results instead of Opus'). Bodies rewritten to OpenAI/Moonshot format; voice + no-dash re-proven on the Writer Voice Eval before rollout. reasoning_effort=high (rolled out at max, flipped to high the same day: a measured max-vs-high comparison on the real writer prompt showed near-identical draft quality - both pass voice + 0 dashes - at ~1/3 the latency (79s vs 231s) and ~half the cost ($0.05 vs $0.12/call); max's only edge was a slightly sharper opening line). max_tokens 16384 + 10-min HTTP node timeout kept as headroom."
         },
         {
-            "num": 2,
-            "name": "morning-brief",
-            "title": "Morning Brief",
-            "state": "LIVE",
-            "trigger": "daily 8:00",
-            "one_liner": "The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags.",
-            "docs": "02-morning-brief.md",
-            "schedule_jobs": [
-                "PersonalOS-morning-brief"
-            ],
-            "hq_project": "morning-brief",
-            "budget_priority": 1,
-            "revisit": null,
-            "work_dir": "work/02-morning-brief",
-            "commands": [
-                "morning-brief"
-            ],
-            "status_md": "vault/projects/morning-brief/status.md",
-            "cadence": {
-                "expected_hours": 26,
-                "label": "daily"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-06-10",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
+          "workflow": "9x9M3EnEEeX3O8dy",
+          "name": "AI Application Engine",
+          "model": "kimi-k3",
+          "reason": "Shaheen 2026-07-27: all four job lanes moved from Opus 4.8 to Moonshot kimi-k3 at reasoning_effort=high (rolled out at max, flipped to high the same day, see the #03 override reason). OpenAI/Moonshot body format; Kimi K3 (Moonshot header) credential."
         },
         {
-            "num": 3,
-            "name": "application-engine",
-            "title": "Application Engine (BI)",
-            "state": "LIVE",
-            "trigger": "n8n Tue+Thu 15:00 + watch 8:30",
-            "one_liner": "Job pipeline, Power BI track: source, score, gate, draft, render every Tue & Thu; also an MCP server.",
-            "docs": "03-application-engine.md",
-            "schedule_jobs": [
-                "PersonalOS-application-engine"
-            ],
-            "hq_project": "app-engine-bi",
-            "budget_priority": 1,
-            "revisit": null,
-            "work_dir": "work/03-application-engine",
-            "commands": [
-                "application-engine"
-            ],
-            "status_md": "vault/projects/job-pipeline/status.md",
-            "cadence": {
-                "expected_hours": 100,
-                "label": "twice weekly (Tue & Thu)"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": true,
-                "gate": "draft-only"
-            },
-            "first_fire": "2026-06-10",
-            "first_fire_kind": "live",
-            "n8n": "9XuIEfxS71DEetVR",
-            "claude_md_sha": null
+          "workflow": "grMqmGzzbTXTEdKr",
+          "name": "Writer Voice Eval (regression)",
+          "model": "kimi-k3",
+          "reason": "regression harness mirrors the live writers; moved to kimi-k3 in lockstep 2026-07-27 so it grades the same model that ships. Warn-only (not a registered production engine)."
         },
         {
-            "num": 4,
-            "name": "research-team",
-            "title": "Research Team",
-            "state": "ON-DEMAND",
-            "trigger": "on-demand",
-            "one_liner": "Adaptive multi-agent research squads for EXTERNAL evidence, + an evidence-anchored Adversarial Verification Mode (`verify:` a claim - refuters grounded in external facts, converge to CONFIRMED/REFUTED/UNRESOLVED, never consensus-laundered; the sanctioned way to check an Alex conclusion).",
-            "docs": "04-research-team.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/04-research-team",
-            "commands": [
-                "research-team"
-            ],
-            "status_md": "vault/projects/research-team/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand"
-            },
-            "trifecta": {
-                "private_data": false,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-06-10",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 5,
-            "name": "personal-crm",
-            "title": "Personal CRM",
-            "state": "LIVE",
-            "trigger": "Mon 8:30",
-            "one_liner": "Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate.",
-            "docs": "05-personal-crm.md",
-            "schedule_jobs": [
-                "PersonalOS-personal-crm"
-            ],
-            "hq_project": "crm",
-            "revisit": null,
-            "work_dir": "work/05-personal-crm",
-            "commands": [
-                "personal-crm"
-            ],
-            "status_md": "vault/projects/personal-crm/status.md",
-            "cadence": {
-                "expected_hours": 192,
-                "label": "weekly",
-                "note": "Mon 8:30"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": true,
-                "gate": "draft-only"
-            },
-            "first_fire": "2026-06-11",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 6,
-            "name": "meeting-intel",
-            "title": "Meeting Intel",
-            "state": "ON-DEMAND",
-            "trigger": "on-demand",
-            "one_liner": "Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after.",
-            "docs": "06-meeting-intel.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/06-meeting-intel",
-            "commands": [
-                "meeting-intel"
-            ],
-            "status_md": "vault/projects/meeting-intel/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-06-12",
-            "first_fire_kind": "drill",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 7,
-            "name": "email-triage",
-            "title": "Email Triage",
-            "state": "LIVE",
-            "trigger": "daily 05:00",
-            "one_liner": "Inbox triage once each morning at 05:00 + voice-matched reply drafts; learns from Shaheen's edits.",
-            "docs": "07-email-triage.md",
-            "schedule_jobs": [
-                "PersonalOS-email-triage"
-            ],
-            "hq_project": "email-triage",
-            "revisit": null,
-            "work_dir": "work/07-email-triage",
-            "commands": [
-                "email-triage"
-            ],
-            "status_md": "vault/projects/email-triage/status.md",
-            "cadence": {
-                "expected_hours": 26,
-                "label": "daily",
-                "note": "once daily 05:00 (was 3x 9/13/17; cost cut 2026-07-16)"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": true,
-                "gate": "draft-only"
-            },
-            "first_fire": "2026-06-12",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 8,
-            "name": "expense-wrangler",
-            "title": "Expense Wrangler",
-            "state": "LIVE",
-            "trigger": "monthly last day 20:00",
-            "one_liner": "Receipts to the Notion Expenses DB + an all-formula branded monthly Excel.",
-            "docs": "08-expense-wrangler.md",
-            "schedule_jobs": [
-                "PersonalOS-expense-wrangler"
-            ],
-            "hq_project": "expenses",
-            "revisit": null,
-            "work_dir": "work/08-expense-wrangler",
-            "commands": [
-                "expense-wrangler"
-            ],
-            "status_md": "vault/projects/expense-wrangler/status.md",
-            "cadence": {
-                "expected_hours": 800,
-                "label": "monthly",
-                "note": "closes month-end"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-06-12",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 9,
-            "name": "content-machine",
-            "title": "Content Machine",
-            "state": "RETIRED",
-            "trigger": "-",
-            "one_liner": "Retired 2026-07-06: folded into #12 (one content system, same Content Library DB).",
-            "docs": "09-content-machine.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "superseded_by": "linkedin-series",
-            "work_dir": "work/09-content-machine",
-            "commands": [
-                "content-machine",
-                "content-plan"
-            ],
-            "status_md": "vault/projects/content-machine/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "retired"
-            },
-            "trifecta": {
-                "private_data": false,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": null,
-            "first_fire_kind": null,
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 10,
-            "name": "weekly-exec-report",
-            "title": "Weekly Exec Report",
-            "state": "LIVE",
-            "trigger": "Fri 16:00",
-            "one_liner": "The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.",
-            "docs": "10-weekly-exec-report.md",
-            "schedule_jobs": [
-                "PersonalOS-weekly-exec-report"
-            ],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/10-weekly-exec-report",
-            "commands": [
-                "weekly-exec-report"
-            ],
-            "status_md": "vault/projects/weekly-exec-report/status.md",
-            "cadence": {
-                "expected_hours": 192,
-                "label": "weekly",
-                "note": "Fri 16:00"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-06-12",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 11,
-            "name": "whatsapp-harvest",
-            "title": "WhatsApp Harvest",
-            "state": "ON-DEMAND",
-            "trigger": "on-demand (iPhone backup)",
-            "one_liner": "Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.",
-            "docs": "11-whatsapp-harvest.md",
-            "schedule_jobs": [
-                "PersonalOS-whatsapp-harvest"
-            ],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/11-whatsapp-harvest",
-            "commands": [
-                "whatsapp-harvest"
-            ],
-            "status_md": "vault/projects/whatsapp-harvest/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-07-10",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 12,
-            "name": "linkedin-series",
-            "title": "LinkedIn Series",
-            "state": "LIVE",
-            "trigger": "on-demand + n8n staging (scheduled)",
-            "one_liner": "Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.",
-            "docs": "12-linkedin-series.md",
-            "schedule_jobs": [],
-            "hq_project": "linkedin-series",
-            "revisit": null,
-            "work_dir": "work/12-linkedin-series",
-            "commands": [
-                "content-agent",
-                "post-episode",
-                "post-publish"
-            ],
-            "status_md": "vault/projects/linkedin-series/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand",
-                "note": "n8n staging on a schedule; one post/week to mid-Aug 2026, then two or three per week"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": true,
-                "gate": "human-posts"
-            },
-            "first_fire": "2026-06-13",
-            "first_fire_kind": "live",
-            "n8n": "v1GbDYganOz9EGpM",
-            "claude_md_sha": null
-        },
-        {
-            "num": 13,
-            "name": "airbnb-host",
-            "title": "Airbnb Host",
-            "state": "LIVE",
-            "trigger": "monthly 24th 10:00 + brief",
-            "one_liner": "Bookings + income from the Gmail feed (Airbnb has no host API); feeds the brief + runway.",
-            "docs": "13-airbnb-host.md",
-            "schedule_jobs": [
-                "PersonalOS-airbnb-host"
-            ],
-            "hq_project": "airbnb",
-            "revisit": null,
-            "work_dir": "work/13-airbnb-host",
-            "commands": [
-                "airbnb-host"
-            ],
-            "status_md": "vault/projects/airbnb-host/status.md",
-            "cadence": {
-                "expected_hours": 800,
-                "label": "monthly",
-                "note": "closes the 24th; brief surfaces bookings daily"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-06-14",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 14,
-            "name": "ai-application-engine",
-            "title": "AI Application Engine",
-            "state": "LIVE",
-            "trigger": "n8n Tue+Thu 15:30",
-            "one_liner": "Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.",
-            "docs": "14-ai-application-engine.md",
-            "schedule_jobs": [],
-            "hq_project": "app-engine-ai",
-            "revisit": null,
-            "work_dir": "work/14-ai-application-engine",
-            "commands": [],
-            "status_md": "vault/projects/ai-job-pipeline/status.md",
-            "cadence": {
-                "expected_hours": 100,
-                "label": "twice weekly (Tue & Thu)"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": true,
-                "gate": "draft-only"
-            },
-            "first_fire": "2026-06-16",
-            "first_fire_kind": "live",
-            "n8n": "9x9M3EnEEeX3O8dy",
-            "claude_md_sha": null
-        },
-        {
-            "num": 15,
-            "name": "alex-ai-radar",
-            "title": "Alex AI Radar",
-            "state": "LIVE",
-            "trigger": "Mon 07:30 + collector 06:00",
-            "one_liner": "The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.",
-            "docs": "15-alex-ai-radar.md",
-            "schedule_jobs": [
-                "PersonalOS-alex-radar"
-            ],
-            "hq_project": "radar",
-            "revisit": null,
-            "work_dir": "work/15-alex-ai-radar",
-            "commands": [
-                "alex-radar"
-            ],
-            "status_md": "vault/projects/alex-ai-radar/status.md",
-            "cadence": {
-                "expected_hours": 192,
-                "label": "weekly",
-                "note": "daily server collector feeds it"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-07-01",
-            "first_fire_kind": "live",
-            "n8n": "PYePT4Al6aPZi56M",
-            "claude_md_sha": null
-        },
-        {
-            "num": 16,
-            "name": "alex-hq",
-            "title": "Alex HQ",
-            "state": "LIVE",
-            "trigger": "always-on + push 8:45",
-            "one_liner": "The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.",
-            "docs": "16-alex-hq.md",
-            "schedule_jobs": [
-                "PersonalOS-alex-hq"
-            ],
-            "hq_project": "alex-hq",
-            "revisit": null,
-            "work_dir": "work/16-alex-hq",
-            "commands": [
-                "alex-hq"
-            ],
-            "status_md": "vault/projects/alex-hq/status.md",
-            "cadence": {
-                "expected_hours": 26,
-                "label": "always-on",
-                "note": "local push daily 8:45"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-07-02",
-            "first_fire_kind": "live",
-            "n8n": "GLcMPA4m0DRGjnQH",
-            "claude_md_sha": null
-        },
-        {
-            "num": 17,
-            "name": "health-tracker",
-            "title": "Health Tracker",
-            "state": "LIVE",
-            "trigger": "phone 23:59",
-            "one_liner": "Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.",
-            "docs": "17-health-tracker.md",
-            "schedule_jobs": [],
-            "hq_project": "health",
-            "revisit": null,
-            "work_dir": "work/17-health-tracker",
-            "commands": [],
-            "status_md": "vault/projects/health-tracker/status.md",
-            "cadence": {
-                "expected_hours": 26,
-                "label": "daily",
-                "note": "phone producer 23:59"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": "2026-07-04",
-            "first_fire_kind": "live",
-            "n8n": "WtOKBY00Cq1FhQ8T",
-            "claude_md_sha": null
-        },
-        {
-            "num": 18,
-            "name": "recovery-layer",
-            "title": "Recovery Layer",
-            "state": "LIVE",
-            "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe",
-            "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks incl. C21, docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db).",
-            "docs": "18-recovery-layer.md",
-            "schedule_jobs": [
-                "PersonalOS-recovery-check",
-                "PersonalOS-git-backup",
-                "PersonalOS-vault-backup",
-                "PersonalOS-vault-index",
-                "PersonalOS-n8n-active-check",
-                "PersonalOS-lint-monthly",
-                "PersonalOS-auth-check",
-                "PersonalOS-security-sweep"
-            ],
-            "hq_project": "recovery",
-            "revisit": null,
-            "work_dir": "work/18-recovery-layer",
-            "commands": [],
-            "status_md": "vault/projects/recovery/status.md",
-            "cadence": {
-                "expected_hours": 26,
-                "label": "daily",
-                "note": "nightly backups; Monday sweep"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": true,
-                "gate": null
-            },
-            "first_fire": "2026-07-04",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 19,
-            "name": "venture-sync",
-            "title": "Venture Sync",
-            "state": "DORMANT",
-            "trigger": "-",
-            "one_liner": "Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine.",
-            "docs": "19-venture-sync.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": "2026-10-01",
-            "work_dir": "work/19-venture-sync",
-            "commands": [
-                "venture-sync"
-            ],
-            "status_md": "vault/projects/venture-sync/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "dormant"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": null,
-            "first_fire_kind": null,
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 20,
-            "name": "runway",
-            "title": "Runway",
-            "state": "LIVE",
-            "trigger": "monthly last day 21:15",
-            "one_liner": "The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel.",
-            "docs": "20-runway.md",
-            "schedule_jobs": [
-                "PersonalOS-runway"
-            ],
-            "hq_project": "runway",
-            "revisit": null,
-            "work_dir": "work/20-runway",
-            "commands": [
-                "runway"
-            ],
-            "status_md": "vault/projects/runway/status.md",
-            "cadence": {
-                "expected_hours": 800,
-                "label": "monthly",
-                "note": "closes month-end"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": "2026-07-06",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 21,
-            "name": "interview-copilot",
-            "title": "Interview Copilot",
-            "state": "EVENT",
-            "trigger": "brief flag + on-demand",
-            "one_liner": "Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends.",
-            "docs": "21-interview-copilot.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/21-interview-copilot",
-            "commands": [
-                "interview"
-            ],
-            "status_md": "vault/projects/interview-copilot/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "event"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": true,
-                "gate": "draft-only"
-            },
-            "first_fire": "2026-07-12",
-            "first_fire_kind": "drill",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 22,
-            "name": "teach-alex",
-            "title": "Teach-Alex",
-            "state": "EVENT",
-            "trigger": "inbox note + on-demand",
-            "one_liner": "Ten-second corrections from the phone: classified, filed, confirmed for identity files, logged for #23.",
-            "docs": "22-teach-alex.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/22-teach-alex",
-            "commands": [
-                "teach-alex"
-            ],
-            "status_md": "vault/projects/teach-alex/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "event"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": "2026-07-21",
-            "first_fire_kind": "drill",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 23,
-            "name": "self-review",
-            "title": "Self-Review",
-            "state": "LIVE",
-            "trigger": "Sun 20:00",
-            "one_liner": "Alex reviews Alex weekly (clusters corrections, errors, INCOMPLETE close-outs, proposes upgrades behind approval; a diagnose sub-step names the instruction behind a correction behind an 80-confidence gate and proposes a fix, never auto-editing the constitution) + on-demand /deep-audit: the adversarial whole-repo sweep that fans out one agent per project and proves every manifest claim matches ground truth.",
-            "docs": "23-self-review.md",
-            "schedule_jobs": [
-                "PersonalOS-self-review"
-            ],
-            "hq_project": "self-review",
-            "revisit": null,
-            "work_dir": "work/23-self-review",
-            "commands": [
-                "self-review",
-                "deep-audit"
-            ],
-            "status_md": "vault/projects/self-review/status.md",
-            "cadence": {
-                "expected_hours": 192,
-                "label": "weekly",
-                "note": "Sun 20:00"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": "2026-07-06",
-            "first_fire_kind": "drill",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 24,
-            "name": "flight-search",
-            "title": "Flight Search",
-            "state": "ON-DEMAND",
-            "trigger": "on-demand",
-            "one_liner": "Cheapest + best flights across three live sources in parallel (Kiwi, Turkish, Google Flights) + a pluggable Skyscanner slot (unwired by decision); hybrid criteria intake, dedupe to the single cheapest, rank by Shaheen's rules, 30-min follow-up memory, fresh every search.",
-            "docs": "24-flight-search.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/24-flight-search",
-            "commands": [
-                "flight-search"
-            ],
-            "status_md": "vault/projects/flight-search/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand"
-            },
-            "trifecta": {
-                "private_data": false,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-07-12",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 25,
-            "name": "evolution",
-            "title": "Evolution",
-            "state": "LIVE",
-            "trigger": "daily monitor 07:10 + weekly eval Mon 07:50",
-            "one_liner": "Keeps Alex current: a zero-token daily monitor logs new Claude models, MCPs, n8n patterns AND agent skills (skills.sh/skillsmp/skillhub) to system/landscape-log.jsonl; a weekly Claude digest proposes/skips each; models/MCPs/patterns route through a human-gated integration runbook, while matching skills AUTO-INSTALL via a deterministic audited installer (git-reversible). Alex proposes; Shaheen decides, except the skills lane self-installs.",
-            "docs": "25-evolution.md",
-            "schedule_jobs": [
-                "PersonalOS-landscape-monitor",
-                "PersonalOS-landscape-eval"
-            ],
-            "hq_project": "evolution",
-            "revisit": null,
-            "work_dir": "work/25-evolution",
-            "commands": [],
-            "status_md": "vault/projects/evolution/status.md",
-            "cadence": {
-                "expected_hours": 26,
-                "label": "daily",
-                "note": "weekly eval Mondays"
-            },
-            "trifecta": {
-                "private_data": false,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": "2026-07-09",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 26,
-            "name": "prompting",
-            "title": "Prompting",
-            "state": "ON-DEMAND",
-            "trigger": "on-demand",
-            "one_liner": "The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot.",
-            "docs": "26-prompting.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/26-prompting",
-            "commands": [
-                "prompting"
-            ],
-            "status_md": "vault/projects/prompting/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": "2026-07-11",
-            "first_fire_kind": "live",
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 27,
-            "name": "migration-engine",
-            "title": "Migration Engine",
-            "state": "ON-DEMAND",
-            "trigger": "on-demand",
-            "one_liner": "Run a large code/config migration as a dynamic workflow: parallel agents, per-unit self-verification, adversarial parity check, resumable + reversible. Refuses to run without a named target + a verification harness. No target committed yet (P9 dashboard.tsx extraction = the small hand-done precedent).",
-            "docs": "27-migration-engine.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/27-migration-engine",
-            "commands": [
-                "migrate"
-            ],
-            "status_md": "vault/projects/migration-engine/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": false,
-                "external_comm": false,
-                "gate": null
-            },
-            "first_fire": null,
-            "first_fire_kind": null,
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 28,
-            "name": "chat-gateway",
-            "title": "Chat Gateway",
-            "state": "DORMANT",
-            "trigger": "poller-driven phone chat (planned) + phone via n8n instance MCP; build pending",
-            "one_liner": "Two-way phone chat into Alex: a read-only pocket that captures notes and done:/action:/teach: commands from the phone into the existing alex_inbox pipeline, complementing the session and never replacing it. SCAFFOLDED 2026-07-17; live build pending the BotFather bot, Telegram user id, phone pairing and the RC test (all Shaheen-side).",
-            "docs": "28-chat-gateway.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": "2026-09-15",
-            "work_dir": "work/28-chat-gateway",
-            "commands": [],
-            "status_md": "vault/projects/chat-gateway/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "scaffolded, build pending"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": null,
-            "first_fire_kind": null,
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 29,
-            "name": "trip-ops",
-            "title": "Trip Ops",
-            "state": "ON-DEMAND",
-            "trigger": "on-demand + rides the 05:00 email lane (not event-driven)",
-            "one_liner": "Booking confirmations Shaheen forwards become trip notes, read-back-verified Google Calendar events, and brief lines; a machine-readable travel flag (system/travel-state.json) drives timezone-aware scheduling (recovery C18).",
-            "docs": "29-trip-ops.md",
-            "schedule_jobs": [],
-            "hq_project": null,
-            "revisit": null,
-            "work_dir": "work/29-trip-ops",
-            "commands": [
-                "trip-ops"
-            ],
-            "status_md": "vault/projects/trip-ops/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "on-demand"
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": false,
-                "gate": "read-only"
-            },
-            "first_fire": null,
-            "first_fire_kind": null,
-            "n8n": null,
-            "claude_md_sha": null
-        },
-        {
-            "num": 30,
-            "name": "modeling",
-            "title": "Modeling Growth Loop",
-            "state": "DORMANT",
-            "trigger": "Calibration (from 2026-07-22, Shaheen finished platform signups 07-22): radar (EVERY 2nd DAY 06:45, sources narrowed to Statist + ModelManagement + ACasting ONLY; criteria worldwide / male / no-nude) + weekly Scout's Eye (Mon 09:30) ARMED to measure real casting-alert cadence; content (T/W/Th 17:00) + monthly review (1st 10:00) held. Flips LIVE at Phase-0 verification: first real alert parsed end-to-end + one weekly run + one hand-posted pack.",
-            "one_liner": "The modeling career loop (growth plan runs 29+30, Phase-0 build started 2026-07-18): a ToS-clean mailbox casting radar (platform alert emails to a castings@ alias, never scraping) scoring briefs into a Notion lead ledger + voice-gated Gmail application drafts; a content engine in staging mode (hand-post packs; Postiz draft-only queue after the deferred box+deploy); weekly Scout's Eye + collab pipeline; monthly strategy reviewer with the gate-then-rolling agency plan; vault rights register underneath. Every external send is a Gmail draft or an approval queue by construction. Postiz deploy stays HELD (new CX33 box deferred, Shaheen 2026-07-18); Phase 1 unblocks when the box lands. DORMANT until Phase-0 verification: first real platform alert parsed end-to-end + the signup calibration week (Shaheen-side).",
-            "docs": "30-modeling.md",
-            "schedule_jobs": [
-                "PersonalOS-modeling-radar",
-                "PersonalOS-modeling-weekly"
-            ],
-            "hq_project": "modeling",
-            "revisit": "2026-08-01",
-            "work_dir": "work/30-modeling",
-            "commands": [],
-            "status_md": "vault/projects/modeling/status.md",
-            "cadence": {
-                "expected_hours": null,
-                "label": "dormant",
-                "note": "DORMANT-calibrating since 2026-07-22: radar (every 2nd day) + weekly armed to measure casting cadence (zero mail reads green pre-first_fire by design, mailbox.md). Radar sources narrowed to Statist/ModelManagement/ACasting; criteria worldwide, male, no-nude. Flips LIVE (expected_hours ~48, label every-2-days) at Phase-0 verification when all four jobs register."
-            },
-            "trifecta": {
-                "private_data": true,
-                "untrusted_content": true,
-                "external_comm": true,
-                "gate": "queue-only"
-            },
-            "first_fire": "2026-07-24",
-            "n8n": null,
-            "claude_md_sha": null,
-            "first_fire_kind": "live"
+          "workflow": "sxEYRyeHH7i1mHzb",
+          "name": "Portal Application Engine",
+          "model": "kimi-k3",
+          "reason": "Shaheen 2026-07-27: all four job lanes run the same model. Clone of #03, moved from Opus 4.8 to kimi-k3 (reasoning_effort=high, flipped from max the same day) with the other three."
         }
+      ],
+      "local_wrappers": {
+        "doc": "LOCAL model-pin contract for the scheduled `claude -p` wrappers under scripts/ (added 2026-07-25, stress-test fix F4). The n8n side is V6; this is its local twin, enforced by validate-alex V13. Root fix for the 'a wrapper forgets --model and inherits the global opus default' cost-leak class (the 2026-07-16 cut was convention-only until now). `pins` = every wrapper that makes a real `claude -p` reasoning call -> the exact --model it MUST pass. `deterministic_no_pin` = wrappers that make NO claude call (zero-token). V13 is COMPLETE by construction: every scripts/run-*.ps1 (+ auth-check.ps1) that calls `claude -p` MUST appear in pins or deterministic_no_pin, else V13 FAILS - so a new/copied wrapper cannot silently inherit the default. To change a pin or add a wrapper: edit here, run the generator.",
+        "pins": {
+          "run-airbnb-host.ps1": "claude-sonnet-4-6",
+          "run-lint.ps1": "claude-sonnet-4-6",
+          "run-alex-hq.ps1": "claude-haiku-4-5-20251001",
+          "run-application-engine.ps1": "claude-sonnet-4-6",
+          "run-email-triage.ps1": "claude-sonnet-4-6",
+          "run-alex-radar.ps1": "claude-sonnet-4-6",
+          "run-expense-wrangler.ps1": "claude-sonnet-4-6",
+          "run-landscape-eval.ps1": "claude-sonnet-4-6",
+          "run-modeling-radar.ps1": "claude-sonnet-4-6",
+          "run-personal-crm.ps1": "claude-sonnet-4-6",
+          "run-modeling-weekly.ps1": "claude-sonnet-4-6",
+          "run-self-review.ps1": "claude-sonnet-4-6",
+          "run-morning-brief.ps1": "claude-sonnet-4-6",
+          "run-weekly-exec-report.ps1": "claude-sonnet-4-6",
+          "run-runway.ps1": "claude-sonnet-4-6",
+          "run-sprint-tracker.ps1": "claude-sonnet-4-6",
+          "run-whatsapp-harvest.ps1": "claude-sonnet-4-6",
+          "auth-check.ps1": "claude-sonnet-4-6"
+        },
+        "deterministic_no_pin": [
+          "run-vault-index.ps1",
+          "run-landscape-monitor.ps1"
+        ]
+      }
+    },
+    "cost_budgets": {
+      "doc": "Per-project monthly NOTIONAL-USD token budgets (alex-costs upgrade, 2026-07-25). Units match scripts/alex-cost-attribution.js's notional cost (a flat-Max quota-consumption proxy, NOT a cash bill; the numbers are large because they price the full token volume on a flat plan). The collector computes month-to-date cost per project and, when a project crosses warn_pct of its budget mid-month, writes a tripwire to system/cost-tripwires.json + a loud line (HQ push on the nightly path) - LEVEL-triggered, replacing the reactive 'the $40 bill crossed' discovery that forced the 07-16 cut. default_monthly_usd applies to any project without an override. Also fires a PACE tripwire when the month-to-date run rate projects to exceed 100% by month-end. CALIBRATION: values are set with ~20-40% headroom above the 2026-07 baseline (day-25 snapshot: interactive ~$27k/mo projected, prompting/email-triage ~$2k, morning-brief ~$0.6k, app-engine ~$0.6k, rest < $0.4k) so normal operation is QUIET and only a genuine spike trips it - NOT cry-wolf. Retune monthly against the real attribution table. The collector validates every override key against real project/utility/unnumbered names at read time and fails loud on a typo (a formal V14 can graduate that later without churning the V-count contract).",
+      "default_monthly_usd": 400,
+      "warn_pct": 0.8,
+      "overrides": {
+        "interactive": 32000,
+        "prompting": 2500,
+        "email-triage": 2500,
+        "morning-brief": 900,
+        "application-engine": 750,
+        "ai-application-engine": 750
+      }
+    },
+    "paths": {
+      "doc": "Machine-checkable filesystem pointers that must survive file moves without silently rotting (added 2026-07-25, stress-test fixes F1+F2). SSOT so a validator/check reads the path from here, never a hardcoded literal. %USERPROFILE% is expanded at read time so a restore to a different Windows user does not perma-fail.",
+      "master_reference_md": "%USERPROFILE%\\Desktop\\Alex Project\\Alex Presentation\\files\\ALEX-OS-master.md",
+      "identity_doc_note": "THE IDENTITY-DOC LAYOUT (rebuilt 2026-07-25, Shaheen's call, after the byte-equality check proved to be a monitor and not a fix). History: he keeps both identity docs reachable from two folders so either location shows the current version (his words 2026-07-24: 'all display the same/most updated version'). That was done by HAND on 07-24 and had re-drifted within a day; re-unified by hand again on 07-25 and re-drifted again within 85 minutes, live, while the fix was being designed (a parallel session correctly appended a running-changes entry to the canonical and the duplicate silently fell behind). A weekly report that ends in a human re-copy cannot clear the permanence bar. THE FIX IS STRUCTURAL, NOT A CHECK: there is now exactly ONE file object per document. The real files live in `identity_doc_real_dir`; `identity_doc_views[]` are NTFS directory junctions into it, so every legacy path still resolves unchanged and byte-divergence is not detected, it is impossible. WHY A JUNCTION AND NOT A HARDLINK: measured on this machine - a replace-style save (write a temp file, rename over the target; what Word, python-docx and most editors do) SILENTLY breaks a hardlink, leaving two files that look fine to anything not checking the file id. A junction links the DIRECTORY, so NTFS resolves the path before the file is created or renamed and there is no per-file link to break; the same test through a junction kept both paths as one file. WHY THE REAL FILES SIT IN 'Story & Guides': that is the folder Shaheen actually opens (his answer, 2026-07-25), and putting the real files where the human works means the junction absorbs the extra path segment instead of him. NOTE FOR ANY FUTURE SESSION: do NOT 're-copy the canonical over the duplicate' - that step is now meaningless (a self-copy) and the instruction that used to say so has been deleted. Just edit the document once.",
+      "identity_doc_real_dir": "%USERPROFILE%\\Desktop\\Alex Project\\Story & Guides",
+      "identity_doc_views": [
+        {
+          "path": "%USERPROFILE%\\Desktop\\Alex Project\\Alex Presentation\\files",
+          "kind": "junction",
+          "why": "keeps every pre-existing path (manifest master_reference_md, root CLAUDE.md Change-Propagation items 7+8, and every prose pointer) resolving unchanged after the real files moved to Story & Guides"
+        }
+      ],
+      "identity_doc_byte_pairs_note": "EMPTY BY DESIGN since 2026-07-28, and it should stay that way. This list held document copies that were genuinely separate files and so could drift; the last one (the master reference's outer copy at Alex Presentation\\ALEX-OS-master.md) was DELETED on Shaheen's call 2026-07-28, closing the final drift pair. Every identity document is now exactly one file object reachable from every historical path through the junction in identity_doc_views, so byte-divergence is impossible rather than merely monitored - the same structural principle as the 2026-07-25 junction rebuild. Do NOT re-introduce a copy here to 'make a document visible in another folder': add a junction view instead. C19 still walks this list, so a future genuine pair would be caught, but an empty list is the healthy state.",
+      "identity_doc_byte_pairs": [],
+      "backup_destinations": [
+        {
+          "name": "hetzner-n8n",
+          "kind": "scp",
+          "target": "n8n:/opt/alex-backups",
+          "correlated_with": "production-n8n",
+          "note": "primary; same box as production n8n (F1 SPOF)"
+        },
+        {
+          "name": "backblaze-b2",
+          "kind": "rclone",
+          "target": "alex-b2:alex-vault-backups",
+          "correlated_with": null,
+          "note": "second independent failure domain; INERT until Shaheen provisions the B2 account + rclone remote (human-actions f1-b2-backup)"
+        }
+      ]
+    },
+    "utility_commands": [
+      "setup",
+      "ingest",
+      "status",
+      "lint",
+      "new",
+      "cron-setup",
+      "brand"
+    ],
+    "known_work_folders": [
+      "voice",
+      "quota-reset-autorun"
+    ],
+    "known_metric_slugs_no_project": {
+      "human-actions": "the Waiting-on-you queue (upgrade P2, 2026-07-12): system/human-actions.jsonl summary pushed by /alex-hq step 1b; consumed by the P7 HQ strip. Not a project; claimed here so the slug is never mistaken for drift.",
+      "quota": "cap-detection metric (upgrade P3, 2026-07-12): pushed by the Pipeline Error Alert on an API-cap hit; mirrored into system/quota-state.json by /alex-hq 3a + brief 4e2. Not a project."
+    },
+    "budget_priority_doc": "Upgrade P3 (2026-07-12, design 1.7.2): consulted by Test-AlexQuotaGate (scripts/lib/close-out.ps1) ONLY while the Claude PLAN is freshly capped (claude_plan in system/quota-state.json, <=6h old). <=1 = the wrapper still spawns claude -p; absent/default 3 = degraded to deterministic-core-only/skip with an amber PARTIAL push. Kept deliberately dumb (QC over-engineering note 3): an integer, no scheduling logic. Only non-default rows carry the field.",
+    "trifecta_doc": "Trifecta classification (three-plan validation P3, 2026-07-17): the agent-security Rule-of-Two made declarative. Each project carries {private_data, untrusted_content, external_comm} booleans (the raw capability/exposure, classified honestly) + a `gate` (the mitigation). VOCAB: draft-only (Alex drafts, a human sends) | human-posts (Alex stages, a human posts) | queue-only (Alex queues an action for human approval) | read-only (never autonomously emits/writes externally) | null (no meaningful external exposure). RULE (validator V12, pure file checks): any project with ALL THREE legs true MUST carry a non-null gate from the vocab, AND that gate string MUST appear on a `## Trifecta` line in the project's work/NN/CLAUDE.md. v1 DROPS the read-only-vs-write integrations assertion (no integrations data in the manifest; deferred, see vault/research/trifecta-map.md). v1 is DECLARATIVE, not runtime-enforced. Full classification + reasoning + system-level channels: vault/research/trifecta-map.md.",
+    "known_work_folders_note": "Non-project work/ folders that are legit tooling, not numbered automations. voice = the on-demand two-way voice loop (alex_voice.py; registered as an unnumbered project below). quota-reset-autorun = the P3 quota-cap auto-run tooling (local poller + the n8n 'Quota Reset Auto-Run (one-shot gate)' workflow ardWIfcbe5TwkMm8); registered 2026-07-14 (/deep-audit S1) so it stops flagging as orphan-work. RESOLVED 2026-07-28: PersonalOS-qra-poller is correctly ABSENT from Task Scheduler - it is a self-unregistering one-shot, documented under scheduler/schedule.md '## Transient tasks (not standing jobs)' since 2026-07-13, and V2 exempts that section from must-exist-live. Its absence is the healthy state, not drift. C3 allowlists these so a real rogue folder still flags.",
+    "known_extra_projects_no_work_folder": [
+      {
+        "name": "recovery",
+        "status_md": "vault/projects/recovery/status.md",
+        "reason": "system layer; code in scripts/ + work/18-recovery-layer"
+      },
+      {
+        "name": "alex-costs",
+        "status_md": "vault/projects/alex-costs/status.md",
+        "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot"
+      }
+    ],
+    "unnumbered": [
+      {
+        "name": "voice",
+        "title": "Voice",
+        "state": "EVENT",
+        "revisit": null,
+        "trigger": "every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand",
+        "one_liner": "Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.",
+        "docs": "voice.md",
+        "spec": "work/voice/README.md",
+        "status_md": null,
+        "cadence": {
+          "expected_hours": null,
+          "label": "event"
+        },
+        "first_fire": "2026-07-12",
+        "first_fire_kind": "live"
+      },
+      {
+        "name": "alex-costs",
+        "title": "Alex Cost Tracker",
+        "state": "ON-DEMAND",
+        "revisit": null,
+        "trigger": "monthly (piggybacks expense slot)",
+        "one_liner": "What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + a zero-token per-project token-attribution collector (which project ate the quota).",
+        "hq_project": "alex-costs",
+        "docs": "alex-costs.md",
+        "spec": null,
+        "status_md": "vault/projects/alex-costs/status.md",
+        "cadence": {
+          "expected_hours": 800,
+          "label": "monthly",
+          "note": "merging into #08 per D10 (P9a)"
+        },
+        "first_fire": null,
+        "first_fire_kind": null
+      }
     ]
+  },
+  "projects": [
+    {
+      "num": 1,
+      "name": "sprint-tracker",
+      "title": "Sprint Tracker",
+      "state": "PARKED",
+      "trigger": "PAUSED (Shaheen 2026-07-16, until re-enabled)",
+      "one_liner": "Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.",
+      "docs": "01-sprint-tracker.md",
+      "schedule_jobs": [
+        "PersonalOS-sprint-tracker"
+      ],
+      "hq_project": "sprint",
+      "revisit": null,
+      "work_dir": "work/01-sprint-tracker",
+      "commands": [
+        "sprint-tracker"
+      ],
+      "status_md": "vault/projects/sprint-tracker/status.md",
+      "cadence": {
+        "expected_hours": 26,
+        "label": "weekdays"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": "2026-06-10",
+      "first_fire_kind": "drill",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 2,
+      "name": "morning-brief",
+      "title": "Morning Brief",
+      "state": "LIVE",
+      "trigger": "daily 8:00",
+      "one_liner": "The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags.",
+      "docs": "02-morning-brief.md",
+      "schedule_jobs": [
+        "PersonalOS-morning-brief"
+      ],
+      "hq_project": "morning-brief",
+      "budget_priority": 1,
+      "revisit": null,
+      "work_dir": "work/02-morning-brief",
+      "commands": [
+        "morning-brief"
+      ],
+      "status_md": "vault/projects/morning-brief/status.md",
+      "cadence": {
+        "expected_hours": 26,
+        "label": "daily"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-06-10",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 3,
+      "name": "application-engine",
+      "title": "Application Engine (BI)",
+      "state": "LIVE",
+      "trigger": "n8n Tue+Thu 15:00 + watch 8:30",
+      "one_liner": "Job pipeline, Power BI track: source, score, gate, draft, render every Tue & Thu; also an MCP server.",
+      "docs": "03-application-engine.md",
+      "schedule_jobs": [
+        "PersonalOS-application-engine"
+      ],
+      "hq_project": "app-engine-bi",
+      "budget_priority": 1,
+      "revisit": null,
+      "work_dir": "work/03-application-engine",
+      "commands": [
+        "application-engine"
+      ],
+      "status_md": "vault/projects/job-pipeline/status.md",
+      "cadence": {
+        "expected_hours": 100,
+        "label": "twice weekly (Tue & Thu)",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-06-10",
+      "first_fire_kind": "live",
+      "n8n": "9XuIEfxS71DEetVR",
+      "n8n_cron": "0 15 * * 2,4",
+      "claude_md_sha": null
+    },
+    {
+      "num": 4,
+      "name": "research-team",
+      "title": "Research Team",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand",
+      "one_liner": "Adaptive multi-agent research squads for EXTERNAL evidence, + an evidence-anchored Adversarial Verification Mode (`verify:` a claim - refuters grounded in external facts, converge to CONFIRMED/REFUTED/UNRESOLVED, never consensus-laundered; the sanctioned way to check an Alex conclusion).",
+      "docs": "04-research-team.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/04-research-team",
+      "commands": [
+        "research-team"
+      ],
+      "status_md": "vault/projects/research-team/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-06-10",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 5,
+      "name": "personal-crm",
+      "title": "Personal CRM",
+      "state": "LIVE",
+      "trigger": "Mon 8:30",
+      "one_liner": "Relationship scoring + Monday follow-up list; reply drafts behind a hard never-send gate.",
+      "docs": "05-personal-crm.md",
+      "schedule_jobs": [
+        "PersonalOS-personal-crm"
+      ],
+      "hq_project": "crm",
+      "revisit": null,
+      "work_dir": "work/05-personal-crm",
+      "commands": [
+        "personal-crm"
+      ],
+      "status_md": "vault/projects/personal-crm/status.md",
+      "cadence": {
+        "expected_hours": 192,
+        "label": "weekly",
+        "note": "Mon 8:30"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-06-11",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 6,
+      "name": "meeting-intel",
+      "title": "Meeting Intel",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand",
+      "one_liner": "Dossiers before meetings; any dropped file becomes notes, actions, CRM updates after.",
+      "docs": "06-meeting-intel.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/06-meeting-intel",
+      "commands": [
+        "meeting-intel"
+      ],
+      "status_md": "vault/projects/meeting-intel/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-06-12",
+      "first_fire_kind": "drill",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 7,
+      "name": "email-triage",
+      "title": "Email Triage",
+      "state": "LIVE",
+      "trigger": "daily 05:00",
+      "one_liner": "Inbox triage once each morning at 05:00 + voice-matched reply drafts; learns from Shaheen's edits.",
+      "docs": "07-email-triage.md",
+      "schedule_jobs": [
+        "PersonalOS-email-triage"
+      ],
+      "hq_project": "email-triage",
+      "revisit": null,
+      "work_dir": "work/07-email-triage",
+      "commands": [
+        "email-triage"
+      ],
+      "status_md": "vault/projects/email-triage/status.md",
+      "cadence": {
+        "expected_hours": 26,
+        "label": "daily",
+        "note": "once daily 05:00 (was 3x 9/13/17; cost cut 2026-07-16)"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-06-12",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 8,
+      "name": "expense-wrangler",
+      "title": "Expense Wrangler",
+      "state": "LIVE",
+      "trigger": "monthly last day 20:00",
+      "one_liner": "Receipts to the Notion Expenses DB + an all-formula branded monthly Excel.",
+      "docs": "08-expense-wrangler.md",
+      "schedule_jobs": [
+        "PersonalOS-expense-wrangler"
+      ],
+      "hq_project": "expenses",
+      "revisit": null,
+      "work_dir": "work/08-expense-wrangler",
+      "commands": [
+        "expense-wrangler"
+      ],
+      "status_md": "vault/projects/expense-wrangler/status.md",
+      "cadence": {
+        "expected_hours": 800,
+        "label": "monthly",
+        "note": "closes month-end"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-06-12",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 9,
+      "name": "content-machine",
+      "title": "Content Machine",
+      "state": "RETIRED",
+      "trigger": "-",
+      "one_liner": "Retired 2026-07-06: folded into #12 (one content system, same Content Library DB).",
+      "docs": "09-content-machine.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "superseded_by": "linkedin-series",
+      "work_dir": "work/09-content-machine",
+      "commands": [
+        "content-machine",
+        "content-plan"
+      ],
+      "status_md": "vault/projects/content-machine/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "retired"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 10,
+      "name": "weekly-exec-report",
+      "title": "Weekly Exec Report",
+      "state": "LIVE",
+      "trigger": "Fri 16:00",
+      "one_liner": "The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.",
+      "docs": "10-weekly-exec-report.md",
+      "schedule_jobs": [
+        "PersonalOS-weekly-exec-report"
+      ],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/10-weekly-exec-report",
+      "commands": [
+        "weekly-exec-report"
+      ],
+      "status_md": "vault/projects/weekly-exec-report/status.md",
+      "cadence": {
+        "expected_hours": 192,
+        "label": "weekly",
+        "note": "Fri 16:00"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-06-12",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 11,
+      "name": "whatsapp-harvest",
+      "title": "WhatsApp Harvest",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand (iPhone backup)",
+      "one_liner": "Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.",
+      "docs": "11-whatsapp-harvest.md",
+      "schedule_jobs": [
+        "PersonalOS-whatsapp-harvest"
+      ],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/11-whatsapp-harvest",
+      "commands": [
+        "whatsapp-harvest"
+      ],
+      "status_md": "vault/projects/whatsapp-harvest/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-07-10",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 12,
+      "name": "linkedin-series",
+      "title": "LinkedIn Series",
+      "state": "LIVE",
+      "trigger": "on-demand + n8n staging (scheduled)",
+      "one_liner": "Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.",
+      "docs": "12-linkedin-series.md",
+      "schedule_jobs": [],
+      "hq_project": "linkedin-series",
+      "revisit": null,
+      "work_dir": "work/12-linkedin-series",
+      "commands": [
+        "content-agent",
+        "post-episode",
+        "post-publish"
+      ],
+      "status_md": "vault/projects/linkedin-series/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand",
+        "note": "n8n staging on a schedule; one post/week to mid-Aug 2026, then two or three per week"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": true,
+        "gate": "human-posts"
+      },
+      "first_fire": "2026-06-13",
+      "first_fire_kind": "live",
+      "n8n": "v1GbDYganOz9EGpM",
+      "n8n_cron": "0 8 * * 2,4",
+      "claude_md_sha": null
+    },
+    {
+      "num": 13,
+      "name": "airbnb-host",
+      "title": "Airbnb Host",
+      "state": "LIVE",
+      "trigger": "monthly 24th 10:00 + brief",
+      "one_liner": "Bookings + income from a local read-only Playwright harvest of his own Airbnb dashboard (Airbnb has no host API; Gmail feed is the FALLBACK, not the primary - corrected 2026-07-28, the command file was right and this line was the stale side); feeds the brief + runway.",
+      "docs": "13-airbnb-host.md",
+      "schedule_jobs": [
+        "PersonalOS-airbnb-host"
+      ],
+      "hq_project": "airbnb",
+      "revisit": null,
+      "work_dir": "work/13-airbnb-host",
+      "commands": [
+        "airbnb-host"
+      ],
+      "status_md": "vault/projects/airbnb-host/status.md",
+      "cadence": {
+        "expected_hours": 800,
+        "label": "monthly",
+        "note": "closes the 24th; brief surfaces bookings daily"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-06-14",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 14,
+      "name": "ai-application-engine",
+      "title": "AI Application Engine",
+      "state": "LIVE",
+      "trigger": "n8n Tue+Thu 15:30",
+      "one_liner": "Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.",
+      "docs": "14-ai-application-engine.md",
+      "schedule_jobs": [],
+      "hq_project": "app-engine-ai",
+      "revisit": null,
+      "work_dir": "work/14-ai-application-engine",
+      "commands": [],
+      "status_md": "vault/projects/ai-job-pipeline/status.md",
+      "cadence": {
+        "expected_hours": 100,
+        "label": "twice weekly (Tue & Thu)",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-06-16",
+      "first_fire_kind": "live",
+      "n8n": "9x9M3EnEEeX3O8dy",
+      "n8n_cron": "30 15 * * 2,4",
+      "claude_md_sha": null
+    },
+    {
+      "num": 15,
+      "name": "alex-ai-radar",
+      "title": "Alex AI Radar",
+      "state": "LIVE",
+      "trigger": "Mon 07:30 + collector 06:00",
+      "one_liner": "The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.",
+      "docs": "15-alex-ai-radar.md",
+      "schedule_jobs": [
+        "PersonalOS-alex-radar"
+      ],
+      "hq_project": "radar",
+      "revisit": null,
+      "work_dir": "work/15-alex-ai-radar",
+      "commands": [
+        "alex-radar"
+      ],
+      "status_md": "vault/projects/alex-ai-radar/status.md",
+      "cadence": {
+        "expected_hours": 192,
+        "label": "weekly",
+        "note": "daily server collector feeds it"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-07-01",
+      "first_fire_kind": "live",
+      "n8n": "PYePT4Al6aPZi56M",
+      "n8n_cron": "0 6 * * *",
+      "claude_md_sha": null
+    },
+    {
+      "num": 16,
+      "name": "alex-hq",
+      "title": "Alex HQ",
+      "state": "LIVE",
+      "trigger": "always-on + push 8:45",
+      "one_liner": "The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.",
+      "docs": "16-alex-hq.md",
+      "schedule_jobs": [
+        "PersonalOS-alex-hq"
+      ],
+      "hq_project": "alex-hq",
+      "revisit": null,
+      "work_dir": "work/16-alex-hq",
+      "commands": [
+        "alex-hq"
+      ],
+      "status_md": "vault/projects/alex-hq/status.md",
+      "cadence": {
+        "expected_hours": 26,
+        "label": "always-on",
+        "note": "local push daily 8:45"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-07-02",
+      "first_fire_kind": "live",
+      "n8n": "GLcMPA4m0DRGjnQH",
+      "claude_md_sha": null
+    },
+    {
+      "num": 17,
+      "name": "health-tracker",
+      "title": "Health Tracker",
+      "state": "LIVE",
+      "trigger": "phone 23:59",
+      "one_liner": "Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.",
+      "docs": "17-health-tracker.md",
+      "schedule_jobs": [],
+      "hq_project": "health",
+      "revisit": null,
+      "work_dir": "work/17-health-tracker",
+      "commands": [],
+      "status_md": "vault/projects/health-tracker/status.md",
+      "cadence": {
+        "expected_hours": 26,
+        "label": "daily",
+        "note": "phone producer 23:59"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": "2026-07-04",
+      "first_fire_kind": "live",
+      "n8n": "WtOKBY00Cq1FhQ8T",
+      "claude_md_sha": null
+    },
+    {
+      "num": 18,
+      "name": "recovery-layer",
+      "title": "Recovery Layer",
+      "state": "LIVE",
+      "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe",
+      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks (C1-C22, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db).",
+      "docs": "18-recovery-layer.md",
+      "schedule_jobs": [
+        "PersonalOS-recovery-check",
+        "PersonalOS-git-backup",
+        "PersonalOS-vault-backup",
+        "PersonalOS-vault-index",
+        "PersonalOS-n8n-active-check",
+        "PersonalOS-lint-monthly",
+        "PersonalOS-auth-check",
+        "PersonalOS-security-sweep"
+      ],
+      "hq_project": "recovery",
+      "revisit": null,
+      "work_dir": "work/18-recovery-layer",
+      "commands": [],
+      "status_md": "vault/projects/recovery/status.md",
+      "cadence": {
+        "expected_hours": 26,
+        "label": "daily",
+        "note": "nightly backups; Monday sweep"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": true,
+        "gate": null
+      },
+      "first_fire": "2026-07-04",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 19,
+      "name": "venture-sync",
+      "title": "Venture Sync",
+      "state": "DORMANT",
+      "trigger": "-",
+      "one_liner": "Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine.",
+      "docs": "19-venture-sync.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": "2026-10-01",
+      "work_dir": "work/19-venture-sync",
+      "commands": [
+        "venture-sync"
+      ],
+      "status_md": "vault/projects/venture-sync/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "dormant"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 20,
+      "name": "runway",
+      "title": "Runway",
+      "state": "LIVE",
+      "trigger": "monthly last day 21:15",
+      "one_liner": "The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel.",
+      "docs": "20-runway.md",
+      "schedule_jobs": [
+        "PersonalOS-runway"
+      ],
+      "hq_project": "runway",
+      "revisit": null,
+      "work_dir": "work/20-runway",
+      "commands": [
+        "runway"
+      ],
+      "status_md": "vault/projects/runway/status.md",
+      "cadence": {
+        "expected_hours": 800,
+        "label": "monthly",
+        "note": "closes month-end"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": "2026-07-06",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 21,
+      "name": "interview-copilot",
+      "title": "Interview Copilot",
+      "state": "EVENT",
+      "trigger": "brief flag + on-demand",
+      "one_liner": "Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends.",
+      "docs": "21-interview-copilot.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/21-interview-copilot",
+      "commands": [
+        "interview"
+      ],
+      "status_md": "vault/projects/interview-copilot/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "event"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-07-12",
+      "first_fire_kind": "drill",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 22,
+      "name": "teach-alex",
+      "title": "Teach-Alex",
+      "state": "EVENT",
+      "trigger": "inbox note + on-demand",
+      "one_liner": "Ten-second corrections from the phone: classified, filed, confirmed for identity files, logged for #23.",
+      "docs": "22-teach-alex.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/22-teach-alex",
+      "commands": [
+        "teach-alex"
+      ],
+      "status_md": "vault/projects/teach-alex/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "event"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": "2026-07-21",
+      "first_fire_kind": "drill",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 23,
+      "name": "self-review",
+      "title": "Self-Review",
+      "state": "LIVE",
+      "trigger": "Sun 20:00",
+      "one_liner": "Alex reviews Alex weekly (clusters corrections, errors, INCOMPLETE close-outs, proposes upgrades behind approval; a diagnose sub-step names the instruction behind a correction behind an 80-confidence gate and proposes a fix, never auto-editing the constitution) + on-demand /deep-audit: the adversarial whole-repo sweep that fans out one agent per project and proves every manifest claim matches ground truth.",
+      "docs": "23-self-review.md",
+      "schedule_jobs": [
+        "PersonalOS-self-review"
+      ],
+      "hq_project": "self-review",
+      "revisit": null,
+      "work_dir": "work/23-self-review",
+      "commands": [
+        "self-review",
+        "deep-audit"
+      ],
+      "status_md": "vault/projects/self-review/status.md",
+      "cadence": {
+        "expected_hours": 192,
+        "label": "weekly",
+        "note": "Sun 20:00"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": "2026-07-06",
+      "first_fire_kind": "drill",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 24,
+      "name": "flight-search",
+      "title": "Flight Search",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand",
+      "one_liner": "Cheapest + best flights across three live sources in parallel (Kiwi, Turkish, Google Flights) + a pluggable Skyscanner slot (unwired by decision); hybrid criteria intake, dedupe to the single cheapest, rank by Shaheen's rules, 30-min follow-up memory, fresh every search.",
+      "docs": "24-flight-search.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/24-flight-search",
+      "commands": [
+        "flight-search"
+      ],
+      "status_md": "vault/projects/flight-search/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-07-12",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 25,
+      "name": "evolution",
+      "title": "Evolution",
+      "state": "LIVE",
+      "trigger": "daily monitor 07:10 + weekly eval Mon 07:50",
+      "one_liner": "Keeps Alex current: a zero-token daily monitor logs new Claude models, MCPs, n8n patterns AND agent skills (skills.sh/skillsmp/skillhub) to system/landscape-log.jsonl; a weekly Claude digest proposes/skips each; models/MCPs/patterns route through a human-gated integration runbook, while matching skills AUTO-INSTALL via a deterministic audited installer (git-reversible). Alex proposes; Shaheen decides, except the skills lane self-installs.",
+      "docs": "25-evolution.md",
+      "schedule_jobs": [
+        "PersonalOS-landscape-monitor",
+        "PersonalOS-landscape-eval"
+      ],
+      "hq_project": "evolution",
+      "revisit": null,
+      "work_dir": "work/25-evolution",
+      "commands": [],
+      "status_md": "vault/projects/evolution/status.md",
+      "cadence": {
+        "expected_hours": 26,
+        "label": "daily",
+        "note": "weekly eval Mondays"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-07-09",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 26,
+      "name": "prompting",
+      "title": "Prompting",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand",
+      "one_liner": "The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot.",
+      "docs": "26-prompting.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/26-prompting",
+      "commands": [
+        "prompting"
+      ],
+      "status_md": "vault/projects/prompting/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": "2026-07-11",
+      "first_fire_kind": "live",
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 27,
+      "name": "migration-engine",
+      "title": "Migration Engine",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand",
+      "one_liner": "Run a large code/config migration as a dynamic workflow: parallel agents, per-unit self-verification, adversarial parity check, resumable + reversible. Refuses to run without a named target + a verification harness. No target committed yet (P9 dashboard.tsx extraction = the small hand-done precedent).",
+      "docs": "27-migration-engine.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/27-migration-engine",
+      "commands": [
+        "migrate"
+      ],
+      "status_md": "vault/projects/migration-engine/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": false,
+        "external_comm": false,
+        "gate": null
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 28,
+      "name": "chat-gateway",
+      "title": "Chat Gateway",
+      "state": "DORMANT",
+      "trigger": "poller-driven phone chat (planned) + phone via n8n instance MCP; build pending",
+      "one_liner": "Two-way phone chat into Alex: a read-only pocket that captures notes and done:/action:/teach: commands from the phone into the existing alex_inbox pipeline, complementing the session and never replacing it. SCAFFOLDED 2026-07-17; live build pending the BotFather bot, Telegram user id, phone pairing and the RC test (all Shaheen-side).",
+      "docs": "28-chat-gateway.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": "2026-09-15",
+      "work_dir": "work/28-chat-gateway",
+      "commands": [],
+      "status_md": "vault/projects/chat-gateway/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "scaffolded, build pending"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 29,
+      "name": "trip-ops",
+      "title": "Trip Ops",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand + rides the 05:00 email lane (not event-driven)",
+      "one_liner": "Booking confirmations Shaheen forwards become trip notes, read-back-verified Google Calendar events, and brief lines; a machine-readable travel flag (system/travel-state.json) drives timezone-aware scheduling (recovery C18).",
+      "docs": "29-trip-ops.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/29-trip-ops",
+      "commands": [
+        "trip-ops"
+      ],
+      "status_md": "vault/projects/trip-ops/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "claude_md_sha": null
+    },
+    {
+      "num": 30,
+      "name": "modeling",
+      "title": "Modeling Growth Loop",
+      "state": "DORMANT",
+      "trigger": "Calibration (from 2026-07-22, Shaheen finished platform signups 07-22): radar (EVERY 2nd DAY 06:45, sources narrowed to Statist + ModelManagement + ACasting ONLY; criteria worldwide / male / no-nude) + weekly Scout's Eye (Mon 09:30) ARMED to measure real casting-alert cadence; content (T/W/Th 17:00) + monthly review (1st 10:00) held. Flips LIVE at Phase-0 verification: first real alert parsed end-to-end + one weekly run + one hand-posted pack.",
+      "one_liner": "The modeling career loop (growth plan runs 29+30, Phase-0 build started 2026-07-18): a ToS-clean mailbox casting radar (platform alert emails to a castings@ alias, never scraping) scoring briefs into a Notion lead ledger + voice-gated Gmail application drafts; a content engine in staging mode (hand-post packs; Postiz draft-only queue after the deferred box+deploy); weekly Scout's Eye + collab pipeline; monthly strategy reviewer with the gate-then-rolling agency plan; vault rights register underneath. Every external send is a Gmail draft or an approval queue by construction. Postiz deploy stays HELD (new CX33 box deferred, Shaheen 2026-07-18); Phase 1 unblocks when the box lands. DORMANT until Phase-0 verification: first real platform alert parsed end-to-end + the signup calibration week (Shaheen-side).",
+      "docs": "30-modeling.md",
+      "schedule_jobs": [
+        "PersonalOS-modeling-radar",
+        "PersonalOS-modeling-weekly"
+      ],
+      "hq_project": "modeling",
+      "revisit": "2026-08-01",
+      "work_dir": "work/30-modeling",
+      "commands": [],
+      "status_md": "vault/projects/modeling/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "dormant",
+        "note": "DORMANT-calibrating since 2026-07-22: radar (every 2nd day) + weekly armed to measure casting cadence (zero mail reads green pre-first_fire by design, mailbox.md). Radar sources narrowed to Statist/ModelManagement/ACasting; criteria worldwide, male, no-nude. Flips LIVE (expected_hours ~48, label every-2-days) at Phase-0 verification when all four jobs register."
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "queue-only"
+      },
+      "first_fire": "2026-07-24",
+      "n8n": null,
+      "claude_md_sha": null,
+      "first_fire_kind": "live"
+    },
+    {
+      "num": 31,
+      "name": "portal-scanner",
+      "title": "Portal Scanner",
+      "state": "LIVE",
+      "trigger": "n8n Tue & Thu 15:13 (scan + bank)",
+      "one_liner": "Standalone company-portal job lane, STAGE 1 of 2: detect each company ATS once, hit its free public JSON, prefilter, and BANK matching jobs to the queue that #32 drains. Split from the engine 2026-07-28 so both workflows carry their own n8n id + cron and come under V6 leg (c) and the daily active-flag watcher.",
+      "docs": "31-portal-scanner.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/31-portal-scanner",
+      "commands": [],
+      "status_md": "vault/projects/portal-scanner/status.md",
+      "cadence": {
+        "expected_hours": 100,
+        "label": "twice weekly (Tue & Thu)",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": false,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "read-only"
+      },
+      "first_fire": "2026-07-28",
+      "first_fire_kind": "live",
+      "n8n": "5tPXbhdpp6PfF56V",
+      "n8n_cron": "13 15 * * 2,4",
+      "claude_md_sha": null
+    },
+    {
+      "num": 32,
+      "name": "portal-application-engine",
+      "title": "Portal Application Engine",
+      "state": "LIVE",
+      "trigger": "n8n Tue & Thu 15:43 (drain + draft)",
+      "one_liner": "Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28.",
+      "docs": "32-portal-application-engine.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/32-portal-application-engine",
+      "commands": [],
+      "status_md": "vault/projects/portal-application-engine/status.md",
+      "cadence": {
+        "expected_hours": 100,
+        "label": "twice weekly (Tue & Thu)",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": true,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-07-28",
+      "first_fire_kind": "live",
+      "n8n": "sxEYRyeHH7i1mHzb",
+      "n8n_cron": "43 15 * * 2,4",
+      "claude_md_sha": null
+    }
+  ]
 }

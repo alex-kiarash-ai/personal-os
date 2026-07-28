@@ -30,8 +30,10 @@ export function MetricRow({ mkey, m, now }: { mkey: string; m: Metric; now: numb
         </span>
       </div>
       <div className="mt-1 flex items-baseline gap-3">
-        {/* C12: one numeral voice — headline numbers match the tiles' Plex Mono, two inches away */}
-        <span className="num-display text-3xl tracking-tight">
+        {/* C12: one numeral voice — headline numbers match the tiles' Plex Mono, two inches away.
+            R2-11: and one size UP from 3xl — expanding a tile to see its number was shrinking it
+            (tile .big reaches ~46px, this was 30px), demoting the thing you drilled in for. */}
+        <span className="num-display text-4xl tracking-tight">
           {m.value_num != null ? <CountUp value={m.value_num} /> : clean(m.value_text) || "–"}
         </span>
         {m.value_num != null && m.value_text ? (
@@ -108,8 +110,12 @@ export function DetailOverlay({
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    // move keyboard focus into the dialog on open (next frame, after the morph mounts children)
-    const raf = requestAnimationFrame(() => focusables()[0]?.focus());
+    /* Move focus into the dialog on open (next frame, after the morph mounts children).
+       R2-12: focus the PANEL, not its first focusable. Focusing the ✕ painted the browser's
+       default white ring on every single pointer-open (the close button was the one interactive
+       element missing from the app's cyan :focus-visible rule, now added). The trap already pulls
+       focus in from the container on the first Tab, so keyboard flow is unchanged. */
+    const raf = requestAnimationFrame(() => dialogRef.current?.focus());
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
@@ -151,7 +157,10 @@ export function DetailOverlay({
         role="dialog"
         aria-modal="true"
         aria-label={`${tile.kicker} breakdown`}
-        className="tile relative z-10 flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden"
+        /* R2-12: the panel itself takes focus on open (see the effect above), so a POINTER open
+           shows no ring at all while the keyboard path keeps its trap and its brand ring. */
+        tabIndex={-1}
+        className="tile overlay-panel relative z-10 flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden"
         style={{ borderRadius: "1rem", cursor: "default" }}
         {...(tile.id.startsWith("proj:")
           ? { initial: { opacity: 0, scale: 0.96, y: 14 }, animate: { opacity: 1, scale: 1, y: 0 } }
@@ -178,7 +187,7 @@ export function DetailOverlay({
           ) : tile.id === "todos" ? (
             <TodoBreakdown todos={todos} />
           ) : tile.id === "plants" ? (
-            <PlantsBreakdown life={life} now={now} />
+            <PlantsBreakdown life={life} now={now} onClose={onClose} />
           ) : tile.id === "expenses" && projects["expenses"] ? (
             <ExpensesBreakdown proj={projects["expenses"]} now={now} />
           ) : isIdleProj ? (

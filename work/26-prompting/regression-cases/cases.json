@@ -1,5 +1,5 @@
 {
-  "doc": "Prompt regression cases (#26 Phase 1, 2026-07-25). Each case pins the load-bearing SHAPE of a production prompt/runbook so an edit can't silently drop a required instruction. scripts/prompt-regression-check.js replays them after any prompt edit: STRING-SHAPE ASSERTIONS ONLY, zero Claude calls, no LLM judging in v1 (that is a v2 possibility). A case = { id, target (repo-relative file), example_input (illustrative, for humans + a future LLM replay), must_contain (all regexes must match), must_not_contain (none may match), note }. Backfilled with the 5 highest-blast-radius prompts. The V6 lesson (expectations live as DATA) extended to the prompt layer.",
+  "doc": "Prompt regression cases (#26 Phase 1, 2026-07-25). Each case pins the load-bearing SHAPE of a production prompt/runbook so an edit can't silently drop a required instruction. scripts/prompt-regression-check.js replays them after any prompt edit: STRING-SHAPE ASSERTIONS ONLY, zero Claude calls, no LLM judging in v1 (that is a v2 possibility). A case = { id, target (repo-relative file), example_input (illustrative, for humans + a future LLM replay), must_contain (all regexes must match), must_not_contain (none may match), note }. Backfilled with the 5 highest-blast-radius prompts; a 6th (prompting-assembly-contract) was added 2026-07-28 when the Opus 5 shapes landed in /prompting itself. The V6 lesson (expectations live as DATA) extended to the prompt layer.",
   "cases": [
     {
       "id": "morning-brief-index",
@@ -40,6 +40,22 @@
       "must_contain": ["Claims table", "Source \\(URL\\)", "Confidence|confidence"],
       "must_not_contain": [],
       "note": "Every deliverable must end with the citation-anchored claims table (the output contract)."
+    },
+    {
+      "id": "prompting-assembly-contract",
+      "target": ".claude/commands/prompting.md",
+      "example_input": "/prompting I want a report that pulls my n8n execution failures from the last week and tells me which workflow is the worst offender.",
+      "must_contain": [
+        "overlap check",
+        "Identify the skills that are needed for the task and use them",
+        "scope asked",
+        "subagent to verify",
+        "no filler sections",
+        "Suggested effort",
+        "Close-Out Gate"
+      ],
+      "must_not_contain": ["double-check"],
+      "note": "The assembly contract for every generated prompt. Original shapes: the step-0 overlap check, the verbatim skills sentence, the real Close-Out Gate reference. Opus 5 shapes added 2026-07-28 from platform.claude.com/docs .../prompting-claude-opus-5: the INPUT-1 scope line (Opus 5 expands scope, and this constitution amplifies it), the delegation bound (Opus 5 delegates readily), the OUTPUT-1 length calibration (Opus 5 writes longer files to disk), and the Suggested-effort line outside the block (effort is the cost/latency lever and cannot be set from inside a pasted prompt). The negative pins verification hygiene: this file may PROHIBIT blanket verification but must never INSTRUCT it, and 'double-check' is the tell - if it reappears, someone re-introduced the over-verification instruction the guide says to remove."
     }
   ]
 }

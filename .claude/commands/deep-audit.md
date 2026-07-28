@@ -1,5 +1,11 @@
 # /deep-audit - Deep Adversarial Repo Audit
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#23 /deep-audit · LIVE · Trigger: Sun 20:00**
+> Registry: `system/manifest.json` · Spec: `work/23-self-review/CLAUDE.md` · Status: `vault/projects/self-review/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Full spec: `work/23-self-review/deep-audit/README.md` (read it first). Owned by #23 (the review / quality surface).
 
 On-demand ONLY. Fans out one agent per project and makes each prove the manifest's CLAIMS match ground truth, then an adversarial pass tries to break every "verified" verdict. Catches the "file says X, reality is Y" drift class the cheap checks (#18 recovery, weekly /self-review) structurally miss. **NEVER scheduled.**

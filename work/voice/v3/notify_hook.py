@@ -2,7 +2,7 @@
 r"""
 notify_hook.py - Claude Code Notification hook: say "I need permission" out loud
 (Alex Voice v3). Prevents the silent-stall failure: a hands-off Shaheen hears that
-the session is waiting on a permission dialog instead of assuming she's thinking.
+the session is waiting on a permission dialog instead of assuming Alex is thinking.
 
 Same contract as speak_hook.py: flag-gated, filters on the notification text,
 30-second cooldown so a re-fired notification doesn't nag, detached worker, exits

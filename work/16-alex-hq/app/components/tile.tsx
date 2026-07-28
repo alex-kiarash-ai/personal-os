@@ -93,8 +93,10 @@ export function Tile({
         </div>
       ) : null}
       {sub ? (
-        // red subs carry the offender names — one extra line so the alarm is never clipped (C17)
-        <p className={`${status === "red" ? "line-clamp-3" : "line-clamp-2"} text-sm leading-snug`} style={{ color: "var(--mute)" }}>
+        // red subs carry the offender names — one extra line so the alarm is never clipped (C17).
+        // R2-4: the sub is the tile's second READ, so it takes the law's named secondary tier
+        // (full Pearl Aqua) instead of the muted wash; stamps and meta stay --mute below.
+        <p className={`${status === "red" ? "line-clamp-3" : "line-clamp-2"} text-sm leading-snug`} style={{ color: "var(--aqua)" }}>
           {sub}
         </p>
       ) : null}

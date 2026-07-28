@@ -12,7 +12,7 @@ Spec: work/06-meeting-intel/CLAUDE.md (read it first). On-demand, two modes.
 ## Mode: process
 `/meeting-intel process [file]` (no arg = process all of work/06-meeting-intel/inbox/)
 1. Normalize input → transcript:
-   - .txt/.md: read · .vtt: strip timestamps (Python) · .pdf/.jpg/.png: Read tool · pasted text:直接
+   - .txt/.md: read · .vtt: strip timestamps (Python) · .pdf/.jpg/.png: Read tool · pasted text: use directly
    - audio (.mp3/.m4a/.wav): Whisper. First time, install (`pip install openai-whisper`, base model), check ffmpeg, and tell the user verbatim: "Installed Whisper for voice transcription. Using the base model. If you need better accuracy for longer meetings, you can upgrade to small later."
 2. Extract: Summary · Decisions · Action Items (with owner) · Follow-ups.
 3. Write vault/meetings/YYYY-MM-DD-<slug>.md (structured, [[wiki links]] to attendees/projects).

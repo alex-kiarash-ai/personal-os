@@ -141,6 +141,20 @@ export function daysSinceStockholm(dateStr: string, now: number): number {
   return Math.round((today - Date.UTC(y, m - 1, d)) / 86400000);
 }
 
+/* Start of the current period in Europe/Stockholm, as epoch ms (R2-9, period honesty).
+   Same UTC-midnight-of-the-Stockholm-calendar-day approximation daysSinceStockholm already uses:
+   the ±2h wobble is irrelevant against a day- or week-long window. Pure function of `now`, which
+   comes from the server prop, so server and client agree. */
+export function periodStartMs(period: "day" | "week", now: number): number {
+  const p: Record<string, string> = {};
+  for (const part of DAY_PARTS.formatToParts(new Date(now))) p[part.type] = part.value;
+  const today = Date.UTC(+p.year, +p.month - 1, +p.day);
+  if (period === "day") return today;
+  const dow = new Date(today).getUTCDay(); // 0 = Sunday
+  const sinceMonday = (dow + 6) % 7;
+  return today - sinceMonday * 86400000;
+}
+
 // Some producers pushed middots with broken encoding; never render the replacement char.
 // Null-safe: the contract says value_text/headline are optional, one bad row must never blank the page.
 export function clean(s: string | null | undefined): string {

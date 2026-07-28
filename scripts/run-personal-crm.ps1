@@ -10,6 +10,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Set-Location "C:\Users\Thinkpad\Desktop\personal-os"
 . "scripts\lib\close-out.ps1"
+. "scripts\lib\soul-canary.ps1"
 New-Item -ItemType Directory -Force "outputs\logs" | Out-Null
 $log = "outputs\logs\personal-crm.log"
 "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Out-File -Append -Encoding utf8 $log
@@ -35,17 +36,29 @@ if (-not (Test-AlexQuotaGate -Log $log -Project 'crm')) {
 }
 
 # ---- 2. Claude pass (scoring, enrich, Notion sync, gated drafts; non-fatal shape kept) ----
+# Soul-injection gate armed 2026-07-25 (stress-test fix F-04): this pass stages voice-matched reply
+# drafts, so a run without soul.md in context ships off-voice prose in Shaheen's name. The core above
+# already wrote the Monday list and greened HQ, so a canary miss degrades ONLY this pass - which is
+# exactly the core-first design working.
+$nonce = New-SoulNonce
 $out = ''
 try {
     # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
-    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p "Run /personal-crm. $AlexVerdictInstruction" --dangerously-skip-permissions 2>&1 | Out-String)
+    $prompt = "Run /personal-crm." + (Get-SoulCanaryInstruction -Nonce $nonce) + " $AlexVerdictInstruction"
+    $out = (& "$env:APPDATA\npm\claude.ps1" --model claude-sonnet-4-6 -p $prompt --dangerously-skip-permissions 2>&1 | Out-String)
     $code = $LASTEXITCODE
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1
 }
 $out | Out-File -Append -Encoding utf8 $log
 
-Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'crm'
+# Canary miss -> the ONE degraded-run path (RED + retry ladder + exit 1), guarded on the gate being
+# ARMED so an untokened soul.md can never manufacture a weekly false red. See run-email-triage.ps1.
+$soulReason = ''
+if ((Get-SoulToken) -and -not (Assert-SoulCanary -Out $out -Nonce $nonce -Log $log -SoftFail)) {
+    $soulReason = 'soul canary failed: soul.md did not reach the model this run (voice-shipping lane, drafts are written in his name)'
+}
+Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'crm' -DegradedReason $soulReason
 
 # Success falls through: push GREEN so a stale red self-heals (P3 rider; the "full run clean" signal
 # on top of the core's earlier "numbers landed" green).

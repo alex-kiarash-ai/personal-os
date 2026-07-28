@@ -30,17 +30,30 @@ Plain English, written for Alex. What is being asked in one line, what domain it
 ### INPUT
 Numbered steps, always 1-2-3. Every generated prompt's INPUT includes, at minimum:
 1. **Identity.** Operate as Alex. Re-read `soul.md` (repo root; mandatory after any compaction). Root `CLAUDE.md` auto-loads; its Standing Orders and gates always win over this prompt - on any conflict, CLAUDE.md wins. Hold Shaheen's voice throughout: direct, spoken, no filler, no em-dashes.
+   **Scope (added 2026-07-28, Opus 5 guidance).** Every generated Identity step carries this, verbatim or close to it: "Deliver this task at the scope asked. Make routine judgment calls yourself; check in only where different readings lead to materially different work. If the request looks mistaken or a better approach exists, say so in one sentence and continue as asked, rather than quietly narrowing, widening, or transforming it. Finish the whole task, and stop short of actions clearly beyond it. The standing gates in CLAUDE.md are not scope creep; they still run." The last sentence is load-bearing: without it the scope line reads as permission to skip Close-Out. Opus 5 expands scope on its own, and this constitution is a scope amplifier (Change Propagation spans 8 file classes, Close-Out B adds more, Activity Capture and People Intake fire unprompted), so a narrow one-off needs the boundary stated.
 2. **Resources.** Opens with, verbatim, always: **"Identify the skills that are needed for the task and use them."** Then the teeth: consult the Skill Bindings table in root CLAUDE.md; MANDATORY bindings are non-negotiable. /prompting resolves the bindings AT GENERATION TIME and NAMES the specific skills, MCPs, and file pointers here (from the lookup table below). Never leave this as a generic "use available skills" line.
+   **Delegation (added 2026-07-28, Opus 5 guidance).** Opus 5 delegates readily, and delegation multiplies cost and time when it lands on small work. Every generated Resources step bounds it: "Delegate only to genuinely independent, sizeable parallel tracks. Research goes through /research-team (#04), never an ad-hoc squad. Never a subagent to verify or double-check work already done." **Exception, and it is the common case here:** when Shaheen dictates the relay himself (Agent 1 / Agent 2 / Agent 3 with named roles and handoffs), that IS the spec - build it as he said, cold-context subagents and all, and the cap does not apply.
 3. **Task-specific steps.** The actual work, numbered, following the pattern for this task type. For identity-carrying output (visual or voice), the first task step is: "Run the Brand + Soul Pre-Flight Gate from root CLAUDE.md and print the pre-flight line before generating a single byte."
 
 ### OUTPUT
 Numbered steps, always 1-2-3:
-1. **Deliverable.** Exactly what gets produced and in what format. Unstated = gap, ask.
+1. **Deliverable.** Exactly what gets produced and in what format. Unstated = gap, ask. **State the length too (added 2026-07-28, Opus 5 guidance):** "Match the length to what the task needs: cover the substance, no filler sections, no redundant summaries, no boilerplate." Where a real band exists, NAME it (LinkedIn ~150 words per work/12, a CV's page count, a one-page brief). Opus 5 writes longer files to disk than earlier models, and Shaheen calibrates length by hand when it runs long (soul.md My Words: "make it simple, short, not very short, but short"; "lean, no unnecessary explanation padding") - this line is that preference encoded once, instead of him correcting it every time.
 2. **Destination.** Where it lives. Deliverables follow Output Hygiene: `outputs/{automation}/YYYY-MM-DD/`. Unclear = gap, ask.
 3. **Close-Out Gate (ALWAYS the final step, never skipped).** Verbatim: "Run the Close-Out Gate from root CLAUDE.md and print the Close-Out Report." Reference the real gate; NEVER paraphrase or restate a lite version of it (two versions drift).
 
 ## Pointer style (hard rule)
 Generated prompts reference files, they never restate file contents. No retyped hexes, model names, workflow IDs, voice rules, or schedules inside a prompt - point at the file that owns the fact ("read brand/config/color-system.md"). Copied facts go stale; the files are the truth, and the prompt stays current even if it is executed weeks later.
+
+## Verification hygiene (hard rule, added 2026-07-28 from the Opus 5 prompting guide)
+
+Generated prompts NEVER carry a generic verification step: no "verify your work", no "double-check before responding", no "re-verify", no "use a subagent to verify". Opus 5 already catches and fixes its own mistakes; a blanket instruction stacks on top of that behavior, causes over-verification, and burns tokens with no gain in quality. This matters most in the no-pattern-fits lane, where a first-principles sequence naturally wants to end with "5. Verify. 6. Double-check." It does not.
+
+Verification appears in a generated prompt only as one of these three, and then it is NAMED specifically:
+- **Read-back of an external system** after a write (the Verify-after-write standing order in root CLAUDE.md). Not self-checking: the model cannot know remote state without reading it. Born from the 2026-07-10 silent n8n deactivation.
+- **Pixel / render check of a visual artifact** (the CV render-safety rule below; reading the PNG before delivering). Not self-checking: the text layer does not reveal clipping, which is the whole lesson of the 2026-07-18 incident.
+- **A named gate** (Brand + Soul Pre-Flight, Close-Out). Referenced by name, never paraphrased.
+
+Everything else is over-verification. Leave it out. The gates already own the checking; a prompt that re-asks for it is paying twice.
 
 ## The file lookup table (what INPUT points at)
 
@@ -98,6 +111,12 @@ Generated prompts reference files, they never restate file contents. No retyped 
 4. **Render safety (LOCKED 2026-07-18 after a clipped-CV incident, error-log):** the CV page CSS MUST be `.page { min-height: 296mm; overflow: visible }` - NEVER `height` + `overflow: hidden`, which silently CLIPS content past one page (it cut the Languages line off page 2 on all four 07-18 CVs). If a page overflows, tighten to fit: line-height ~1.27, tighter h2/bullet/role margins, trim a bullet, until it fits one sheet.
 5. **Verify by PIXELS, not text (the incident's real lesson):** reading the PDF text layer does NOT catch clipping (clipped text still extracts). Verification = (a) a deterministic page-count check (parse the PDF, assert it equals the intended count, e.g. 2), AND (b) LOOK at the rendered page images, especially the BOTTOM of the last page, confirming the final section is present and nothing is cut. Only then deliver. Applies to every rendered visual deliverable (CV, deck, diagram, dashboard).
 
+**Code / system review or audit (added 2026-07-28; Opus 5 reviews with high precision AND recall, so the prompt shape decides how much it reports)**
+1. Skills: `systematic-debugging` on anything that survives a first fix; the `/deep-audit` method (`work/23-self-review`) for whole-repo sweeps; the `n8n-*` or `power-bi-*` bindings when the target is one of those.
+2. Name the target AND the ground truth it is measured against. Live state beats docs, always (the run-39 lesson: a read-only live GET caught that the Desktop exports were stale).
+3. **Report everything found, then filter in a SEPARATE pass.** Never write "only report high-severity" or "be conservative" into the prompt: Opus 5 follows that literally and reports less. Severity-rank in the second pass.
+4. Deliverable: findings + severity + an evidence pointer (`file:line`, or an API read-back), then the fix plan. Plan-only unless the request says land it.
+
 **Research**
 1. Route through `/research-team` (#04); do not invent ad-hoc agent squads.
 2. Define question + scope, gather and cite external evidence, synthesize into the deliverable.
@@ -142,6 +161,8 @@ Do not ask more than needed. One clean round beats three small ones. Nothing mis
 ## Delivery format
 A single markdown code block with three headers, CONTEXT, INPUT, OUTPUT, ready to paste into a Claude Code session. **Lean: no explanation padding around it, just the block** (Shaheen 2026-07-11). Notes only if he asks. Save a copy to `outputs/prompting/YYYY-MM-DD/{slug}.md`. Then the single follow-up: "run it now?" - yes executes it in this session as Alex; no ends the run.
 
+**One line rides OUTSIDE the block (added 2026-07-28, Opus 5 guidance):** `Suggested effort: <low|medium|high|xhigh>`. Effort is the primary cost and latency lever on Opus 5 (low and medium hold quality at a fraction of the tokens; xhigh is for demanding multi-file agentic work and hard audits). It is a SESSION setting - `claude --effort <level>` at launch, verified levels `low|medium|high|xhigh|max` - so a pasted prompt cannot set it. That is why it sits beside the block and not inside it; the block stays lean. Rule of thumb: mechanical or narrow = low/medium, a normal build = high (the default), a multi-file build or an adversarial audit = xhigh.
+
 ## Hard cases (design answers, keep these behaviors)
 | Case | Answer |
 |---|---|
@@ -180,6 +201,11 @@ mode after validation (step 3b) - a warning, never a build failure (a shape chan
 human updates the case). Backfilled with the 5 highest-blast-radius prompts (morning-brief index, email-triage
 safety+rules, content-agent gates, weekly-exec deltas, research-team claims table). The V6 lesson (expectations
 live as DATA) extended to the prompt layer. Add a case whenever /prompting ships a prompt into production.
+**6th case added 2026-07-28, `prompting-assembly-contract`:** /prompting now pins its OWN assembly contract
+(`.claude/commands/prompting.md`) - the overlap check, the verbatim skills sentence, the Close-Out reference,
+plus the four Opus 5 shapes (scope line, delegation bound, deliverable length, Suggested-effort line) and one
+negative that keeps blanket verification out. This file, the spec, is deliberately NOT pinned: the command file
+is what loads on `/prompting`, so that is where the teeth belong. Checker green at 6 cases / 27 assertions.
 
 ## Close-Out Extras
 - Generated prompt saved to `outputs/prompting/YYYY-MM-DD/{slug}.md` and referenced in status.md.
@@ -204,13 +230,20 @@ live systems: #02 morning-brief and #07 email-triage (Shaheen chose to build sep
 INPUT
 1. Identity. Operate as Alex. Re-read soul.md (repo root; mandatory after any compaction).
    Root CLAUDE.md standing orders and gates win over this prompt on any conflict. Hold
-   Shaheen's voice: direct, spoken, no filler, no em-dashes.
+   Shaheen's voice: direct, spoken, no filler, no em-dashes. Deliver this task at the scope
+   asked. Make routine judgment calls yourself; check in only where different readings lead
+   to materially different work. If the request looks mistaken or a better approach exists,
+   say so in one sentence and continue as asked, rather than quietly narrowing, widening or
+   transforming it. Finish the whole task, and stop short of actions clearly beyond it. The
+   standing gates in CLAUDE.md are not scope creep; they still run.
 2. Resources. Identify the skills that are needed for the task and use them. Consult the
    Skill Bindings table in root CLAUDE.md; MANDATORY here: n8n-workflow-patterns +
    n8n-node-configuration (n8n-validation-expert on errors, n8n-code-javascript for Code
    nodes). Build via the n8n REST API (key: work/03-application-engine/config/
    n8n-api-key.txt, base https://n8n.shaheenkiarash.com/api/v1), not Chrome. Read
    work/02-morning-brief/CLAUDE.md and work/07-email-triage/CLAUDE.md for conventions.
+   Delegate only to genuinely independent, sizeable parallel tracks; this one is a single
+   build, so do it yourself. Never a subagent to verify work already done.
 3. Task steps:
    1. Confirm the trigger (new Gmail message) and end-state (briefing delivered).
    2. Design the node sequence: fetch, classify with Haiku, filter important, compile.
@@ -222,9 +255,13 @@ INPUT
 
 OUTPUT
 1. Deliverable. n8n workflow (built live via the API) + the compiled briefing delivered to
-   [Shaheen's answer].
+   [Shaheen's answer]. Length: the briefing matches what the mail actually warrants, no
+   filler sections, no redundant summaries, no boilerplate.
 2. Destination. Workflow home: [Shaheen's answer]. Files per Output Hygiene:
    outputs/{automation}/YYYY-MM-DD/.
 3. Close-Out Gate. Run the Close-Out Gate from root CLAUDE.md and print the Close-Out
    Report.
 ```
+
+`Suggested effort: high` (rides outside the block; a multi-node live build with credentials
+would be `xhigh`, a one-node tweak `low`).

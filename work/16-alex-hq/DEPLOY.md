@@ -23,5 +23,31 @@ ssh n8n "cd /opt/n8n && docker compose up -d --build alex-hq"
 - Right after a container rebuild the prerendered "Backend unreachable"/stale page may serve for up to `revalidate` (60s); don't panic-debug a fresh deploy, request it again.
 - Old headless-Chrome screenshot trap documented here previously: use puppeteer-core viewport emulation for QA (devDependency).
 
+## Local-QA gotcha (learned 2026-07-25, the round-2 build)
+`pkill -f "next-server"` does NOT free port 3000 on Windows. If the old server survives a rebuild, `npm start`
+silently fails with EADDRINUSE and the SURVIVING server keeps serving HTML that points at CSS chunk filenames
+the new build renamed - so the page renders **completely unstyled**. That looks exactly like a catastrophic
+brand regression and cost this session a round of chasing six phantom QA failures. Kill by port first:
+```
+Get-NetTCPConnection -LocalPort 3000 -State Listen | Select -Expand OwningProcess -Unique | ForEach { Stop-Process -Id $_ -Force }
+```
+Then prove the stylesheet actually resolves before trusting ANY styling QA result: pull the
+`_next/static/chunks/*.css` href out of the served HTML and `curl` it, expecting 200.
+
+## Round-2 design overhaul: DEPLOYED 2026-07-25 (Shaheen: "deploy")
+All 21 items of `outputs/research-team/2026-07-25/alex-hq-design-overhaul-plan-v2.md` are live.
+Live-verified with a real browser at 390 + 1440 including both drill-downs: **13/13** (verdict line,
+luminance ladder, mobile fold 517px, strip naming its item, Custard 24px count, Send armed orange, graph
+veil, 6-track brain strip, period suffixes, 36px overlay numerals, no white focus ring, 5/5 idle dots,
+state-not-colour aria). Bare 401 / authed 200 re-checked; n8n untouched (200).
+**Rollback copy on the box: `/opt/alex-hq.bak-20260725`** (restore it, then
+`docker compose up -d --build alex-hq`). Renders: `outputs/alex-hq/2026-07-25/live-*.png`.
+
+**Post-rebuild "Backend unreachable" is EXPECTED, not a fault.** The page is statically prerendered during
+`docker build`, where the build stage cannot reach the `n8n` service, so the fallback gets baked in. At
+runtime ISR serves that stale prerender on the first hit past the window and regenerates behind it: the
+NEXT request is live. Do not roll back on the first response. (Same stale-serve mechanic the R2-1 client
+double-refresh fix exists for.) Confirm with a second request before diagnosing anything.
+
 ## Hard rule (unchanged)
 The app has no built-in auth; the proxy's basic_auth is the ONLY gate. Any Caddyfile change must keep /hq behind auth. Never expose alex-hq:3000 with a `ports:` mapping.

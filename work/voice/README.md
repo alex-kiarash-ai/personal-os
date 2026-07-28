@@ -26,9 +26,9 @@ walk-around tool; v3 cannibalizes its proven TTS chain + whisper code as organs.
   Local whisper base (auto-detect AR/SV/EN, nothing leaves the box) TYPES the transcript
   into the prompt via SendInput. Never presses Enter. If focus moved while transcribing,
   nothing is typed: double beep = the text is on the clipboard, paste it.
-- **She talks back:** with the voice flag on, a Stop hook speaks every reply aloud
+- **Alex talks back:** with the voice flag on, a Stop hook speaks every reply aloud
   (Edge-TTS neural -> Windows SAPI never-mute floor, first 8 sentences, markdown stripped).
-  Toggle: say **"voice on" / "voice off"** to Alex (she writes/deletes
+  Toggle: say **"voice on" / "voice off"** to Alex (who writes/deletes
   `outputs/voice/voice-on.flag`), or run `work\voice\v3\voice-on.cmd` / `voice-off.cmd`.
   Flag off = the hook exits in ~0.1s, silent; scheduled headless runs never have it on.
 - **Permission dialogs speak:** a Notification hook says "I need your permission on
@@ -48,7 +48,7 @@ Logs: `outputs/voice/.state/*.log`. Raw spoken lines still append to
 are captured by the UserPromptSubmit hook like any typed input.
 
 ## v3 troubleshooting
-- **She doesn't speak:** is the flag on? (`outputs/voice/voice-on.flag`) Hooks load at
+- **Alex doesn't speak:** is the flag on? (`outputs/voice/voice-on.flag`) Hooks load at
   session START - a session opened before the wiring needs a restart. Check
   `outputs/voice/.state/speak.log` / `hook.log`.
 - **Robotic voice:** Edge-TTS failed (network/403), SAPI floor took over. That IS the
@@ -70,7 +70,7 @@ are captured by the UserPromptSubmit hook like any typed input.
 
 Two-way, hands-free voice conversation with Alex. Built 2026-07-07 from
 [[research/alex-voice-handsfree]] (research-team run 16, Option A "own the whole loop").
-You just talk (open mic, no wake word by default), a chime confirms she heard you, and Alex thinks
+You just talk (open mic, no wake word by default), a chime confirms Alex heard you, and Alex thinks
 and talks back in a natural voice, sentence by sentence, as the FULL Alex (soul.md + vault + read-only
 tools, loaded once and kept alive across the conversation). English, Arabic, Swedish. Zero keyboard.
 
@@ -88,8 +88,8 @@ Three ways, same loop:
 Deliberately NOT auto-started at login (Shaheen 2026-07-07): open-mic mode means an always-on session
 would turn room noise into Claude calls. Launch on demand, end with "goodbye Alex" or Ctrl-C.
 **Headset optional now.** Barge-in is OFF by default (2026-07-07): open speakers were self-triggering
-it and killing every turn. With it off, she finishes each reply cleanly and speakers are fine. Only
-put the Jabra on + set `BARGE_IN=True` if you specifically want to cut her off mid-sentence.
+it and killing every turn. With it off, Alex finishes each reply cleanly and speakers are fine. Only
+put the Jabra on + set `BARGE_IN=True` if you specifically want to cut Alex off mid-sentence.
 
 Verify the stack first (no mic needed, plays one line aloud):
 ```
@@ -102,7 +102,7 @@ work\voice\.venv\Scripts\python.exe work\voice\alex_voice.py --voices
 
 ## Controls (all hands-free)
 - **just talk** - open-mic is the default (`INPUT_MODE = "vad"`, set 2026-07-07). No wake word: start
-  talking and she records; recording stops when you go quiet. Her name is conversational ("Alex, ...").
+  talking and Alex records; recording stops when you go quiet. The name is conversational ("Alex, ...").
 - **talk over Alex** - OFF by default (`BARGE_IN=False`). Turn it on only with the headset; the
   mid-turn drain in `speak_stream` keeps the brain aligned so interrupting no longer kills the next turn.
 - **"goodbye Alex"** / **"quit"** - end by voice. Or Ctrl-C.
@@ -114,14 +114,14 @@ work\voice\.venv\Scripts\python.exe work\voice\alex_voice.py --voices
 - **Wake word:** openWakeWord "hey_jarvis" (ONNX, runs under SAC). Or open-mic VAD.
 - **Speech in:** local **openai-whisper "base"** - multilingual (EN/AR/SV), nothing leaves the box.
 - **Brain:** ONE persistent `claude` process (stream-json) = the full Alex, soul.md + MCP + vault
-  loaded once. `--include-partial-messages` so she starts talking on sentence 1 while still writing.
+  loaded once. `--include-partial-messages` so Alex starts talking on sentence 1 while still writing.
   Read-only tools only (`Read,Grep,Glob,LS`) so a misheard command can't send mail or write files.
 - **Speech out (never-mute chain):** **Edge-TTS** neural voice (free, natural, multilingual) ->
   **Windows SAPI** offline floor. Any tier that fails is dropped for the session; the SAPI floor is
   local and can't die, so Alex never goes silent. (The OpenAI paid tier that v1 used was removed
   2026-07-07 - it kept dying on quota, which is what got voice parked in the first place.)
-- **Barge-in:** OFF by default. When on (+headset), the mic is watched while she speaks; ~0.3s of
-  sustained speech stops her and the next turn tells her she was cut off.
+- **Barge-in:** OFF by default. When on (+headset), the mic is watched while Alex speaks; ~0.3s of
+  sustained speech stops Alex and the next turn says the reply was cut off.
 
 ## Why this differs from the researched plan (the Smart App Control pivot, 2026-07-07)
 The research picked local **Kokoro** TTS + **faster-whisper** STT. At build time we found this
@@ -160,7 +160,7 @@ His verdict on v2.0: answers took too long, gaps between sentences too long. Fix
 - **First answer faster:** the brain warms up in the BACKGROUND at boot (the ~8s MCP+vault cold start
   hides behind the greeting) and is pinned to `CLAUDE_MODEL="sonnet"` for thinking speed
   (first sentence ~3s after your question, measured post-warmup).
-- **The heard-you chime:** a short low chime right after you stop talking = she got it, she's thinking.
+- **The heard-you chime:** a short low chime right after you stop talking = Alex got it and is thinking.
   Silence after the chime is thinking time, not a hang.
 - **Recorder:** keeps a 0.4s pre-roll (your first word isn't clipped), trims leading silence
   (faster Whisper), `SILENCE_HANG_S` 0.9 -> 0.8.
@@ -177,7 +177,7 @@ His verdict on v2.0: answers took too long, gaps between sentences too long. Fix
 - **The old failure mode is designed out.** v1 went MUTE when its paid OpenAI TTS quota died. v2's floor
   is local SAPI, which cannot die, so the voice cannot silently stop the way v1 did. What CAN degrade:
   if internet drops, Edge is skipped and you get the robotic-but-working SAPI voice (that IS the warning
-  sign); if `claude` isn't on PATH or the plan is exhausted, the brain turn fails and she says so.
+  sign); if `claude` isn't on PATH or the plan is exhausted, the brain turn fails and Alex says so.
 
 ## Dependencies, credentials, settings
 - **Credentials: NONE.** No API keys, no `.env`, no OpenAI key (removed 2026-07-07). The only external
@@ -199,29 +199,29 @@ loads -> one real streaming brain turn. Green here = the stack is healthy.
 ## Troubleshoot
 - **No launch / window flashes shut:** run `talk.ps1` from a terminal to see the error. Usually the
   venv is missing (rebuild, see Environment) or `claude` isn't on PATH.
-- **She sounds robotic:** Edge-TTS failed (no internet, or Microsoft hiccup) and she fell back to SAPI.
+- **Alex sounds robotic:** Edge-TTS failed (no internet, or Microsoft hiccup) and the voice fell back to SAPI.
   Check the connection; it self-heals next launch.
-- **She never hears me / doesn't start recording:** ambient threshold is off. It calibrates at boot -
+- **Alex never hears me / doesn't start recording:** ambient threshold is off. It calibrates at boot -
   relaunch in a quiet moment, or nudge `SILENCE_HANG_S` / speak a beat louder.
-- **She cuts herself off with no one talking:** you're on speakers with `BARGE_IN=True`. It's off by
+- **Alex cuts off with no one talking:** you're on speakers with `BARGE_IN=True`. It's off by
   default now; if you turned it on, use the headset or set it back to `False`.
 - **Long pause after the chime:** that's brain thinking time (2-10s), not a hang. The chime = heard you.
-- **She rambles:** `VOICE_MAX_SENTENCES` caps it; lower it, or tighten `VOICE_STYLE`.
+- **Alex rambles:** `VOICE_MAX_SENTENCES` caps it; lower it, or tighten `VOICE_STYLE`.
 - **First answer slow:** the background warm-up hides the ~8s cold start behind the greeting - if you
   ask before the greeting finishes you still pay some of it. Deeper issues -> `vault/projects/error-log.md`.
 
 ### Acceptance test (you, one sitting, zero keyboard)
 1. Launch (shortcut / Ctrl+Alt+A / `talk.ps1`) -> hear "Hey Shaheen. I'm here."
 2. **Just talk** ("Alex, what's my runway zero-date?"), go quiet -> chime -> natural-voice answer in ~3-5s.
-3. Ask a follow-up that refers back -> she remembers (proves the stateful brain).
-4. Say one **Swedish** and one **Arabic** sentence -> both transcribed; she can reply in them.
-5. Say **"goodbye Alex"** -> she signs off.
+3. Ask a follow-up that refers back -> Alex remembers (proves the stateful brain).
+4. Say one **Swedish** and one **Arabic** sentence -> both transcribed; Alex can reply in them.
+5. Say **"goodbye Alex"** -> Alex signs off.
 
 ## Honest limits (v2)
 - **2-10s brain floor** per turn (Claude thinking) - partials mask it, nothing removes it.
 - **Barge-in needs the headset** (no acoustic echo cancellation built).
 - Edge-TTS sends only Alex's spoken REPLY text to Microsoft (never the vault, never your input);
-  needs internet (so does the brain). If Edge breaks, SAPI floor keeps her talking.
+  needs internet (so does the brain). If Edge breaks, SAPI floor keeps Alex talking.
 - Wake word is openWakeWord's pretrained "hey jarvis" (upstream frozen since 2024; the model works).
 
 ## Environment

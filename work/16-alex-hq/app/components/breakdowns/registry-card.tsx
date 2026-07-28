@@ -18,7 +18,8 @@ export function RegistryCard({ reg }: { reg: RegProject }) {
           </span>
         ) : null}
         {neverFired(reg) ? (
-          <span className="text-xs" style={{ color: "var(--warn)" }}>
+          // R2-5: warning-tier small text -> Custard (Rusty Spice measured 3.0:1 at 12px on dark)
+          <span className="text-xs" style={{ color: "var(--custard)" }}>
             never fired
           </span>
         ) : reg.first_fire ? (

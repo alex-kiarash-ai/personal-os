@@ -1,5 +1,11 @@
 # /runway - Runway Command Center
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#20 /runway · LIVE · Trigger: monthly last day 21:15**
+> Registry: `system/manifest.json` · Spec: `work/20-runway/CLAUDE.md` · Status: `vault/projects/runway/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Full spec: `work/20-runway/CLAUDE.md` (read it first).
 
 One honest answer to "how many months do I have, and what changes it?" Joins starting savings + burn + the salary/severance/a-kassa timeline + Airbnb income into a month-by-month model with a zero date, in a branded all-formula SEK Excel. Informational only, never moves money.

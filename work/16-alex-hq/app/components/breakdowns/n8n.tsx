@@ -24,14 +24,22 @@ export function N8nBreakdown() {
       </p>
     );
   const broken = data.workflows.filter((w) => w.broken_reason);
-  const dotFor = (w: N8nList["workflows"][number]): Status =>
+  /* R2-3 (both review lanes, independently): every non-success row fell through to amber, so the
+     ten idle-BY-DESIGN workflows (webhook / MCP / on-demand lanes that have simply never run) wore
+     the same warning ring as a genuinely silent scheduled workflow — a wall of look-alike alarms
+     inside the overlay you opened to isolate ONE offender. The liveness harvest gives every
+     should-have-run workflow a broken_reason, so "no reason + never ran" is exactly idle-by-design,
+     and it now speaks the health board's calm hollow grammar. */
+  const dotFor = (w: N8nList["workflows"][number]): Status | "idle" =>
     w.broken_reason
       ? w.broken_reason === "errored"
         ? "red"
         : "amber"
       : w.status === "success"
         ? "green"
-        : "amber";
+        : w.last_exec
+          ? "amber"
+          : "idle";
   return (
     <div>
       <div className="mb-1 kicker" style={{ color: "var(--cyan)" }}>
@@ -46,9 +54,13 @@ export function N8nBreakdown() {
           <div key={w.id} className="note-row">
             <Dot status={dotFor(w)} />
             <span className="min-w-0 flex-1 truncate font-medium">{w.name}</span>
+            {/* R2-5: measured 2.4:1 (--error) / 3.0:1 (--warn) at 12px on dark — the exact failure
+                class Signal Coral (§4.4 D5) was chartered for. Error semantics take the coral;
+                warning semantics take Vanilla Custard, already the law's tertiary tier (~10:1),
+                with the dot carrying the state. No token amendment needed for either. */}
             <span
               className="text-xs"
-              style={{ color: w.broken_reason === "errored" ? "var(--error)" : "var(--warn)" }}
+              style={{ color: w.broken_reason === "errored" ? "var(--error-text-dark)" : "var(--custard)" }}
             >
               {w.broken_reason}
             </span>
@@ -63,7 +75,7 @@ export function N8nBreakdown() {
           <Dot status={dotFor(w)} />
           <span className="min-w-0 flex-1 truncate">{w.name}</span>
           <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }}>
-            {w.last_exec ? fmtDateTime(w.last_exec) : "never ran"}
+            {w.last_exec ? fmtDateTime(w.last_exec) : "idle · never ran"}
           </span>
         </div>
       ))}

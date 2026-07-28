@@ -21,6 +21,8 @@ Ink Black `#001219` · Dark Teal `#005f73` · Dark Cyan `#0a9396` · Pearl Aqua 
 
 - The ALEX display lettering exists only inside the logo file. Never retype the wordmark.
 
+**Recorded deviation D7 - the HQ "burn" numerals (2026-07-25, design-review round 2, Shaheen's go).** The C8 rule "zeros whisper, actionable counts burn" renders an unactioned action-count (brief urgent, email act-now, n8n broken) as a big numeral in Rusty Spice `#bb3e03` on the alarm face `#00232e`. Measured, that pairing is **~2.98:1** - a hairline fail of even the 3:1 large-text floor, so no size rescues it. It is KEPT deliberately, and recorded here so it stops being re-litigated at every review: the state is carried **redundantly** by the dot shape, the ring and the kicker (grayscale-verified since wave 2), so the color is an ENHANCEMENT and never the sole carrier of meaning. Two consequences that are now law: alarm tile faces must stay at `--elev` `#00232e` (the round-2 luminance lift deliberately excluded them, since Rusty drops to ~2.56:1 on the lifted face), and Rusty Spice is banned from SMALL text on dark anywhere - small error text takes Signal Coral (§4.4 D5), small warning text takes Vanilla Custard.
+
 ## Logo
 - **Primary: `brand/images/alex-logo-transparent.png`** - ALEX wordmark + circuit-trace mark on a transparent background (extracted from the JPG 2026-07-03, glow removed). Works on dark AND light surfaces; verified on #001219, white, and #005f73.
 - **Full-bleed variant: `brand/images/alex-logo.jpg`** - the original on the dark teal gradient with soft glow. Use as a self-contained block (hero, cover, dark card). Never float the JPG on white.

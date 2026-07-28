@@ -11,10 +11,23 @@ import { fmtNum } from "@/lib/types";
 
 export const spring = { type: "spring" as const, stiffness: 260, damping: 26 };
 
+/* R2-20: a screen reader used to hear the COLOR ("green", "amber", "red") — color-only encoding
+   in audio form, the exact defect the wave-2 shape grammar fixed for sighted users. The map is
+   exported and every dot site renders through this ONE component (the health board had two raw
+   spans carrying the same bug), so the class is killed rather than the instance. */
+export const STATUS_ANNOUNCE: Record<Status | "idle", string> = {
+  green: "ok",
+  amber: "attention",
+  red: "broken",
+  idle: "idle",
+};
+
 /* pulse is opt-in since C11: the section decides its ONE worst dot; a plain red dot is a
-   steady alarm, never a heartbeat. */
-export function Dot({ status, pulse = false }: { status: Status; pulse?: boolean }) {
-  return <span className={`dot dot-${status}${pulse ? " dot-pulse" : ""}`} aria-label={status} />;
+   steady alarm, never a heartbeat. "idle" = registered/expected-quiet, never an alarm. */
+export function Dot({ status, pulse = false }: { status: Status | "idle"; pulse?: boolean }) {
+  return (
+    <span className={`dot dot-${status}${pulse ? " dot-pulse" : ""}`} aria-label={STATUS_ANNOUNCE[status]} />
+  );
 }
 
 export function CountUp({ value, suffix = "" }: { value: number; suffix?: string }) {

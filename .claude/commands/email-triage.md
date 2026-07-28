@@ -1,10 +1,16 @@
 # /email-triage - Sort + Classify Inbox + Draft Replies in Shaheen's Voice
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#07 /email-triage · LIVE · Trigger: daily 05:00**
+> Registry: `system/manifest.json` · Spec: `work/07-email-triage/CLAUDE.md` · Status: `vault/projects/email-triage/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Spec: work/07-email-triage/CLAUDE.md (read it first; privacy rule + draft gate are non-negotiable). Categorization, dedup, learning, noise-killer and job-loop details all live there.
 
 ## Modes
 - `/email-triage` - interactive (default): review drafts one at a time.
-- `/email-triage scheduled` - headless (the 9/13/17 schedule): stages every gated reply straight into Gmail as an unsent, threaded draft. Never sends. No outputs/ file.
+- `/email-triage scheduled` - headless (invoked by the wrapper on whatever cadence `system/manifest.json` #07 declares; do NOT restate a schedule here, the 3x-daily 9/13/17 cadence was cut to once daily on 2026-07-16 and a stale copy in this file is how a cost cut silently regresses): stages every gated reply straight into Gmail as an unsent, threaded draft. Never sends. No outputs/ file.
 - `/email-triage backfill` - one-time: sweep the WHOLE current inbox into topic buckets (label + archive, read and unread). Run once.
 
 ## Steps

@@ -22,9 +22,16 @@
 //                                                      scheduler (comma-separated)
 //
 // VALIDATION IS NEVER SCOPED (c7 fix, upgrade P5, 2026-07-12): every run - full, --dry-run, or
-// any --only selection - executes the FULL validation suite (G1-G4 + V1-V9) against the staged
-// set plus the live repo. --only limits what is STAGED/APPLIED, never what is CHECKED, so a
-// partial run can never ship one surface while a sibling surface is silently red.
+// any --only selection - executes the FULL validation suite (SUITE_RANGE, imported from the
+// validator so this comment and the run log can never under-report it again - stress-test F-10,
+// 2026-07-25) against the staged set plus the live repo. --only limits what is STAGED/APPLIED,
+// never what is CHECKED, so a partial run can never ship one surface while a sibling surface is
+// silently red.
+//
+// CONCURRENCY (stress-test F-08, 2026-07-25): the run holds the shared repo-surface write lock
+// (scripts/lib/write-lock.js) across staging + validation + swap, so a parallel session's generator
+// or skills install cannot interleave on CLAUDE.md. The generator FAILS LOUD rather than deferring:
+// the caller asked for surfaces to be regenerated, so silently doing nothing would be a lie.
 //
 // n8n credentials come ONLY from env (N8N_API_URL, N8N_API_KEY) and are required whenever the
 // n8n step runs; it fails loudly without them (ground rule 7).
@@ -34,19 +41,21 @@ const path = require('path');
 
 const log = require('./lib/log');
 const aw = require('./lib/atomic-write');
+const writeLock = require('./lib/write-lock');
 const { loadModel } = require('./lib/read-sources');
 const { claudeRegionBlock } = require('./lib/gen-routing-table');
 const genClaudeRegion = require('./lib/gen-claude-region');
 const genDocs = require('./lib/gen-docs');
 const genTokens = require('./lib/gen-tokens');
+const genCmdHeaders = require('./lib/gen-command-headers');
 const n8nVoice = require('./lib/sync-n8n-voice');
 const scheduler = require('./lib/gen-scheduler');
-const { runAll: validate } = require('./validate-alex');
+const { runAll: validate, SUITE_RANGE } = require('./validate-alex');
 
 const DRY = process.argv.includes('--dry-run');
 const onlyArg = process.argv.find(a => a.startsWith('--only='));
 const ONLY = onlyArg ? onlyArg.split('=')[1].split(',').map(s => s.trim()) : null;
-const VALID_ONLY = ['docs', 'claude', 'tokens', 'n8n', 'scheduler'];
+const VALID_ONLY = ['docs', 'claude', 'tokens', 'n8n', 'scheduler', 'commands'];
 if (ONLY) for (const o of ONLY) if (!VALID_ONLY.includes(o)) {
   console.error(`generate-alex: unknown --only value '${o}' (valid: ${VALID_ONLY.join(', ')})`);
   process.exit(1);
@@ -54,8 +63,17 @@ if (ONLY) for (const o of ONLY) if (!VALID_ONLY.includes(o)) {
 const want = name => !ONLY || ONLY.includes(name);
 
 (async () => {
+  let held = null;
   try {
     log.step(`generate-alex: ${DRY ? 'DRY-RUN' : 'FULL RUN'}${ONLY ? ` (only: ${ONLY.join(', ')})` : ''}`);
+
+    // 0. Take the shared repo-surface lock (F-08). Held until the run ends, so staging, validation
+    //    and the atomic swap are one indivisible window against any other mutator.
+    held = writeLock.acquire({ label: `generate-alex${DRY ? ' (dry-run)' : ''}`, log: log.step });
+    if (!held.ok) {
+      throw new Error(`another repo-surface mutator holds the write lock (${held.reason}). ` +
+        `Wait for it to finish, or - if you are sure that process is dead - remove ${writeLock.lockPath(writeLock.DEFAULT_NAME)}`);
+    }
 
     // 1. Read all sources into one model. Any read/parse failure aborts before anything is staged.
     log.step('[1/5] read sources');
@@ -82,6 +100,20 @@ const want = name => !ONLY || ONLY.includes(name);
       ];
       for (const o of outputs) { aw.stage(o.rel, o.content); log.step(`  staged ${o.rel}`); }
     }
+    if (want('commands')) {
+      // Command-file state/trigger headers (F-3/F-4/F-6/F-11, 2026-07-28). The command layer was the
+      // last large prose surface describing machine behaviour with nothing asserting it; this makes
+      // state + trigger GENERATED rather than restated, so that class cannot drift. Idempotent.
+      let n = 0;
+      for (const t of genCmdHeaders.targets(model.manifest)) {
+        const abs = path.join(process.cwd(), t.rel);
+        if (!fs.existsSync(abs)) continue; // C1 already fails a missing declared command file
+        const before = fs.readFileSync(abs, 'utf8');
+        const after = genCmdHeaders.apply(before, t);
+        if (after !== before) { aw.stage(t.rel, after); n++; }
+      }
+      log.step(`  staged command headers: ${n} file(s) changed of ${genCmdHeaders.targets(model.manifest).length} LIVE/EVENT command(s)`);
+    }
     if (want('tokens')) {
       aw.stage(genTokens.CSS_REL, genTokens.tokensCss(model.colorTokens));
       aw.stage(genTokens.JSON_REL, genTokens.tokensJson(model.colorTokens));
@@ -91,7 +123,7 @@ const want = name => !ONLY || ONLY.includes(name);
     // 3. Validate the staged set + live systems. The FULL suite (G1-G4 + V1-V9) runs on EVERY
     //    run regardless of --only (c7 fix, P5): --only limits staging/applying, never checking.
     //    Async since Phase 3 - V6 checks the live n8n API, the live half of V2 queries schtasks.
-    log.step('[3/5] validate (G1-G4 + V1-V9, full suite - never narrowed by --only, context=generator)');
+    log.step(`[3/5] validate (${SUITE_RANGE}, full suite - never narrowed by --only, context=generator)`);
     const result = await validate({ stagedDir: aw.STAGING });
     if (!result.ok) throw new Error(`validation failed:\n${result.failures.join('\n')}`);
 
@@ -104,6 +136,20 @@ const want = name => !ONLY || ONLY.includes(name);
         { cwd: require('path').resolve(__dirname, '..') }).toString().trim();
       log.step('  prompt-regression (advisory): ' + out);
     } catch (e) { log.step('  prompt-regression advisory skipped (non-fatal): ' + e.message); }
+
+    // 3c. Propagation debt (ADVISORY, stress-test fix F-02, 2026-07-25): the C8 spec-vs-status hash
+    //     compare, surfaced HERE instead of only on the Monday sweep. Root cause it pays: the 07-25
+    //     upgrade batch edited 12 work specs, self-verified with validators + a generator dry-run +
+    //     the narrative check - none of which look at status.md - and closed as "verified" while 8
+    //     projects sat spec-changed-status-stale for four days. Advisory by design: propagation is a
+    //     judgment act the human finishes, so this NAMES the debt every run instead of failing a
+    //     build. Zero-token, reads the same state/baseline.json C8 does (one baseline, two readers).
+    try {
+      const cp = require('child_process');
+      const out = cp.execSync('node scripts/stale-status-check.js --advisory',
+        { cwd: require('path').resolve(__dirname, '..') }).toString().trim();
+      for (const line of out.split('\n')) log.step('  stale-status (advisory): ' + line);
+    } catch (e) { log.step('  stale-status advisory skipped (non-fatal): ' + e.message); }
 
     // 4. External integrations. Dry-run reports; full run applies. n8n is idempotent (an unchanged
     //    soul.md is a verified no-op); the scheduler only ever CREATES missing jobs, never touches
@@ -136,5 +182,9 @@ const want = name => !ONLY || ONLY.includes(name);
     log.step(`FAILED: ${e.message}`);
     log.flush();
     process.exitCode = 1;
+  } finally {
+    // Release the write lock on every path (success, validation failure, crash) so a failed run can
+    // never wedge the next one. release() only removes a lock this process still owns.
+    if (held && held.ok) held.release();
   }
 })();

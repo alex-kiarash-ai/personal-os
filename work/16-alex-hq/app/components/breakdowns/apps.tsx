@@ -40,8 +40,9 @@ export function AppsBreakdown({ projects, now }: { projects: Record<string, Proj
                 ready to apply · good fit
               </span>
               <div className="mt-1 flex items-baseline gap-3">
-                {/* C12: one numeral voice — the lane headline matches the tiles' Plex Mono */}
-                <span className="num-display text-3xl tracking-tight">
+                {/* C12: one numeral voice — the lane headline matches the tiles' Plex Mono.
+                    R2-11: sized up with its overlay sibling so expanding never demotes a number. */}
+                <span className="num-display text-4xl tracking-tight">
                   {ready !== null ? <CountUp value={ready} /> : "–"}
                 </span>
                 <span className="text-sm" style={{ color: "var(--mute)" }}>
@@ -50,11 +51,14 @@ export function AppsBreakdown({ projects, now }: { projects: Record<string, Proj
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 py-3" style={{ borderBottom: "1px solid rgba(148,210,189,0.12)" }}>
+              {/* R2-19: these sit inches under a "drafted today" headline, and pass rate + spend
+                  are CUMULATIVE — unlabelled, they read as today's numbers. "in review" is a
+                  current stock, not a cumulative flow, so it gets its own honest suffix. */}
               {(
                 [
-                  ["in review", int(mm.needs_review_depth)],
-                  ["pass rate", pct(mm.pass_rate_pct)],
-                  ["spend", usd(mm.total_spend_usd)],
+                  ["in review · now", int(mm.needs_review_depth)],
+                  ["pass rate · all-time", pct(mm.pass_rate_pct)],
+                  ["spend · all-time", usd(mm.total_spend_usd)],
                 ] as [string, string][]
               ).map(([label2, v]) => (
                 <div key={label2} className="brain-stat">

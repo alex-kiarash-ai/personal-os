@@ -1,5 +1,11 @@
 # /expense-wrangler - Capture Expenses + Branded Excel Report
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#08 /expense-wrangler · LIVE · Trigger: monthly last day 20:00**
+> Registry: `system/manifest.json` · Spec: `work/08-expense-wrangler/CLAUDE.md` · Status: `vault/projects/expense-wrangler/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Spec: work/08-expense-wrangler/CLAUDE.md (read it first). Two modes, same command.
 
 ## Immediate (input given)

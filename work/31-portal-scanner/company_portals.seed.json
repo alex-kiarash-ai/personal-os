@@ -1,0 +1,15 @@
+[
+  { "company": "Appfire", "ats_type": "greenhouse", "ats_slug": "appfire", "careers_url": "https://job-boards.greenhouse.io/appfire", "track": "both", "max_roles": 15, "active": true },
+  { "company": "Ebury", "ats_type": "greenhouse", "ats_slug": "ebury", "careers_url": "https://job-boards.greenhouse.io/ebury", "track": "bi", "max_roles": 15, "active": true },
+  { "company": "Remote.com", "ats_type": "greenhouse", "ats_slug": "remotecom", "careers_url": "https://job-boards.greenhouse.io/remotecom", "track": "both", "max_roles": 15, "active": true },
+  { "company": "Awin", "ats_type": "greenhouse", "ats_slug": "awin", "careers_url": "https://job-boards.greenhouse.io/awin", "track": "both", "max_roles": 15, "active": true },
+  { "company": "Lighthouse", "ats_type": "greenhouse", "ats_slug": "lighthouse", "careers_url": "https://job-boards.eu.greenhouse.io/lighthouse", "track": "both", "max_roles": 15, "active": true },
+  { "company": "RemotePeople", "ats_type": "greenhouse", "ats_slug": "remotepeople", "careers_url": "https://job-boards.eu.greenhouse.io/remotepeople", "track": "ai", "max_roles": 15, "active": true },
+  { "company": "Xebia CEE", "ats_type": "greenhouse", "ats_slug": "xebiacee", "careers_url": "https://job-boards.greenhouse.io/xebiacee", "track": "both", "max_roles": 15, "active": true },
+  { "company": "DEPT", "ats_type": "greenhouse", "ats_slug": "dept", "careers_url": "https://job-boards.greenhouse.io/dept", "track": "both", "max_roles": 15, "active": true },
+  { "company": "Pleo", "ats_type": "ashby", "ats_slug": "pleo", "careers_url": "https://jobs.ashbyhq.com/pleo", "track": "ai", "max_roles": 15, "active": true },
+  { "company": "Dragonfly", "ats_type": "ashby", "ats_slug": "askdragonfly", "careers_url": "https://jobs.ashbyhq.com/askdragonfly", "track": "both", "max_roles": 15, "active": true },
+  { "company": "SEB", "ats_type": "lever", "ats_slug": "seb", "careers_url": "https://jobs.eu.lever.co/seb", "track": "both", "max_roles": 15, "active": true },
+  { "company": "Polar Analytics", "ats_type": "ashby", "ats_slug": "polaranalytics", "careers_url": "https://jobs.ashbyhq.com/polaranalytics", "track": "ai", "max_roles": 15, "active": false, "note": "reachable, 0 matching roles at detect time; kept inactive, flip when they post" },
+  { "company": "GitBook", "ats_type": "ashby", "ats_slug": "GitBook", "careers_url": "https://jobs.ashbyhq.com/GitBook", "track": "bi", "max_roles": 15, "active": false, "note": "reachable, only 2 jobs at detect time; inactive until they post relevant roles" }
+]

@@ -14,7 +14,7 @@ Turn Shaheen's real Personal Ops System history into an ongoing LinkedIn series 
 ## HARD RULES (every run, no exceptions)
 1. Read `vault/projects/linkedin-series/concept.md` EVERY run. It holds the locked decisions and the **never-share living list** (money details, other people's identities, employer internals, real-time feelings, and other private items). Shaheen adds items over time; each addition binds immediately.
 2. **No em-dashes or en-dashes anywhere.** After drafting, run a deterministic scan for - and –. Any hit = failed output, rewrite the sentence.
-3. **Never the "Geoffrey/RL" framing.** The honest line is: "every correction becomes a rule he never breaks again, my mistakes are his training data."
+3. **Never the "Geoffrey/RL" framing.** The honest line is: "every correction becomes a rule Alex never breaks again, my mistakes are Alex's training data." (Ungendered 2026-07-28 under HARD RULE 15, wording chosen by Shaheen from a judged slate. Meaning is unchanged: a correction given once becomes permanent. The possessive "Alex's" is load-bearing, never soften it to "the training data".)
 4. Sensitive personal topics appear at most once, plainly, and are never relitigated.
 5. The commercial offer (Alex as a product) is invisible in the series.
 6. The job-pipeline episode includes verbatim: "removes hours of tailoring, not the 60 seconds of clicking submit."
@@ -26,6 +26,7 @@ Turn Shaheen's real Personal Ops System history into an ongoing LinkedIn series 
 12. Comment replies: drafted on request only, Shaheen sends, never autonomous.
 13. Hashtags: 3-4 niche max (#PowerBI #n8n #ClaudeAI #AIAutomation).
 14. Harvest Shaheen's edits on any draft back into soul.md.
+15. **ALEX HAS NO GENDER (Shaheen 2026-07-28, "I do not want to give Alex a gender, I want you to not use HE/HIM at all").** Never `he/him/his/himself` for Alex, never `she/her`, and never `it` (Alex is a named character, not an object). Use the name plus sentence restructuring. This is a SECOND deterministic scan alongside rule 2's dash scan: `\b(he|him|his|himself|she|her|hers|herself)\b` case-insensitive, any hit = failed output, rewrite. Binds Post 7 forward and all voice output system-wide (soul.md My Words, 2026-07-28). Published episodes 01 to 06 stay as posted, never retro-edited.
 
 ## Tools Used
 Notion MCP (Content Library + sprint board), Google Drive MCP / n8n Drive node (staging), n8n API (key in work/03-application-engine/config/, reuse push pattern from config/push-nodash.js), soul.md, vault. Content Machine pipeline pattern (Researcher→Writer→Editor; Editor = the dash scan + voice check). NO LinkedIn API. NO Chrome for posting.

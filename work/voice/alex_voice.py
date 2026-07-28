@@ -3,7 +3,7 @@ r"""
 alex_voice.py - Alex's hands-free two-way voice conversation loop (v2).
 
 You say "hey jarvis" (or just start talking in VAD mode), Alex hears you, thinks,
-and talks back in a natural voice while still generating - and you can cut her off
+and talks back in a natural voice while still generating - and you can cut Alex off
 by just speaking. Zero keyboard.
 
 Built 2026-07-07 from research-team run 16 (vault/research/alex-voice-handsfree.md),
@@ -25,12 +25,12 @@ Architecture:
   - Wake word: openWakeWord "hey_jarvis" (onnx, SAC-safe) OR open-mic VAD (INPUT_MODE).
   - STT: openai-whisper "base" (local, multilingual, torch - SAC-proven).
   - Brain: ONE persistent `claude` process in stream-json mode = the full Alex (soul.md,
-    CLAUDE.md, MCP, vault) loaded once. --include-partial-messages so she starts speaking
+    CLAUDE.md, MCP, vault) loaded once. --include-partial-messages so Alex starts speaking
     sentence 1 while still writing the rest (talks-while-thinking).
   - TTS: Edge-TTS neural -> Windows SAPI floor. Never-mute chain; SAPI is the can't-die floor.
-  - Barge-in: while Alex speaks, the mic is watched; sustained speech stops her and the
-    turn tells her she was cut off. Needs the Jabra HEADSET (no echo cancellation) - on
-    open speakers her own voice would interrupt her.
+  - Barge-in: while Alex speaks, the mic is watched; sustained speech stops Alex and the
+    turn says the reply was cut off. Needs the Jabra HEADSET (no echo cancellation) - on
+    open speakers Alex's own voice would interrupt the turn.
 
 Run:   work\voice\talk.ps1      (or: .venv\Scripts\python.exe work\voice\alex_voice.py)
 Self-test (no mic, no wake word):  ...python alex_voice.py --selftest
@@ -59,7 +59,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # -- input / hands-free --
 INPUT_MODE = "vad"           # "wake" = require the wake word; "vad" = open-mic, just start talking.
                              # vad chosen 2026-07-07 (Shaheen): no "hey alex" pretrained wake model exists,
-                             # so open-mic = say her name conversationally ("Alex, ..."). Wants the headset.
+                             # so open-mic = say the name conversationally ("Alex, ..."). Wants the headset.
 WAKE_WORD = "hey_jarvis"     # pretrained openWakeWord model (also: alexa, hey_mycroft, hey_rhasspy).
 WAKE_THRESHOLD = 0.5         # 0-1; raise if it triggers on nothing, lower if it misses you.
 WAKE_VAD_THRESHOLD = 0.5     # openWakeWord's built-in speech gate (suppresses non-speech activations).
@@ -80,7 +80,7 @@ EDGE_RATE = "+0%"            # "-10%" slower / "+10%" faster.
 EDGE_PITCH = "+0Hz"
 TTS_LOOKAHEAD = 2            # sentences synthesized AHEAD while one plays (kills mid-reply gaps).
 
-# -- barge-in (needs the Jabra headset; on speakers Alex interrupts herself) --
+# -- barge-in (needs the Jabra headset; on speakers Alex self-interrupts) --
 BARGE_IN = False             # OFF 2026-07-07 (Shaheen live test): without echo cancellation, open
                              # speakers self-trigger barge-in and every turn died. Re-enable only with
                              # the headset on; the mid-turn drain (speak_stream) now makes that safe.
@@ -691,7 +691,7 @@ def main():
     print("=" * 64)
     if BARGE_IN and output_looks_like_speakers():
         log("HEADS UP: output looks like speakers, not the headset. Barge-in may make Alex")
-        log("          cut herself off. Put the Jabra on, or set BARGE_IN=False.")
+        log("          cut off mid-reply. Put the Jabra on, or set BARGE_IN=False.")
 
     log(f"loading Whisper '{WHISPER_MODEL}'...")
     import whisper
@@ -718,7 +718,7 @@ def main():
                 audio = record_until_silence(threshold, wait_s=None)  # open mic; pre-roll keeps word 1
             if audio.size < SAMPLE_RATE * MIN_SPEECH_S:
                 continue
-            chime("done")            # the heard-you cue: she's transcribing + thinking now
+            chime("done")            # the heard-you cue: Alex is transcribing + thinking now
             you = transcribe(model, audio)
             if not you:
                 continue

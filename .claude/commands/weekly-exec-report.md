@@ -1,11 +1,31 @@
 # /weekly-exec-report - Weekly Aggregate Deck + Notion Page (Capstone)
 
-Spec: work/10-weekly-exec-report/CLAUDE.md (read it first). Aggregates all 9 automations.
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#10 /weekly-exec-report · LIVE · Trigger: Fri 16:00**
+> Registry: `system/manifest.json` · Spec: `work/10-weekly-exec-report/CLAUDE.md` · Status: `vault/projects/weekly-exec-report/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
+Spec: work/10-weekly-exec-report/CLAUDE.md (read it first). **Aggregates every non-RETIRED project in
+`system/manifest.json`** (32 numbered + the unnumbered rows as of 2026-07-28). Do not hardcode a count
+here: the old "all 9 automations" line was written when there were nine, and it stayed while the system
+grew past thirty, which is exactly how the Friday capstone quietly narrowed to under a third of what it
+claims to cover.
 
 ## Steps
 1. **Ask** (AskUserQuestion): "Claude Design deck, PDF summary, or both?" Default = Claude Design deck. (Scheduled run skips the prompt → Claude Design deck + PDF export.)
-2. **Aggregate this week** (read-only; any empty source → "nothing this week", never error):
-   - Project status ← Sprint board `0c239613-7e4e-410c-b064-266fa31a9da4` + vault/projects/sprint-tracker/
+2. **Aggregate this week** (read-only; any empty source → "nothing this week", never error).
+
+   **2a. Walk the registry FIRST, not a hand-list.** Read `system/manifest.json`, take every project whose
+   `state` is not RETIRED, and for each one read its `status_md`. That is the spine of the report: a
+   project that shipped nothing gets one honest quiet line, and a project added next month appears here
+   without anyone remembering to edit this file. **This replaced a hardcoded list of the original nine
+   (2026-07-28, review F-14)** which had silently stopped covering #15 radar, #16 HQ, #17 health, #18
+   recovery, #20 runway, #21 interview and everything from #24 up, while the routing table still
+   described this as "every automation into one branded deck".
+
+   **2b. Then the rich sources below**, which carry detail no status page holds:
+   - Project status ← Sprint board `0c239613-7e4e-410c-b064-266fa31a9da4` + vault/projects/sprint-tracker/ (**cache-derived since 2026-07-18, #01 is PARKED - say so rather than presenting it as live board data**)
    - Week summary ← vault/projects/morning-brief/history/ + Daily Briefs `259794ef-9356-41ea-90f3-0d0c65ffeb85`
    - Meetings ← Meeting Notes `95947a2b-4d03-4894-b09a-bf544997b92c` + vault/meetings/
    - Market intel ← vault/business/competitors/ (Market Pulse NOT built → say so)

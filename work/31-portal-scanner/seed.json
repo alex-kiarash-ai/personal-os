@@ -1,0 +1,17 @@
+[
+  { "company": "Appfire", "ats": "greenhouse", "slug": "appfire", "careers_url": "https://job-boards.greenhouse.io/appfire" },
+  { "company": "Ebury", "ats": "greenhouse", "slug": "ebury", "careers_url": "https://job-boards.greenhouse.io/ebury" },
+  { "company": "Remote.com", "ats": "greenhouse", "slug": "remotecom", "careers_url": "https://job-boards.greenhouse.io/remotecom" },
+  { "company": "Awin", "ats": "greenhouse", "slug": "awin", "careers_url": "https://job-boards.greenhouse.io/awin" },
+  { "company": "Lighthouse", "ats": "greenhouse", "slug": "lighthouse", "careers_url": "https://job-boards.eu.greenhouse.io/lighthouse" },
+  { "company": "RemotePeople", "ats": "greenhouse", "slug": "remotepeople", "careers_url": "https://job-boards.eu.greenhouse.io/remotepeople" },
+  { "company": "Xebia CEE", "ats": "greenhouse", "slug": "xebiacee", "careers_url": "https://job-boards.greenhouse.io/xebiacee" },
+  { "company": "DEPT", "ats": "greenhouse", "slug": "dept", "careers_url": "https://job-boards.greenhouse.io/dept" },
+  { "company": "Phiture", "ats": "greenhouse", "slug": "phiture", "careers_url": "https://job-boards.eu.greenhouse.io/phiture" },
+  { "company": "Pleo", "ats": "ashby", "slug": "pleo", "careers_url": "https://jobs.ashbyhq.com/pleo" },
+  { "company": "Polar Analytics", "ats": "ashby", "slug": "polaranalytics", "careers_url": "https://jobs.ashbyhq.com/polaranalytics" },
+  { "company": "GitBook", "ats": "ashby", "slug": "GitBook", "careers_url": "https://jobs.ashbyhq.com/GitBook" },
+  { "company": "Dragonfly", "ats": "ashby", "slug": "askdragonfly", "careers_url": "https://jobs.ashbyhq.com/askdragonfly" },
+  { "company": "Ashby", "ats": "ashby", "slug": "ashby", "careers_url": "https://jobs.ashbyhq.com/ashby" },
+  { "company": "SEB", "ats": "lever", "slug": "seb", "careers_url": "https://jobs.eu.lever.co/seb" }
+]

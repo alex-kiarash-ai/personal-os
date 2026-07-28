@@ -1,5 +1,11 @@
 # /interview - Interview-to-Offer Copilot
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#21 /interview · EVENT · Trigger: brief flag + on-demand**
+> Registry: `system/manifest.json` · Spec: `work/21-interview-copilot/CLAUDE.md` · Status: `vault/projects/interview-copilot/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Full spec: `work/21-interview-copilot/CLAUDE.md` (read it first).
 
 Carries a booked interview to the finish: dossier + prep against Shaheen's answer bank, notes capture, and a runway-aware voice-matched negotiation on offer. **Drafts only. Never replies, accepts, declines, or schedules.**

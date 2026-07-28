@@ -19,8 +19,21 @@
   --error: var(--color-oxidized-iron);
   --paper: #ffffff; /* law §4.2 primary text on dark: white, not a named palette token */
   --error-text-dark: #ff8a75; /* law §4.4 Signal Coral: small error/recording text on dark, contrast 8.4:1 on #001219 */
-  --mute: rgba(148, 210, 189, 0.7); /* aqua tier, not off-palette slate; 0.62 -> 0.7 clears AA ≈5.5:1 (C16) */
-  --card: rgba(0, 35, 46, 0.52);
+  --mute: rgba(148, 210, 189, 0.78); /* aqua tier; 0.7 -> 0.78 holds AA on the brighter faces (R2-4) */
+  /* R2-4 THE LUMINANCE LADDER (round-2 review, Shaheen: "brighter colors than the current").
+     The page measured ~97% foundation in the bottom 2% of the luminance range: the law's own 30%
+     Dark Teal/Cyan band rendered as hairlines and the Pearl Aqua text tier went unspent. Nothing
+     here leaves the law (§4.1 permits "a solid step between #001219 and #005f73" — #00232e was the
+     EXAMPLE, not the ceiling). The step that makes it information design: healthy faces LIFT while
+     alarm faces stay at --elev, so a healthy tile now glows brighter than a sick one. State is
+     encoded in luminance, red still retreats to the ring (wave-2 C4), and the Rusty Spice burn
+     numerals keep the only ground they clear (they measure ~2.56:1 on a lifted face). */
+  --card: rgba(0, 53, 66, 0.6); /* healthy tile face: a derived step toward Dark Teal, per §4.1 */
+  /* The topmost surface (drill-down panel): nearer reads lighter (R2-11). Built the way §4.1
+     sanctions an elevated surface literally - "Dark Teal at low opacity over Ink Black" - rather
+     than as a new hex, so it introduces no colour the law doesn't already grant (V8 keeps every
+     raw hex honest; only the law file may mint one). */
+  --elev2-tint: rgba(0, 95, 115, 0.42);
 }
 
 html {
@@ -31,10 +44,11 @@ body {
   color: var(--paper);
   font-family: var(--font-plex), sans-serif;
   min-height: 100dvh;
+  /* R2-4: the §4.6 depth gradient carries more of the 30% band; Ink Black stays the base */
   background:
-    radial-gradient(1200px 560px at 14% -10%, rgba(0, 95, 115, 0.38), transparent 62%),
-    radial-gradient(900px 480px at 88% 2%, rgba(10, 147, 150, 0.14), transparent 58%),
-    radial-gradient(820px 620px at 50% 116%, rgba(0, 95, 115, 0.2), transparent 60%),
+    radial-gradient(1200px 560px at 14% -10%, rgba(0, 95, 115, 0.5), transparent 62%),
+    radial-gradient(900px 480px at 88% 2%, rgba(10, 147, 150, 0.22), transparent 58%),
+    radial-gradient(820px 620px at 50% 116%, rgba(0, 95, 115, 0.3), transparent 60%),
     var(--ink);
   background-attachment: fixed;
 }
@@ -47,8 +61,8 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background:
-    linear-gradient(rgba(148, 210, 189, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 210, 189, 0.028) 1px, transparent 1px);
+    linear-gradient(rgba(148, 210, 189, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 210, 189, 0.045) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: radial-gradient(1200px 900px at 50% 0%, black, transparent 85%);
 }
@@ -132,11 +146,12 @@ body::after {
   border-radius: 1rem;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
-    linear-gradient(150deg, rgba(10, 147, 150, 0.5), rgba(0, 95, 115, 0.22) 45%, rgba(10, 147, 150, 0.05) 80%) border-box;
+    linear-gradient(150deg, rgba(10, 147, 150, 0.7), rgba(0, 95, 115, 0.28) 45%, rgba(10, 147, 150, 0.06) 80%) border-box;
   border: 1px solid transparent;
   backdrop-filter: blur(14px);
+  /* R2-4: the ring + inset highlight spend more of the 30% Dark Cyan band (0.5 -> 0.7, 0.06 -> 0.10) */
   box-shadow:
-    0 1px 0 rgba(148, 210, 189, 0.06) inset,
+    0 1px 0 rgba(148, 210, 189, 0.1) inset,
     0 24px 48px -28px rgba(0, 0, 0, 0.9);
   cursor: pointer;
   transition: box-shadow 0.35s ease;
@@ -196,6 +211,26 @@ button.tile:hover {
   min-height: 340px;
 }
 
+/* R2-21: the tap-to-activate veil over the vault graph on touch devices. `touch-action: pan-y`
+   plus never calling preventDefault is the whole mechanism: a vertical drag scrolls the page
+   straight through it, while a deliberate tap hands the canvas its gestures. */
+.graph-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  touch-action: pan-y;
+  background: rgba(0, 18, 25, 0.32);
+  cursor: pointer;
+}
+.graph-veil .kicker {
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  background: rgba(0, 35, 46, 0.75);
+  border: 1px solid rgba(10, 147, 150, 0.45);
+}
+
 .health-row {
   display: flex;
   width: 100%;
@@ -243,6 +278,24 @@ button.tile:hover {
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(150deg, rgba(174, 32, 18, 0.7), rgba(174, 32, 18, 0.12) 55%) border-box;
+}
+
+/* R2-5: the non-critical strip gets the tile grammar's amber ring on an OPAQUE --elev face, so
+   its count sits on a known dark ground with a measured ratio instead of the lifted --card. */
+.strip-amber {
+  background:
+    linear-gradient(var(--elev), var(--elev)) padding-box,
+    linear-gradient(150deg, rgba(187, 62, 3, 0.55), rgba(187, 62, 3, 0.1) 55%) border-box;
+}
+
+/* R2-11: the drill-down is the TOP surface — it must read lighter than the grid it rose from.
+   It rendered the same face as a tile (and darker over the backdrop), inverting the elevation
+   grammar the whole bento depends on. */
+.overlay-panel {
+  background:
+    linear-gradient(var(--elev2-tint), var(--elev2-tint)) padding-box,
+    linear-gradient(var(--ink), var(--ink)) padding-box,
+    linear-gradient(150deg, rgba(10, 147, 150, 0.75), rgba(0, 95, 115, 0.3) 45%, rgba(10, 147, 150, 0.08) 80%) border-box;
 }
 
 .kicker {
@@ -338,7 +391,10 @@ button.tile:hover {
 .tile:focus-visible,
 .health-row:focus-visible,
 .btn-mic:focus-visible,
-.btn-send:focus-visible {
+.btn-send:focus-visible,
+/* R2-12: the close button was the ONE interactive element outside this rule, so every
+   drill-down open painted the browser's default white ring on it (the trap focuses it). */
+.close-btn:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
@@ -376,8 +432,10 @@ button.tile:hover {
   flex: 1;
   min-width: 0;
   resize: none;
-  background: rgba(0, 18, 25, 0.5);
-  border: 1px solid rgba(148, 210, 189, 0.16);
+  /* stays a WELL, not a raised surface: darker than the lifted card by design, nudged up with it
+     so the field still reads as a field (deliberate scope call on the R2-4 --elev2 sweep) */
+  background: rgba(0, 24, 32, 0.55);
+  border: 1px solid rgba(148, 210, 189, 0.22);
   border-radius: 0.7rem;
   padding: 0.6rem 0.8rem;
   font-size: 0.95rem;
@@ -391,6 +449,26 @@ button.tile:hover {
 }
 .note-input:focus {
   border-color: rgba(10, 147, 150, 0.55);
+}
+
+/* R2-13 (mobile fold): the capture card's RESTING state cost ~460px before the first metric tile.
+   The capture affordance stays in fold 1 (owner decision) — what compacts is the idle height: one
+   row at rest, growing the moment it is focused or holds text. Pure CSS (:not(:placeholder-shown)),
+   so there is no breakpoint state to hydrate and desktop is untouched. */
+@media (max-width: 639.98px) {
+  .note-input {
+    /* two lines at rest: the hint wraps to two in the inline compose row, and a box that clips
+       its own placeholder mid-glyph looks broken. Fit the content, then grow on focus. */
+    height: 3.7rem;
+    transition: height 0.18s ease;
+  }
+  .note-input:focus,
+  .note-input:not(:placeholder-shown) {
+    height: 5.4rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-input { transition: none; }
 }
 
 /* THE one Golden Orange accent on the main view: the primary CTA.
@@ -529,7 +607,9 @@ button.tile:hover {
   font-variant-numeric: tabular-nums;
 }
 .brain-stat .k {
-  font-size: 0.62rem;
+  /* R2-18: 0.62rem (~9.9px) sat below the C19 craft floor; the strip's re-span (three half-width
+     cells on top, two wide ones under) is what makes the bump fit without clipping at 390 */
+  font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--mute);

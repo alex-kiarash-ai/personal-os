@@ -1,0 +1,1498 @@
+{
+  "ran": "2026-07-27",
+  "baseline": "claude-opus-4-8",
+  "candidate": "claude-sonnet-4-6",
+  "engines": [
+    {
+      "engine": "#03",
+      "baseline": "claude-opus-4-8",
+      "candidate": "claude-sonnet-4-6",
+      "threshold": 70,
+      "n": 49,
+      "meanDelta": -1.45,
+      "medianAbsDelta": 4,
+      "within5": 30,
+      "within5pct": 61.2,
+      "basePass": 5,
+      "candPass": 10,
+      "roleAgree": 37,
+      "thresholdToPreservePassRate": 73,
+      "verdict": "DO NOT switch blindly. To preserve the pass rate the threshold would have to move 70 -> 73",
+      "rows": [
+        {
+          "job_posting_id": "4278799725",
+          "job_title": "Senior UK Data Analyst",
+          "company_name": "Universal Music Group UK",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 15,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4439774142",
+          "job_title": "Power Platform and Integration Developer (3FF27E4)",
+          "company_name": "Referment",
+          "claude-opus-4-8": {
+            "fit": 48,
+            "interest": 55,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 55,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4413946418",
+          "job_title": "Senior Analytics Platform Engineer",
+          "company_name": "Our Future Health UK",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 25,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 18,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439108321",
+          "job_title": "Senior Programmer",
+          "company_name": "ConsultANZ Civil Engineering, Construction, Surveying Recruitment",
+          "claude-opus-4-8": {
+            "fit": 8,
+            "interest": 3,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 12,
+            "interest": 8,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4438819195",
+          "job_title": "Data Engineer",
+          "company_name": "Lumora Analytics",
+          "claude-opus-4-8": {
+            "fit": 72,
+            "interest": 68,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 65,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4439100523",
+          "job_title": "Business Intelligence & Automation Lead at Truelayer",
+          "company_name": "Jack & Jill",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 85,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 78,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4400808113",
+          "job_title": "Senior Analytics Engineer",
+          "company_name": "Checkout.com",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 22,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4433934561",
+          "job_title": "Portfolio Data Analyst, Infrastructure (m/f/d)",
+          "company_name": "PATRIZIA SE",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 10,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 12,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440012469",
+          "job_title": "Data Architect",
+          "company_name": "Sanderson",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 15,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4439155430",
+          "job_title": "Microsoft Analyst",
+          "company_name": "PoloWorks",
+          "claude-opus-4-8": {
+            "fit": 52,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 30,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4436609770",
+          "job_title": "Data Architect",
+          "company_name": "Michael James Associates",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 10,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 15,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4412731887",
+          "job_title": "Finance Technical Analyst",
+          "company_name": "Kennedys",
+          "claude-opus-4-8": {
+            "fit": 74,
+            "interest": 30,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 78,
+            "interest": 22,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4439153732",
+          "job_title": "Data Insight Manager",
+          "company_name": "Dementia UK",
+          "claude-opus-4-8": {
+            "fit": 58,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 68,
+            "interest": 22,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4439405986",
+          "job_title": "Insight Data Analytics Manager",
+          "company_name": "Independent Office for Police Conduct",
+          "claude-opus-4-8": {
+            "fit": 52,
+            "interest": 12,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4436605750",
+          "job_title": "Power Platform Engineer",
+          "company_name": "Pay.UK",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 45,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 35,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4439178445",
+          "job_title": "Lead Data Engineer",
+          "company_name": "Vida Bank",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 25,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 22,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439488958",
+          "job_title": "Cards Analytics Specialist",
+          "company_name": "PayTech Group",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4439158981",
+          "job_title": "Senior Data Engineer",
+          "company_name": "HyROI Solutions- An ISO-certified company",
+          "claude-opus-4-8": {
+            "fit": 45,
+            "interest": 30,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 35,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4418195129",
+          "job_title": "Fabric Engineer",
+          "company_name": "Avanade",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 45,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 42,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4437680366",
+          "job_title": "Analytics Consultant",
+          "company_name": "Tenth Revolution Group",
+          "claude-opus-4-8": {
+            "fit": 82,
+            "interest": 55,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 78,
+            "interest": 42,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4372905067",
+          "job_title": "Senior Data Engineer",
+          "company_name": "Avalanche Studios Group",
+          "claude-opus-4-8": {
+            "fit": 34,
+            "interest": 25,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 22,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4432055337",
+          "job_title": "Azure Data & AI Engineer",
+          "company_name": "Avanade",
+          "claude-opus-4-8": {
+            "fit": 48,
+            "interest": 45,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 52,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4423943289",
+          "job_title": "SHIPPING PERFORMANCE ANALYST (LNG VESSELS)",
+          "company_name": "QatarEnergy",
+          "claude-opus-4-8": {
+            "fit": 8,
+            "interest": 5,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 8,
+            "interest": 10,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440936919",
+          "job_title": "PMO / Business Analyst",
+          "company_name": "Power International Holding",
+          "claude-opus-4-8": {
+            "fit": 28,
+            "interest": 5,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 8,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440262282",
+          "job_title": "Measurement Performance Center of Excellence (CoE) Lead",
+          "company_name": "TikTok",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 30,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4438426808",
+          "job_title": "Digital Analytics Consultant",
+          "company_name": "Concentrix",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 25,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 22,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4438061477",
+          "job_title": "Azure AI Power Platform",
+          "company_name": "Wipro",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 55,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 55,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439988626",
+          "job_title": "EDW Data Modeler :: 8+ Years Experienced",
+          "company_name": "Quantum Integrators",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 8,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 32,
+            "interest": 10,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4441235197",
+          "job_title": "Product Analyst",
+          "company_name": "Easygenerator",
+          "claude-opus-4-8": {
+            "fit": 58,
+            "interest": 68,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 72,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440628829",
+          "job_title": "Data Analyst",
+          "company_name": "MRO Engenharia e Serviços",
+          "claude-opus-4-8": {
+            "fit": 68,
+            "interest": 15,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440975156",
+          "job_title": "E-Commerce Data & BI Analyst",
+          "company_name": "The IN Group",
+          "claude-opus-4-8": {
+            "fit": 68,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440640413",
+          "job_title": "Business Intelligence (BI) Analyst",
+          "company_name": "Lo-TEK Institute",
+          "claude-opus-4-8": {
+            "fit": 78,
+            "interest": 15,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440947186",
+          "job_title": "Senior Data Engineer - Python & Microservices",
+          "company_name": "Global Software Solutions Group",
+          "claude-opus-4-8": {
+            "fit": 18,
+            "interest": 15,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 18,
+            "interest": 15,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440952862",
+          "job_title": "Senior BI Developer",
+          "company_name": "Handpicked Recruitment",
+          "claude-opus-4-8": {
+            "fit": 40,
+            "interest": 10,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 12,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440963237",
+          "job_title": "BI Developer",
+          "company_name": "Handpicked Recruitment",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 12,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4438077451",
+          "job_title": "Power BI Developer/M365 -TOP FINANCE COMPANY!",
+          "company_name": "Robert Half",
+          "claude-opus-4-8": {
+            "fit": 72,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4438096604",
+          "job_title": "SQL Developer (Business Intelligence) - Financial Services",
+          "company_name": "Sentinel",
+          "claude-opus-4-8": {
+            "fit": 68,
+            "interest": 8,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440681478",
+          "job_title": "SQL Server Data Warehouse Developer - 6 Months",
+          "company_name": "Transguard Workforce Solutions",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 8,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 48,
+            "interest": 18,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440971232",
+          "job_title": "Senior Reporting Manager",
+          "company_name": "Parsons Corporation",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 8,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 12,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4438071964",
+          "job_title": "Decision Intelligence Analyst",
+          "company_name": "Confidential Government",
+          "claude-opus-4-8": {
+            "fit": 48,
+            "interest": 55,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 35,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440980902",
+          "job_title": "Software Developer & Database Architects",
+          "company_name": "Euro Group Engineering",
+          "claude-opus-4-8": {
+            "fit": 38,
+            "interest": 20,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 32,
+            "interest": 18,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4438466488",
+          "job_title": "Automation and Data Transformation Specialist",
+          "company_name": "Linnk Group",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 60,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 62,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440230906",
+          "job_title": "Senior Data Analyst",
+          "company_name": "Merlin Entertainments",
+          "claude-opus-4-8": {
+            "fit": 68,
+            "interest": 15,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4392853493",
+          "job_title": "Senior Data Analyst",
+          "company_name": "hackajob",
+          "claude-opus-4-8": {
+            "fit": 52,
+            "interest": 25,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 22,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4441216765",
+          "job_title": "Senior Data Analyst-(Re)Insurance- SQL, Power BI, Azure technologies",
+          "company_name": "Gallagher Re",
+          "claude-opus-4-8": {
+            "fit": 68,
+            "interest": 12,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 18,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440217683",
+          "job_title": "BI & Insights Analyst",
+          "company_name": "WorkNest Group",
+          "claude-opus-4-8": {
+            "fit": 68,
+            "interest": 45,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 42,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4440717760",
+          "job_title": "Senior Data Analyst",
+          "company_name": "SAVVY RECRUITMENT",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 25,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 22,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4438488838",
+          "job_title": "Power BI Business Analyst",
+          "company_name": "MANNING SERVICES LIMITED",
+          "claude-opus-4-8": {
+            "fit": 68,
+            "interest": 8,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 68,
+            "interest": 15,
+            "target_role": "powerbi"
+          }
+        },
+        {
+          "job_posting_id": "4441442915",
+          "job_title": "Data Analyst - Power BI (Hospitality)",
+          "company_name": "PSD Group",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 40,
+            "target_role": "powerbi"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 42,
+            "target_role": "powerbi"
+          }
+        }
+      ]
+    },
+    {
+      "engine": "#14",
+      "baseline": "claude-opus-4-8",
+      "candidate": "claude-sonnet-4-6",
+      "threshold": 50,
+      "n": 48,
+      "meanDelta": 2.19,
+      "medianAbsDelta": 4,
+      "within5": 33,
+      "within5pct": 68.8,
+      "basePass": 7,
+      "candPass": 9,
+      "roleAgree": 44,
+      "thresholdToPreservePassRate": 53,
+      "verdict": "DO NOT switch blindly. To preserve the pass rate the threshold would have to move 50 -> 53",
+      "rows": [
+        {
+          "job_posting_id": "4376788720",
+          "job_title": "Senior Software Engineer (Go) - Product Teams",
+          "company_name": "apotea.se",
+          "claude-opus-4-8": {
+            "fit": 22,
+            "interest": 45,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 18,
+            "interest": 42,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439779126",
+          "job_title": "Senior AI Engineer",
+          "company_name": "Tandem Health",
+          "claude-opus-4-8": {
+            "fit": 48,
+            "interest": 95,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 92,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439752933",
+          "job_title": "Full Stack Engineer - AI-First Development",
+          "company_name": "Nava Insights",
+          "claude-opus-4-8": {
+            "fit": 38,
+            "interest": 70,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 72,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439106893",
+          "job_title": "Staff Software Engineer (Python & AI Systems) | EU",
+          "company_name": "C&D Talent Advisory - Academy",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 78,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 78,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439103996",
+          "job_title": "Principal Software Engineer (Python & AI Systems) | EU",
+          "company_name": "C&D Talent Advisory - Academy",
+          "claude-opus-4-8": {
+            "fit": 34,
+            "interest": 82,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 82,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439750550",
+          "job_title": "Senior Software Engineer - AI Platform",
+          "company_name": "MendixApp",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 78,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 72,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4437205823",
+          "job_title": "Automation Engineer (m/w/d) Workflow- und Prozessautomatisierung",
+          "company_name": "relyon AG",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 88,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 72,
+            "interest": 82,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4420973967",
+          "job_title": "Senior AI R&D Engineer – Model Training (f/m/d)",
+          "company_name": "Aleph Alpha",
+          "claude-opus-4-8": {
+            "fit": 22,
+            "interest": 70,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 22,
+            "interest": 55,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4438997689",
+          "job_title": "KI-Entwickler (m/w/d)",
+          "company_name": "KOLIBRAIN",
+          "claude-opus-4-8": {
+            "fit": 33,
+            "interest": 55,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 32,
+            "interest": 45,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4437228503",
+          "job_title": "Senior Mobile Test Automation Engineer",
+          "company_name": "Bragi",
+          "claude-opus-4-8": {
+            "fit": 18,
+            "interest": 35,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 18,
+            "interest": 30,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4410483816",
+          "job_title": "Junior Test Engineer",
+          "company_name": "TXT GROUP",
+          "claude-opus-4-8": {
+            "fit": 8,
+            "interest": 12,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 8,
+            "interest": 5,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4437214869",
+          "job_title": "Programmierer ­(m,d,w)",
+          "company_name": "alio",
+          "claude-opus-4-8": {
+            "fit": 15,
+            "interest": 5,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 20,
+            "interest": 10,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4412100134",
+          "job_title": "Senior Software Engineer / AI Enabler (m/f/d)",
+          "company_name": "LeasingMarkt.de",
+          "claude-opus-4-8": {
+            "fit": 38,
+            "interest": 62,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 62,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4437207682",
+          "job_title": "Senior Software Engineer in Test (f/m/d/x)",
+          "company_name": "EMIL Group",
+          "claude-opus-4-8": {
+            "fit": 34,
+            "interest": 40,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 22,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439781691",
+          "job_title": "AI Development Engineer (m/f/d)",
+          "company_name": "Dassault Systèmes",
+          "claude-opus-4-8": {
+            "fit": 22,
+            "interest": 45,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 22,
+            "interest": 55,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4346707455",
+          "job_title": "Senior Data Scientist",
+          "company_name": "Fixify",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 45,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 42,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439777159",
+          "job_title": "Forestry and Land Management Scientist (AI Training)",
+          "company_name": "Alignerr",
+          "claude-opus-4-8": {
+            "fit": 3,
+            "interest": 10,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 4,
+            "interest": 12,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4391909651",
+          "job_title": "Machine Learning Scientist - AI Trainer",
+          "company_name": "DataAnnotation",
+          "claude-opus-4-8": {
+            "fit": 28,
+            "interest": 20,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 35,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439123873",
+          "job_title": "Project Engineer - Interior Fit-Out - Dubai - Immediate Joiners",
+          "company_name": "Sanvi Engineering And Business Consulting Solutions",
+          "claude-opus-4-8": {
+            "fit": 2,
+            "interest": 0,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 2,
+            "interest": 0,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440000543",
+          "job_title": "Software Engineer",
+          "company_name": "Binghatti",
+          "claude-opus-4-8": {
+            "fit": 8,
+            "interest": 5,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 8,
+            "interest": 12,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440004279",
+          "job_title": "Project Engineer - Fitout",
+          "company_name": "Al Shirawi Interiors",
+          "claude-opus-4-8": {
+            "fit": 2,
+            "interest": 0,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 2,
+            "interest": 0,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440016361",
+          "job_title": "Project Engineer",
+          "company_name": "Daikin Middle East and Africa",
+          "claude-opus-4-8": {
+            "fit": 3,
+            "interest": 2,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 4,
+            "interest": 2,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4437268042",
+          "job_title": "Software Engineer",
+          "company_name": "SKM Air Conditioning LLC",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 45,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 52,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4427347919",
+          "job_title": "Project Engineer",
+          "company_name": "ALEMCO",
+          "claude-opus-4-8": {
+            "fit": 3,
+            "interest": 5,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 2,
+            "interest": 2,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439156345",
+          "job_title": "DEVELOPER L4",
+          "company_name": "Wipro",
+          "claude-opus-4-8": {
+            "fit": 8,
+            "interest": 5,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 12,
+            "interest": 5,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4437256785",
+          "job_title": "Lead Quality Assurance Engineer - Mobile Applications",
+          "company_name": "Emirates",
+          "claude-opus-4-8": {
+            "fit": 8,
+            "interest": 20,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 12,
+            "interest": 18,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4437234518",
+          "job_title": "Principal AI – Large Language Models Expert",
+          "company_name": "UNEY",
+          "claude-opus-4-8": {
+            "fit": 8,
+            "interest": 70,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 14,
+            "interest": 78,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4440051636",
+          "job_title": "Fabrication Project Engineer / Construction Engineering Specialist",
+          "company_name": "Saipem",
+          "claude-opus-4-8": {
+            "fit": 3,
+            "interest": 2,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 2,
+            "interest": 0,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4440021451",
+          "job_title": "Automation Engineer",
+          "company_name": "Orion Group",
+          "claude-opus-4-8": {
+            "fit": 3,
+            "interest": 2,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 8,
+            "interest": 2,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4439785588",
+          "job_title": "Freelance Agent Evaluation Engineer",
+          "company_name": "Mindrift",
+          "claude-opus-4-8": {
+            "fit": 32,
+            "interest": 55,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 72,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439165206",
+          "job_title": "Nutanix Engineer",
+          "company_name": "LTM",
+          "claude-opus-4-8": {
+            "fit": 4,
+            "interest": 8,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 2,
+            "interest": 5,
+            "target_role": "neither"
+          }
+        },
+        {
+          "job_posting_id": "4411176629",
+          "job_title": "AI Developer (m/w/d) - München",
+          "company_name": "Optimus Search",
+          "claude-opus-4-8": {
+            "fit": 38,
+            "interest": 82,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 82,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4440053069",
+          "job_title": "Generative AI Engineer (m/w/d) 85.000€",
+          "company_name": "Computer Futures",
+          "claude-opus-4-8": {
+            "fit": 38,
+            "interest": 78,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 72,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4439796960",
+          "job_title": "AI Engineer (m/w/d) // Remote möglich",
+          "company_name": "Breuninger",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 85,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 82,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4437240516",
+          "job_title": "AI Engineer – Python & Automation (m/w/d)",
+          "company_name": "Assecor GmbH",
+          "claude-opus-4-8": {
+            "fit": 48,
+            "interest": 90,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 85,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4440036900",
+          "job_title": "Generative AI/Agentic AI Engineer (d/m/w)",
+          "company_name": "Tintschl Unternehmensgruppe",
+          "claude-opus-4-8": {
+            "fit": 48,
+            "interest": 92,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 85,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4440005551",
+          "job_title": "AI Engineer (d/w/m) - im Bereich Consulting",
+          "company_name": "4flow",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 90,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 58,
+            "interest": 78,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4440008301",
+          "job_title": "AI Engineer (d/w/m) - im Bereich Consulting",
+          "company_name": "4flow",
+          "claude-opus-4-8": {
+            "fit": 55,
+            "interest": 82,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 58,
+            "interest": 82,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4440047433",
+          "job_title": "AI Solutions Engineer (m/w/d) 85.000€",
+          "company_name": "Computer Futures",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 78,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 72,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4381702400",
+          "job_title": "Applied AI Engineer - Gen AI Consultancy - Up to £140,000 + Equity",
+          "company_name": "Saragossa",
+          "claude-opus-4-8": {
+            "fit": 42,
+            "interest": 95,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 88,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4440009562",
+          "job_title": "Junior AI Engineer",
+          "company_name": "Capgemini",
+          "claude-opus-4-8": {
+            "fit": 62,
+            "interest": 90,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 88,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4437260162",
+          "job_title": "Graduate AI Developer",
+          "company_name": "The Opportunity Hub UK",
+          "claude-opus-4-8": {
+            "fit": 22,
+            "interest": 55,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 28,
+            "interest": 55,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4440001610",
+          "job_title": "Artificial Intelligence Engineer",
+          "company_name": "R-ainbow Marketplace",
+          "claude-opus-4-8": {
+            "fit": 34,
+            "interest": 65,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 65,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439789881",
+          "job_title": "AI Engineer",
+          "company_name": "Zero100",
+          "claude-opus-4-8": {
+            "fit": 52,
+            "interest": 85,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 52,
+            "interest": 72,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439410488",
+          "job_title": "Artificial Intelligence Engineer",
+          "company_name": "Space Executive",
+          "claude-opus-4-8": {
+            "fit": 58,
+            "interest": 95,
+            "target_role": "consultant"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 62,
+            "interest": 90,
+            "target_role": "consultant"
+          }
+        },
+        {
+          "job_posting_id": "4437247650",
+          "job_title": "Machine Learning Engineer",
+          "company_name": "Haystack",
+          "claude-opus-4-8": {
+            "fit": 12,
+            "interest": 45,
+            "target_role": "neither"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 22,
+            "interest": 50,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4440036063",
+          "job_title": "Artificial Intelligence Engineer",
+          "company_name": "DW Search",
+          "claude-opus-4-8": {
+            "fit": 45,
+            "interest": 90,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 42,
+            "interest": 82,
+            "target_role": "ai"
+          }
+        },
+        {
+          "job_posting_id": "4439789705",
+          "job_title": "Artificial Intelligence Engineer",
+          "company_name": "K&K Talents",
+          "claude-opus-4-8": {
+            "fit": 38,
+            "interest": 90,
+            "target_role": "ai"
+          },
+          "claude-sonnet-4-6": {
+            "fit": 38,
+            "interest": 82,
+            "target_role": "ai"
+          }
+        }
+      ]
+    }
+  ]
+}

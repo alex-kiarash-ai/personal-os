@@ -7,7 +7,15 @@ import type { LifeData } from "@/lib/types";
 import { plantsDue } from "@/lib/data";
 import { Dot } from "@/components/primitives";
 
-export function PlantsBreakdown({ life, now }: { life: LifeData | null | "failed"; now: number }) {
+export function PlantsBreakdown({
+  life,
+  now,
+  onClose,
+}: {
+  life: LifeData | null | "failed";
+  now: number;
+  onClose?: () => void;
+}) {
   if (life === "failed")
     return (
       <p className="text-sm" style={{ color: "var(--mute)" }}>
@@ -35,12 +43,27 @@ export function PlantsBreakdown({ life, now }: { life: LifeData | null | "failed
           </span>
           <span
             className="w-24 flex-none text-right text-xs tabular-nums"
-            style={{ color: p.due_today ? "var(--warn)" : "var(--mute)" }}
+            style={{ color: p.due_today ? "var(--custard)" : "var(--mute)" }}
           >
             {p.due_today ? "due today" : `next ${p.next_due}`}
           </span>
         </div>
       ))}
+      {/* R2-15: the tile has asked "tell Alex when you water" for 23 days while the input that
+          tells Alex sits on the same screen, unconnected. One tap closes the overlay, prefills the
+          note and focuses it — the rare loop this page can actually close on itself. */}
+      <button
+        type="button"
+        className="btn-mic mt-3 w-full"
+        onClick={() => {
+          window.dispatchEvent(
+            new CustomEvent("hq:prefill-note", { detail: { text: "watered the plants today" } })
+          );
+          onClose?.();
+        }}
+      >
+        log watering → note
+      </button>
       <p className="mt-2 text-xs" style={{ color: "var(--mute)" }}>
         only plants due today are flagged · next watering date shown per plant · data as of {life.plants.as_of ?? "unknown"} · tell Alex &quot;watered&quot; and the sheet gets stamped
       </p>

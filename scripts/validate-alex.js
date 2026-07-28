@@ -13,8 +13,15 @@
 // a manifest project with all three trifecta legs true MUST declare a gate that is echoed in its CLAUDE.md).
 // Any failure exits 1 and names exactly what drifted and where.
 //
-// The full suite (G1-G4 + V1-V9 + V12) runs on EVERY invocation (V10/V11 are commit-time only) -
-// generate-alex.js --only=X limits what is staged/applied, never what is checked (c7 fix, upgrade P5).
+// plus V13 local wrapper model-pin contract (2026-07-25, stress-test F4; the local twin of V6,
+// COMPLETE by construction: every scripts/run-*.ps1 + auth-check.ps1 must be declared in the contract).
+//
+// plus V14 Alex gender-neutrality contract (2026-07-28; the code behind work/12 HARD RULE 15 and
+//      the soul.md law of the same date. Two narrow scans: unpublished episode BODIES, and the
+//      pinned locked line. Published episodes are archive and are skipped by construction).
+// The full suite (SUITE_RANGE below, currently G1-G4 + V1-V14) runs on EVERY invocation (V10/V11 are
+// commit-time only) - generate-alex.js --only=X limits what is staged/applied, never what is checked
+// (c7 fix, upgrade P5). V_MAX is the ONE declared suite number; every consumer derives from it (F-10).
 //
 // Contract with generate-alex.js (orchestration step 3):
 //   const { runAll } = require('./validate-alex');
@@ -50,6 +57,16 @@ const { TARGETS, NODE } = require('./lib/sync-n8n-voice');
 const genTokens = require('./lib/gen-tokens');
 
 const REPO = path.join(__dirname, '..');
+
+// --- suite range: ONE declared number, every consumer derives (stress-test fix F-10, 2026-07-25) ---
+// The generator used to hand-write its own "G1-G4 + V1-V9" label in two places and rotted four rules
+// behind the real suite. A label that restates a fact it does not own is the same class as a validator
+// deriving its expectation from prose (the V6 lesson): so V_MAX is declared HERE, once, and
+// generate-alex.js + the recall h-validators harvester + narrative-drift-check.py all read THIS
+// declaration (a structured `const V_MAX = <n>`), never a printed string or a prose claim.
+const V_MAX = 15;
+const SUITE_RANGE = `G1-G4 + V1-V${V_MAX}`;
+
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
 const RT_BEGIN = '<!-- ROUTING-TABLE:BEGIN';
 const RT_END = '<!-- ROUTING-TABLE:END -->';
@@ -382,20 +399,70 @@ function v5HexTokens({ stagedDir, allHexes }, failures) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// V6 - model routing, CONTRACT-DRIVEN (rewritten 2026-07-24). The model each n8n sync-target
-//      workflow runs, live, must match the machine-authoritative contract in
-//      system/manifest.json `meta.model_routing` (a `default` model + per-workflow `overrides`).
-//      This REPLACED the old prose-derived check that regex-read "Text-generation nodes use
-//      <model>" out of CLAUDE.md. That version broke the day the two engines got a documented
-//      Opus 4.8 exception: a regex over one sentence cannot see an exception paragraph, so the
-//      check false-failed and blocked the generator. The general rule this now embodies: a
-//      validator NEVER derives its expectation from prose - desired state lives in structured
-//      data and the check reads THAT. Registered production engines (#03/#14) FAIL on a mismatch;
-//      non-registered sync targets (the Writer Voice Eval harness) WARN.
-//      Credentials come ONLY from env (N8N_API_URL, N8N_API_KEY). Missing creds or an unreachable
+// V6 - model routing + schedule intent, CONTRACT-DRIVEN (rewritten 2026-07-24; SWEEP + cron legs
+//      added 2026-07-25 for stress-test findings F-06/F-07). Desired state lives in
+//      system/manifest.json `meta.model_routing` (`default` + per-workflow `overrides`) and, per
+//      project, `n8n_cron`. This REPLACED the original prose-derived check that regex-read
+//      "Text-generation nodes use <model>" out of CLAUDE.md; that version broke the day the two
+//      engines got a documented Opus 4.8 exception, because a regex over one sentence cannot see an
+//      exception paragraph. The rule it embodies: a validator NEVER derives its expectation from
+//      prose - desired state lives in structured data and the check reads THAT.
+//
+//      THREE legs, all off ONE `GET /workflows` call (the n8n public API returns full workflow
+//      objects incl. nodes, so the sweep costs the same as the old three per-workflow GETs):
+//        (a) TARGETS - each voice-sync target still carries the checked node on its contracted model.
+//        (b) SWEEP (F-07) - EVERY OTHER live workflow's model strings must also satisfy the contract.
+//            Before this, `meta.model_routing.default` was enforced for nobody: a Claude node added
+//            to any non-target workflow ran any model unchecked. Scope note (precision over recall,
+//            deliberate): only values that LOOK like an LLM id are asserted, so a data field
+//            legitimately named "model" cannot false-fail the generator; a typo'd id that matches no
+//            provider is left to the runtime 400 + the Pipeline Error Alert.
+//        (c) CRON (F-06) - a project's declared `n8n_cron` must equal the live scheduleTrigger.
+//            Nothing checked this: the HQ liveness monitor derives its silence window FROM the live
+//            trigger, so a drifted cron silently re-tuned the monitor instead of raising it, and
+//            C16 skips the engines' cadence label entirely.
+//      Registered production workflows FAIL on a mismatch; unregistered ones (the eval harness,
+//      housekeeping flows) WARN. Credentials come ONLY from env. Missing creds or an unreachable
 //      API: hard FAIL in generator context (ground rule 7), LOUD SKIP in pre-commit context.
-//      A real mismatch fails (prod) / warns (harness) in every context.
 // ---------------------------------------------------------------------------------------------
+const LLM_ID_RE = /(claude|gpt|gemini|llama|mistral|sonnet|opus|haiku|kimi|moonshot|o[134]-)/i;
+
+// Every model id declared in a node's parameters: the `model: "..."` form inside Code-node jsCode
+// AND a `"model": "..."` key anywhere in a node's parameter JSON (an HTTP/LangChain node body).
+function modelIdsInNode(node) {
+  const out = new Set();
+  const add = s => { if (LLM_ID_RE.test(s)) out.add(s); };
+  const js = (node.parameters || {}).jsCode;
+  if (typeof js === 'string')
+    for (const m of js.matchAll(/\bmodel\s*:\s*["']([A-Za-z0-9._-]+)["']/g)) add(m[1]);
+  let blob = '';
+  try { blob = JSON.stringify(node.parameters || {}); } catch (_) { blob = ''; }
+  for (const m of blob.matchAll(/\\?"model\\?"\s*:\s*\\?"([A-Za-z0-9._-]+)\\?"/g)) add(m[1]);
+  return [...out];
+}
+
+// The live scheduleTrigger expressed as cron. n8n stores either a raw cronExpression or an
+// interval form; a plain every-1-day interval is exactly `<min> <hour> * * *`, so it is normalized
+// and comparable. Any other interval shape is returned as null (declared-but-inexpressible warns).
+function liveCronsOf(wf) {
+  const out = [];
+  for (const n of wf.nodes || []) {
+    if (!/scheduletrigger/i.test(String(n.type || ''))) continue;
+    const intervals = (((n.parameters || {}).rule) || {}).interval || [];
+    for (const iv of intervals) {
+      if (!iv) continue;
+      if (iv.expression) { out.push({ cron: String(iv.expression).trim(), form: 'cronExpression' }); continue; }
+      if (iv.field === 'days' && (iv.daysInterval == null || Number(iv.daysInterval) === 1)) {
+        const h = Number(iv.triggerAtHour || 0), m = Number(iv.triggerAtMinute || 0);
+        out.push({ cron: `${m} ${h} * * *`, form: 'days-interval(normalized)' });
+        continue;
+      }
+      out.push({ cron: null, form: `interval ${JSON.stringify(iv)}` });
+    }
+  }
+  return out;
+}
+
 async function v6ModelRouting({ manifest, context }, failures, warnings) {
   const mr = manifest.meta && manifest.meta.model_routing;
   if (!mr || !mr.default) {
@@ -422,24 +489,37 @@ async function v6ModelRouting({ manifest, context }, failures, warnings) {
     return;
   }
 
+  // ONE list call feeds all three legs.
+  let all;
+  try {
+    const j = await fetchJson(`${base.replace(/\/$/, '')}/workflows?limit=250`, { 'X-N8N-API-KEY': key });
+    all = Array.isArray(j.data) ? j.data : [];
+  } catch (e) {
+    const msg = `V6: the live n8n workflow list is unreachable - ${e.message}`;
+    if (context === 'pre-commit') { warnings.push(`WARNING V6 SKIPPED (pre-commit): ${msg}`); return; }
+    failures.push(`FAILED ${msg}`);
+    return;
+  }
+  if (all.length === 0) {
+    failures.push('FAILED V6: the live n8n workflow list came back empty - the model-routing contract cannot be verified (treat as an outage, not a pass)');
+    return;
+  }
+  const byId = new Map(all.map(w => [w.id, w]));
+  const flagFor = id => m => registered.has(id)
+    ? failures.push(`FAILED ${m}`)
+    : warnings.push(`WARNING ${m} - not a registered production workflow`);
+
+  // (a) the declared voice-sync targets
   for (const t of TARGETS) {
-    const isProd = registered.has(t.id);           // registered engine -> FAIL; harness -> WARN
-    const flag = m => isProd ? failures.push(`FAILED ${m}`) : warnings.push(`WARNING ${m} - regression harness, not a production engine`);
-    let wf;
-    try {
-      wf = await fetchJson(`${base.replace(/\/$/, '')}/workflows/${t.id}`, { 'X-N8N-API-KEY': key });
-    } catch (e) {
-      const msg = `V6: live n8n workflow ${t.id} (${t.name}) unreachable - ${e.message}`;
-      if (context === 'pre-commit' || !isProd) { warnings.push(`WARNING V6 ${isProd ? 'SKIPPED (pre-commit)' : '(harness)'}: ${msg}`); continue; }
-      failures.push(`FAILED ${msg}`);
-      continue;
-    }
+    const flag = flagFor(t.id);
+    const wf = byId.get(t.id);
+    if (!wf) { flag(`V6: sync target ${t.id} (${t.name}) is not in the live workflow list (deleted or renamed?)`); continue; }
     const codeNode = (wf.nodes || []).find(n => n.name === node);
     if (!codeNode || typeof (codeNode.parameters || {}).jsCode !== 'string') {
       flag(`V6: live workflow ${t.id} (${t.name}) has no '${node}' code node - the live pipeline no longer matches the model-routing contract`);
       continue;
     }
-    const models = [...new Set([...codeNode.parameters.jsCode.matchAll(/\bmodel\s*:\s*["']([A-Za-z0-9._-]+)["']/g)].map(m => m[1]))];
+    const models = modelIdsInNode(codeNode);
     if (models.length === 0) {
       flag(`V6: no model id found in the '${node}' node of live workflow ${t.id} (${t.name})`);
       continue;
@@ -449,6 +529,43 @@ async function v6ModelRouting({ manifest, context }, failures, warnings) {
       if (m !== exp)
         flag(`V6: model routing mismatch - manifest.meta.model_routing expects ${exp} for ${t.id} (${t.name}) '${node}', live runs ${m}`);
     }
+  }
+
+  // (b) the sweep: every other workflow (F-07)
+  const targetIds = new Set(TARGETS.map(t => t.id));
+  for (const wf of all) {
+    if (targetIds.has(wf.id)) continue;
+    const found = new Set();
+    for (const n of wf.nodes || []) for (const m of modelIdsInNode(n)) found.add(m);
+    if (found.size === 0) continue;                       // no LLM call: nothing to route
+    const exp = expectedFor(wf.id);
+    for (const m of found) {
+      if (m !== exp)
+        flagFor(wf.id)(`V6 (sweep): live workflow ${wf.id} ("${wf.name}") runs model ${m} but meta.model_routing expects ${exp} - fix the workflow, or add a documented override to the contract`);
+    }
+  }
+
+  // (c) the cron contract: declared n8n_cron == live scheduleTrigger (F-06)
+  for (const p of manifest.projects) {
+    if (!p.n8n || !p.n8n_cron) continue;
+    const wf = byId.get(p.n8n);
+    if (!wf) {
+      failures.push(`FAILED V6 (cron): #${pad(p.num)} ${p.name} declares n8n workflow ${p.n8n} which is NOT in the live workflow list`);
+      continue;
+    }
+    const live = liveCronsOf(wf);
+    if (live.length === 0) {
+      failures.push(`FAILED V6 (cron): #${pad(p.num)} ${p.name} declares n8n_cron '${p.n8n_cron}' but live workflow ${p.n8n} ("${wf.name}") has no schedule trigger at all - it no longer runs on a schedule`);
+      continue;
+    }
+    const comparable = live.filter(l => l.cron);
+    if (comparable.length === 0) {
+      warnings.push(`WARNING V6 (cron): #${pad(p.num)} ${p.name} declares n8n_cron '${p.n8n_cron}' but the live trigger form is not cron-expressible (${live.map(l => l.form).join('; ')}) - compare it by hand or drop the declaration`);
+      continue;
+    }
+    const want = String(p.n8n_cron).trim();
+    if (!comparable.some(l => l.cron === want))
+      failures.push(`FAILED V6 (cron): #${pad(p.num)} ${p.name} live n8n schedule is [${comparable.map(l => l.cron).join(' | ')}] but system/manifest.json n8n_cron declares '${want}' - an undocumented schedule change (fix the workflow, or change the contract deliberately)`);
   }
 }
 
@@ -660,8 +777,27 @@ function v8HqHexScan({ stagedDir, colorTokens }, failures) {
 //      C13 goes amber on the same condition). ON-DEMAND/DORMANT/PARKED/RETIRED are exempt by
 //      rule - they have no promise to fire. A documented drill counts (first_fire_kind=drill).
 // ---------------------------------------------------------------------------------------------
-function v9FirstFireAging({ stagedDir, manifest }, warnings) {
+function v9FirstFireAging({ stagedDir, manifest }, failures, warnings) {
   const rows = [...manifest.projects, ...(manifest.meta?.unnumbered || [])];
+
+  // (a) FUTURE first_fire = FAILURE (added 2026-07-28, command-layer review F-8). first_fire is the
+  //     registry's proof-of-life record: "has this project ever actually produced for real". Both this
+  //     check's aging half and check.ps1 C13 branch on first_fire being NULL, so a populated FUTURE date
+  //     passes every check while asserting a fire that has not happened - the claim sits inside the
+  //     structure but outside what the structure validates. It also permanently disables the 14-day
+  //     aging clock, so a project that never fires can never be flagged. #31 carried "2026-07-29" on
+  //     2026-07-28 and nothing caught it. The design already makes honesty easy (first_fire_kind:"drill"
+  //     lets a documented test run count AND be marked as such), so a future date is never the right answer.
+  const today = new Date().toISOString().slice(0, 10);
+  for (const p of rows) {
+    if (!p.first_fire || !/^\d{4}-\d{2}-\d{2}$/.test(p.first_fire)) continue;
+    if (p.first_fire > today) {
+      const label = p.num != null ? `#${pad(p.num)} ${p.name}` : p.name;
+      failures.push(`FAILED V9: ${label} has first_fire "${p.first_fire}", which is in the FUTURE (today ${today}) - first_fire records a fire that ALREADY happened; set the real date, or null to let the 14-day aging clock run (a documented drill counts, first_fire_kind=drill)`);
+    }
+  }
+
+  // (b) aging half: never-fired LIVE/EVENT rows, WARNING only (the aging rule blocks nothing).
   const flagged = [];
   for (const p of rows) {
     if (p.state !== 'LIVE' && p.state !== 'EVENT') continue;
@@ -875,7 +1011,18 @@ function v12TrifectaGate({ stagedDir, manifest }, failures, warnings) {
       if (!cm) { failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but ${rel} was not found`); continue; }
       const sec = mdSection(cm.text, /^##\s+Trifecta\b/m);
       if (sec === null) { failures.push(`FAILED V12: ${rel} is missing a "## Trifecta" section (project ${pad(p.num)} declares gate "${t.gate}")`); continue; }
-      if (!sec.includes(t.gate)) failures.push(`FAILED V12: the "## Trifecta" section of ${rel} does not name the declared gate "${t.gate}"`);
+      // The gate must appear on a `Gate:` DECLARATION line, not merely somewhere in the section.
+      // TIGHTENED 2026-07-29: this was `sec.includes(t.gate)`, a substring match over the whole
+      // section, which any prose mention of a different gate word defeats. Found by negative-testing
+      // the #31 reclassification: #31's section legitimately explains why the DRAFTING half (#32)
+      // keeps `draft-only`, so flipping #31's declared gate to draft-only still PASSED - the check
+      // could not tell a declaration from an explanation. Every spec already writes
+      // `Gate: **<gate>**` (#28 writes `Gate: read-only` unbolded), so requiring the declaration line
+      // costs nothing and closes the hole. Same principle as the CMD-HEADER work: assert the
+      // structured claim, never free prose.
+      const gateLine = sec.split(/\r?\n/).some(l =>
+        new RegExp(`\\bGate:\\s*\\**\\s*${t.gate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(l));
+      if (!gateLine) failures.push(`FAILED V12: the "## Trifecta" section of ${rel} has no "Gate: ${t.gate}" declaration line (a passing mention elsewhere in the section does not count, tightened 2026-07-29)`);
     }
   }
 }
@@ -906,14 +1053,32 @@ function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
     files = fs.readdirSync(scriptsDir).filter(f => /^run-.*\.ps1$/.test(f) || f === 'auth-check.ps1');
   } catch (e) { failures.push(`FAILED V13: cannot read scripts/ to enforce the wrapper pin contract - ${e.message}`); return; }
 
-  // the real reasoning-call line: a non-comment line that invokes claude(.ps1 / $ClaudeCmd) with -p.
-  // (mcp-list warmups use `& claude.ps1 mcp list` with no -p, so they are correctly ignored.)
+  // The real reasoning-call line: a non-comment line that invokes claude (claude.ps1 / $ClaudeCmd /
+  // a bare `claude`) with the -p prompt flag. (mcp-list warmups use `& claude.ps1 mcp list` with no
+  // -p, so they are correctly ignored.)
+  // HARDENED 2026-07-25 (stress-test T07/F-07): the original matcher required the `&` call operator
+  // on the SAME single line, so a PowerShell backtick continuation or a `Start-Process`/bare-command
+  // invocation evaded it silently. Two changes: (1) logical lines are joined across backtick
+  // continuations and the `&` requirement is dropped; (2) COVERAGE no longer depends on this parser
+  // at all - see the declaration-completeness rule below - so a future unparseable shape can cost a
+  // model assertion but can never create an UNDECLARED wrapper.
+  const logicalLines = text => {
+    const out = [];
+    let buf = null;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = buf === null ? raw : buf + ' ' + raw.trim();
+      if (/`\s*$/.test(line)) { buf = line.replace(/`\s*$/, ''); continue; } // PS line continuation
+      buf = null;
+      out.push(line);
+    }
+    if (buf !== null) out.push(buf);
+    return out;
+  };
   const claudeCallLine = text => {
-    for (const line of text.split(/\r?\n/)) {
-      if (/^\s*#/.test(line)) continue;              // skip comments
-      if (!line.includes('&')) continue;             // needs the call operator
-      if (!/claude/i.test(line)) continue;           // names claude.ps1 or $ClaudeCmd
-      if (!/(^|\s)-p(\s|$)/.test(line)) continue;    // the prompt flag
+    for (const line of logicalLines(text)) {
+      if (/^\s*#/.test(line)) continue;                        // skip comments
+      if (!/claude/i.test(line)) continue;                     // names claude.ps1 / $ClaudeCmd / claude
+      if (!/(^|\s)-p(\s|$)/.test(line)) continue;              // the prompt flag
       return line;
     }
     return null;
@@ -926,13 +1091,21 @@ function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
     const line = claudeCallLine(eff.text);
     const inPins = Object.prototype.hasOwnProperty.call(pins, f);
     const inDet = detNoPin.has(f);
+
+    // COMPLETENESS, parser-independent (2026-07-25): every wrapper the glob finds MUST be declared,
+    // whether or not a claude call is detected. This is what makes V13 complete by construction - a
+    // new or copied wrapper cannot slip through on a call shape the matcher cannot read.
+    if (!inPins && !inDet) {
+      failures.push(`FAILED V13: scripts/${f} is in NEITHER meta.model_routing.local_wrappers.pins NOR deterministic_no_pin - every scheduled wrapper must be declared (an unlisted wrapper that calls claude inherits the global model default); add it to the contract`);
+      continue;
+    }
+    if (inPins && inDet)
+      failures.push(`FAILED V13: scripts/${f} is declared in BOTH pins and deterministic_no_pin - the contract must say exactly one`);
+
     if (line) {
       if (inDet)
         failures.push(`FAILED V13: scripts/${f} is declared deterministic_no_pin but makes a real 'claude -p' call - move it to pins with its model, or the flag is a bug`);
-      if (!inPins) {
-        if (!inDet) failures.push(`FAILED V13: scripts/${f} makes a 'claude -p' call but is in NEITHER meta.model_routing.local_wrappers.pins NOR deterministic_no_pin - an unlisted wrapper inherits the global model default; add it to the contract`);
-        continue;
-      }
+      if (!inPins) continue;
       const want = pins[f], got = modelOf(line);
       if (!got) failures.push(`FAILED V13: scripts/${f} 'claude -p' call has no --model (the contract wants ${want}; without it the wrapper inherits the global default)`);
       else if (got !== want) failures.push(`FAILED V13: scripts/${f} pins --model ${got} but meta.model_routing.local_wrappers wants ${want}`);
@@ -942,6 +1115,132 @@ function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
   }
   for (const f of Object.keys(pins)) if (!files.includes(f)) failures.push(`FAILED V13: local_wrappers.pins names scripts/${f} which does not exist`);
   for (const f of detNoPin) if (!files.includes(f)) warnings.push(`WARNING V13: local_wrappers.deterministic_no_pin names scripts/${f} which does not exist`);
+}
+
+// V14 - Alex gender-neutrality contract (2026-07-28, Shaheen's standing voice law: "I do not want
+//       to give Alex a gender, I want you to not use HE/HIM at all"). The code behind work/12
+//       HARD RULE 15 and the soul.md My Words entry of the same date.
+//
+//       WHY IT EXISTS: the rule was actually first called on 2026-07-05 (see templates/
+//       architecture.template.md and docs/ARCHITECTURE.md) and NOTHING enforced it, so episodes 02
+//       to 06 published with "he" anyway. A convention that only an agent remembers to run is not a
+//       gate. This is the same lesson as V6: expectations live as DATA and are machine-checked, not
+//       as prose someone is trusted to have read.
+//
+//       TWO NARROW SCANS, deliberately not one blanket sweep:
+//       (a) EPISODE BODIES of drafts that are NOT yet published. In a Building Alex post body the
+//           only two characters are Shaheen (I/my) and Alex, so ANY third-person gendered pronoun
+//           there is a real violation. High precision by construction.
+//       (b) THE PINNED LOCKED LINE wherever it appears in the series governance files, matched by
+//           its own shape rather than by a blanket pronoun sweep.
+//
+//       WHAT IT DELIBERATELY DOES NOT TOUCH, and these exclusions are the whole reason it is two
+//       narrow scans instead of one broad one:
+//       - PUBLISHED episodes (header line carries `status: published`). They are the archive of what
+//         actually went out on LinkedIn; retro-editing them would make the archive lie.
+//       - The governance files' PROSE, which legitimately contains he/him as SPECIMENS while stating
+//         the rule (HARD RULE 15 quotes the very regex it enforces). Mention is not use. A blanket
+//         scan here would flag the rule for stating itself, exactly as a naive dash scan would flag
+//         HARD RULE 2 for quoting the two dash characters it bans.
+const V14_EPISODES_DIR = 'work/12-linkedin-series/episodes';
+const V14_PRONOUN_RE = /\b(he|him|his|himself|she|her|hers|herself)\b/i;
+// The locked line carrying a gender, in any of its pinned punctuations. Matches the DEFECT only.
+const V14_LOCKED_GENDERED_RE = /rule\s+(?:he|she)\s+never\s+breaks|(?:his|her)\s+training\s+data/i;
+const V14_GOVERNANCE = [
+  'work/12-linkedin-series/CLAUDE.md',
+  'vault/projects/linkedin-series/concept.md',
+  'vault/projects/linkedin-series/build-prompt.md',
+  'vault/projects/linkedin-series/posts-5-12-plan.md',
+  'soul.md',
+];
+
+// ---------------------------------------------------------------------------------------------
+// V15 - command-file state/trigger headers (2026-07-28, command-layer review F-3/F-4/F-6/F-11).
+//       Every LIVE/EVENT command file must carry the GENERATED CMD-HEADER block, byte-matching what
+//       scripts/lib/gen-command-headers.js renders from system/manifest.json.
+//
+//       WHY: the read-pass found SIX command files contradicting the registry on trigger, schedule,
+//       method or source of truth. Distribution was the evidence - every surface with a checker agreed
+//       with reality, the one large prose surface without one drifted six times. check.ps1 C1/C2 and
+//       V7 do read .claude/commands, but only for file EXISTENCE, ownership and NAMES; nothing read
+//       content. Concretely: /application-engine claimed "daily at 07:00" while #03 runs Tue+Thu 15:00,
+//       and since that command's own job is to report zero-job days, it manufactured five false alarms
+//       a week inside the one report built to surface real ones.
+//
+//       DIRECTION (the V6 lesson): this does NOT parse prose and infer intent. The manifest renders the
+//       block; the file is asserted to contain that exact block. Expectation comes from structured data,
+//       never from the doc under test.
+//
+//       TIER: WARNING for its first cycle by design. An ERROR-tier check with a false positive blocks
+//       the nightly 21:30 commit and pushes the backup RED, so it observes before it blocks. Promote by
+//       moving the push below from `warnings` to `failures`.
+// ---------------------------------------------------------------------------------------------
+function v15CommandHeaders({ stagedDir, manifest }, failures, warnings) {
+  let genCmdHeaders;
+  try { genCmdHeaders = require('./lib/gen-command-headers'); }
+  catch (e) { warnings.push(`WARNING V15 SKIPPED: gen-command-headers module unavailable (${e.message})`); return; }
+
+  const missing = [], stale = [];
+  for (const t of genCmdHeaders.targets(manifest)) {
+    const f = effective(stagedDir, t.rel);
+    if (!f) continue; // C1 already fails a declared-but-absent command file; V15 does not double-report
+    const want = genCmdHeaders.block(t);
+    const bi = f.text.indexOf(genCmdHeaders.BEGIN), ei = f.text.indexOf(genCmdHeaders.END);
+    if (bi === -1 || ei === -1) { missing.push(t.rel); continue; }
+    const have = f.text.slice(bi, ei + genCmdHeaders.END.length);
+    if (have !== want) stale.push(`${t.rel} (state/trigger no longer matches #${t.project.num} in the registry)`);
+  }
+  if (missing.length)
+    warnings.push(`WARNING V15: LIVE/EVENT command file(s) missing the generated CMD-HEADER block: ${missing.join(', ')} - run 'node scripts/generate-alex.js'`);
+  if (stale.length)
+    warnings.push(`WARNING V15: command header(s) drifted from system/manifest.json: ${stale.join('; ')} - run 'node scripts/generate-alex.js' (never hand-edit between the markers)`);
+}
+
+function v14AlexGenderNeutrality({ stagedDir }, failures, warnings) {
+  // (a) unpublished episode drafts - scan the POST BODY only, never the provenance header.
+  const dir = path.join(REPO, V14_EPISODES_DIR);
+  if (!fs.existsSync(dir)) {
+    warnings.push(`WARNING V14 SKIPPED: ${V14_EPISODES_DIR} not found - the episode gender scan did not run`);
+  } else {
+    for (const abs of listFiles(dir)) {
+      if (!abs.endsWith('.md')) continue;
+      const rel = path.relative(REPO, abs).replace(/\\/g, '/');
+      const raw = effective(stagedDir, rel);
+      if (!raw) continue;
+      const parts = raw.text.split(/\r?\n---\r?\n/);
+      if (parts.length < 2) continue;              // no header/body split (plan.md etc.) - not an episode
+      const header = parts[0];
+      if (/^\s*status:\s*published/im.test(header)) continue;   // ARCHIVE - never scanned, never edited
+      const body = parts.slice(1).join('\n---\n');
+      const lines = body.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const m = lines[i].match(V14_PRONOUN_RE);
+        if (!m) continue;
+        failures.push(
+          `FAILED V14: ${rel} post body line ${i + 1} uses "${m[0]}" - Alex has no gender ` +
+          `(work/12 HARD RULE 15). Use the name plus sentence restructuring; "it" is not a ` +
+          `substitute. If the pronoun refers to a real third person and not to Alex, rephrase ` +
+          `to name them, because a post body cannot distinguish the two: ${lines[i].trim().slice(0, 90)}`
+        );
+      }
+    }
+  }
+
+  // (b) the pinned locked line, matched by its defect shape so the rule may still quote itself.
+  for (const rel of V14_GOVERNANCE) {
+    const raw = effective(stagedDir, rel);
+    if (!raw) { warnings.push(`WARNING V14: ${rel} not found - cannot check the pinned locked line`); continue; }
+    const lines = raw.text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      if (!V14_LOCKED_GENDERED_RE.test(lines[i])) continue;
+      failures.push(
+        `FAILED V14: ${rel}:${i + 1} carries the locked line in its PRE-2026-07-28 gendered form. ` +
+        `The canonical wording is "every correction becomes a rule Alex never breaks again, my ` +
+        `mistakes are Alex's training data." Both possessives are load-bearing; never soften ` +
+        `"Alex's training data" to "the training data".`
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -985,17 +1284,19 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   if (manifest) await v6ModelRouting({ stagedDir, manifest, context }, failures, warnings);
   if (manifest) v7StateDriftLint({ stagedDir, manifest }, failures, warnings);
   if (colorTokens) v8HqHexScan({ stagedDir, colorTokens }, failures);
-  if (manifest) v9FirstFireAging({ stagedDir, manifest }, warnings);
+  if (manifest) v9FirstFireAging({ stagedDir, manifest }, failures, warnings);
   v10ProtectedFileGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
   v11IgnoredStagedGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
   if (manifest) v12TrifectaGate({ stagedDir, manifest }, failures, warnings); // trifecta gate (every run)
   if (manifest) v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings); // local wrapper model-pin contract (every run)
+  v14AlexGenderNeutrality({ stagedDir }, failures, warnings); // Alex has no gender (every run; no manifest needed)
+  if (manifest) v15CommandHeaders({ stagedDir, manifest }, failures, warnings); // command-file state/trigger headers (WARN-tier for now)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
   if (failures.length === 0)
-    console.log(`validate-alex: G1-G4 + V1-V13 PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
-  return { ok: failures.length === 0, failures, warnings };
+    console.log(`validate-alex: ${SUITE_RANGE} PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+  return { ok: failures.length === 0, failures, warnings, range: SUITE_RANGE };
 }
 
 if (require.main === module) {
@@ -1016,4 +1317,4 @@ if (require.main === module) {
     .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }
 
-module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED, readStagedChangeset };
+module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED, readStagedChangeset, SUITE_RANGE, V_MAX };

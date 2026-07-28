@@ -58,6 +58,7 @@ try {
 }
 $baselineFile = Join-Path $stateDir "baseline.json"
 $hwFile       = Join-Path $stateDir "log-highwater.json"
+$soulHwFile   = Join-Path $stateDir "soul-highwater.json"
 
 function Get-Sha($path) { if (Test-Path $path) { (Get-FileHash $path -Algorithm SHA256).Hash } else { $null } }
 
@@ -193,15 +194,76 @@ if ($unresolved.Count -gt 0) {
         ForEach-Object { "[[$($_.Name)]] x$($_.Count)" }
 }
 
-# --- C7 scheduler <-> live Task Scheduler ---
+# --- C7 scheduler <-> live Task Scheduler (names AND trigger times) ---
 $docJobs = [regex]::Matches((Get-Content "scheduler\schedule.md" -Raw), 'PersonalOS-[\w-]+') |
     ForEach-Object { $_.Value } | Where-Object { $_ -notlike 'PersonalOS-retry-*' -and $_ -ne 'PersonalOS-qra-poller' } | Sort-Object -Unique   # retry-* + the transient qra-poller (arm.ps1-created one-shot, OBS-21 fix 2026-07-15) excluded on BOTH sides
 # PersonalOS-retry-* are the close-out lib's ephemeral one-shot retry tasks (self-registered on a
 # failed run, auto-delete after their window, 2026-07-06). Not documented jobs; never drift.
-$liveJobs = Get-ScheduledTask -TaskName "PersonalOS-*" -ErrorAction SilentlyContinue |
-    Where-Object { $_.TaskName -notlike 'PersonalOS-retry-*' -and $_.TaskName -ne 'PersonalOS-qra-poller' } | ForEach-Object { $_.TaskName }
+$liveTasks = @(Get-ScheduledTask -TaskName "PersonalOS-*" -ErrorAction SilentlyContinue |
+    Where-Object { $_.TaskName -notlike 'PersonalOS-retry-*' -and $_.TaskName -ne 'PersonalOS-qra-poller' })
+$liveJobs = $liveTasks | ForEach-Object { $_.TaskName }
 foreach ($j in $docJobs) { if ($liveJobs -notcontains $j) { Add-Drift 'scheduler' "documented job '$j' is NOT registered in Task Scheduler" } }
 foreach ($j in $liveJobs) { if ($docJobs -notcontains $j) { Add-Drift 'scheduler' "registered job '$j' is NOT documented in scheduler/schedule.md" } }
+
+# C7b TRIGGER TIMES (added 2026-07-25, stress-test fix F-05). Until now every scheduler check compared
+# NAMES: C7 (doc <-> live), validator V2's live half (doc <-> live), and C16 (manifest cadence label <->
+# schedule.md frequency TEXT, i.e. doc <-> doc). So a job whose trigger TIME was hand-edited, or mangled
+# by a task re-creation, fired at the wrong hour forever while every surface read green. This closes the
+# last unguarded half of the scheduler contract: the documented hour must equal the LIVE hour.
+#
+# Deliberately soft where it cannot be certain, so it can never cry wolf:
+#   - the expected time is parsed from the section's '- Frequency:' line ONLY (never body prose, which
+#     legitimately mentions other times, e.g. the n8n engine note inside the Application Engine section);
+#   - a Frequency line with no parseable clock time is SKIPPED (on-demand/event/phone-side entries);
+#   - a task whose trigger carries no StartBoundary (logon/event triggers) is SKIPPED;
+#   - a task with several triggers passes if ANY trigger matches the documented time.
+function Get-DocTimeFromFrequency([string]$freq) {
+    if (-not $freq) { return $null }
+    if ($freq -imatch 'on-?demand|event-driven|^\s*none\b') { return $null }   # no clock promise
+    # "8:00 AM" / "4:00 PM" / "05:00" / "at 9" - first clock-looking token wins
+    $m = [regex]::Match($freq, '(?<h>\d{1,2}):(?<m>\d{2})\s*(?<ap>AM|PM)?', 'IgnoreCase')
+    if (-not $m.Success) { return $null }
+    $h = [int]$m.Groups['h'].Value; $mi = [int]$m.Groups['m'].Value
+    $ap = $m.Groups['ap'].Value
+    if ($ap) {
+        if ($ap -imatch 'PM' -and $h -lt 12) { $h += 12 }
+        elseif ($ap -imatch 'AM' -and $h -eq 12) { $h = 0 }
+    }
+    if ($h -gt 23 -or $mi -gt 59) { return $null }
+    return ('{0:00}:{1:00}' -f $h, $mi)
+}
+# Map each documented job -> the time on its own section's Frequency line. Sections are the same
+# '### ' blocks C16 parses; a section owns a job when it names it, or when its '- Command:' matches the
+# job's name suffix (the older entries carry no job token inside their own section).
+$jobDocTime = @{}
+foreach ($part in (($schedRawC7 = Get-Content "scheduler\schedule.md" -Raw) -split '(?m)^### ' | Select-Object -Skip 1)) {
+    $freqM = [regex]::Match($part, '(?m)^- Frequency:\s*(.+)$')
+    if (-not $freqM.Success) { continue }
+    $docTime = Get-DocTimeFromFrequency $freqM.Groups[1].Value
+    if (-not $docTime) { continue }
+    $named = [regex]::Matches($part, 'PersonalOS-[\w-]+') | ForEach-Object { $_.Value } |
+        Where-Object { $_ -notlike 'PersonalOS-retry-*' } | Sort-Object -Unique
+    $cmdM = [regex]::Match($part, '(?m)^- Command:\s*/?([\w-]+)')
+    if ($named.Count -gt 0) {
+        foreach ($n in $named) { if (-not $jobDocTime.ContainsKey($n)) { $jobDocTime[$n] = $docTime } }
+    } elseif ($cmdM.Success) {
+        $guess = "PersonalOS-$($cmdM.Groups[1].Value)"
+        if (($liveJobs -contains $guess) -and -not $jobDocTime.ContainsKey($guess)) { $jobDocTime[$guess] = $docTime }
+    }
+}
+foreach ($t in $liveTasks) {
+    if (-not $jobDocTime.ContainsKey($t.TaskName)) { continue }          # no documented clock time
+    $want = $jobDocTime[$t.TaskName]
+    $liveTimes = @()
+    foreach ($trg in @($t.Triggers)) {
+        if (-not $trg.StartBoundary) { continue }
+        try { $liveTimes += ([datetime]$trg.StartBoundary).ToString('HH:mm') } catch { }
+    }
+    if ($liveTimes.Count -eq 0) { continue }                             # logon/event trigger: nothing to compare
+    if ($liveTimes -notcontains $want) {
+        Add-Drift 'scheduler-time' "'$($t.TaskName)' fires at $($liveTimes -join '/') but scheduler/schedule.md documents $want (retime the task, or correct the doc - a wrong hour runs the job at the wrong time silently)"
+    }
+}
 
 # --- C8 dependent staleness (HASH-based, mtime-immune): spec changed since -Init but status.md did NOT ---
 # Was mtime-based, which a mass write (privacy scrub) or a git clone bumps in BOTH directions -> false
@@ -305,55 +367,27 @@ foreach ($p in $ffRows) {
     }
 }
 
-# --- C16 cadence-vs-schedule (upgrade P4, 2026-07-12, design 1.3.3): manifest cadence.label vs the
-# Frequency text in scheduler/schedule.md, per project that carries schedule_jobs. Deterministic
-# label -> frequency-pattern map; a project passes when ANY of its schedule.md entries (matched by
-# job name, entries with a real '- Frequency:' line only) matches its label. Labels with no
-# frequency expectation (on-demand/event/dormant/parked/retired, expected_hours null) are skipped.
-# C14 (passphrase attestation) + C15 (PAT window) are IMPLEMENTED below (upgrade P10); C16 is above; C17 (skills-symlink restore guard) is below; C18 (machine-timezone vs travel-state, P8) is below; C19 (narrative numbers-drift, item 3) is below; C20 (backup destinations, F1) is below; C21 (facts-ledger doc drift, Recall Spine) is below. 21 checks total (C1-C21).
-$freqPatterns = @{
-    'daily'     = 'daily|nightly|every day'
-    'weekdays'  = 'weekday'
-    'weekly'    = 'weekly|monday|tuesday|wednesday|thursday|friday|saturday|sunday'
-    'monthly'   = 'monthly|last day|month-end'
-    'always-on' = 'daily|always'
-}
-# parse schedule.md into sections (same '### ' + '- Frequency:' contract as scripts/lib/read-sources.js).
-# A section belongs to a project when it names one of its PersonalOS-* jobs OR its '- Command:'
-# first token matches one of the project's declared commands (the older entries - Morning Brief,
-# Application Engine Watch - carry no job-name token inside their own section).
-$schedRaw = Get-Content "scheduler\schedule.md" -Raw
-$schedSections = @()
-$schedParts = ($schedRaw -split '(?m)^### ') | Select-Object -Skip 1
-foreach ($part in $schedParts) {
-    $freqM = [regex]::Match($part, '(?m)^- Frequency:\s*(.+)$')
-    $cmdM  = [regex]::Match($part, '(?m)^- Command:\s*/?([\w-]+)')
-    $jobsIn = [regex]::Matches($part, 'PersonalOS-[\w-]+') | ForEach-Object { $_.Value } |
-        Where-Object { $_ -notlike 'PersonalOS-retry-*' } | Sort-Object -Unique
-    $schedSections += [pscustomobject]@{
-        frequency = if ($freqM.Success) { $freqM.Groups[1].Value.Trim() } else { $null }
-        command   = if ($cmdM.Success) { $cmdM.Groups[1].Value } else { $null }
-        jobs      = @($jobsIn)
-    }
-}
-foreach ($p in $manifest.projects) {
-    if (-not $p.schedule_jobs -or $p.schedule_jobs.Count -eq 0) { continue }
-    $cadLabel = if ($p.cadence) { $p.cadence.label } else { $null }
-    if (-not $cadLabel -or -not $freqPatterns.ContainsKey($cadLabel)) { continue }   # no frequency expectation for this label
-    $candidates = @($schedSections | Where-Object { $_.frequency -and (
-        (@($_.jobs | Where-Object { $p.schedule_jobs -contains $_ }).Count -gt 0) -or
-        ($_.command -and (@($p.commands) -contains $_.command))
-    ) })
-    if ($candidates.Count -eq 0) {
-        Add-Drift 'cadence-schedule' "#$($p.num) $($p.name): cadence label '$cadLabel' but no schedule.md entry with a Frequency line names its job(s) ($($p.schedule_jobs -join ', '))"
-        continue
-    }
-    $matched = @($candidates | Where-Object { $_.frequency -imatch $freqPatterns[$cadLabel] })
-    if ($matched.Count -eq 0) {
-        $freqTexts = ($candidates | ForEach-Object { $_.frequency }) -join ' / '
-        Add-Drift 'cadence-schedule' "#$($p.num) $($p.name): manifest cadence label '$cadLabel' contradicts scheduler/schedule.md frequency text '$freqTexts'"
-    }
-}
+# --- RETIRED CHECK: the former C16 cadence-vs-schedule (deleted 2026-07-25, Shaheen: "APPLY") -------
+# Deliberately NOT written as a "# --- C16" header: that is the pattern narrative-drift-check.py counts
+# to derive the live check total, and a retired check must not inflate it. The NUMBER 16 is retired and
+# never reused, so every dated reference to "C16" in the running-changes stays meaningful.
+# It compared a project's manifest cadence.label against the '- Frequency:' prose of a
+# schedule.md section it ASSOCIATED BY GUESS, and that guess was the defect: for #03 it matched the
+# engine's cadence against the local watch job's frequency line and reported permanent false drift,
+# because #03 legitimately has TWO cadences (a remote workflow on Tue/Thu 15:00 and a deliberately
+# daily 08:30 local watch). A 'scope' opt-out flag was added first and rejected on the permanence bar:
+# a flag a human must remember is the same shape as the defect (the next two-cadence project gets no
+# flag and the false alarm returns).
+#
+# It is deleted rather than repaired because its job is now done STRICTLY BETTER by two checks that
+# compare against REALITY instead of against another document, each joined on an exact identifier
+# present on both sides:
+#   C7b (above)            - every live Windows task's trigger hour vs the hour schedule.md documents
+#   validator V6 leg (c)   - every project's declared n8n_cron vs the live scheduleTrigger
+# So no code compares a project-level cadence to anything any more, and the conflation is not fixed,
+# it is unwriteable. cadence.expected_hours/label remain what the 2026-07-25 manifest ruling already
+# made them: inputs to the HQ tile age-render, never a detector. A wrong label can mis-colour a tile;
+# it can no longer manufacture a weekly false fault. Check count 21 -> 20 (C1-C21, C16 retired).
 
 # --- C14 passphrase attestation (upgrade P10, 2026-07-12, closes audit c14 without ever reading the
 # secret): work/18-recovery-layer/state/passphrase-attested.txt carries a yyyy-MM-dd date on its
@@ -461,16 +495,25 @@ if ($destDecl.Count -ge 1) {
     if (Test-Path $verFile) {
         try { (Get-Content $verFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $verified[$_.Name] = $_.Value } } catch {}
     }
+    # F-14 (2026-07-25): distinguish "the stamp mechanism has not run yet" from "a backup is dead".
+    # On 07-25 C20 read "hetzner-n8n (no verified copy in 72h)" while the truth was that F1 shipped that
+    # morning and the first stamped run had not happened yet - the primary backup log was fine. Reporting
+    # a healthy-but-unstamped destination in the same words as a rotted one is how an amber teaches
+    # people to ignore it.
+    $stampMissing = -not (Test-Path $verFile)
     $freshCount = 0; $missing = @()
     foreach ($d in $destDecl) {
         $ts = $verified[$d.name]; $ok = $false
         if ($ts) { try { if (((Get-Date) - [datetime]$ts).TotalHours -le $windowH) { $ok = $true } } catch {} }
         if ($ok) { $freshCount++ }
         elseif ("$($d.note)" -match 'INERT|pending') { $missing += "$($d.name) (pending provisioning)" }
+        elseif ($stampMissing) { $missing += "$($d.name) (never stamped: the destination-verification file does not exist yet, so this is UNPROVEN, not failed - the next vault-backup run writes it)" }
         else { $missing += "$($d.name) (no verified copy in ${windowH}h)" }
     }
     if ($freshCount -lt 2) {
-        Add-Drift 'backup-spof' "only $freshCount of $($destDecl.Count) independent backup destination(s) verified a copy in the last ${windowH}h - a correlated single-point loss risks the backups until >=2 are live: $($missing -join '; ') (provision: human-actions f1-b2-backup)"
+        $lead = if ($stampMissing) { "backup destinations UNPROVEN: $verFile has never been written (F1 stamping is new), so 0 of $($destDecl.Count) destinations can be confirmed this cycle" }
+                else { "only $freshCount of $($destDecl.Count) independent backup destination(s) verified a copy in the last ${windowH}h" }
+        Add-Drift 'backup-spof' "$lead - a correlated single-point loss risks the backups until >=2 are live: $($missing -join '; ') (provision: human-actions f1-b2-backup)"
     }
 }
 
@@ -486,6 +529,38 @@ try {
     if ($LASTEXITCODE -eq 2) { foreach ($ln in @($fc)) { if ("$ln".Trim()) { Add-Drift 'facts-drift' ("$ln".Trim()) } } }
     elseif ($LASTEXITCODE -ne 0) { Add-Drift 'facts-drift' "facts-check errored (exit $LASTEXITCODE): $(($fc | Select-Object -First 1))" }
 } catch { Add-Drift 'facts-drift' "facts-check could not run: $($_.Exception.Message)" }
+
+# --- C22 soul-corpus monotonicity (2026-07-28, command-layer review F-1): the soul.md "My Words"
+# corpus must never SHRINK. Same shape as C9 (log monotonicity), applied to the highest-value file in
+# the repo. Why it exists: /setup step 4B said "OVERWRITE the template ... Under 2.5KB" with no
+# fresh-install branch, so any agent running /setup on a live install would truncate a 115KB corpus
+# built over months. That failure is SILENT - every prose surface keeps working, it just stops
+# sounding like Shaheen - and the Close-Out V check cannot catch it, because V only asks whether My
+# Words gained AN entry today, which a freshly overwritten file satisfies. soul.md is gitignored, so
+# no git-based guard (V10, V11, C10) can ever see it; the only copy is the nightly encrypted vault
+# backup, last 14 kept. A weekly sweep detects well inside that window. Prose guards now live in
+# setup.md too, but this is the half that does not depend on an agent reading carefully.
+# Counts dated corpus entries ("### Harvested YYYY-MM-DD ..." and the bare "### YYYY-MM-DD ..." form).
+$soulPath = Join-Path $repo 'soul.md'
+if (-not (Test-Path $soulPath)) {
+    Add-Drift 'soul-shrink' "soul.md is MISSING at $soulPath - Alex has no identity file (restore from the encrypted vault backup)"
+} else {
+    $soulText    = Get-Content $soulPath -Raw
+    $soulLines   = (Get-Content $soulPath).Count
+    $soulEntries = ([regex]::Matches($soulText, '(?m)^###\s+(Harvested\s+)?\d{4}-\d{2}-\d{2}')).Count
+    $prevSoul    = if (Test-Path $soulHwFile) { Get-Content $soulHwFile -Raw | ConvertFrom-Json } else { $null }
+    $prevEntries = if ($prevSoul) { [int]$prevSoul.entries } else { 0 }
+    $prevSoulLn  = if ($prevSoul) { [int]$prevSoul.lines }   else { 0 }
+    if ($soulEntries -lt $prevEntries) {
+        Add-Drift 'soul-shrink' "soul.md My Words corpus SHRANK from $prevEntries to $soulEntries dated entries - the voice corpus is the input to every prose surface; restore from the 21:45 encrypted vault backup (last 14 kept) before it ages out"
+    }
+    if ($soulLines -lt $prevSoulLn) {
+        Add-Drift 'soul-shrink' "soul.md shrank from $prevSoulLn to $soulLines lines (entries $prevEntries -> $soulEntries) - check for a truncating write"
+    }
+    @{ entries = [math]::Max($soulEntries, $prevEntries); lines = [math]::Max($soulLines, $prevSoulLn);
+       updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
+        ConvertTo-Json | Set-Content -Encoding utf8 $soulHwFile
+}
 
 # ---------------------------------------------------------------- report
 $n = $drift.Count

@@ -98,6 +98,67 @@ def score(row):
     scaled = raw / live_weight * 100.0
     return round(scaled), comp, live_weight
 
+# --- data-quality grading (#17 Phase 1) --------------------------------------------------------
+# THIRD MIRROR of scripts/health-grade.js (the source of truth); the second is the n8n "Score +
+# Normalize" Code node. Keep all three in sync, exactly like the score formula above.
+# Why it exists: score() degrades gracefully, which means it will happily manufacture a number out
+# of one thin stream (the phantom-reading bug that once produced a confident 38/100 from empty
+# HealthKit data). This gate sits in FRONT of the output: emit a score only when Duration is
+# complete AND >= 2 of {Efficiency, Deep, REM} are usable, else None + a stated reason.
+REAL_NIGHT_MIN = 180    # < 3h asleep for a full night is thin, not a real main sleep
+MAX_STEPS = 120000      # above this is a sensor glitch, not a real day
+
+def _num(v):
+    if v is None or v == "":
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+def grade_day(row):
+    """Grade each stream complete/partial/phantom and gate the sleep score.
+
+    Returns (grades, sleep_score_ok, reason, steps_ok). Mirrors gradeDay() in
+    scripts/health-grade.js one-for-one - change both (and the n8n node) together.
+    """
+    steps = _num(row.get("steps"))
+    asleep = _num(row.get("asleep_min"))
+    inbed = _num(row.get("inbed_min"))
+    deep = _num(row.get("deep_min"))
+    rem = _num(row.get("rem_min"))
+    awakenings = None if row.get("awakenings") in (None, "") else _num(row.get("awakenings"))
+
+    grades = {}
+    # steps: missing or 0 for a whole day is almost always a failed read, not a rest day.
+    grades["steps"] = "phantom" if steps is None or steps == 0 or steps > MAX_STEPS else "complete"
+    # sleep duration: the spine of the score.
+    grades["sleep_duration"] = ("phantom" if asleep is None or asleep == 0
+                                else "partial" if asleep < REAL_NIGHT_MIN
+                                else "complete")
+    # efficiency needs both in-bed and asleep.
+    grades["sleep_efficiency"] = ("phantom" if inbed in (None, 0) or asleep in (None, 0)
+                                  else "partial" if inbed < asleep
+                                  else "complete")
+    # stage %s need the stage minutes AND a real asleep denominator.
+    grades["sleep_deep"] = "phantom" if deep is None or asleep in (None, 0) else "complete"
+    grades["sleep_rem"] = "phantom" if rem is None or asleep in (None, 0) else "complete"
+    # restfulness: awakenings present (a real 0 is valid; missing is not).
+    grades["restfulness"] = "phantom" if awakenings is None else "complete"
+
+    duration_ok = grades["sleep_duration"] == "complete"
+    usable = sum(1 for k in ("sleep_efficiency", "sleep_deep", "sleep_rem") if grades[k] == "complete")
+    sleep_score_ok = duration_ok and usable >= 2
+    if sleep_score_ok:
+        reason = None
+    elif not duration_ok:
+        reason = (f"insufficient data: sleep duration is {grades['sleep_duration']} "
+                  f"(need a real night to score)")
+    else:
+        reason = (f"insufficient data: only {usable} of Efficiency/Deep/REM usable "
+                  f"(need >=2 to score)")
+    return grades, sleep_score_ok, reason, grades["steps"] == "complete"
+
 # ---------------------------------------------------------------------------
 # PARSE
 # ---------------------------------------------------------------------------
@@ -226,6 +287,12 @@ def main():
             rec["bedtime_dev_min"] = s.get("bedtime_dev_min")
             rec["sleep_score"] = sc
             rec["score_signals"] = f"{len(comp) - list(comp.values()).count(None)}/6"
+        # Data-quality gate (mirror of the n8n node + health-grade.js): never let a thin night
+        # carry a confident number through to the seed. Applied to every row, sleep or not.
+        _grades, _ok, _reason, _steps_ok = grade_day(rec)
+        if not _ok:
+            rec["sleep_score"] = None
+        rec["grade_reason"] = _reason
         rows.append(rec)
 
     # --- write local outputs (health data stays in the gitignored vault) ---

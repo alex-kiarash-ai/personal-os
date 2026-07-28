@@ -47,12 +47,44 @@ manufacture a number from one thin stream.
 **Three mirrors, keep in sync (like the score formula):** (1) `scripts/health-grade.js` = the source of
 truth + the local test; (2) the n8n "Score + Normalize" Code node inlines `gradeDay` and, when
 `sleep_score_ok` is false, writes `sleep_score = null` + a `grade_reason` field instead of a number;
-(3) `scripts/backfill_health.py` applies the same gate on the history path. **n8n wiring status: PENDING the
-next Health Ingest redeploy** - workflow `WtOKBY00Cq1FhQ8T` is currently broken (human-actions
-`heal-n8n-broken`, Shaheen-gated) and the redeploy is where `gradeDay` gets inlined into the Code node
-(backup-first + read-back verified per the n8n discipline). The grading core + local test ship now; the
-node inline lands with the repair. Consumers (brief Body line, HQ tiles) render "insufficient data" when
-`sleep_score` is null rather than a fabricated figure.
+(3) `work/17-health-tracker/scripts/backfill_health.py` (`grade_day()`) applies the same gate on the
+history path. **n8n wiring status: LIVE 2026-07-27** - `gradeDay` is inlined in the deployed Code node
+and mirror #3 was built the same session (it had been documented as done but did not exist). All three
+mirrors cross-checked case-for-case on the same 5 fixtures, including the documented worked example
+(7h12m / 18% deep / 22% REM / 88% eff / 3 wakes -> **94**). Deployed backup-first + read-back verified
+per the n8n discipline.
+
+**Grading gate wiring notes (2026-07-27 redeploy):**
+- `gradeDay` runs on the **NORMALIZED** row (derived `asleep_min` = deep+rem+core stage sum), never on the
+  raw phone payload - the raw `asleep_min` is the known-bad awakenings-count field (07-21 fix), so grading
+  the raw input would fail every valid night at the `< REAL_NIGHT_MIN` test. This is the one integration
+  subtlety in the whole change; get it wrong and the gate silently kills good data.
+- The `alex_health` table gained a **17th column `grade_reason` (string)** via
+  `POST /api/v1/data-tables/{id}/columns`. The insert node is `autoMapInputData`, so the field needs a real
+  column or it is dropped. The HQ summary's `HFIELDS` list does not carry it - harmless, ignored.
+- **Steps are deliberately NOT nulled when phantom.** The HQ summary has its own phantom guard that reads
+  `steps === 0` as "phone sync stalled" and surfaces that on the tile; writing `null` instead would drop the
+  day out of `anyStepDates` entirely, silently showing an older real day and **deleting the stall signal**.
+  The 0 stays, and the tile keeps telling the truth about the phone.
+- Verified live end-to-end: phantom day -> `{ok:true,count:1}` + `sleep_score` null + stated reason; the
+  worked-example night -> 94; 403 without the token; HQ summary still returns all 20 projects with the
+  `health` block intact and the `*-test` fixtures correctly excluded. Backups:
+  `config/backup-before-gradegate-*.json` + `config/rows-backup-newest250-*.json`.
+
+> **CORRECTION 2026-07-27 - the workflow is NOT broken.** This section previously said
+> `WtOKBY00Cq1FhQ8T` "is currently broken (human-actions `heal-n8n-broken`, Shaheen-gated)", and the
+> morning brief repeated "n8n Health Ingest still broken 4d+" for five days. **Wrong diagnosis.** The
+> workflow is ACTIVE, correctly wired (Webhook -> Score -> Insert -> Respond), and **every execution in
+> the retained window succeeded** - including 2026-07-26 16:10, which wrote a full valid row (steps 2990,
+> sleep_score 62). Nothing server-side needs healing. The stall is **phone-side**: the 23:59 daily
+> automation stopped firing after 2026-07-22 (see "Known live defects" below). `heal-n8n-broken` was
+> chasing a fault that does not exist - retarget it at the iPhone automation.
+> **Follow-up 2026-07-27:** independently re-confirmed from the live API before the gate redeploy
+> (active=true, 4 nodes wired, last 15 executions all `success`). `heal-n8n-broken` closed as
+> misdiagnosed; the real stall stays open as `iphone-health-shortcut`.
+
+Consumers (brief Body line, HQ tiles) render "insufficient data" when `sleep_score` is null rather than a
+fabricated figure.
 
 ## Rules / conventions
 - **Step dedup:** minute-bucket max across sources (one source credited per minute ≈ Apple's daily total). The phone sends ONE source's steps; the backfill dedups across sources. Validate against the Health app.
@@ -82,6 +114,38 @@ node inline lands with the repair. Consumers (brief Body line, HQ tiles) render 
 
 ## Close-Out Extras
 Beyond the universal Close-Out list, a health-tracker run also verifies: (a) the ingest webhook returned `{ok:true}` and the row count rose; (b) the summary `health` block still returns both metrics (regression: all other projects still present); (c) steps show yesterday (not today's partial), sleep shows the expected night date; (d) no health data (personal) written outside the gitignored vault; (e) if the score formula changed, BOTH mirrors (n8n Code node + backfill_health.py) updated together and re-tested against the worked example (7h12m/18%/22%/88%/3 wakes → 94 on the 6-component preview, 94 on 5-component v1 for that night).
+
+## Known live defects (diagnosed 2026-07-27 from n8n executions + the deployed workflow JSON)
+
+Evidence: executions for `WtOKBY00Cq1FhQ8T`, all `status: success`, all `user-agent:
+BackgroundShortcutRunner/4610.1 CFNetwork/3860.600.12 Darwin/25.5.0`.
+
+| When (UTC) | What landed |
+|---|---|
+| Jul 18/19/20/22 @ **21:59** | clean daily runs (21:59 UTC = 23:59 CEST) - the automation working |
+| Jul 21 @ 22:09 | one late run, post-deploy test |
+| **Jul 23, 24, 25** | **nothing** |
+| Jul 26 @ 01:34 | steps **14**, all sleep 0 -> `sleep_score: null` (a just-after-midnight run) |
+| Jul 26 @ 16:10 | steps 2990, score 62 - **fired TWICE, 0.27s apart** (rows 1532 + 1533) |
+| **Jul 26 @ 23:59, Jul 27** | **nothing** |
+
+Retention does not explain the gap: 250 other-workflow executions are retained across Jul 24 16:09 -> Jul 27,
+so a health run in that window would have been retained too.
+
+1. **[ROOT CAUSE - phone] The 23:59 daily automation stopped firing after Jul 22.** The Shortcut itself is
+   fine - it still produces correct rows when it runs (Jul 26 16:10: 2990 steps, score 62). **Do not rebuild
+   the Shortcut.** Check Shortcuts -> Automation: is "Alex Health Push" still enabled, still at 23:59 Daily,
+   still **Run Immediately** with **Ask Before Running OFF**? Low Power Mode also suspends background
+   automations. The off-schedule 01:34 / 16:10 runs suggest the trigger time was changed or the automation is
+   only being run by hand.
+2. **[phone] Double-fire.** Jul 26 16:10 sent the same payload twice in 0.27s, writing two duplicate rows to
+   an append-only table. Likely a duplicate automation or a double tap; check for two automations pointing at
+   the same Shortcut.
+3. **[phone] `inbed_min` is always 0 and `awake_min` always null**, so `efficiency` never computes and the
+   score always runs on 4 of the 5 components (worth 80 of the 95 weight, rescaled). Block 6 (In Bed) is not
+   reading - its Value word is probably off. Every scored night to date is affected, so scores are
+   systematically approximate, not wrong-but-precise.
+4. **[server] The `gradeDay` grading gate is still not inlined** (see the section above).
 
 ## Open items
 - ~~**HQ tile redeploy**~~ ✅ DONE 2026-07-04 (both Body tiles render live). Redeploy command, kept for the next frontend change: `tar czf - -C work/16-alex-hq --exclude=node_modules --exclude=.next --exclude=.env.local app | ssh n8n "rm -rf /opt/alex-hq && mkdir -p /opt/alex-hq && tar xzf - -C /opt/alex-hq --strip-components=1"` then `ssh n8n "cd /opt/n8n && docker compose up -d --build alex-hq"`. First read after rebuild can be Next's stale prerender (60s), re-request.

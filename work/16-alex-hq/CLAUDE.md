@@ -97,6 +97,63 @@ All 3 wave-3 items of the run-25 plan + the QA close, in app/:
 - QA: scripted puppeteer **18/18** (wave3-qa gates: reduced-motion zero running animations via `document.getAnimations()`, pulse budget one-per-section on real data — 9 reds, 4 pulses, 0 dupes —, CountUp stability, overlay numeral family = tile family, full Back matrix) + a strengthened CountUp invariant check (numerals never change once painted, incl. a non-zero live numeral; client-JSON "–"→value fills are data arrival, allowed once). Renders + grayscale in outputs/alex-hq/2026-07-14/. Build green, tsc clean.
 - **Deployed + live-verified 2026-07-14 ~00:52** (DEPLOY.md recipe; SSR markers dot-pulse + num-display in the served HTML with wave-1/2 markers intact; real-browser **7/7** at 390 vs production: pulse budget 9-reds/4-pulses/0-dupes, steady reds unanimated, strip count Plex Mono, Back closes overlay + app stays, Escape consumes the entry, reduced-motion zero running animations; live shot wave3-live-390-fold1.png). Grader observation RESOLVED same night: the amended D6 said "timestamps" = Plex Mono while stamps have always rendered Plex Sans tabular-nums - brand-config.md D6 wording corrected to match the render (doc-only fix, no app change).
 
+## Design-overhaul ROUND 2 (2026-07-25, run-37 review; LIVE - deployed + live-verified same evening)
+All 21 items of `outputs/research-team/2026-07-25/alex-hq-design-overhaul-plan-v2.md`, built on Shaheen's
+"Run all waves" and deployed on his "deploy". Scripted QA **22/22** + brand-guard PASS at 390 + 1440 pre-
+deploy; **real-browser 13/13 against production** after (both viewports + both drill-downs), bare 401 /
+authed 200, n8n untouched. Rollback copy on the box: `/opt/alex-hq.bak-20260725`. Renders in
+outputs/alex-hq/2026-07-25/ (`r2-*` local, `live-*` production).
+- **R2-4 the luminance ladder (the brighter directive, done inside the law).** `--card`
+  rgba(0,35,46,.52) -> rgba(0,53,66,.6) (healthy face ~#00303C), new `--elev2 #003240` for the drill-down
+  panel, canvas radials .38/.14/.2 -> .5/.22/.3, grid .028 -> .045, tile ring .5 -> .7 + inset .06 -> .10,
+  `--mute` .7 -> .78, tile SUBS promoted from `--mute` to full Pearl Aqua. **Alarm faces deliberately stay
+  `--elev` #00232e**, so healthy tiles now glow BRIGHTER than sick ones: state is encoded in luminance and
+  red still retreats to the ring (wave-2 C4 strengthened, not reversed). Also contrast-mandatory - Rusty
+  burn numerals measure ~2.56:1 on a lifted face. brand-guard gained a ladder assertion (healthy >= 38,
+  alarm <= 29, gap >= 8) so a future flatten fails the deploy.
+- **R2-1 cold-start staleness killed.** C2 covered resume but not a cold open: `now` initialised to the
+  server value and the first refresh sat 120s away, so a cold open painted a stale page (proven: desktop
+  said REST on a live GYM day). Mount kick (`setNow` + `router.refresh()`) **plus a ~6s follow-up refresh**,
+  because ISR SERVES stale on the first hit past the window and only regenerates behind it - one kick can
+  re-serve the same stale payload. Kills the class, not the instance.
+- **R2-2 the verdict line.** The header's one line was store plumbing; it now carries the answer:
+  "Needs you 3 email · 1 urgent · 1 n8n broken · 22 waiting · phone sync stalled" / "all clear".
+  It **enumerates producer-pushed facts verbatim and never totals them** - a count would require deciding
+  whether two reds are one problem, which is the fabricated correlation the run-25 debate killed.
+- **R2-6 twin-stall dedup (and a dead-parser lesson).** One dead Shortcut printed two identical alarm
+  paragraphs; the second tile now reads "same phone sync as sleep · no fresh steps either". The predicate
+  is **same project + both red + identical push `ts`** (both metrics arrive in one delivery). Matching on
+  headline TEXT was tried first and was DEAD ON ARRIVAL - the live producer sends "night of 2026-07-22 ·
+  6.4h", never the word "stalled" (that wording is client-authored by `stallHealthTile`). Same bug class as
+  the C5 `oldest Nd` parser: never match a string the producer doesn't actually send.
+- **R2-21 the touch trap, finally MEASURED.** Run 25 deferred "graph static on mobile" behind a touch-scroll
+  pass that was never run; run 37 ran it. First attempt was a false positive (the graph is the last card, so
+  `scrollIntoView` lands at MAX scroll and an upward drag reads 0px regardless). Re-tested downward WITH a
+  footer control in the same run: live canvas moved the page 0px, control moved -165px, and the canvas
+  carries `touch-action: none`. **The hijack is real**, so tap-to-activate ships: a veil (`touch-action:
+  pan-y`, no preventDefault) passes vertical scroll straight through and a deliberate tap hands the canvas
+  its gestures; scrolling the card away re-arms it. Pointer devices never see it.
+- **R2-3 n8n idle branch** (both review lanes, independently): `!broken_reason && !last_exec` -> the hollow
+  `dot-idle` + "idle · never ran". Five idle-by-design rows stopped wearing the alarm ring around the one
+  real offender. **R2-5 four measured WCAG fixes**: small error text -> Signal Coral, small warning text ->
+  Vanilla Custard, waiting-strip count -> Custard at 24px (Rusty fails ~2.93:1 at ANY size on these faces)
+  on a new `.strip-amber` `--elev` face. **R2-14 Send armed orange at rest** (owner call, taken with "run
+  all waves"): genuinely enabled, empty-tap focuses the field - the one accent finally exists on a healthy
+  view without an affordance lie. Recorded as brand deviation **D7** (burn numerals ~2.98:1, kept because
+  shape+ring+kicker carry the state redundantly).
+- Also: R2-7 strip names its top item (full-width line on mobile), R2-8 amber carries its reason, R2-9
+  period honesty for reset-period tiles only (cumulative tiles exempt by design), R2-10 "mcp servers" +
+  the n8n denominator extracted from value_text, R2-11 overlay elevation + 36px headline numerals, R2-12
+  focus grammar (panel takes focus; `.close-btn` joined the cyan ring rule), R2-13 mobile fold (schedule
+  line hidden, inline compose row, tighter header chrome: first tile 523px -> **500px** even after adding
+  the verdict line), R2-15 plants "log watering -> note" prefill via a `hq:prefill-note` CustomEvent,
+  R2-16 graph quieted a half-step, R2-17 GYM/REST back in Chakra (D6 drift), R2-18 brain strip 6-track
+  re-span + 0.7rem labels, R2-19 apps overlay period suffixes, R2-20 `STATUS_ANNOUNCE` (dots announce
+  states not colours; the health board's two raw spans went through the Dot component).
+- **Deploy gotcha learned this session:** `pkill` does NOT free port 3000 on Windows. Kill by port
+  (`Get-NetTCPConnection -LocalPort 3000 | Stop-Process`) or the old server keeps serving HTML that points
+  at CSS chunk names the rebuild renamed - which looks exactly like a catastrophic CSS regression.
+
 ## Tile cadence + due-today + health-honesty pass (2026-07-08, fixes "four frozen tiles")
 Shaheen reported radar/expenses/sleep/steps frozen at a shared ~07-06 22:00 stamp and asked for the single upstream cause. There is NONE (full diagnosis: [[projects/error-log]] three 2026-07-08 entries). The four cluster because each is fed by a producer that does NOT run daily, and the glance TILES had no cadence model - a weekly (radar), monthly (expenses) or flaky-daily (health) metric looked identical to a dead daily one. Changes, all in `app/app/dashboard.tsx` (typecheck-clean; live on the next container rebuild):
 - **Radar tile**: stamp now `weekly - last run {stamp}` so a 6-day-old push reads as on-schedule. Also cleared its stuck `run_status` RED with a truthful corrective green dated to the real 07-06 20:03Z recovery (data fix, already live).

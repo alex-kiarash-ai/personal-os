@@ -27,6 +27,13 @@
       "skillPath": "plugins/plugin-dev/skills/agent-development/SKILL.md",
       "computedHash": "ff3324078bbeef3e214157391795360e148892e9c6735f1fc049f397aa939c80"
     },
+    "agent-reach": {
+      "source": "Panniantong/Agent-Reach",
+      "sourceType": "github",
+      "skillPath": "agent_reach/skill/SKILL_en.md",
+      "computedHash": "2218fac1b18982db768c3fb076d78ae949ef1e5a59e823cf70dad90c7d2c7e78",
+      "note": "DATA-only install of the SKILL markdown + 6 references. Package/CLI deliberately NOT installed. SKILL.md carries a locally-added ALEX SCOPE GUARD and a rewritten frontmatter description, so computedHash intentionally differs from upstream."
+    },
     "ai-seo": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
@@ -135,6 +142,12 @@
       "skillPath": "skills/customer-research/SKILL.md",
       "computedHash": "1b50c866840071c0c43253077d084fc8cc4306a7feff85662251dc42b2e4664f"
     },
+    "defuddle": {
+      "source": "kepano/obsidian-skills",
+      "sourceType": "github",
+      "skillPath": "skills/defuddle/SKILL.md",
+      "computedHash": "10673a4dc70a0a057612d443243ab7a5aa4abdd4a0fadc3f6eec5fd71ad5a971"
+    },
     "diagrammer": {
       "source": "davila7/claude-code-templates",
       "sourceType": "github",
@@ -194,6 +207,12 @@
       "sourceType": "github",
       "skillPath": "skills/json-canvas/SKILL.md",
       "computedHash": "97d1ae0728955c4203922753d5656890e5e4dd371b8306ea11884f9b510f1b85"
+    },
+    "karpathy-guidelines": {
+      "source": "multica-ai/andrej-karpathy-skills",
+      "sourceType": "github",
+      "skillPath": "skills/karpathy-guidelines/SKILL.md",
+      "computedHash": "6e22cc54cb02a5e98ae42d06d9d7292db0c1b43894831b32879beb0166b2aea7"
     },
     "launch": {
       "source": "coreyhaines31/marketingskills",
@@ -489,12 +508,6 @@
       "sourceType": "github",
       "skillPath": "skills/webapp-testing/SKILL.md",
       "computedHash": "8bc27790f6e6dfc2bfa6692326d4518baacf6a31dcc646d963c729adad2f7e34"
-    },
-    "defuddle": {
-      "source": "kepano/obsidian-skills",
-      "sourceType": "github",
-      "skillPath": "skills/defuddle/SKILL.md",
-      "computedHash": "10673a4dc70a0a057612d443243ab7a5aa4abdd4a0fadc3f6eec5fd71ad5a971"
     }
   }
 }

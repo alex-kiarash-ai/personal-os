@@ -29,6 +29,11 @@ const TARGETS = [
   { id: '9XuIEfxS71DEetVR', name: 'Application Engine (BI)' },
   { id: '9x9M3EnEEeX3O8dy', name: 'AI Application Engine' },
   { id: 'grMqmGzzbTXTEdKr', name: 'Writer Voice Eval (regression)' },
+  // Added 2026-07-27. Build #31's pipeline is a clone of #03 and carries its own COPY of the
+  // writer node, so without this it keeps whatever voice block it was cloned with and silently
+  // drifts the next time soul.md changes: three lanes updated, one quietly stale, and the drift
+  // surfaces in a cover letter a recruiter reads rather than anywhere a check would catch it.
+  { id: 'sxEYRyeHH7i1mHzb', name: 'Portal Application Engine' },
 ];
 const NODE = 'Build Writer Request';
 const START = '<<<SOUL_VOICE_START';

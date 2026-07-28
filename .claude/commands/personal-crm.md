@@ -1,5 +1,11 @@
 # /personal-crm - Personal CRM Sync + Monday Follow-Ups
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#05 /personal-crm · LIVE · Trigger: Mon 8:30**
+> Registry: `system/manifest.json` · Spec: `work/05-personal-crm/CLAUDE.md` · Status: `vault/projects/personal-crm/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Spec: work/05-personal-crm/CLAUDE.md (read it first; the Draft Gate is non-negotiable).
 
 ## Modes

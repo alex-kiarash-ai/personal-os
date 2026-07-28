@@ -53,6 +53,23 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  /* R2-15: the plants drill-down (and any future card with a fix that lives HERE) hands the
+     capture input a prefilled line instead of asking Shaheen to retype what the tile just told
+     him. Data-only event, no imperative reach across components. */
+  useEffect(() => {
+    const onPrefill = (e: Event) => {
+      const detail = (e as CustomEvent<{ text?: string }>).detail;
+      setText(detail?.text ?? "");
+      requestAnimationFrame(() => {
+        inputRef.current?.scrollIntoView({ block: "center" });
+        inputRef.current?.focus();
+      });
+    };
+    window.addEventListener("hq:prefill-note", onPrefill);
+    return () => window.removeEventListener("hq:prefill-note", onPrefill);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -219,14 +236,22 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
     >
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="kicker whitespace-nowrap">Drop a note to Alex</span>
-        <span className="text-xs" style={{ color: "var(--mute)" }}>
+        {/* R2-13: the schedule policy is read-once knowledge that was costing two wrapped lines of
+            the phone's first fold on every single glance; the post-send flash ("I file it at my
+            next touchpoint") teaches the same async-ness at the moment it matters. Desktop keeps it. */}
+        <span className="hidden text-xs sm:inline" style={{ color: "var(--mute)" }}>
           async inbox · read at 08:00 / 09:00 / 13:00 / 17:00 + every session
         </span>
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
+        {/* R2-13: `min-w-full` forced the buttons onto a row of their own at 390, costing ~50px of
+            fold for pure layout. Inline compose row instead (the phone-keyboard pattern): the
+            field takes the space it needs and grows in HEIGHT on focus, which is the axis that
+            actually matters when typing. Desktop is unchanged. */}
         <textarea
-          className="note-input min-w-full sm:min-w-0"
+          ref={inputRef}
+          className="note-input"
           rows={2}
           placeholder="A plan, a meeting, a goal... I'll file it."
           value={text}
@@ -262,15 +287,29 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
                   strokeLinecap="round"
                 />
               </svg>
-              <span>Voice</span>
+              {/* the glyph alone carries it on the phone; the label returns where there is room */}
+              <span className="hidden sm:inline">Voice</span>
             </>
           )}
         </button>
+        {/* R2-14 (owner-gated, "run all waves" = the go): the page's ONE Golden Orange accent
+            never rendered on a healthy view, because Send sat in its disabled ghost state whenever
+            the textarea was empty — which is every glance. Send is now genuinely ENABLED at rest,
+            so the 10% accent band exists and the button tells no affordance lie: tapping it empty
+            focuses the field and says so. Ghost survives for the states that are truly disabled
+            (mid-send, recording). */}
         <button
           type="button"
           className="btn-send"
-          onClick={() => void sendNote()}
-          disabled={sending || recording || !text.trim()}
+          onClick={() => {
+            if (!text.trim()) {
+              inputRef.current?.focus();
+              setFlash("Type or dictate first, then Send.");
+              return;
+            }
+            void sendNote();
+          }}
+          disabled={sending || recording}
         >
           {sending ? "..." : "Send"}
         </button>

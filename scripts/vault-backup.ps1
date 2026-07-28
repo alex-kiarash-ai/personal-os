@@ -107,7 +107,16 @@ if (-not $DryRun) {
     if ($waited -ge 720) { Say "proceeded after the 12-min wait cap (a month-end producer was still running); backup may catch a mid-write file this once" }
 }
 
+# TAR PINNED (2026-07-25): the script called a BARE `tar`, so whichever tar came first on PATH won.
+# Under Task Scheduler that is Windows' bsdtar (System32\tar.exe), but launched from a Git-Bash-derived
+# PATH it resolves to GNU /usr/bin/tar, which reads the Windows path "C:\..." as a REMOTE HOST spec and
+# dies with "resolve failed" - producing no archive. Caught live today when a hand-run failed while the
+# scheduled path was fine. Pin it, so the archive is built by the same binary no matter who launches it.
+$tarExe = Join-Path $env:SystemRoot 'System32\tar.exe'
+if (-not (Test-Path $tarExe)) { $tarExe = (Get-Command tar -ErrorAction SilentlyContinue).Source }
+
 try {
+    if (-not $tarExe -or -not (Test-Path $tarExe)) { throw "tar not found (need Windows System32\tar.exe or a tar on PATH)" }
     if (-not $gpg)               { throw "gpg not found (install Gpg4win or use the Git-bundled gpg)" }
     if (-not $passFile)          { throw "passphrase path not configured in system/credentials-ledger.json (id=vault-backup-gpg-passphrase, field local_path)" }
     if (-not (Test-Path $passFile)) { throw "passphrase file missing at the ledger-configured path" }
@@ -134,13 +143,34 @@ try {
     # UTF-8 no BOM, LF endings: bsdtar -T treats a trailing \r as part of the path.
     [IO.File]::WriteAllText($listFile, (($list -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding($false)))
 
+    # 1b. THE IDENTITY DOCS (added 2026-07-25, Shaheen's call). The technical master reference and the
+    #     plain-English guide live OUTSIDE the repo (moved 2026-07-21 so they can never be committed), and
+    #     the include list above is built from `git ls-files` INSIDE the repo, so it can never reach them.
+    #     Net effect until today: the two documents the standing orders require to be current, one of which
+    #     is what a restore reads FIRST, existed on exactly one laptop with no off-machine copy of any kind.
+    #     The two folder copies were on the same disk, so they bought drift risk and zero durability.
+    #     They ride along via a second, -C-anchored tar call rather than an absolute path in the list
+    #     (bsdtar strips drive prefixes and would flatten the layout). Only the REAL folder is taken:
+    #     $identityLeaf holds the actual files, and the other location is a junction into it (F-09 fix),
+    #     so taking just this one path stores each document exactly once and never traverses the link.
+    $identityRoot = Join-Path $env:USERPROFILE 'Desktop\Alex Project'
+    $identityLeaf = 'Story & Guides'
+    $identityPath = Join-Path $identityRoot $identityLeaf
+    $identityOk = Test-Path $identityPath
+    if (-not $identityOk) { Say "WARNING identity docs: '$identityPath' not found - the master reference + plain-English guide are NOT in this backup" }
+
     if ($DryRun) {
-        Say "DRYRUN: would tar $n paths -> gpg -> scp $remoteName to n8n:/opt/alex-backups (keep $KEEP)"
+        Say "DRYRUN: would tar $n paths + the identity docs ('$identityLeaf' present: $identityOk) -> gpg -> scp $remoteName to n8n:/opt/alex-backups (keep $KEEP)"
         "DRYRUN ok: $n paths staged" | Out-File -Append -Encoding utf8 $log
     } else {
         # 2. tar (relative to repo root) then encrypt. Plaintext tar is deleted in finally.
-        tar -cf $tarFile --exclude='*/.obsidian' --exclude='*/node_modules' --exclude='*/.browser-profile' --exclude='*/.git' -T $listFile 2>&1 | Out-File -Append -Encoding utf8 $log
+        & $tarExe -cf $tarFile --exclude='*/.obsidian' --exclude='*/node_modules' --exclude='*/.browser-profile' --exclude='*/.git' -T $listFile 2>&1 | Out-File -Append -Encoding utf8 $log
         if (-not (Test-Path $tarFile)) { throw "tar produced no archive" }
+
+        # 2b. Append the out-of-repo identity docs (-r appends to the uncompressed tar).
+        if ($identityOk) {
+            & $tarExe -rf $tarFile -C $identityRoot $identityLeaf 2>&1 | Out-File -Append -Encoding utf8 $log
+        }
 
         & $gpg --batch --yes --quiet --symmetric --cipher-algo AES256 --compress-algo 2 `
                --passphrase-file $passFile -o $gpgFile $tarFile 2>&1 | Out-File -Append -Encoding utf8 $log
@@ -150,8 +180,19 @@ try {
 
         # 3. Round-trip verify BEFORE shipping: decrypt + list entries. Never ship a blob we can't open.
         & $gpg --batch --yes --quiet --passphrase-file $passFile -d -o $vrfFile $gpgFile 2>&1 | Out-File -Append -Encoding utf8 $log
-        $entries = (tar -tf $vrfFile 2>$null | Measure-Object -Line).Lines
+        $names = @(& $tarExe -tf $vrfFile 2>$null)
+        $entries = $names.Count
         if ($entries -lt 50) { throw "verify failed: only $entries entries decrypted" }
+        # POSITIVE assertion for the identity docs (2026-07-25): "it was appended" is not proof it is IN
+        # the shipped blob. Assert both documents by name inside the DECRYPTED archive, so the claim
+        # "the identity docs are backed up" is verified every night instead of assumed. Hard-fails: a
+        # backup that silently stopped covering them is exactly the state this fix exists to end.
+        if ($identityOk) {
+            $needDocs = @('ALEX-OS-master.md', 'Alex-Plain-English-Guide.docx')
+            $missDocs = @($needDocs | Where-Object { $d = $_; -not ($names | Where-Object { $_ -like "*$d" }) })
+            if ($missDocs.Count) { throw "verify failed: identity doc(s) missing from the archive: $($missDocs -join ', ')" }
+            Say "verified: identity docs present in the blob ($($needDocs -join ', '))"
+        }
         Say "verified: decrypts clean, $entries entries, $sizeMB MB"
 
         # 4. Ship to Hetzner + confirm remote size + prune to last $KEEP.

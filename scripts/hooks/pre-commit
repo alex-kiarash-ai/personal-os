@@ -1,7 +1,12 @@
 #!/bin/sh
 # pre-commit - the permanent validation gate (refactor P3-S3, decision D7).
-# Runs scripts/validate-alex.js (G1-G4 + V1-V13) on every commit; a red check blocks the commit.
-# A staged-content gitleaks scan runs FIRST (F3, 2026-07-25): a found secret blocks the commit.
+# Runs scripts/validate-alex.js (the full suite; the validator declares its own range) on every commit;
+# a red check blocks the commit.
+# Two content scans run FIRST, both scoped to the STAGED content, both fail-closed on a finding:
+#   - gitleaks (F3, 2026-07-25)            -> SECRETS
+#   - personal-data-scan --staged (F-03)   -> PERSONAL DATA (names, kr/SEK, health, phone, secret paths)
+# Together they are the PREVENT layer for the public repo; the monthly security sweep (S1 + S9) is the
+# level-triggered backstop, and GitHub push protection is the server-side one.
 # V10 (protected-file guard, 2026-07-15) reads the staged changeset via --changed and enforces
 # vault/me/NEVER-TOUCH.md (immutable / append-only / flagged); override with git commit --no-verify.
 # V11 (forced-add guard, 2026-07-17) blocks committing a `git add -f`'d gitignored path - the public
@@ -69,6 +74,8 @@ if command -v node >/dev/null 2>&1; then
   NODE=node
 elif [ -x "/c/Program Files/nodejs/node.exe" ]; then
   NODE="/c/Program Files/nodejs/node.exe"
+elif [ -x "/c/Program Files/nodejs/node" ]; then
+  NODE="/c/Program Files/nodejs/node"
 else
   echo "pre-commit: BLOCKED - node not found; validate-alex CANNOT run, so this commit is not validated." >&2
   echo "pre-commit: (BUG-07 fix 2026-07-15: fail CLOSED. A commit that cannot be validated must not pass" >&2
@@ -89,7 +96,26 @@ if [ -z "$N8N_API_URL" ]; then
   export N8N_API_URL
 fi
 
-echo "pre-commit: validate-alex (G1-G4 + V1-V13, context=pre-commit; V10 = NEVER-TOUCH guard, V11 = forced-add guard on the staged changeset, V12 = trifecta gate, V13 = local wrapper model-pin contract)"
+# --- F-03 (2026-07-25 stress-test fix): PERSONAL-DATA scan on the STAGED paths, the sibling of the
+#     gitleaks scan above. gitleaks catches SECRETS; this catches personal DATA (other people's names,
+#     kr/SEK figures, health values, phone numbers, secret file LOCATIONS) - the class that put four
+#     real files on the public repo on 2026-07-20 and was only guarded by a MONTHLY sweep, i.e. up to
+#     ~30 days of public exposure after a single bad commit. Fail policy mirrors gitleaks: a HIT blocks
+#     (fail-closed on the result), a scanner that cannot run blocks too (exit 1) EXCEPT when node is
+#     absent, which is handled above. The monthly S9 sweep remains the level-triggered backstop.
+"$NODE" "$ROOT/scripts/personal-data-scan.js" --staged
+PDS=$?
+if [ "$PDS" -eq 2 ]; then
+  echo "pre-commit: BLOCKED - personal data in the STAGED content (listed above)." >&2
+  echo "pre-commit: this repo is PUBLIC. Unstage it, gitignore it, or add a reviewed exception to system/personal-data-allowlist.json." >&2
+  exit 1
+elif [ "$PDS" -ne 0 ]; then
+  echo "pre-commit: BLOCKED - personal-data scan errored (exit $PDS); fail-closed (cannot certify the commit is personal-data-free)." >&2
+  echo "pre-commit: fix the scanner, or 'git commit --no-verify' to override deliberately." >&2
+  exit 1
+fi
+
+echo "pre-commit: validate-alex (full suite, context=pre-commit; V10 = NEVER-TOUCH guard, V11 = forced-add guard on the staged changeset, V12 = trifecta gate, V13 = local wrapper model-pin contract). The validator prints its own suite range - this hook deliberately does not restate it (F-10)."
 "$NODE" "$ROOT/scripts/validate-alex.js" --context=pre-commit --changed
 STATUS=$?
 if [ $STATUS -ne 0 ]; then

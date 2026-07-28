@@ -1,5 +1,11 @@
 # /post-publish - Stage Approved Episodes (never posts)
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#12 /post-publish · LIVE · Trigger: on-demand + n8n staging (scheduled)**
+> Registry: `system/manifest.json` · Spec: `work/12-linkedin-series/CLAUDE.md` · Status: `vault/projects/linkedin-series/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 Spec and HARD RULES: work/12-linkedin-series/CLAUDE.md. HARD GATE: only Notion Status=Approved can ever be staged. No LinkedIn API exists in this system. n8n stages, Shaheen posts.
 
 ## Flow (also what the n8n workflow does on its scheduled run)

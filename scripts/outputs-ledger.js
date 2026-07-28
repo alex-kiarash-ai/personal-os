@@ -40,7 +40,12 @@ const STREAM_DIRS = ['logs', 'voice', 'typed'];
 // sessions = THE home for future one-off session outputs (sessions/YYYY-MM-DD-topic/);
 // prompting-scheduled = the Quota Reset Auto-Run tool's result dir (work/quota-reset-autorun/scripts/
 //   poll-and-run.ps1 writes qra-*.txt here by design; QRA is a registered known_work_folder, 2026-07-15).
-const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex', 'prompting-scheduled'];
+// explainer = the narrated-explainer lane's rendered MP4s (work/voice/explainer/make-explainer.py,
+//   built 2026-07-24). Deliberately a LIGHT TOOL, not a numbered project, so it has no manifest key to
+//   name its folder after - which is exactly what C12 flagged on 2026-07-25 (stress-test F-12). Its
+//   artifacts ARE deliverables and DO get ledger rows; only the folder-name assertion needed the
+//   exemption. If the lane ever earns a /new registry slot, drop this entry and use the manifest key.
+const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex', 'prompting-scheduled', 'explainer'];
 const SKIP_FILES = new Set(['ledger.jsonl', 'INDEX.md', '.gitkeep', 'desktop.ini', 'Thumbs.db', '.platform']);
 const SKIP_EXT = new Set(['.log', '.tmp', '.lock']);
 // Multi-file bundle formats: internals are components of ONE deliverable, never rows themselves

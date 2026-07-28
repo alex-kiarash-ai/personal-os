@@ -66,7 +66,7 @@ For each venture with a `project_source` set:
 tags: [project, {venture}]
 venture: {venture}
 status: in-progress
-owner: kukesh
+owner: shaheen
 priority: P2
 created: YYYY-MM-DD
 updated: YYYY-MM-DD

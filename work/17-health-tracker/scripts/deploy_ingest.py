@@ -57,6 +57,41 @@ function scoreNight(d){
   return {score: Math.round(raw/lw*100), eff: eff!=null ? Math.round(eff*1000)/1000 : null, asleep};
 }
 
+// --- data-quality grading (Phase 1) ------------------------------------------------------------
+// Inlined mirror of scripts/health-grade.js -> keep the THREE in sync (that file, this node,
+// backfill_health.py). Stops the ingest fabricating a score from empty/thin HealthKit reads
+// (the phantom-reading bug that once produced a 38/100 from nothing).
+const REAL_NIGHT_MIN = 180;   // < 3h asleep is thin, not a real main sleep
+const MAX_STEPS = 120000;     // above this is a sensor glitch, not a real day
+function gnum(v) { if (v === null || v === undefined || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
+function gradeDay(row) {
+  const steps = gnum(row.steps);
+  const asleep = gnum(row.asleep_min);
+  const inbed = gnum(row.inbed_min);
+  const deep = gnum(row.deep_min);
+  const rem = gnum(row.rem_min);
+  const awakenings = row.awakenings === '' || row.awakenings == null ? null : gnum(row.awakenings);
+  const grades = {};
+  grades.steps = steps == null || steps === 0 ? 'phantom'
+    : steps > MAX_STEPS ? 'phantom'
+    : 'complete';
+  grades.sleep_duration = asleep == null || asleep === 0 ? 'phantom'
+    : asleep < REAL_NIGHT_MIN ? 'partial'
+    : 'complete';
+  grades.sleep_efficiency = (inbed == null || inbed === 0 || asleep == null || asleep === 0) ? 'phantom'
+    : (inbed < asleep ? 'partial' : 'complete');
+  grades.sleep_deep = (deep == null || asleep == null || asleep === 0) ? 'phantom' : 'complete';
+  grades.sleep_rem = (rem == null || asleep == null || asleep === 0) ? 'phantom' : 'complete';
+  grades.restfulness = awakenings == null ? 'phantom' : 'complete';
+  const durationOk = grades.sleep_duration === 'complete';
+  const usable = ['sleep_efficiency', 'sleep_deep', 'sleep_rem'].filter(k => grades[k] === 'complete').length;
+  const sleep_score_ok = durationOk && usable >= 2;
+  const reason = sleep_score_ok ? null
+    : !durationOk ? `insufficient data: sleep duration is ${grades.sleep_duration} (need a real night to score)`
+    : `insufficient data: only ${usable} of Efficiency/Deep/REM usable (need >=2 to score)`;
+  return { grades, sleep_score_ok, reason, steps_ok: grades.steps === 'complete' };
+}
+
 const _item = $input.first();
 let _raw;
 if (_item.binary && _item.binary.data && _item.binary.data.data) { _raw = Buffer.from(_item.binary.data.data, 'base64').toString('utf8'); }
@@ -77,6 +112,11 @@ const out = [];
 for (const d of days) {
   if (!d || !d.date) throw new Error('each day needs a date');
   const {score, eff, asleep} = scoreNight(d);
+  // Grade on the DERIVED asleep (deep+rem+core), NOT the phone's asleep_min - the Shortcut's
+  // Block 8 ships the awakenings count, so grading the raw field would judge a real night on a
+  // number like "3" and gate away every valid score.
+  const _g = gradeDay(Object.assign({}, d, {asleep_min: asleep}));
+  const _score = _g.sleep_score_ok ? score : null;
   out.push({ json: {
     date: String(d.date),
     steps: num(d.steps),
@@ -91,9 +131,10 @@ for (const d of days) {
     bedtime: d.bedtime != null ? String(d.bedtime) : null,
     waketime: d.waketime != null ? String(d.waketime) : null,
     bedtime_dev_min: num(d.bedtime_dev_min),
-    sleep_score: score,
+    sleep_score: _score,
     source: d.source ? String(d.source) : 'phone',
-    ts: d.ts ? new Date(d.ts).toISOString() : now
+    ts: d.ts ? new Date(d.ts).toISOString() : now,
+    grade_reason: _g.reason
   }});
 }
 return out;

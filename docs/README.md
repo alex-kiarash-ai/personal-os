@@ -14,9 +14,16 @@ Two things to know before you read anything else:
    never reach this repo's remote. What you can read here is the machinery, not the life.
 
 Start with GETTING-STARTED if you want to run it, ARCHITECTURE if you want to understand it.
+
+**If you just downloaded this and nothing works, read this paragraph first.** Alex is not a file you
+open, it is a folder you *work inside*. Claude Code only becomes Alex when the `personal-os` folder
+itself is the session's folder. Dragging files into the chat, attaching `CLAUDE.md`, or pasting a
+path gets you plain Claude with none of the commands. Open the folder (desktop app: pick it as the
+session folder; command line: `cd` into it, then run `claude`), type `/status` to confirm it loaded,
+then type `/setup`. Full walkthrough in section 2 of GETTING-STARTED.md.
 <!-- CUSTOM_END -->
 
-<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-07-25. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
+<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-07-28. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
 
 ## Quick start
 
@@ -25,4 +32,4 @@ Start with GETTING-STARTED if you want to run it, ARCHITECTURE if you want to un
 - **The projects, in plain language:** [projects/README.md](projects/README.md) - one page per automation.
 - **The live n8n workflows:** [n8n/](n8n/) - node-by-node explanations of what runs on the server.
 
-Right now the registry holds **29 non-retired automations** (16 LIVE). The source of truth is `system/manifest.json`; every table and count in these docs is generated from it by `scripts/generate-alex.js`, then validated. Edit sources, not views.
+Right now the registry holds **31 non-retired automations** (18 LIVE). The source of truth is `system/manifest.json`; every table and count in these docs is generated from it by `scripts/generate-alex.js`, then validated. Edit sources, not views.

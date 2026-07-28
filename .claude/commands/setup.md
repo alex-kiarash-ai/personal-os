@@ -2,20 +2,51 @@
 
 Guide the user through setting up their Personal Ops System. One step at a time. Wait for input before moving on.
 
+**STOP CONDITION, check this before anything else (added 2026-07-28).** `/setup` is a FIRST-RUN
+wizard and every write below assumes a fresh, empty install. Before running a single step, check
+whether `soul.md` exists and contains a `## My Words` heading. **If it does, this is not a fresh
+install: STOP and say so, naming the file and its size, and require explicit confirmation before
+any write.** That corpus is months of harvested phrasing, it is the input to every prose surface
+Alex generates (n8n writer nodes, CVs, cover letters, LinkedIn, email drafts), and overwriting it
+fails silently: everything keeps working, it just stops sounding like Shaheen. It is gitignored, so
+git will not save you; the only copy is the nightly encrypted vault backup, last 14 kept. Recovery
+check C22 watches the entry count for exactly this reason. Never treat this as a formality.
+
 Prerequisites (done before running /setup):
+- **The session folder IS personal-os.** If the user reached you any other way (files attached to a
+  chat, a pasted path, a subfolder opened), /setup cannot work: the commands and hooks are not
+  loaded. Tell them plainly: "Close this and open the `personal-os` folder itself in Claude Code -
+  desktop app: pick it as the session folder; command line: `cd` into it, then run `claude`. Then
+  type `/status`, and once that answers, `/setup`." Do not try to work around it. See the Session
+  Root section of the root CLAUDE.md.
 - MCP connections (Gmail, Calendar, Notion) authenticated via /mcp
 - If something isn't connected, the system still works. Don't ask them to set up missing connections.
 
 ## Step 1: Install Skills + Verify Connections
 
-Silently install skills via Bash (don't show full output):
+**Do NOT run `npx skills add ... --global` here (corrected 2026-07-28, review F-10).** It was the original
+instruction and it is wrong on two counts. A `--global` install lands outside `.agents/skills/`, so it is
+invisible to `skills-lock.json`, which means the tamper baseline and recovery check S7 never see it, and
+the whole DATA-only posture (trust allowlist, script-free verification, hash-on-install) is routed around
+by the very first command a fresh install runs. Separately, `npx skills add` is classifier-blocked on
+agent-discovered repos, so this told a new agent to run a command the system had already found reason to
+distrust.
+
+**The real posture:** skills live PROJECT-SCOPED in `.agents/skills/<name>/` with junction links in
+`.claude/skills/<name>`, each `SKILL.md` hashed into `skills-lock.json`. They are committed, so a fresh
+clone already HAS them. The only thing a new install may need is the link layer, which is gitignored:
+
 ```bash
-npx skills add https://github.com/anthropics/skills --skill pptx --yes --global 2>&1 | tail -1
-npx skills add https://github.com/anthropics/skills --skill xlsx --yes --global 2>&1 | tail -1
-npx skills add https://github.com/claude-office-skills/skills --skill ppt-visual --yes --global 2>&1 | tail -1
-npx skills add https://github.com/claude-office-skills/skills --skill xlsx-manipulation --yes --global 2>&1 | tail -1
+# Rebuild any missing .claude/skills junction (recovery check C17 asserts these resolve).
+# Windows: junctions need no admin. Git Bash `ln -s` silently COPIES, so use mklink /J.
+for d in .agents/skills/*/; do n=$(basename "$d"); \
+  [ -e ".claude/skills/$n" ] || cmd //c mklink //J ".claude\\skills\\$n" ".agents\\skills\\$n"; done
 ```
-Tell the user: "Installed PowerPoint and Excel skills for branded output generation."
+
+Then tell the user: "Skills are installed and verified against the lockfile." If a skill is genuinely
+missing, add it as DATA (fetch the raw `SKILL.md`, read it, confirm it is script-free, write it to
+`.agents/skills/`, junction it, hash it into `skills-lock.json`) and never by executing a third-party
+installer.
 
 Test connections:
 - Try Gmail MCP: list 1 recent email subject
@@ -77,21 +108,31 @@ If anything is missing, thin, or looks like filler ("idk", "whatever", single wo
 YOU MUST STOP AND ASK THE USER. Do NOT skip this step automatically.
 
 Tell the user and WAIT for their response:
-"Before I build your vault, let's set up your brand. Your brand/ folder has default templates (logo, PPT template, Excel template). Every report, deck, and Excel I generate uses these.
+"Before I build your vault, let's set up your brand. Every report, deck, chart and Excel I generate reads
+`brand/config/brand-config.md`, so this is the file that decides how all of it looks.
 
 You have two options:
-1. **Replace with your own**: Drop your logo into brand/images/ and your PPT template into brand/templates/. Type 'done' when you've dropped them.
-2. **Use the defaults**: Type 'skip' and I'll use what's already here. You can update later with /brand.
+1. **Give me your brand**: drop your logo into brand/images/, and tell me your colors (hex) and fonts. If
+   you have an existing deck or Excel template, drop it into brand/templates/ and I will read it.
+2. **Use the defaults**: type 'skip' and I'll use what's already here. You can update later with /brand.
 
 Which one?"
 
 WAIT for the user to respond. Do not proceed until they say "done" or "skip" or something equivalent.
 
 If they say "done" or indicate they dropped files:
-- Scan brand/images/ for new files. Scan brand/templates/ for new .pptx or .xlsx.
-- If new PPT found: open with python-pptx, extract colors, fonts, layout. Update brand/config/brand-config.md.
-- If new PPT but no new Excel: "I see your PPT template. I'll create a matching Excel template." Generate it.
-- If new images but no new PPT: "I see your logo. What are your brand colors (hex codes) and preferred fonts?" Then generate PPT and Excel templates.
+- Scan brand/images/ for new files. Scan brand/templates/ for anything they dropped.
+- **Colors and fonts come from the user, not from a file format (corrected 2026-07-28, review F-10).** Ask
+  for hexes and fonts directly and write them to `brand/config/brand-config.md`. The old instruction
+  extracted the brand by opening a `.pptx` with python-pptx, which meant a fresh install derived its whole
+  visual identity from an artifact type the system no longer generates in: decks are built with Claude
+  Design and exported to PDF (standing rule since 2026-06-15), and `/pptx` is only used when someone
+  explicitly asks for an editable PowerPoint.
+- If they DID drop a .pptx or .xlsx, you may still read it as a REFERENCE for colors and fonts, then
+  confirm what you found with the user before writing it into the config. Never let a template file be the
+  silent source of truth.
+- Exact hex values live ONLY in `brand/config/color-system.md`; write them there and reference, never
+  retype them across files.
 - Confirm: "Brand updated. Here's what I'm using: [colors], [fonts], [templates]."
 
 If they say "skip":
@@ -107,6 +148,10 @@ After this step, all inbox files have been archived to `vault/sources/`, the man
 
 ### B. Write soul.md
 
+**Re-check the STOP CONDITION at the top of this file before writing.** If `soul.md` already has a
+`## My Words` section, do NOT write: stop and get explicit confirmation naming the file. On a fresh
+install (template only, no corpus) proceed.
+
 OVERWRITE the template. Fill in EVERY section from what you collected in Step 2.
 
 Generate the **Agent Personality** section using meta-prompting:
@@ -119,7 +164,10 @@ Generate the **Agent Personality** section using meta-prompting:
 - Voice rules (keep defaults + character-specific additions)
 - Things I Never Want (inferred from character and writing style)
 
-soul.md MUST be fully filled. No placeholders. Under 2.5KB.
+soul.md MUST be fully filled. No placeholders. Keep the FRESH-INSTALL draft tight, roughly 2 to 3KB,
+which is what a first-day soul needs before any corpus exists. **That is a floor for a new file, never
+a cap on a grown one.** A mature soul.md is dominated by the My Words corpus and legitimately runs to
+100KB+; never trim, summarize, or truncate it to hit a size target.
 
 ### C. Top-up wiki pages from soul.md
 
@@ -156,21 +204,20 @@ Store parent page ID in vault/projects/notion-parent-id.md.
 Under the parent page, create "Progress Tracker" database: Task (title), Status (select: To Do/In Progress/Done), Order (number), Notes (text).
 Views: "Board" (grouped by Status), "Build Order" (table sorted by Order).
 
-Seed with 10 automations:
-1. Sprint Tracker → To Do
-2. Morning Brief → To Do
-3. Market Pulse → To Do
-4. Research Team → To Do
-5. Personal CRM → To Do
-6. Meeting Intel → To Do
-7. Email Triage → To Do
-8. Expense Wrangler → To Do
-9. Content Machine → To Do
-10. Weekly Exec Report → To Do
+**Seed the board FROM `system/manifest.json`, never from a list typed here (corrected 2026-07-28, review
+F-10).** Read the registry, take every project whose `state` is not RETIRED, and create one row per
+project using its `title`, ordered by `num`, Status = To Do.
+
+The hardcoded list this replaced seeded **Market Pulse** (never built) and **Content Machine** (RETIRED
+2026-07-06, folded into #12). Those became permanent To Do rows for automations that do not exist, on a
+board that feeds `/sprint-tracker` velocity, so a brand-new install started with a skewed count and two
+rows that could never be completed. A seed list is a copy of the registry, and copies drift; deriving it
+means a fresh install matches reality on day one and keeps matching.
 
 Store database ID in vault/projects/sprint-tracker/status.md.
 
-Share the Notion link with the user so they can see the board: "Here's your progress tracker: [link]. 10 automations to build."
+Share the Notion link with the user: "Here's your progress tracker: [link]. {N} projects on the board."
+Use the real count from the registry, do not state a fixed number.
 
 ## Step 6: Set Up Obsidian
 
@@ -199,16 +246,14 @@ Your Personal Ops System is ready. The automations are pre-built - no prompts to
 Try any of these commands. Each one runs Step 0 (Bootstrap) on first invocation
 to create its Notion DB lazily, then does its job:
 
-  /sprint-tracker      - read the progress board, generate a standup
   /morning-brief       - today's emails + calendar digest
-  /market-pulse        - competitor scan
   /research-team       - multi-agent research on a topic
   /meeting-intel       - pre-meeting dossier or post-meeting extraction
   /personal-crm        - sync contacts and stage follow-up drafts
   /email-triage        - classify Gmail and draft replies
   /expense-wrangler    - process receipts, generate Excel report
-  /content-machine     - turn any source into a content kit
-  /weekly-exec-report  - Friday capstone deck across all 9
+  /post-episode        - draft a Building Alex episode
+  /weekly-exec-report  - Friday capstone deck across the whole system
 
 Optional admin: /brand, /ingest, /lint, /status, /cron-setup, /venture-sync.
 ```
@@ -238,9 +283,9 @@ Start here:
 
 The agent will build Sprint Tracker via /new (creates work/01-sprint-tracker/,
 the command spec, and the Notion DB). When it marks itself Done on the board,
-move to 02-morning-brief, then 03-market-pulse, all the way through 11.
+move to the next numbered folder in {PROMPTS_PATH} and work through them in order.
 
-Eleven prompts total. By the end your install will match personal-os-prebuilt.
+By the end your install will match personal-os-prebuilt.
 ```
 
 If PROMPTS_PATH is "(not found)", say instead:

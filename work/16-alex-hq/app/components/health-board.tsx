@@ -9,7 +9,7 @@ import { motion } from "motion/react";
 import type { Project, ProjectsData, RegProject, Status } from "@/lib/types";
 import { ageLabel, cadenceStale, DISPLAY_NAMES } from "@/lib/types";
 import { idleLabel, neverFired } from "@/lib/data";
-import { spring } from "@/components/primitives";
+import { Dot, spring } from "@/components/primitives";
 
 type HealthRow = {
   key: string;
@@ -138,7 +138,8 @@ export function HealthBoard({
             transition={{ ...spring, delay: i * 0.03 }}
           >
             <button className="health-row" onClick={() => onOpen(p.drillId)}>
-              <span className={`dot dot-${p.display}${i === firstRed ? " dot-pulse" : ""}`} aria-label={p.display} />
+              {/* R2-20: through the Dot component so the announced label is a STATE, not a color */}
+              <Dot status={p.display} pulse={i === firstRed} />
               <span className="min-w-0 flex-1 truncate font-medium">{p.label}</span>
               <span className="ml-auto flex-none text-xs tabular-nums" style={{ color: "var(--mute)" }}>
                 {p.meta}
@@ -156,7 +157,7 @@ export function HealthBoard({
             transition={{ ...spring, delay: (active.length + i) * 0.03 }}
           >
             <button className="health-row" onClick={() => onOpen(p.drillId)}>
-              <span className={`dot dot-${p.display}`} aria-label={p.display} />
+              <Dot status={p.display} />
               <span className="min-w-0 flex-1 truncate font-medium">{p.label}</span>
               <span className="ml-auto flex-none text-xs tabular-nums" style={{ color: "var(--mute)" }}>
                 {p.meta}

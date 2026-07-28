@@ -1,0 +1,367 @@
+{
+  "ran": "2026-07-26T13:09:32.788Z",
+  "verdict": "GO (>= 8 companies with a matching role)",
+  "rows": [
+    {
+      "company": "Appfire",
+      "ats": "greenhouse",
+      "slug": "appfire",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/appfire/jobs?content=true",
+        "total": 18,
+        "titleMatched": 13,
+        "prefiltered": 7,
+        "samples": [
+          "Senior AI Automation Engineer [Poland]",
+          "Senior Data Analytics Engineer - Data Insights [Poland]",
+          "Senior Data Analytics Engineer - Data Insights [Spain]",
+          "Senior Product Manager - Agent Blueprints [Spain]",
+          "Senior Product Manager - Agent Blueprints [Poland]"
+        ],
+        "titleSamples": [
+          "Senior AI Automation Engineer [Bulgaria]",
+          "Senior AI Automation Engineer [Poland]",
+          "Senior Data Analytics Engineer - Data Insights [Canada]",
+          "Senior Data Analytics Engineer - Data Insights [Bulgaria]",
+          "Senior Data Analytics Engineer - Data Insights [Poland]",
+          "Senior Data Analytics Engineer - Data Insights [Spain]"
+        ]
+      }
+    },
+    {
+      "company": "Ebury",
+      "ats": "greenhouse",
+      "slug": "ebury",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/ebury/jobs?content=true",
+        "total": 170,
+        "titleMatched": 19,
+        "prefiltered": 12,
+        "samples": [
+          "Analytics Engineer - Fintech [Madrid]",
+          "Data Analyst - Financial Crime [Madrid]",
+          "Data Analyst - Fincrime Reporting [Madrid]",
+          "Data Analyst II - Regulatory Reporting [Madrid]",
+          "Data Analyst II - Treasury [Madrid]"
+        ],
+        "titleSamples": [
+          "Analytics Engineer - Fintech [Madrid]",
+          "Data Analyst - Financial Crime [Málaga]",
+          "Data Analyst - Financial Crime [Madrid]",
+          "Data Analyst - Fincrime Reporting [Madrid]",
+          "Data Analyst - Fincrime Reporting [Málaga]",
+          "Data Analyst II - Regulatory Reporting [Madrid]"
+        ]
+      }
+    },
+    {
+      "company": "Remote.com",
+      "ats": "greenhouse",
+      "slug": "remotecom",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/remotecom/jobs?content=true",
+        "total": 238,
+        "titleMatched": 3,
+        "prefiltered": 2,
+        "samples": [
+          "CX AI & Automation Lead [Remote-UK&I ]",
+          "Principal, Marketing Analytics [Remote-UK&I]"
+        ],
+        "titleSamples": [
+          "CX AI & Automation Lead [Remote-UK&I ]",
+          "Principal, Marketing Analytics [Chicago, Illinois]",
+          "Principal, Marketing Analytics [Remote-UK&I]"
+        ]
+      }
+    },
+    {
+      "company": "Awin",
+      "ats": "greenhouse",
+      "slug": "awin",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/awin/jobs?content=true",
+        "total": 46,
+        "titleMatched": 7,
+        "prefiltered": 4,
+        "samples": [
+          "AI Enablement & Execution Leader (f/m/d) [Amsterdam, North Holland, Netherlands; London, England, United Kingdom]",
+          "Data Engineer - AI/ML (f/m/d) [Berlin, Berlin, Germany; Iași, Iași, Romania; London, England, United Kingdom; Madrid, Madrid, Spain; München, Bavaria, Germany; Warsaw, Masovian Voivodeship, Poland]",
+          "Finance Analytics Team Leader (f/m/d) [London, England, United Kingdom; Madrid, Madrid, Spain; Milano, Milan, Italy; Warsaw, Masovian Voivodeship, Poland]",
+          "Senior AI Engineer (f/m/d) [Amsterdam, North Holland, Netherlands; Berlin, Berlin, Germany; Hannover, Lower Saxony, Germany; Iași, Iași, Romania; London, England, United Kingdom; Madrid, Madrid, Spain; Milano, Milan, Italy; München, Bavaria, Germany; Warsaw, Masovian Voivodeship, Poland]"
+        ],
+        "titleSamples": [
+          "AI Enablement & Execution Leader (f/m/d) [Amsterdam, North Holland, Netherlands; London, England, United Kingdom]",
+          "Collections Agent - 1 Year FTC (f/m/d) [Iași, Iași, Romania]",
+          "Data Engineer [Iași, Iași, Romania]",
+          "Data Engineer - AI/ML (f/m/d) [Berlin, Berlin, Germany; Iași, Iași, Romania; London, England, United Kingdom; Madrid, Madrid, Spain; München, Bavaria, Germany; Warsaw, Masovian Voivodeship, Poland]",
+          "Finance Analytics Team Leader (f/m/d) [London, England, United Kingdom; Madrid, Madrid, Spain; Milano, Milan, Italy; Warsaw, Masovian Voivodeship, Poland]",
+          "Senior AI Engineer (f/m/d) [Amsterdam, North Holland, Netherlands; Berlin, Berlin, Germany; Hannover, Lower Saxony, Germany; Iași, Iași, Romania; London, England, United Kingdom; Madrid, Madrid, Spain; Milano, Milan, Italy; München, Bavaria, Germany; Warsaw, Masovian Voivodeship, Poland]"
+        ]
+      }
+    },
+    {
+      "company": "Lighthouse",
+      "ats": "greenhouse",
+      "slug": "lighthouse",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/lighthouse/jobs?content=true",
+        "total": 52,
+        "titleMatched": 15,
+        "prefiltered": 10,
+        "samples": [
+          "Account Executive – Business Intelligence (Italian speaker)  [Palma de Mallorca, Spain]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Greater Madrid Metropolitan Area]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Valencia, Spain]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Barcelona, Spain]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Málaga, Spain]"
+        ],
+        "titleSamples": [
+          "Account Executive – Business Intelligence (Italian speaker)  [Palma de Mallorca, Spain]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Greater Madrid Metropolitan Area]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Valencia, Spain]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Barcelona, Spain]",
+          "Account Executive – Business Intelligence (Italian speaker)  [Málaga, Spain]",
+          "Data Engineer [Barcelona, Spain]"
+        ]
+      }
+    },
+    {
+      "company": "RemotePeople",
+      "ats": "greenhouse",
+      "slug": "remotepeople",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/remotepeople/jobs?content=true",
+        "total": 13,
+        "titleMatched": 2,
+        "prefiltered": 2,
+        "samples": [
+          "AI Engineer [Lisbon (Office), or Europe (remote)]",
+          "Senior AI Engineer [Lisbon (Office), or Europe (remote)]"
+        ],
+        "titleSamples": [
+          "AI Engineer [Lisbon (Office), or Europe (remote)]",
+          "Senior AI Engineer [Lisbon (Office), or Europe (remote)]"
+        ]
+      }
+    },
+    {
+      "company": "Xebia CEE",
+      "ats": "greenhouse",
+      "slug": "xebiacee",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/xebiacee/jobs?content=true",
+        "total": 101,
+        "titleMatched": 33,
+        "prefiltered": 26,
+        "samples": [
+          "AI DevOps [Bulgaria; Poland; Romania]",
+          "Automation Engineer - future opening [Bulgaria; Poland]",
+          "Dashboarding / BI Analyst  [Poland]",
+          "Data Analyst  [Bulgaria; Moldavia; Poland; Romania]",
+          "Lead Analytics Consultant [Poland]"
+        ],
+        "titleSamples": [
+          "AI DevOps [Bulgaria; Poland; Romania]",
+          "Automation Engineer - future opening [Bulgaria; Poland]",
+          "AWS Data Engineer with Databricks [Bulgaria]",
+          "Dashboarding / BI Analyst  [Poland]",
+          "Data Analyst  [Bulgaria; Moldavia; Poland; Romania]",
+          "Data Engineer with Databricks [Bulgaria; Moldavia; Other; Romania]"
+        ]
+      }
+    },
+    {
+      "company": "DEPT",
+      "ats": "greenhouse",
+      "slug": "dept",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/dept/jobs?content=true",
+        "total": 249,
+        "titleMatched": 23,
+        "prefiltered": 10,
+        "samples": [
+          "AI Consultant [London, Manchester]",
+          "AI Consultant [Amsterdam or Rotterdam]",
+          "Analytics Consultant [Amsterdam, Rotterdam]",
+          "Analytics Consultant  [London, Manchester]",
+          "Associate Design Director (AI & Tech) [London,]"
+        ],
+        "titleSamples": [
+          "AI Consultant [London, Manchester]",
+          "AI Consultant [Amsterdam or Rotterdam]",
+          "Analytics Consultant [Amsterdam, Rotterdam]",
+          "Analytics Consultant  [London, Manchester]",
+          "Associate Design Director (AI & Tech) [London,]",
+          "Business Intelligence Consultant [Budapest, Skopje, Spilt, Zagreb]"
+        ]
+      }
+    },
+    {
+      "company": "Phiture",
+      "ats": "greenhouse",
+      "slug": "phiture",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://boards-api.greenhouse.io/v1/boards/phiture/jobs?content=true",
+        "total": 1,
+        "titleMatched": 0,
+        "prefiltered": 0,
+        "samples": [],
+        "titleSamples": []
+      }
+    },
+    {
+      "company": "Pleo",
+      "ats": "ashby",
+      "slug": "pleo",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://api.ashbyhq.com/posting-api/job-board/pleo?includeCompensation=true",
+        "total": 44,
+        "titleMatched": 8,
+        "prefiltered": 8,
+        "samples": [
+          "Staff Applied AI Engineer [United Kingdom]",
+          "Staff Applied AI Engineer [London]",
+          "Senior GenAI Platform Engineer [United Kingdom]",
+          "Senior Engineering Manager, Data & AI Products [United Kingdom]",
+          "Engineering Manager, GenAI Platform [United Kingdom]"
+        ],
+        "titleSamples": [
+          "Staff Applied AI Engineer [United Kingdom]",
+          "Staff Applied AI Engineer [London]",
+          "Senior GenAI Platform Engineer [United Kingdom]",
+          "Senior Engineering Manager, Data & AI Products [United Kingdom]",
+          "Engineering Manager, GenAI Platform [United Kingdom]",
+          "Senior Engineering Manager, Data & AI Products [London]"
+        ]
+      }
+    },
+    {
+      "company": "Polar Analytics",
+      "ats": "ashby",
+      "slug": "polaranalytics",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://api.ashbyhq.com/posting-api/job-board/polaranalytics?includeCompensation=true",
+        "total": 5,
+        "titleMatched": 0,
+        "prefiltered": 0,
+        "samples": [],
+        "titleSamples": []
+      }
+    },
+    {
+      "company": "GitBook",
+      "ats": "ashby",
+      "slug": "GitBook",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://api.ashbyhq.com/posting-api/job-board/GitBook?includeCompensation=true",
+        "total": 2,
+        "titleMatched": 0,
+        "prefiltered": 0,
+        "samples": [],
+        "titleSamples": []
+      }
+    },
+    {
+      "company": "Dragonfly",
+      "ats": "ashby",
+      "slug": "askdragonfly",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://api.ashbyhq.com/posting-api/job-board/askdragonfly?includeCompensation=true",
+        "total": 6,
+        "titleMatched": 2,
+        "prefiltered": 2,
+        "samples": [
+          "Senior Data Engineer [Tallinn]",
+          "Senior AI Engineer [Tallinn]"
+        ],
+        "titleSamples": [
+          "Senior Data Engineer [Tallinn]",
+          "Senior AI Engineer [Tallinn]"
+        ]
+      }
+    },
+    {
+      "company": "Ashby",
+      "ats": "ashby",
+      "slug": "ashby",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://api.ashbyhq.com/posting-api/job-board/ashby?includeCompensation=true",
+        "total": 59,
+        "titleMatched": 0,
+        "prefiltered": 0,
+        "samples": [],
+        "titleSamples": []
+      }
+    },
+    {
+      "company": "SEB",
+      "ats": "lever",
+      "slug": "seb",
+      "via": "hint",
+      "result": {
+        "ok": true,
+        "status": "ok",
+        "endpoint": "https://api.eu.lever.co/v0/postings/seb?mode=json",
+        "total": 109,
+        "titleMatched": 6,
+        "prefiltered": 4,
+        "samples": [
+          "AI Engineer with a passion for AI services | SEB, Stockholm [Stockholm]",
+          "AI Engineering Architect in Delivery Excellence | SEB, Tallinn [Tallinn]",
+          "AI Engineering Architect in Delivery Excellence | SEB, Vilnius [Vilnius]",
+          "Cloud Data Engineer in Finance Tribe for Accounting Hub | SEB, Vilnius [Vilnius]"
+        ],
+        "titleSamples": [
+          "AI Engineer with a passion for AI services | SEB, Stockholm [Stockholm]",
+          "AI Engineering Architect in Delivery Excellence | SEB, Riga [Rīga]",
+          "AI Engineering Architect in Delivery Excellence | SEB, Tallinn [Tallinn]",
+          "AI Engineering Architect in Delivery Excellence | SEB, Vilnius [Vilnius]",
+          "Cloud Data Engineer in Finance Tribe for Accounting Hub | SEB, Vilnius [Vilnius]",
+          "DevOps Engineer – Data & Analytics | SEB, Solna [Solna]"
+        ]
+      }
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 ---
 class: other
 created: 2026-07-13
-last_used: 2026-07-13
-times_used: 1
+last_used: 2026-07-25
+times_used: 2
 ---
 # Design review, dual independent lenses + adversarial debate
 
@@ -44,3 +44,12 @@ pricing of producer-side changes. Master owns the final verdict and writes the p
   stale values; remove vs enrich a dead-end overlay) both resolved cleanly because they were posed as forks.
 - Sequence structure before polish in the concluded set (fold rebuild + alarm-skin fix unlock and re-tune
   the cosmetic items) or the plan polishes surfaces twice.
+- (run 37) Mandate the debate to RECOMPUTE contested measurements, not just weigh arguments: it flipped two
+  fix shapes (a proposed 24px Rusty count still failed contrast; an "all-time" label was wrong for a stock
+  metric) and found bug sites a finding under-counted (duplicate raw aria-labels). Verification license in
+  the debate prompt is what made the concluded set dev-ready without a re-round.
+- (run 37) Puppeteer gotcha: the HQ header ALSO carries `.tile`; drill-down clicks must target `button.tile`
+  or the click lands on a HEADER element and no dialog opens (first overlay shots came back overlay-less).
+- (run 37) On a REPEAT review of the same surface, feed the prior round's shipped waves + owner decisions in
+  as BINDING precedent and demand a strong stated reason to reverse one: zero re-proposals of shipped work
+  survived to the debate, and both lanes spent their effort on genuinely new ground.

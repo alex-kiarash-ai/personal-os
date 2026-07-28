@@ -51,6 +51,41 @@ const ASSERTIONS = [
     subject: 'model-routing', predicate: 'default', mode: 'contains',
     why: 'root CLAUDE.md model-routing prose must name the current manifest default model',
   },
+
+  // --- vault/identity.md, added 2026-07-25 (stress-test finding F-01) ------------------------------
+  // identity.md is the file a fresh clone reads FIRST after a laptop loss, and it was wrong on six
+  // load-bearing claims at once while NOTHING checked it: C19 watches the out-of-repo master, C21 only
+  // watched two in-repo claims, and identity.md is gitignored so no git-based check ever sees it. The
+  // volatile facts it used to restate are now pointers (see its POINTER DISCIPLINE header); the few
+  // numbers genuinely worth stating in a restore doc are asserted HERE instead, so they cannot re-rot.
+  {
+    name: 'identity-recovery-check-count',
+    doc: 'vault/identity.md',
+    regex: /\*\*(\d+) checks C1-C\d+\*\*/,
+    subject: 'recovery-checker', predicate: 'check_count', mode: 'equals',
+    why: 'the restore map must not misstate how many C-checks the recovery sweep runs',
+  },
+  {
+    name: 'identity-scheduled-job-count',
+    doc: 'vault/identity.md',
+    regex: /\*\*(\d+) registered jobs\*\*/,
+    subject: 'scheduler', predicate: 'registered_job_count', mode: 'equals',
+    why: 'a restore has to re-create every scheduled job, so a wrong count here means a job is quietly never rebuilt',
+  },
+  {
+    name: 'identity-skills-count',
+    doc: 'vault/identity.md',
+    regex: /\*\*(\d+) skills PROJECT-SCOPED in-repo\*\*/,
+    subject: 'skills', predicate: 'count', mode: 'equals',
+    why: 'the skills-store count said 29/30 for 11 days while three owner-approved packs had taken it to 82',
+  },
+  {
+    name: 'identity-escrow-attested',
+    doc: 'vault/identity.md',
+    regex: /escrow drill re-passed (\d{4}-\d{2}-\d{2})/,
+    subject: 'escrow', predicate: 'attested', mode: 'equals',
+    why: 'recoverability is the one claim that must never be optimistic: the date here must equal the attestation file',
+  },
 ];
 
 function readDoc(p) {

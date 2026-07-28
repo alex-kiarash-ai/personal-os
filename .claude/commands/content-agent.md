@@ -1,5 +1,11 @@
 # /content-agent - Memory-Fed Building Alex Drafter
 
+<!-- ALEX:CMD-HEADER:BEGIN generated from system/manifest.json by scripts/generate-alex.js - do not hand-edit -->
+> **#12 /content-agent · LIVE · Trigger: on-demand + n8n staging (scheduled)**
+> Registry: `system/manifest.json` · Spec: `work/12-linkedin-series/CLAUDE.md` · Status: `vault/projects/linkedin-series/status.md`
+> *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
+<!-- ALEX:CMD-HEADER:END -->
+
 SOP: work/12-linkedin-series/content-agent.md. HARD RULES: work/12-linkedin-series/CLAUDE.md. Rules win over everything here.
 
 The memory-fed upgrade to /post-episode: it reads what actually landed, ranks hooks with the reasoning shown, drafts in Shaheen's voice behind the #12 gates, and logs results so it compounds. It never posts.

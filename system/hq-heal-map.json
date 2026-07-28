@@ -68,6 +68,16 @@
       "enabled": true
     },
     {
+      "id": "identity-doc-views",
+      "desc": "the two identity docs must remain ONE file object each: real files in meta.paths.identity_doc_real_dir, every legacy location a directory junction into it",
+      "probe": "identity_views",
+      "risk": "AUTO_SAFE",
+      "needs_summary": false,
+      "remedy": "re-create a missing or EMPTIED view (link only, never document bytes), then read-back verify os.path.samefile",
+      "escalate_fail": "the view could not be re-linked and verified, or a real file with unknown bytes now sits at the view path (never overwritten - a human may have edited the wrong location)",
+      "enabled": true
+    },
+    {
       "id": "unknown-red",
       "desc": "CATCH-ALL: any project red that no check above claims - never let a red light be silently ignored",
       "probe": "unknown_red",
