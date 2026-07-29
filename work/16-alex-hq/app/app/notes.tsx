@@ -239,8 +239,10 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
         {/* R2-13: the schedule policy is read-once knowledge that was costing two wrapped lines of
             the phone's first fold on every single glance; the post-send flash ("I file it at my
             next touchpoint") teaches the same async-ness at the moment it matters. Desktop keeps it. */}
+        {/* cadence corrected 2026-07-29 (architecture review): email-triage runs once at 05:00
+            since 07-16; the old three-slot afternoon promise was stale here too */}
         <span className="hidden text-xs sm:inline" style={{ color: "var(--mute)" }}>
-          async inbox · read at 08:00 / 09:00 / 13:00 / 17:00 + every session
+          async inbox · read at 05:00 / 08:00 / 08:45 + every session
         </span>
       </div>
 
@@ -316,7 +318,7 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
       </div>
 
       {recording ? (
-        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--error-text-dark)" }}>
+        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--error-text)" }}>
           {/* C11: a LIVE recording is an active process — this dot keeps its pulse (the only
               one in its card, and the mic button's breathe is gated off under reduced motion) */}
           <span className="dot dot-red dot-pulse" />
@@ -325,7 +327,7 @@ export function NotesCard({ initial, now }: { initial: Inbox | null; now: number
       ) : null}
 
       {flash ? (
-        <p role="status" aria-live="polite" className="text-sm" style={{ color: flash.includes("NOT") ? "var(--error-text-dark)" : "var(--aqua)" }}>
+        <p role="status" aria-live="polite" className="text-sm" style={{ color: flash.includes("NOT") ? "var(--error-text)" : "var(--aqua)" }}>
           {flash}
         </p>
       ) : null}

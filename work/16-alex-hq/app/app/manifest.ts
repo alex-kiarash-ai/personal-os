@@ -7,7 +7,9 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "The glanceable numbers layer of the Personal Ops System.",
     start_url: "/",
     display: "standalone",
-    // Ink Black (brand/config/color-system.md #1) - was an off-palette near-black (fixed 2026-07-12, d1)
+    // Ink Black (law #1): dark is the default canvas again (Shaheen 2026-07-29, "go back to the
+    // same colors"); the in-app day toggle rewrites the live meta, the installed-PWA chrome
+    // follows this manifest.
     background_color: "#001219",
     theme_color: "#001219",
     icons: [

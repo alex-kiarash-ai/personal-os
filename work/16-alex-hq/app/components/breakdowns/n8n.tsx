@@ -55,12 +55,12 @@ export function N8nBreakdown() {
             <Dot status={dotFor(w)} />
             <span className="min-w-0 flex-1 truncate font-medium">{w.name}</span>
             {/* R2-5: measured 2.4:1 (--error) / 3.0:1 (--warn) at 12px on dark — the exact failure
-                class Signal Coral (§4.4 D5) was chartered for. Error semantics take the coral;
-                warning semantics take Vanilla Custard, already the law's tertiary tier (~10:1),
-                with the dot carrying the state. No token amendment needed for either. */}
+                class the small-text state tokens were chartered for. Error semantics take
+                --error-text (Signal Coral on dark, Oxidized on light); warning semantics take
+                --count-warm (Custard on dark, Rusty on light), the dot carrying the state. */}
             <span
               className="text-xs"
-              style={{ color: w.broken_reason === "errored" ? "var(--error-text-dark)" : "var(--custard)" }}
+              style={{ color: w.broken_reason === "errored" ? "var(--error-text)" : "var(--count-warm)" }}
             >
               {w.broken_reason}
             </span>

@@ -1,5 +1,6 @@
 /*
- * brand-guard.mjs - Alex HQ brand & layout regression guard (Item 4 of the AI-guide upgrade plan).
+ * brand-guard.mjs - Alex HQ brand & layout regression guard (Item 4 of the AI-guide upgrade plan;
+ * rewritten 2026-07-29 for the light-default two-theme reskin).
  *
  * WHY NOT A PIXEL DIFF (the honest ground truth, learned by running it):
  * HQ renders private numbers AND private notes, from TWO dynamic sources - the server-side
@@ -9,18 +10,25 @@
  * fixture server for BOTH sources (a real sub-project, schema-drift risk) - deferred as Phase 2.
  *
  * So this guard tests the BRAND and LAYOUT directly, via computed styles and structure, which are
- * CONTENT-INDEPENDENT: it never screenshots private data, it can't leak, and it is stable run to run
- * while still catching a real styling regression (a broken canvas color, a swapped font, an accent
- * explosion, a collapsed grid, a missing logo). It achieves the plan's goal ("catch a styling /
- * brand / layout regression") the robust way for THIS app.
+ * CONTENT-INDEPENDENT: it never screenshots private data, it can't leak, and it is stable run to
+ * run while still catching a real styling regression (a broken canvas color, a swapped font, an
+ * accent explosion, a collapsed grid, a missing logo, a flattened luminance ladder).
+ *
+ * TWO THEMES since 2026-07-29 (defaults reversed same day, Shaheen: "Go back to the same
+ * colors"): DARK is the default canvas (Ink Black) and the measured light theme stays reachable
+ * behind the toggle. The guard probes BOTH at both viewports (4 probes), selecting the theme the
+ * way the real toggle does - localStorage("hq-theme") - so it also exercises the pre-paint theme
+ * script. A wrong default (page opening light with no stored preference) fails the dark probe's
+ * canvas assertion.
  *
  * RUN (from the app dir so puppeteer-core resolves; local build on :3000):
  *   cd work/16-alex-hq/app && npm start &
  *   node ../qa/brand-guard.mjs
  * Exit 0 = PASS, 1 = a brand/layout invariant broke. Wired into the #16 deploy Close-Out (advisory).
  *
- * Expected values are calibrated from the known-good render + brand/config/color-system.md. If the
- * brand law changes on purpose, update EXPECT here (that is the "accept the new look" step).
+ * Expected values are calibrated from the known-good render + brand/config/color-system.md +
+ * the D6/D7 deviations in brand-config.md. If the brand law changes on purpose, update EXPECT
+ * here (that is the "accept the new look" step).
  */
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -34,24 +42,39 @@ const puppeteer = require("puppeteer-core");
 const CHROME = process.env.CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const URL = process.env.HQ_URL || "http://localhost:3000";
 
-// Brand law (brand/config/color-system.md + the HQ instrument-surface deviation, brand-config.md).
+// Brand law (color-system.md) + the HQ instrument-surface deviations (brand-config.md D6/D7).
 const EXPECT = {
-  canvasBg: "rgb(0, 18, 25)",        // Ink Black #001219 (the canvas identity never moves)
-  kickerFont: "Chakra Petch",         // display / kicker WORDS
-  numeralFont: "Plex Mono",           // all data numerals (IBM Plex Mono)
-  accentOrange: "rgb(238, 155, 0)",   // Golden Orange #ee9b00, the ONE accent
-  accentMax: 40,                       // one-accent law: sparse, never an explosion (calibrated)
+  kickerFont: "Oxanium", // display / kicker WORDS (D6 as replaced 2026-07-29)
+  numeralFont: "Martian Mono", // all data numerals (D6 as replaced 2026-07-29)
+  accentOrange: "rgb(238, 155, 0)", // Golden Orange #ee9b00, the ONE accent
+  accentMax: 40, // one-accent law: sparse, never an explosion (calibrated)
   minTiles: 4,
-  /* R2 luminance ladder (2026-07-25 round-2 review): healthy tile faces were lifted so health
-     reads BRIGHTER than sickness, while alarm faces stay on --elev #00232e. The guard asserts the
-     ladder itself — flattening it in either direction is a brand regression, not cosmetic drift.
-     These are the relative luminance of the DECLARED face tokens (--card / --elev), not sampled
-     pixels: the ladder is made of those two tokens, so testing them is testing the thing itself,
-     and it stays content-independent. Reference values: --card rgba(0,53,66,.6) = 42.7,
-     --elev #00232e = 28.4. */
-  healthyFaceMinLuma: 38,   // lifted healthy face ~#00303C (regression = the R2 lift got reverted)
-  alarmFaceMaxLuma: 29,     // alarm face must STAY ~#00232e: Rusty burn numerals only clear it here
-  ladderMinGap: 8,          // healthy must stay visibly above alarm, never collapse into it
+  /* Per-theme canvas + luminance ladder. The ladder is the R2-4 invariant, held in BOTH themes:
+     healthy faces read BRIGHTER than alarm faces, and flattening it in either direction is a
+     brand regression, not cosmetic drift. Values are the relative luminance (0-255 weighted) of
+     the DECLARED face tokens (--card / --elev), not sampled pixels - the ladder is made of those
+     two tokens, so testing them is testing the thing itself, content-independent.
+     Light reference: --card #ffffff = 255.0, --elev #fff5e1 (Warm Cream) = 245.7, gap 9.3.
+     Dark reference: --card rgba(0,53,66,.6) = 42.7 (token channels), --elev #00232e = 28.4. */
+  themes: {
+    dark: {
+      storage: null, // nothing stored = the DEFAULT path; dark must win on a fresh open
+      // (Shaheen 2026-07-29 after the light renders: "Go back to the same colors")
+      canvasBg: "rgb(0, 18, 25)", // Ink Black #001219 (the canvas identity)
+      dataTheme: "dark",
+      healthyFaceMinLuma: 38, // lifted healthy face ~#00303C (regression = the R2 lift reverted)
+      alarmFaceMaxLuma: 29, // alarm face must STAY ~#00232e: Rusty burn numerals only clear it here (D7)
+      ladderMinGap: 8,
+    },
+    light: {
+      storage: "light", // the toggle's persisted choice
+      canvasBg: "rgb(255, 255, 255)", // law §3: white 60% foundation
+      dataTheme: "light",
+      healthyFaceMinLuma: 250,
+      alarmFaceMaxLuma: 248,
+      ladderMinGap: 6,
+    },
+  },
 };
 
 const VIEWPORTS = [
@@ -59,12 +82,19 @@ const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900, gridColsMin: 2 },
 ];
 
-async function probe(page, vp) {
+async function probe(browser, vp, themeName, themeCfg) {
+  const page = await browser.newPage();
+  await page.evaluateOnNewDocument((stored) => {
+    try {
+      if (stored) localStorage.setItem("hq-theme", stored);
+      else localStorage.removeItem("hq-theme");
+    } catch {}
+  }, themeCfg.storage);
   await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 1 });
   await page.goto(URL, { waitUntil: "networkidle0", timeout: 60000 });
   await page.waitForSelector(".tile", { timeout: 30000 });
   await new Promise((r) => setTimeout(r, 1200));
-  return page.evaluate((ORANGE) => {
+  const p = await page.evaluate((ORANGE) => {
     const cs = (el) => (el ? getComputedStyle(el) : null);
     const first = (sel) => document.querySelector(sel);
     let accent = 0;
@@ -77,44 +107,50 @@ async function probe(page, vp) {
       .map((s) => getComputedStyle(s).gridTemplateColumns)
       .filter((c) => c && c !== "none")
       .map((c) => c.split(" ").length);
-    /* the luminance ladder: composited face brightness of a healthy tile vs an alarm tile.
-       backgroundColor on .tile is a gradient layer, so read the resolved background-image's first
-       color stop via getComputedStyle().backgroundImage — simpler and stabler: sample the declared
-       --card / --elev customs, which is what the ladder is actually made of. */
     const luma = (css) => {
-      const mm = css.match(/rgba?\(([^)]+)\)/) || css.match(/#([0-9a-f]{6})/i);
-      if (!mm) return null;
-      let r, g, b;
-      if (css.trim().startsWith("#") || (mm[1] && mm[1].length === 6 && !mm[1].includes(","))) {
-        const h = (mm[1] || "").replace("#", "");
-        r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
-      } else {
-        [r, g, b] = mm[1].split(",").map((n) => parseFloat(n));
+      const rgbm = css.match(/rgba?\(([^)]+)\)/);
+      if (rgbm) {
+        const [r, g, b] = rgbm[1].split(",").map((n) => parseFloat(n));
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
       }
+      // Lightning CSS minifies #ffffff -> #fff in the production bundle: accept shorthand too
+      const hexm = css.match(/#([0-9a-f]{3,8})/i);
+      if (!hexm) return null;
+      let h = hexm[1];
+      if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+      const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
     const rootCs = getComputedStyle(document.documentElement);
     return {
+      // no attribute = the DARK default (reversed 2026-07-29, "go back to the same colors")
+      dataTheme: document.documentElement.dataset.theme ?? "dark",
       bodyBg: cs(document.body).backgroundColor,
       htmlBg: cs(document.documentElement).backgroundColor,
       kickerFont: (cs(first(".kicker"))?.fontFamily) || null,
-      // data numerals are Plex Mono (.big / .accent-num / .num-display); NOT .tabular-nums, which
-      // also matches the header age-stamp that renders Plex Sans with tabular figures by design.
+      // data numerals (.big); NOT .tabular-nums, which also matches body-font age stamps
       numeralFont: (cs(first(".big"))?.fontFamily) || null,
       logoOk: !!(first('img[alt="ALEX"]') && first('img[alt="ALEX"]').naturalWidth > 0),
       tileCount: document.querySelectorAll(".tile").length,
       maxGridCols: contentGrids.length ? Math.max(...contentGrids) : 0,
       accentCount: accent,
-      healthyFaceLuma: luma(rootCs.getPropertyValue("--card")),
-      alarmFaceLuma: luma(rootCs.getPropertyValue("--elev")),
+      healthyFaceLuma: luma(rootCs.getPropertyValue("--card").trim()),
+      alarmFaceLuma: luma(rootCs.getPropertyValue("--elev").trim()),
+      webglBrain: !!first(".brain-wrap canvas"),
     };
   }, EXPECT.accentOrange);
+  await page.close();
+  return p;
 }
 
-function checkViewport(vp, p, fails) {
-  const add = (ok, msg) => { if (!ok) fails.push(`[${vp.name}] ${msg}`); };
-  add(p.bodyBg === EXPECT.canvasBg || p.htmlBg === EXPECT.canvasBg,
-    `canvas bg not Ink Black ${EXPECT.canvasBg} (body=${p.bodyBg}, html=${p.htmlBg})`);
+function check(vp, themeName, themeCfg, p, fails) {
+  const tag = `[${themeName} ${vp.name}]`;
+  const add = (ok, msg) => { if (!ok) fails.push(`${tag} ${msg}`); };
+  add(p.dataTheme === themeCfg.dataTheme,
+    `theme did not apply (expected ${themeCfg.dataTheme}, got ${p.dataTheme}) - default/toggle path broken`);
+  add(p.bodyBg === themeCfg.canvasBg || p.htmlBg === themeCfg.canvasBg,
+    `canvas not ${themeCfg.canvasBg} (body=${p.bodyBg}, html=${p.htmlBg})` +
+    (themeName === "dark" ? " - the page must OPEN dark by default (nothing stored)" : ""));
   add((p.kickerFont || "").includes(EXPECT.kickerFont),
     `kicker font not ${EXPECT.kickerFont} (got ${p.kickerFont})`);
   add((p.numeralFont || "").includes(EXPECT.numeralFont),
@@ -125,32 +161,34 @@ function checkViewport(vp, p, fails) {
     `accent-law: golden-orange count ${p.accentCount} outside [1, ${EXPECT.accentMax}]`);
   if (vp.gridCols) add(p.maxGridCols === vp.gridCols, `grid should be ${vp.gridCols}-col, got ${p.maxGridCols}`);
   if (vp.gridColsMin) add(p.maxGridCols >= vp.gridColsMin, `grid should be >=${vp.gridColsMin}-col, got ${p.maxGridCols}`);
-  // R2 luminance ladder: healthy above alarm, and neither collapsing into the other
-  add(p.healthyFaceLuma != null && p.healthyFaceLuma >= EXPECT.healthyFaceMinLuma,
-    `healthy tile face too dark (luma ${p.healthyFaceLuma}, need >=${EXPECT.healthyFaceMinLuma}) - the R2 lift regressed`);
-  add(p.alarmFaceLuma != null && p.alarmFaceLuma <= EXPECT.alarmFaceMaxLuma,
-    `alarm tile face too bright (luma ${p.alarmFaceLuma}, need <=${EXPECT.alarmFaceMaxLuma}) - burn numerals lose contrast there`);
+  // the luminance ladder: healthy above alarm in this theme's band, never collapsing
+  add(p.healthyFaceLuma != null && p.healthyFaceLuma >= themeCfg.healthyFaceMinLuma,
+    `healthy tile face out of band (luma ${p.healthyFaceLuma?.toFixed(1)}, need >=${themeCfg.healthyFaceMinLuma})`);
+  add(p.alarmFaceLuma != null && p.alarmFaceLuma <= themeCfg.alarmFaceMaxLuma,
+    `alarm tile face out of band (luma ${p.alarmFaceLuma?.toFixed(1)}, need <=${themeCfg.alarmFaceMaxLuma})`);
   add(p.healthyFaceLuma != null && p.alarmFaceLuma != null &&
-    p.healthyFaceLuma - p.alarmFaceLuma >= EXPECT.ladderMinGap,
-    `luminance ladder collapsed (healthy ${p.healthyFaceLuma} vs alarm ${p.alarmFaceLuma}) - state stops reading as brightness`);
+    p.healthyFaceLuma - p.alarmFaceLuma >= themeCfg.ladderMinGap,
+    `luminance ladder collapsed (healthy ${p.healthyFaceLuma?.toFixed(1)} vs alarm ${p.alarmFaceLuma?.toFixed(1)}) - state stops reading as brightness`);
+  // the hybrid-3D contract: the ONE WebGL surface exists (the Brain card)
+  add(p.webglBrain, `no WebGL canvas inside .brain-wrap - the 3D brain did not mount`);
 }
 
 async function main() {
   const browser = await puppeteer.launch({
     executablePath: CHROME, headless: "new",
-    args: ["--no-sandbox", "--force-device-scale-factor=1", "--hide-scrollbars"],
+    args: ["--no-sandbox", "--force-device-scale-factor=1", "--hide-scrollbars", "--enable-unsafe-swiftshader"],
   });
   const fails = [];
   try {
-    for (const vp of VIEWPORTS) {
-      const page = await browser.newPage();
-      const p = await probe(page, vp);
-      console.log(`[${vp.name}] bg=${p.bodyBg} kicker="${(p.kickerFont||'').split(',')[0]}" ` +
-        `numeral="${(p.numeralFont||'').split(',')[0]}" logo=${p.logoOk} tiles=${p.tileCount} ` +
-        `grid=${p.maxGridCols}col accent=${p.accentCount} ` +
-        `ladder=${p.healthyFaceLuma?.toFixed(1)}/${p.alarmFaceLuma?.toFixed(1)}`);
-      checkViewport(vp, p, fails);
-      await page.close();
+    for (const [themeName, themeCfg] of Object.entries(EXPECT.themes)) {
+      for (const vp of VIEWPORTS) {
+        const p = await probe(browser, vp, themeName, themeCfg);
+        console.log(`[${themeName} ${vp.name}] theme=${p.dataTheme} bg=${p.bodyBg} ` +
+          `kicker="${(p.kickerFont||'').split(',')[0]}" numeral="${(p.numeralFont||'').split(',')[0]}" ` +
+          `logo=${p.logoOk} tiles=${p.tileCount} grid=${p.maxGridCols}col accent=${p.accentCount} ` +
+          `ladder=${p.healthyFaceLuma?.toFixed(1)}/${p.alarmFaceLuma?.toFixed(1)} webgl=${p.webglBrain}`);
+        check(vp, themeName, themeCfg, p, fails);
+      }
     }
   } finally {
     await browser.close();
@@ -159,7 +197,7 @@ async function main() {
     console.error("\nbrand-guard: FAIL\n  " + fails.join("\n  "));
     process.exit(1);
   }
-  console.log("\nbrand-guard: PASS - brand & layout invariants hold at both viewports.");
+  console.log("\nbrand-guard: PASS - brand & layout invariants hold at both viewports in both themes.");
 }
 
 main().catch((e) => { console.error("ERROR:", e.message); process.exit(1); });

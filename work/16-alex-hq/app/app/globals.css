@@ -2,58 +2,173 @@
 @import "./tokens.css"; /* GENERATED brand tokens (color law -> generator, upgrade P5) */
 
 /* ALEX brand — Deep Water Instrument Panel (brand/config/color-system.md v1.0)
-   Canvas Ink Black · structure Dark Teal/Cyan · Pearl Aqua secondary ·
-   Vanilla Custard tertiary · ONE Golden Orange accent per view · reds alarm-only.
-   Named palette hexes live ONLY in tokens.css (generated from the law); these are local
-   aliases. Only law semantic values and derived rgba()/gradient values stay as literals. */
+   DARK IS THE DEFAULT AGAIN since 2026-07-29 late (Shaheen saw the light renders and called it:
+   "Go back to the same colors, apply the new design" — the pre-reskin dark tokens are the face,
+   VERBATIM, and the 2026-07-29 design system rides on them). The measured light theme survives
+   in full under [data-theme="light"] behind the manual toggle.
+   Named palette hexes live ONLY in tokens.css (generated from the law); these are local aliases.
+   Only law semantic values (#ffffff, #4a5a5e, #00232e, #ff8a75) and derived rgba()/gradient
+   values stay as literals.
+
+   Naming note: --paper/--aqua/--custard are SEMANTIC TEXT TIERS: --paper = text-primary,
+   --aqua = text-secondary, --custard = text-tertiary, --mute = muted meta text. Their VALUES
+   flip per theme (§4.2). */
 :root {
+  color-scheme: dark;
   --ink: var(--color-ink-black);
-  --elev: #00232e; /* law §4.1/§7 --bg-elevated: a semantic law value, not a named palette token */
   --teal: var(--color-dark-teal);
   --cyan: var(--color-dark-cyan);
-  --aqua: var(--color-pearl-aqua);
-  --custard: var(--color-vanilla-custard);
   --orange: var(--color-golden-orange);
   --caramel: var(--color-burnt-caramel);
   --warn: var(--color-rusty-spice);
   --error: var(--color-oxidized-iron);
-  --paper: #ffffff; /* law §4.2 primary text on dark: white, not a named palette token */
-  --error-text-dark: #ff8a75; /* law §4.4 Signal Coral: small error/recording text on dark, contrast 8.4:1 on #001219 */
+
+  --canvas: var(--color-ink-black);
+  --paper: #ffffff; /* law §4.2 primary text on dark */
+  --aqua: var(--color-pearl-aqua);
+  --custard: var(--color-vanilla-custard);
   --mute: rgba(148, 210, 189, 0.78); /* aqua tier; 0.7 -> 0.78 holds AA on the brighter faces (R2-4) */
+  --error-text: #ff8a75; /* law §4.4 Signal Coral: small error/recording text on dark, contrast 8.4:1 on #001219 */
+  --count-warm: var(--color-vanilla-custard); /* R2-5: Custard at 24px on the --elev strip face */
+  --dim: rgba(148, 210, 189, 0.55); /* the pre-reskin dim-zero value, verbatim */
+
   /* R2-4 THE LUMINANCE LADDER (round-2 review, Shaheen: "brighter colors than the current").
-     The page measured ~97% foundation in the bottom 2% of the luminance range: the law's own 30%
-     Dark Teal/Cyan band rendered as hairlines and the Pearl Aqua text tier went unspent. Nothing
-     here leaves the law (§4.1 permits "a solid step between #001219 and #005f73" — #00232e was the
-     EXAMPLE, not the ceiling). The step that makes it information design: healthy faces LIFT while
-     alarm faces stay at --elev, so a healthy tile now glows brighter than a sick one. State is
-     encoded in luminance, red still retreats to the ring (wave-2 C4), and the Rusty Spice burn
-     numerals keep the only ground they clear (they measure ~2.56:1 on a lifted face). */
+     Healthy faces LIFT while alarm faces stay at --elev, so a healthy tile glows brighter than
+     a sick one. State is encoded in luminance, red retreats to the ring (wave-2 C4), and the
+     Rusty Spice burn numerals keep the only ground they clear (~2.97:1 here — D7). */
   --card: rgba(0, 53, 66, 0.6); /* healthy tile face: a derived step toward Dark Teal, per §4.1 */
-  /* The topmost surface (drill-down panel): nearer reads lighter (R2-11). Built the way §4.1
-     sanctions an elevated surface literally - "Dark Teal at low opacity over Ink Black" - rather
-     than as a new hex, so it introduces no colour the law doesn't already grant (V8 keeps every
-     raw hex honest; only the law file may mint one). */
-  --elev2-tint: rgba(0, 95, 115, 0.42);
+  --elev: #00232e; /* law §4.1/§7 --bg-elevated: alarm faces stay here, deliberately excluded from the lift */
+  /* The topmost surface (drill-down panel): nearer reads lighter (R2-11), built the way §4.1
+     sanctions — "Dark Teal at low opacity over Ink Black" — never a new hex. */
+  --overlay-tint: rgba(0, 95, 115, 0.42);
+  --overlay-base: var(--color-ink-black);
+
+  --ring-hi: rgba(10, 147, 150, 0.7); /* R2-4: ring spends more of the 30% Dark Cyan band */
+  --ring-mid: rgba(0, 95, 115, 0.28);
+  --ring-lo: rgba(10, 147, 150, 0.06);
+  --ring-red-hi: rgba(174, 32, 18, 0.7);
+  --ring-red-lo: rgba(174, 32, 18, 0.12);
+  --ring-amber-hi: rgba(187, 62, 3, 0.55);
+  --ring-amber-lo: rgba(187, 62, 3, 0.1);
+  --hairline: rgba(148, 210, 189, 0.12);
+  --well-bg: rgba(0, 24, 32, 0.55);
+  --well-border: rgba(148, 210, 189, 0.22);
+  --chip-bg: rgba(10, 147, 150, 0.14);
+  --chip-border: rgba(10, 147, 150, 0.3);
+  --idle-ring: rgba(148, 210, 189, 0.55); /* 0.55 clears the 3:1 non-text floor (C16) */
+  --row-hover: rgba(10, 147, 150, 0.1);
+  --close-bg: rgba(148, 210, 189, 0.1);
+  --close-hover: rgba(10, 147, 150, 0.25);
+  --selection: rgba(10, 147, 150, 0.4);
+  --backdrop-bg: rgba(0, 18, 25, 0.78);
+
+  --tile-shadow: 0 1px 0 rgba(148, 210, 189, 0.1) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.9);
+  --tile-shadow-hover: 0 1px 0 rgba(148, 210, 189, 0.08) inset, 0 0 0 1px rgba(10, 147, 150, 0.35),
+    0 0 34px -6px rgba(10, 147, 150, 0.45), 0 28px 52px -28px rgba(0, 0, 0, 0.95);
+  --overlay-shadow: 0 1px 0 rgba(148, 210, 189, 0.1) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.9);
+  --glare: rgba(148, 210, 189, 0.1);
+  --dot-glow-green: 0 0 12px rgba(10, 147, 150, 1);
+  --dot-glow-amber: 0 0 10px rgba(187, 62, 3, 0.8);
+  --dot-glow-red: 0 0 12px rgba(174, 32, 18, 0.95);
+
+  /* R2-4: the §4.6 depth gradient carries more of the 30% band; Ink Black stays the base */
+  --canvas-r1: rgba(0, 95, 115, 0.5);
+  --canvas-r2: rgba(10, 147, 150, 0.22);
+  --canvas-r3: rgba(0, 95, 115, 0.3);
+  --grid-line: rgba(148, 210, 189, 0.045);
+  --bubble-1: rgba(0, 95, 115, 0.16);
+  --bubble-2: rgba(10, 147, 150, 0.1);
+  --bubble-3: rgba(148, 210, 189, 0.07);
+  --grain-opacity: 0.05;
+  --grain-blend: normal;
+}
+
+/* Day theme, behind the toggle: the 2026-07-29 measured light system, kept in full
+   (law §3 white foundation + §7 light tokens; every pairing measured — teal 7.28:1,
+   #4a5a5e 7.20:1, mute 5.58:1, Rusty burn 5.52/5.10:1 on white/Warm Cream; ladder
+   white 255.0 > cream 245.7 keeps the R2-4 direction). */
+[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #ffffff; /* law §3: the 60% light foundation */
+  --paper: var(--color-ink-black);
+  --aqua: var(--color-dark-teal);
+  --custard: #4a5a5e; /* law §7 light --text-tertiary */
+  --mute: rgba(0, 53, 66, 0.72);
+  /* small error/recording text: Oxidized Iron measures 6.97:1 on white / 6.43:1 on cream —
+     the light-side sibling of the law's dark-only Signal Coral token (§4.4 D5) */
+  --error-text: var(--color-oxidized-iron);
+  /* warm action-count tier (waiting-strip count): Rusty measures 5.52:1 on the white strip face */
+  --count-warm: var(--color-rusty-spice);
+  /* the healthy-zero whisper (C7): deliberately low-salience but still >=3:1 for a large numeral */
+  --dim: rgba(0, 53, 66, 0.58);
+
+  /* the light ladder: healthy white faces, alarm faces drop to Warm Cream (§6 "softening
+     error surfaces", §7 light --bg-elevated); D7's contrast fail is dark-only */
+  --card: #ffffff;
+  --elev: var(--color-warm-cream);
+  --overlay-tint: rgba(0, 95, 115, 0.045);
+  --overlay-base: #ffffff;
+
+  --ring-hi: rgba(0, 95, 115, 0.35);
+  --ring-mid: rgba(0, 95, 115, 0.16);
+  --ring-lo: rgba(10, 147, 150, 0.08);
+  --ring-red-hi: rgba(174, 32, 18, 0.55);
+  --ring-red-lo: rgba(174, 32, 18, 0.1);
+  --ring-amber-hi: rgba(187, 62, 3, 0.5);
+  --ring-amber-lo: rgba(187, 62, 3, 0.1);
+  --hairline: rgba(0, 95, 115, 0.16);
+  --well-bg: rgba(0, 95, 115, 0.05);
+  --well-border: rgba(0, 95, 115, 0.28);
+  --chip-bg: rgba(10, 147, 150, 0.1);
+  --chip-border: rgba(0, 95, 115, 0.35);
+  --idle-ring: rgba(0, 95, 115, 0.9); /* ~6:1 vs white — a 1px ring needs more than the bare floor (Phase B #3) */
+  --row-hover: rgba(10, 147, 150, 0.08);
+  --close-bg: rgba(0, 95, 115, 0.08);
+  --close-hover: rgba(10, 147, 150, 0.18);
+  --selection: rgba(10, 147, 150, 0.25);
+  --backdrop-bg: rgba(0, 18, 25, 0.45); /* scrim stays dark in both themes (40-60% band) */
+
+  /* depth: light elevation = shadow, not glow (Phase B #9) */
+  --tile-shadow: 0 1px 2px rgba(0, 38, 48, 0.07), 0 8px 18px -8px rgba(0, 63, 84, 0.14),
+    0 24px 46px -18px rgba(0, 63, 84, 0.3);
+  --tile-shadow-hover: 0 0 0 1px rgba(10, 147, 150, 0.3), 0 3px 8px rgba(0, 38, 48, 0.08),
+    0 30px 56px -20px rgba(0, 63, 84, 0.38);
+  --overlay-shadow: 0 2px 6px rgba(0, 38, 48, 0.08), 0 40px 90px -30px rgba(0, 38, 48, 0.45);
+  --glare: rgba(10, 147, 150, 0.09);
+  --dot-glow-green: 0 0 10px rgba(10, 147, 150, 0.5);
+  --dot-glow-amber: 0 0 8px rgba(187, 62, 3, 0.45);
+  --dot-glow-red: 0 0 10px rgba(174, 32, 18, 0.5);
+
+  /* atmosphere */
+  --canvas-r1: rgba(0, 95, 115, 0.08);
+  --canvas-r2: rgba(10, 147, 150, 0.055);
+  --canvas-r3: rgba(0, 95, 115, 0.05);
+  --grid-line: rgba(0, 95, 115, 0.055);
+  --bubble-1: rgba(0, 95, 115, 0.09);
+  --bubble-2: rgba(10, 147, 150, 0.06);
+  --bubble-3: rgba(148, 210, 189, 0.09);
+  --grain-opacity: 0.035;
+  --grain-blend: multiply;
 }
 
 html {
-  background: var(--ink);
+  background: var(--canvas);
 }
 
 body {
   color: var(--paper);
-  font-family: var(--font-plex), sans-serif;
+  font-family: var(--font-body), sans-serif;
   min-height: 100dvh;
-  /* R2-4: the §4.6 depth gradient carries more of the 30% band; Ink Black stays the base */
   background:
-    radial-gradient(1200px 560px at 14% -10%, rgba(0, 95, 115, 0.5), transparent 62%),
-    radial-gradient(900px 480px at 88% 2%, rgba(10, 147, 150, 0.22), transparent 58%),
-    radial-gradient(820px 620px at 50% 116%, rgba(0, 95, 115, 0.3), transparent 60%),
-    var(--ink);
+    radial-gradient(1200px 560px at 14% -10%, var(--canvas-r1), transparent 62%),
+    radial-gradient(900px 480px at 88% 2%, var(--canvas-r2), transparent 58%),
+    radial-gradient(820px 620px at 50% 116%, var(--canvas-r3), transparent 60%),
+    var(--canvas);
   background-attachment: fixed;
 }
 
-/* instrument graph-paper grid, barely there */
+/* instrument graph-paper grid, barely there. position:fixed = it holds still while content
+   scrolls over it — the page's base parallax layer. */
 body::before {
   content: "";
   position: fixed;
@@ -61,14 +176,15 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background:
-    linear-gradient(rgba(148, 210, 189, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 210, 189, 0.045) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: radial-gradient(1200px 900px at 50% 0%, black, transparent 85%);
 }
 
 /* deep-water drift: three blurred brand-tint bubbles behind everything.
-   transform-only animation (GPU), very slow — the panel breathes, it never dances. */
+   transform-only animation (GPU), very slow — the panel breathes, it never dances.
+   The dashboard adds a slow scroll parallax on the wrapper (reduced-motion gated). */
 .bubbles {
   position: fixed;
   inset: 0;
@@ -87,7 +203,7 @@ body::before {
   height: 55vw;
   left: -12vw;
   top: -18vw;
-  background: radial-gradient(circle, rgba(0, 95, 115, 0.16), transparent 70%);
+  background: radial-gradient(circle, var(--bubble-1), transparent 70%);
   animation: drift-1 90s ease-in-out infinite alternate;
 }
 .bubble-2 {
@@ -95,7 +211,7 @@ body::before {
   height: 40vw;
   right: -10vw;
   top: 22vh;
-  background: radial-gradient(circle, rgba(10, 147, 150, 0.1), transparent 70%);
+  background: radial-gradient(circle, var(--bubble-2), transparent 70%);
   animation: drift-2 120s ease-in-out infinite alternate;
 }
 .bubble-3 {
@@ -103,7 +219,7 @@ body::before {
   height: 30vw;
   left: 28vw;
   bottom: -12vw;
-  background: radial-gradient(circle, rgba(148, 210, 189, 0.07), transparent 70%);
+  background: radial-gradient(circle, var(--bubble-3), transparent 70%);
   animation: drift-3 150s ease-in-out infinite alternate;
 }
 @keyframes drift-1 {
@@ -122,14 +238,15 @@ body::before {
   .bubble { animation: none; }
 }
 
-/* film grain above the grid, below content */
+/* film grain above the grid, below content (multiply on light so it reads as paper texture) */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 5;
-  opacity: 0.05;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
 }
 
@@ -137,36 +254,45 @@ body::after {
    (min-w-full, line-clamp-*) can override them — unlayered CSS would always win in v4. */
 @layer components {
 .font-display {
-  font-family: var(--font-chakra), sans-serif;
+  font-family: var(--font-display), sans-serif;
 }
 
-/* glass instrument tile: hairline teal edge, deep shadow */
+/* instrument tile: hairline teal edge; depth is shadow-borne on light, glow-borne on dark.
+   preserve-3d intentionally NOT set — the dark theme's backdrop-filter flattens 3D children
+   anyway; the tilt (tile.tsx) rotates the whole card and the glare carries the sheen. */
 .tile {
   position: relative;
   border-radius: 1rem;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
-    linear-gradient(150deg, rgba(10, 147, 150, 0.7), rgba(0, 95, 115, 0.28) 45%, rgba(10, 147, 150, 0.06) 80%) border-box;
+    linear-gradient(150deg, var(--ring-hi), var(--ring-mid) 45%, var(--ring-lo) 80%) border-box;
   border: 1px solid transparent;
   backdrop-filter: blur(14px);
-  /* R2-4: the ring + inset highlight spend more of the 30% Dark Cyan band (0.5 -> 0.7, 0.06 -> 0.10) */
-  box-shadow:
-    0 1px 0 rgba(148, 210, 189, 0.1) inset,
-    0 24px 48px -28px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--tile-shadow);
   cursor: pointer;
   transition: box-shadow 0.35s ease;
 }
 
 button.tile:hover {
-  box-shadow:
-    0 1px 0 rgba(148, 210, 189, 0.08) inset,
-    0 0 0 1px rgba(10, 147, 150, 0.35),
-    0 0 34px -6px rgba(10, 147, 150, 0.45),
-    0 28px 52px -28px rgba(0, 0, 0, 0.95);
+  box-shadow: var(--tile-shadow-hover);
+}
+
+/* pointer-tracking sheen (tile.tsx sets --mx/--my; hover-only, invisible at rest) */
+.tile-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(280px 210px at var(--mx, 50%) var(--my, 38%), var(--glare), transparent 72%);
+}
+.tile:hover .tile-glare {
+  opacity: 1;
 }
 
 .backdrop {
-  background: rgba(0, 18, 25, 0.78);
+  background: var(--backdrop-bg);
   backdrop-filter: blur(8px);
 }
 
@@ -181,7 +307,7 @@ button.tile:hover {
   margin: -0.375rem;
   border-radius: 9999px;
   color: var(--mute);
-  background: rgba(148, 210, 189, 0.1);
+  background: var(--close-bg);
   background-clip: content-box;
   font-size: 0.8rem;
   cursor: pointer;
@@ -189,25 +315,63 @@ button.tile:hover {
 }
 .close-btn:hover {
   color: var(--paper);
-  background: rgba(10, 147, 150, 0.25);
+  background: var(--close-hover);
+  background-clip: content-box;
+}
+
+/* Light-theme logo home: the pale-aqua wordmark washes out on white (Phase B #6), and retyping
+   the wordmark is banned — so the light theme gives the transparent logo the brand's own
+   full-bleed-dark pattern, a small Ink Black chip. The dark default needs no chip. */
+.logo-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0;
+  border-radius: 0.75rem;
+  background: transparent;
+}
+[data-theme="light"] .logo-chip {
+  background: var(--ink);
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+}
+
+/* the manual night toggle (2026-07-29): a ghost chip in the header, 44px target */
+.theme-btn {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0.4rem;
+  margin: -0.4rem;
+  border-radius: 9999px;
+  color: var(--aqua);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+  background: transparent;
+}
+.theme-btn:hover {
+  color: var(--paper);
+  background: var(--row-hover);
 }
 
 .metric-row {
   padding: 0.8rem 0;
-  border-bottom: 1px solid rgba(148, 210, 189, 0.12);
+  border-bottom: 1px solid var(--hairline);
 }
 .metric-row:last-of-type {
   border-bottom: none;
 }
 
+/* The 3D brain viewport keeps a deep-water well in BOTH themes: WebGL depth reads on dark, and
+   a self-contained dark block on the light page is the brand's own full-bleed-dark pattern. */
 .brain-wrap {
   position: relative;
   border-radius: 0.8rem;
   overflow: hidden;
   background:
     radial-gradient(420px 300px at 50% 40%, rgba(0, 95, 115, 0.35), transparent 70%),
-    rgba(0, 18, 25, 0.5);
-  border: 1px solid rgba(10, 147, 150, 0.14);
+    rgba(0, 18, 25, 0.92);
+  border: 1px solid rgba(10, 147, 150, 0.2);
   min-height: 340px;
 }
 
@@ -229,6 +393,7 @@ button.tile:hover {
   border-radius: 9999px;
   background: rgba(0, 35, 46, 0.75);
   border: 1px solid rgba(10, 147, 150, 0.45);
+  color: var(--color-pearl-aqua); /* sits on the dark well in both themes */
 }
 
 .health-row {
@@ -246,30 +411,27 @@ button.tile:hover {
   text-align: left;
 }
 .health-row:hover {
-  background: rgba(10, 147, 150, 0.1);
+  background: var(--row-hover);
 }
 
-/* status skin (C4): the alarm retreats to the ring. The old 52%-alpha card fill let the
-   border-box red gradient wash the whole tile face — pixel-sampled proof it broke color-law
-   §4.1 (never red as a large background) on the Brain strip, and 5 warm tiles read as maroon.
-   Interior is now an OPAQUE elevated step (law --bg-elevated); the alarm lives in the 1px
-   ring + the dot + the kicker, plus a <=6% wash for RED only. Amber gets no wash and keeps
-   its aqua kicker (no law-compliant small amber text exists; ring + dot + burning count
-   carry it). The Waiting strip alone keeps face-level primacy via .strip-red below. */
+/* status skin (C4): the alarm retreats to the ring. Interior takes the alarm face (--elev:
+   #00232e on dark, Warm Cream on light — §6 "softening error surfaces"); the alarm lives in
+   the 1px ring + the dot + the kicker, plus a <=6% wash for RED only. Amber gets no wash.
+   The Waiting strip alone keeps face-level primacy via .strip-red below. */
 .tile-red {
   background:
     linear-gradient(rgba(174, 32, 18, 0.055), rgba(174, 32, 18, 0.055)) padding-box,
     linear-gradient(var(--elev), var(--elev)) padding-box,
-    linear-gradient(150deg, rgba(174, 32, 18, 0.7), rgba(174, 32, 18, 0.12) 55%) border-box;
+    linear-gradient(150deg, var(--ring-red-hi), var(--ring-red-lo) 55%) border-box;
 }
 .tile-red .kicker {
-  color: var(--error-text-dark); /* Signal Coral: THE sanctioned small red text on dark (§4.4 D5) */
+  color: var(--error-text); /* Signal Coral on dark (§4.4 D5) · Oxidized Iron on light (6.97:1) */
 }
 
 .tile-amber {
   background:
     linear-gradient(var(--elev), var(--elev)) padding-box,
-    linear-gradient(150deg, rgba(187, 62, 3, 0.55), rgba(187, 62, 3, 0.1) 55%) border-box;
+    linear-gradient(150deg, var(--ring-amber-hi), var(--ring-amber-lo) 55%) border-box;
 }
 
 /* the Waiting strip's critical state: the ONE surface that keeps the old face-level red
@@ -277,29 +439,29 @@ button.tile:hover {
 .strip-red {
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
-    linear-gradient(150deg, rgba(174, 32, 18, 0.7), rgba(174, 32, 18, 0.12) 55%) border-box;
+    linear-gradient(150deg, var(--ring-red-hi), var(--ring-red-lo) 55%) border-box;
 }
 
-/* R2-5: the non-critical strip gets the tile grammar's amber ring on an OPAQUE --elev face, so
-   its count sits on a known dark ground with a measured ratio instead of the lifted --card. */
+/* R2-5: the non-critical strip gets the tile grammar's amber ring on the alarm face, so its
+   count sits on a known ground with a measured ratio (Custard 11.6:1 dark · Rusty 5.1:1 light). */
 .strip-amber {
   background:
     linear-gradient(var(--elev), var(--elev)) padding-box,
-    linear-gradient(150deg, rgba(187, 62, 3, 0.55), rgba(187, 62, 3, 0.1) 55%) border-box;
+    linear-gradient(150deg, var(--ring-amber-hi), var(--ring-amber-lo) 55%) border-box;
 }
 
-/* R2-11: the drill-down is the TOP surface — it must read lighter than the grid it rose from.
-   It rendered the same face as a tile (and darker over the backdrop), inverting the elevation
-   grammar the whole bento depends on. */
+/* R2-11: the drill-down is the TOP surface. On dark it reads LIGHTER than the grid (the teal
+   tint over ink); on light it reads NEARER by shadow — both keep the elevation grammar. */
 .overlay-panel {
   background:
-    linear-gradient(var(--elev2-tint), var(--elev2-tint)) padding-box,
-    linear-gradient(var(--ink), var(--ink)) padding-box,
-    linear-gradient(150deg, rgba(10, 147, 150, 0.75), rgba(0, 95, 115, 0.3) 45%, rgba(10, 147, 150, 0.08) 80%) border-box;
+    linear-gradient(var(--overlay-tint), var(--overlay-tint)) padding-box,
+    linear-gradient(var(--overlay-base), var(--overlay-base)) padding-box,
+    linear-gradient(150deg, var(--ring-hi), var(--ring-mid) 45%, var(--ring-lo) 80%) border-box;
+  box-shadow: var(--overlay-shadow);
 }
 
 .kicker {
-  font-family: var(--font-chakra), sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: 0.7rem; /* C19: 0.66 -> 0.7 (craft band 0.7-0.72); QA gate = zero wraps at 390+1440 */
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -307,11 +469,11 @@ button.tile:hover {
   color: var(--aqua);
 }
 
-/* instrument readout numerals */
+/* instrument readout numerals (Martian Mono: real monospace, inherently tabular) */
 .big {
   font-family: var(--font-mono), monospace;
   font-weight: 600;
-  font-size: clamp(1.9rem, 4vw, 2.9rem);
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
   line-height: 1;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
@@ -323,28 +485,28 @@ button.tile:hover {
   border-radius: 9999px;
   flex: none;
 }
-.dot-green { background: var(--cyan);  box-shadow: 0 0 12px rgba(10, 147, 150, 1); }
+.dot-green { background: var(--cyan);  box-shadow: var(--dot-glow-green); }
 /* C8 dot grammar, shape + color so grayscale still separates the states:
    red = filled (the section's WORST red also pulses, C11) · amber = thick ring (precedent:
    dot-idle's thin hollow ring) · green = filled, no pulse · idle = thin faint ring */
-.dot-amber { background: transparent; border: 3px solid var(--warn); box-shadow: 0 0 10px rgba(187, 62, 3, 0.8); }
-.dot-red   { background: var(--error); box-shadow: 0 0 12px rgba(174, 32, 18, 0.95); }
+.dot-amber { background: transparent; border: 3px solid var(--warn); box-shadow: var(--dot-glow-amber); }
+.dot-red   { background: var(--error); box-shadow: var(--dot-glow-red); }
 /* idle: registered project with no live telemetry — a quiet hollow marker, never an alarm */
-.dot-idle  { background: transparent; border: 1px solid rgba(148, 210, 189, 0.55); box-shadow: none; } /* 0.55 clears the 3:1 non-text floor (C16) */
+.dot-idle  { background: transparent; border: 1px solid var(--idle-ring); box-shadow: none; }
 /* C11: the pulse is opt-in — ONE heartbeat per section (its worst dot), not nine in sync.
    The dashboard / health board / strips decide who wears it ("breathes, never dances"). */
 .dot-pulse { animation: pulse 1.6s ease-in-out infinite; }
 
 /* state chip in the registry drill-down card */
 .state-chip {
-  font-family: var(--font-chakra), sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: 0.66rem; /* C19: chips step up with the kickers */
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--aqua);
-  background: rgba(10, 147, 150, 0.14);
-  border: 1px solid rgba(10, 147, 150, 0.3);
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
   border-radius: 9999px;
   padding: 0.15rem 0.55rem;
 }
@@ -366,7 +528,7 @@ button.tile:hover {
 .filament {
   height: 2px;
   border-radius: 9999px;
-  background: linear-gradient(90deg, var(--teal), var(--cyan) 40%, var(--aqua) 70%, var(--teal));
+  background: linear-gradient(90deg, var(--teal), var(--cyan) 40%, var(--color-pearl-aqua) 70%, var(--teal));
   background-size: 220% 100%;
   box-shadow: 0 0 12px rgba(10, 147, 150, 0.45);
   animation: shimmer 8s linear infinite;
@@ -382,7 +544,7 @@ button.tile:hover {
 }
 
 ::selection {
-  background: rgba(10, 147, 150, 0.4);
+  background: var(--selection);
 }
 
 /* Keyboard a11y (P9 / design 4.4). All additive: a :focus-visible ring shows ONLY under keyboard
@@ -392,6 +554,7 @@ button.tile:hover {
 .health-row:focus-visible,
 .btn-mic:focus-visible,
 .btn-send:focus-visible,
+.theme-btn:focus-visible,
 /* R2-12: the close button was the ONE interactive element outside this rule, so every
    drill-down open painted the browser's default white ring on it (the trap focuses it). */
 .close-btn:focus-visible {
@@ -408,7 +571,7 @@ button.tile:hover {
   z-index: 60;
   transform: translateY(-160%);
   transition: transform 0.18s ease;
-  font-family: var(--font-chakra), sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -432,10 +595,10 @@ button.tile:hover {
   flex: 1;
   min-width: 0;
   resize: none;
-  /* stays a WELL, not a raised surface: darker than the lifted card by design, nudged up with it
-     so the field still reads as a field (deliberate scope call on the R2-4 --elev2 sweep) */
-  background: rgba(0, 24, 32, 0.55);
-  border: 1px solid rgba(148, 210, 189, 0.22);
+  /* stays a WELL, not a raised surface: recessed against the card in both themes so the field
+     still reads as a field (deliberate scope call on the R2-4 --elev2 sweep) */
+  background: var(--well-bg);
+  border: 1px solid var(--well-border);
   border-radius: 0.7rem;
   padding: 0.6rem 0.8rem;
   font-size: 0.95rem;
@@ -474,7 +637,7 @@ button.tile:hover {
 /* THE one Golden Orange accent on the main view: the primary CTA.
    Dark text on orange, never white (brand law). Hover = Burnt Caramel. */
 .btn-send {
-  font-family: var(--font-chakra), sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-weight: 700;
   font-size: 0.8rem;
   letter-spacing: 0.04em;
@@ -493,7 +656,7 @@ button.tile:hover {
 .btn-send:disabled {
   background: transparent;
   border: 1px solid rgba(10, 147, 150, 0.4);
-  color: rgba(148, 210, 189, 0.5);
+  color: var(--mute);
   cursor: default;
 }
 
@@ -508,10 +671,10 @@ button.tile:hover {
   padding: 0 0.85rem;
   flex: none;
   border-radius: 9999px;
-  background: rgba(10, 147, 150, 0.12);
-  border: 1px solid rgba(10, 147, 150, 0.45);
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
   color: var(--aqua);
-  font-family: var(--font-chakra), sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -520,12 +683,12 @@ button.tile:hover {
   transition: all 0.2s ease;
 }
 .btn-mic:hover:not(:disabled) {
-  background: rgba(10, 147, 150, 0.22);
+  background: var(--close-hover);
   color: var(--paper);
 }
 .btn-mic.rec {
-  background: rgba(174, 32, 18, 0.18);
-  color: var(--error-text-dark);
+  background: rgba(174, 32, 18, 0.14);
+  color: var(--error-text);
   border-color: rgba(174, 32, 18, 0.65);
   animation: rec-breathe 1.6s ease-in-out infinite;
 }
@@ -546,7 +709,7 @@ button.tile:hover {
   margin-right: 0.35rem;
   vertical-align: -0.05rem;
   border-radius: 9999px;
-  border: 1.5px solid rgba(148, 210, 189, 0.25);
+  border: 1.5px solid var(--hairline);
   border-top-color: var(--aqua);
   animation: spin 0.7s linear infinite;
 }
@@ -564,7 +727,7 @@ button.tile:hover {
   gap: 0.6rem;
   font-size: 0.85rem;
   padding: 0.35rem 0;
-  border-bottom: 1px solid rgba(148, 210, 189, 0.09);
+  border-bottom: 1px solid var(--hairline);
 }
 .note-row:last-of-type {
   border-bottom: none;
@@ -574,20 +737,20 @@ button.tile:hover {
 }
 
 /* C12: one numeral voice — overlay headline numbers + the strip count join .big /
-   .brain-stat .v / .accent-num in Plex Mono; Chakra keeps kickers and display WORDS only
-   (D6 as amended 2026-07-14). Weight 600 because Plex Mono ships 500/600, no 700. */
+   .brain-stat .v / .accent-num in the data mono; display font keeps kickers and WORDS only
+   (D6 as amended 2026-07-29: the mono is Martian Mono now). */
 .num-display {
   font-family: var(--font-mono), monospace;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-/* C21: secondary numerals in the aqua accent tier (the apps tile's lane counts) —
+/* C21: secondary numerals in the secondary text tier (the apps tile's lane counts) —
    same mono voice as .big/.brain-stat .v, one step smaller */
 .accent-num {
   font-family: var(--font-mono), monospace;
   font-weight: 600;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
@@ -602,7 +765,7 @@ button.tile:hover {
 .brain-stat .v {
   font-family: var(--font-mono), monospace;
   font-weight: 600;
-  font-size: 1.55rem;
+  font-size: 1.45rem;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
@@ -621,7 +784,7 @@ button.tile:hover {
   display: flex;
   gap: 0.7rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(148, 210, 189, 0.09);
+  border-bottom: 1px solid var(--hairline);
   font-size: 0.875rem;
   line-height: 1.4;
 }
@@ -629,7 +792,7 @@ button.tile:hover {
 .stack-row .name {
   flex: none;
   width: 9.5rem;
-  font-family: var(--font-chakra), sans-serif;
+  font-family: var(--font-display), sans-serif;
   font-weight: 600;
   font-size: 0.78rem;
   letter-spacing: 0.04em;

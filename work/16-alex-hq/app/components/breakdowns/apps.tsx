@@ -50,7 +50,7 @@ export function AppsBreakdown({ projects, now }: { projects: Record<string, Proj
                 </span>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 py-3" style={{ borderBottom: "1px solid rgba(148,210,189,0.12)" }}>
+            <div className="grid grid-cols-3 gap-2 py-3" style={{ borderBottom: "1px solid var(--hairline)" }}>
               {/* R2-19: these sit inches under a "drafted today" headline, and pass rate + spend
                   are CUMULATIVE — unlabelled, they read as today's numbers. "in review" is a
                   current stock, not a cumulative flow, so it gets its own honest suffix. */}

@@ -7,11 +7,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ageLabel, cadenceStale, clean, fmtDateTime, fmtDay, fmtNum, periodStartMs, weekdayAgeHours } from "@/lib/types";
 import type { Inbox, LifeData, Metric, ProjectsData, RegProject, Status, Summary, TodosData } from "@/lib/types";
-import { cadenceStamp, regByKey, useJson, worst } from "@/lib/data";
+import { cadenceStamp, regByKey, stockholmDay, useJson, worst } from "@/lib/data";
 import { CountUp, Dot } from "@/components/primitives";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Tile } from "@/components/tile";
 import type { TileDef } from "@/components/tile";
 import { DetailOverlay } from "@/components/overlay";
@@ -35,6 +36,13 @@ const COLD_START_SETTLE_MS = 6_000;
 
 export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summary; now: number; inbox: Inbox | null }) {
   const [open, setOpen] = useState<string | null>(null);
+
+  /* 2026-07-29 reskin: the background layers drift slower than the content on scroll (depth
+     parallax). Transform-only, one motion value, and reduced motion pins it still — the same
+     charter every other motion obeys. */
+  const reduced = useReducedMotion() ?? false;
+  const { scrollY } = useScroll();
+  const bubbleY = useTransform(scrollY, [0, 1400], [0, -90]);
 
   /* C13: in a standalone PWA, Back is the universal dismiss gesture — without this it exited
      the whole app from inside a drill-down, the most expensive possible mis-tap. Opening pushes
@@ -466,12 +474,13 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
       <a href="#hq-main" className="skip-link">
         Skip to dashboard
       </a>
-      {/* deep-water drift: three blurred brand bubbles behind everything (respects reduced motion) */}
-      <div className="bubbles" aria-hidden>
+      {/* deep-water drift: three blurred brand bubbles behind everything (respects reduced
+          motion), riding the slow scroll parallax above */}
+      <motion.div className="bubbles" aria-hidden style={reduced ? undefined : { y: bubbleY }}>
         <div className="bubble bubble-1" />
         <div className="bubble bubble-2" />
         <div className="bubble bubble-3" />
-      </div>
+      </motion.div>
     <main id="hq-main" className="relative z-10 mx-auto max-w-6xl p-4 pb-14 sm:p-6">
       {/* Header: the ALEX mark, no runway */}
       <motion.header
@@ -487,19 +496,44 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
               logo and the header a tighter box; the stamp stays here (measured: it sits BESIDE
               the logo at 390, so it costs no height, and moving it into the verdict row only
               made that row wrap). Freshness disclosure is what let R2-1 drop the shimmer. */}
-          <img src="/alex-logo.png" alt="ALEX" className="h-10 w-auto sm:h-14" />
-          <span className="text-xs tabular-nums" style={{ color: "var(--mute)" }} title={ageLabel(s.generated_at, now)}>
-            {s.row_count} events · updated {fmtDateTime(s.generated_at)}
+          {/* h-8 at 390 keeps logo + stamp + toggle on ONE row (the R2-13 "stamp sits BESIDE the
+              logo so it costs no height" invariant survived adding the toggle by shrinking the
+              mark, not by wrapping the row). The chip is the light-theme dark block behind the
+              wordmark (Phase B #6); on dark it renders transparent. */}
+          <span className="logo-chip">
+            <img src="/alex-logo.png" alt="ALEX" className="h-7 w-auto sm:h-12" />
           </span>
+          <span
+            className="ml-auto text-xs tabular-nums"
+            style={{ color: "var(--mute)" }}
+            title={`${s.row_count} events · ${ageLabel(s.generated_at, now)}`}
+          >
+            {/* 390 shows a compact stamp so logo + stamp + toggle hold ONE row: time-only while
+                the payload is from today, the FULL date the moment it goes stale (compactness
+                never hides staleness). Desktop keeps the full line + event count. */}
+            <span className="hidden sm:inline">
+              {s.row_count} events · updated {fmtDateTime(s.generated_at)}
+            </span>
+            <span className="sm:hidden">
+              updated{" "}
+              {stockholmDay(new Date(s.generated_at).getTime()) === stockholmDay(now)
+                ? fmtDateTime(s.generated_at).slice(11)
+                : fmtDateTime(s.generated_at)}
+            </span>
+          </span>
+          {/* the manual night toggle: light is the default on every open (Shaheen 2026-07-29) */}
+          <ThemeToggle />
         </div>
         <div className="filament" />
         {/* R2-2: the answer to "how is my life-system doing today", stated in words, first */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          {/* Phase B #4: this line IS the page's answer — on desktop it steps up to text-base +
+              medium so it outweighs the plumbing around it; 390 keeps text-sm for the fold */}
           {needsYou.length ? (
             <>
               <span className="kicker whitespace-nowrap">Needs you</span>
               {needsYou.map((fragment, i) => (
-                <span key={fragment} className="text-sm" style={{ color: "var(--paper)" }}>
+                <span key={fragment} className="text-sm font-medium sm:text-base" style={{ color: "var(--paper)" }}>
                   {i > 0 ? <span style={{ color: "var(--mute)" }}>· </span> : null}
                   {fragment}
                 </span>
@@ -508,7 +542,7 @@ export function Dashboard({ summary: s, now: serverNow, inbox }: { summary: Summ
           ) : (
             <>
               <span className="kicker whitespace-nowrap">Today</span>
-              <span className="text-sm" style={{ color: "var(--aqua)" }}>
+              <span className="text-sm font-medium sm:text-base" style={{ color: "var(--aqua)" }}>
                 all clear
               </span>
             </>

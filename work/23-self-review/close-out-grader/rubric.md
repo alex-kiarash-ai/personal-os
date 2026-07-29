@@ -32,10 +32,13 @@ off-brand styling because the brand file was never read.
 - **BV2 Accent discipline.** At most ONE Golden Orange accent per view/page. FAIL if orange is used
   as a general fill or on multiple competing elements in one view.
 - **BV3 Typography.** Calibri for generated documents, or the `"Segoe UI", system-ui` stack for
-  web/UI. One documented exception: the Alex HQ dashboard app runs Chakra Petch + IBM Plex Sans +
-  IBM Plex Mono (brand-config.md Fonts, APPROVED DEVIATION D6 2026-07-12, scoped to that app ONLY -
-  the same trio on any other surface FAILS; added 2026-07-13, rubric-lag flagged by the wave-1 HQ
-  grade). FAIL if identity text uses a generic/other family (Arial, Times, Helvetica, default serif).
+  web/UI. One documented exception: the Alex HQ dashboard app runs Oxanium (display words/kickers) +
+  Instrument Sans (body) + Martian Mono (data numerals) (brand-config.md Fonts, APPROVED DEVIATION
+  D6 2026-07-12 as REPLACED 2026-07-29 - the earlier Chakra Petch + IBM Plex trio is retired with
+  it; scoped to that app ONLY - the same trio on any other surface FAILS; added 2026-07-13,
+  rubric-lag flagged by the wave-1 HQ grade, and re-aligned 2026-07-29 when the reskin grade
+  exposed the lag again). FAIL if identity text uses a generic/other family (Arial, Times,
+  Helvetica, default serif).
 - **BV4 Red discipline.** Red appears ONLY as alarm / negative value / threshold, never as
   decoration or structure. A healthy screen has no red.
 - **BV5 Logo.** The ALEX logo (`alex-logo-transparent.png`, or the full-bleed `alex-logo.jpg` on a

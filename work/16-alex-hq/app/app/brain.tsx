@@ -1,31 +1,22 @@
 "use client";
 
+/* The Brain card shell: data fetch, sizing, the touch veil (R2-21), visibility/idle management
+   and the legend. The WebGL renderer itself lives in components/brain-3d.tsx behind next/dynamic
+   ssr:false (refs don't survive next/dynamic, so the ref logic lives inside that chunk). */
+
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { fmtDateTime } from "@/lib/types";
+import { GROUP_COLORS } from "@/lib/graph-colors";
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
+const Brain3D = dynamic(() => import("@/components/brain-3d").then((m) => m.Brain3D), { ssr: false });
 
-type GraphNode = { id: string; group: string; degree: number; x?: number; y?: number };
 type GraphData = {
   generated_at: string;
-  nodes: GraphNode[];
+  nodes: { id: string; group: string; degree: number }[];
   links: { source: string; target: string }[];
 };
-
-/* Brand chart series (color-system.md 4.5): cyan, orange, teal-family supports.
-   me = white so it never collides with research's caramel at dot size. */
-const GROUP_COLORS: Record<string, string> = {
-  projects: "#0a9396",
-  people: "#94d2bd",
-  business: "#ee9b00",
-  me: "#ffffff",
-  research: "#ca6702",
-};
-// Dark Teal (color-system.md #2): quiet, structural - correct for unclassified data per the
-// 30% band. Was an off-palette slate (fixed 2026-07-12, d2).
-const FALLBACK = "#005f73";
 
 const LEGEND = [
   ["projects", "projects"],
@@ -39,11 +30,12 @@ export function BrainGraph() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<GraphData | null>(null);
   const [failed, setFailed] = useState(false);
-  const [size, setSize] = useState({ w: 0, h: 400 });
-  // canvas can't resolve CSS custom properties; resolve the real family once
-  const fontRef = useRef("sans-serif");
+  const [size, setSize] = useState({ w: 0, h: 420 });
+  // SpriteText draws to its own canvas and can't resolve CSS custom properties; hand it the
+  // resolved body family once
+  const [labelFont, setLabelFont] = useState("sans-serif");
   useEffect(() => {
-    fontRef.current = getComputedStyle(document.body).fontFamily || "sans-serif";
+    setLabelFont(getComputedStyle(document.body).fontFamily || "sans-serif");
   }, []);
 
   useEffect(() => {
@@ -58,16 +50,14 @@ export function BrainGraph() {
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
       const w = e.contentRect.width;
-      setSize({ w, h: w < 640 ? 340 : 420 });
+      // taller on desktop since the 3D upgrade: this card is the page's centerpiece
+      setSize({ w, h: w < 640 ? 340 : 480 });
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  /* R2-21: TOUCH TRAP, now measured instead of assumed. The run-25 review deferred this behind
-     "one touch-scroll pass decides" and the pass was never run; run 37 ran it and the graph ate
-     the gesture outright (a real touch drag over the canvas moved the page 0px). Since this canvas
-     sits in the middle of a scroll the reader must pass THROUGH, the fix is opt-in: on touch
+  /* R2-21: TOUCH TRAP, measured (run 37): the graph canvas ate vertical drags outright. On touch
      devices a veil takes the first tap, page scroll passes through it untouched (no
      preventDefault, touch-action: pan-y), and only after a deliberate tap does the graph get the
      gestures. Scrolling the card away disarms it again. Pointer devices never see any of this. */
@@ -76,14 +66,38 @@ export function BrainGraph() {
   useEffect(() => {
     setTouchDevice(window.matchMedia?.("(hover: none) and (pointer: coarse)").matches ?? false);
   }, []);
+
+  /* WebGL idle management (the reskin's phone-safety contract):
+     - offscreen or hidden tab -> the render loop pauses entirely;
+     - reduced motion -> no auto-orbit, and once the force engine settles the loop pauses on a
+       formed static graph; deliberate engagement (hover on pointer devices, the veil tap on
+       touch) resumes it for interaction. */
+  const reduced = useReducedMotion() ?? false;
+  const [visible, setVisible] = useState(true);
+  const [docVisible, setDocVisible] = useState(true);
+  const [hovering, setHovering] = useState(false);
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
-    if (!graphActive) return;
     const el = wrapRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => !e.isIntersecting && setGraphActive(false), { threshold: 0.2 });
+    const io = new IntersectionObserver(
+      ([e]) => {
+        setVisible(e.isIntersecting);
+        if (!e.isIntersecting) setGraphActive(false); // scroll-away re-arms the veil
+      },
+      { threshold: 0.12 }
+    );
     io.observe(el);
     return () => io.disconnect();
-  }, [graphActive]);
+  }, []);
+  useEffect(() => {
+    const onVis = () => setDocVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  const engaged = touchDevice ? graphActive : hovering;
+  const paused = !visible || !docVisible || (reduced && settled && !engaged);
 
   return (
     <motion.div
@@ -102,49 +116,26 @@ export function BrainGraph() {
         ) : null}
       </div>
 
-      <div ref={wrapRef} className="brain-wrap">
+      <div
+        ref={wrapRef}
+        className="brain-wrap"
+        style={{ minHeight: size.h }}
+        onPointerEnter={() => setHovering(true)}
+        onPointerLeave={() => setHovering(false)}
+      >
         {failed ? (
           <p className="p-6 text-sm" style={{ color: "var(--mute)" }}>
             Graph not pushed yet. Run /alex-hq on the ThinkPad to sync the vault graph.
           </p>
         ) : data && size.w > 0 ? (
-          <ForceGraph2D
+          <Brain3D
+            data={data}
             width={size.w}
             height={size.h}
-            graphData={data}
-            backgroundColor="rgba(0,0,0,0)"
-            /* R2-16: the graph was the page's brightest, most colorful mass — sitting at the
-               BOTTOM, while TODAY (the whole premise) was the flattest region. A half-step
-               quieter here plus the TODAY lift rebalances attention toward information
-               hierarchy. Deliberately half, not the full step: this is the page's one organic
-               element and over-quieting sterilizes it. Re-judge after the lift lands. */
-            linkColor={() => "rgba(148,210,189,0.10)"}
-            linkWidth={0.5}
-            enableNodeDrag={true}
-            cooldownTicks={140}
-            nodeLabel={(n) => `${(n as GraphNode).id} · ${(n as GraphNode).group}`}
-            nodeCanvasObject={(node, ctx, globalScale) => {
-              const n = node as GraphNode;
-              const color = GROUP_COLORS[n.group] ?? FALLBACK;
-              const r = 1.6 + Math.sqrt(n.degree || 1) * 0.85;
-              ctx.shadowColor = color;
-              ctx.shadowBlur = 8;
-              ctx.beginPath();
-              ctx.arc(n.x!, n.y!, r, 0, 2 * Math.PI);
-              ctx.fillStyle = color;
-              ctx.globalAlpha = 0.7; // data stays quieter than the UI accent (R2-16)
-              ctx.fill();
-              ctx.shadowBlur = 0;
-              ctx.globalAlpha = 1;
-              if (globalScale > 2.2 || (n.degree >= 12 && globalScale > 1.1)) {
-                const fontSize = Math.max(11 / globalScale, 1.6);
-                ctx.font = `500 ${fontSize}px ${fontRef.current}`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "top";
-                ctx.fillStyle = "rgba(255,255,255,0.85)";
-                ctx.fillText(n.id, n.x!, n.y! + r + 1.5);
-              }
-            }}
+            paused={paused}
+            ambient={!reduced}
+            labelFont={labelFont}
+            onSettled={() => setSettled(true)}
           />
         ) : (
           <p className="p-6 text-sm" style={{ color: "var(--mute)" }}>
@@ -153,7 +144,7 @@ export function BrainGraph() {
         )}
         {touchDevice && !graphActive && data && !failed ? (
           <button type="button" className="graph-veil" onClick={() => setGraphActive(true)}>
-            <span className="kicker">tap to explore</span>
+            <span className="kicker">tap to explore in 3D</span>
           </button>
         ) : null}
       </div>
@@ -161,13 +152,21 @@ export function BrainGraph() {
       <div className="flex flex-wrap items-center gap-3">
         {LEGEND.map(([g, label]) => (
           <span key={g} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--mute)" }}>
-            {/* R2-16: legend dots lose their glow — pure attention cost, zero information */}
-            <span className="inline-block h-2 w-2 rounded-full" style={{ background: GROUP_COLORS[g] }} />
+            {/* R2-16: legend dots stay glowless — pure attention cost, zero information.
+                The white "me" dot (D10, a dark-canvas call) gets a hairline ring so it stays
+                visible on the light page too (Phase B #8); the in-well node is untouched. */}
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{
+                background: GROUP_COLORS[g],
+                boxShadow: g === "me" ? "inset 0 0 0 1px var(--idle-ring)" : undefined,
+              }}
+            />
             {label}
           </span>
         ))}
         <span className="ml-auto text-xs" style={{ color: "var(--mute)" }}>
-          {touchDevice && !graphActive ? "tap the graph to explore · index + log excluded" : "drag · zoom · index + log excluded"}
+          {touchDevice && !graphActive ? "tap the graph to explore · index + log excluded" : "orbit · zoom · drag nodes · index + log excluded"}
         </span>
       </div>
     </motion.div>

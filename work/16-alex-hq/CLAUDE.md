@@ -41,7 +41,7 @@ Append-only history; the summary endpoint reduces to latest-per-(project, metric
 - Frontend: Next.js + Tailwind + shadcn/ui + Recharts, official shadcn MCP server during builds, headless Chrome screenshot QA
 - Skills: frontend-design (visual direction), ui-ux-pro-max, ui-styling, design-system
 - Skill: webapp-testing (advisory, 2026-07-11) - after any HQ frontend/config change, drive the live PWA with Playwright and verify the change rendered before close-out.
-- **Brand & layout guard (advisory, added 2026-07-24, Item 4 of the AI-guide upgrade plan): `work/16-alex-hq/qa/brand-guard.mjs`.** Before shipping any HQ frontend change, run it against the LOCAL build (`cd app && npm start &` then `node ../qa/brand-guard.mjs`). It asserts the brand/layout invariants (Ink Black canvas, Chakra Petch kickers, Plex Mono numerals, one-accent law, tile grid 1-col mobile / multi-col desktop, logo loaded) via computed styles, so it catches a broken color / swapped font / collapsed grid / accent explosion WITHOUT screenshotting private data. A FAIL blocks the deploy Close-Out until the regression is fixed or the new look is accepted (update `EXPECT` in the script). NOT a pixel-diff: HQ's data is doubly-dynamic (server Summary/Inbox + client /data/*.json, all private/gitignored), so a masked pixel baseline both leaks and false-fails; a true pixel-diff needs a synthetic fixture server (Phase 2, deferred). Spec: `work/16-alex-hq/qa/README.md`.
+- **Brand & layout guard (advisory, added 2026-07-24, Item 4 of the AI-guide upgrade plan; rewritten 2026-07-29 for the two-theme reskin): `work/16-alex-hq/qa/brand-guard.mjs`.** Before shipping any HQ frontend change, run it against the LOCAL build (`cd app && npm start &` then `node ../qa/brand-guard.mjs`). It probes BOTH themes at both viewports (light selected the way a fresh open is, dark the way the toggle persists it - localStorage) and asserts the invariants per theme: light canvas white `#ffffff` / dark canvas Ink Black `#001219`, Oxanium kickers, Martian Mono numerals, one-accent law, tile grid 1-col mobile / multi-col desktop, logo loaded, the per-theme luminance ladder (light 255.0/245.7, dark 42.7/28.4 - healthy BRIGHTER than alarm in both, a future flatten fails), and the ONE WebGL canvas mounted in `.brain-wrap`. All computed styles, so it catches a broken color / swapped font / collapsed grid / accent explosion / wrong default theme WITHOUT screenshotting private data. A FAIL blocks the deploy Close-Out until the regression is fixed or the new look is accepted (update `EXPECT` in the script). NOT a pixel-diff: HQ's data is doubly-dynamic (server Summary/Inbox + client /data/*.json, all private/gitignored), so a masked pixel baseline both leaks and false-fails; a true pixel-diff needs a synthetic fixture server (Phase 2, deferred). Spec: `work/16-alex-hq/qa/README.md`. Sibling tool: `qa/render-shots.mjs` (permanent render harness, both themes + widths into a dated outputs folder).
 
 ## Notion Integration
 **None, by design** (decided 2026-07-02). The metrics store is the n8n data table; mirroring it to Notion would duplicate state the dashboard already renders. HQ READS nothing from Notion directly (producers do that in their own pipelines).
@@ -96,6 +96,80 @@ All 3 wave-3 items of the run-25 plan + the QA close, in app/:
 - **C13: overlay Back/popstate.** Opening a drill-down pushes ONE history entry (`{...history.state, hqOverlay: true}` — merged so Next's router keys survive); the Back gesture (popstate) closes the overlay; programmatic closes (Escape / ✕ / backdrop) consume the entry via `history.back()` so the stack never grows (QA: start=2 end=3 after 5 open/close cycles). Refresh-with-overlay-open strands nothing (the reloaded page has no overlay; the first Back just re-lands). All open/close paths route through `openOverlay`/`closeOverlay` + an `openRef` in dashboard.tsx.
 - QA: scripted puppeteer **18/18** (wave3-qa gates: reduced-motion zero running animations via `document.getAnimations()`, pulse budget one-per-section on real data — 9 reds, 4 pulses, 0 dupes —, CountUp stability, overlay numeral family = tile family, full Back matrix) + a strengthened CountUp invariant check (numerals never change once painted, incl. a non-zero live numeral; client-JSON "–"→value fills are data arrival, allowed once). Renders + grayscale in outputs/alex-hq/2026-07-14/. Build green, tsc clean.
 - **Deployed + live-verified 2026-07-14 ~00:52** (DEPLOY.md recipe; SSR markers dot-pulse + num-display in the served HTML with wave-1/2 markers intact; real-browser **7/7** at 390 vs production: pulse budget 9-reds/4-pulses/0-dupes, steady reds unanimated, strip count Plex Mono, Back closes overlay + app stays, Escape consumes the entry, reduced-motion zero running animations; live shot wave3-live-390-fold1.png). Grader observation RESOLVED same night: the amended D6 said "timestamps" = Plex Mono while stamps have always rendered Plex Sans tabular-nums - brand-config.md D6 wording corrected to match the render (doc-only fix, no app change).
+
+## 3D reskin (2026-07-29, Shaheen's commission; DEPLOYED same day on his "Go back to the same colors, apply the new design and deploy")
+Shaheen: the page opens dark on phone and PC and he does not want that; the font should read more tech; he
+wants a 3D animated tech page that moves like the newest AI-built sites. Built first as LIGHT-default per
+the commission decision; **he saw the renders and reversed the default the same day - "Go back to the same
+colors, apply the new design and deploy" - so DARK (the pre-reskin tokens, verbatim) is the default face
+again and the measured light theme lives behind the toggle.** 3D stayed HYBRID as decided (ONE WebGL
+surface - the Brain - so the always-on phone dashboard stays phone-safe; CSS 3D everywhere else).
+Two-role relay held: Phase A senior-UX rebuild, then a genuinely COLD-CONTEXT Phase B senior-UI subagent
+that saw only the renders + brand files + this spec. All in app/:
+- **Theme system: two themes, no flash, DARK default.** globals.css re-architected into semantic tokens:
+  `:root` = the pre-reskin dark values VERBATIM, `[data-theme="light"]` = the measured light system
+  (every pairing MEASURED 2026-07-29: teal secondary 7.28:1, #4a5a5e tertiary 7.20:1, mute blend 5.58:1,
+  Rusty burn 5.52/5.10:1 on white/cream). A parser-blocking inline script in layout.tsx replays
+  localStorage("hq-theme") before first paint (no flash either direction); `components/theme-toggle.tsx`
+  is the 44px header control (persists + rewrites the theme-color meta); manifest.ts + viewport + apple
+  status bar stay dark. Toggle round-trip QA'd locally AND against production: flip -> storage ->
+  reload-persists -> flip back.
+- **The luminance ladder survived the polarity flip in DIRECTION** (R2-4 invariant): light healthy faces
+  = white 255.0, light alarm faces = Warm Cream #fff5e1 245.7 (the law §6 "softening error surfaces"
+  companion + §7 light --bg-elevated), gap 9.3 - health still reads brighter than sickness in both themes.
+  D7 re-measured and re-scoped DARK-ONLY in brand-config.md (burn numerals pass 4.5:1 on the light faces);
+  light small-error text = Oxidized Iron 6.97:1 (Signal Coral stays dark-only), the strip count burns
+  Rusty on light / Custard on dark via the per-theme `--count-warm` token.
+- **Type re-picked (D6 REPLACED in brand-config.md, same session):** Oxanium (display words + kickers) +
+  Instrument Sans (body + stamps) + Martian Mono (ALL data numerals), all variable via next/font/google.
+  Same role split as the 07-14 amendment, only the families moved ("the font should read more tech").
+- **The Brain went WebGL 3D** (react-force-graph-3d + three + three-spritetext; react-force-graph-2d
+  removed): components/brain-3d.tsx holds the ref logic behind next/dynamic ssr:false (dynamic drops
+  refs), app/brain.tsx stays the shell. Same graph.json contract. Phone-safety levers: DPR capped at 2,
+  `paused` freezes the render loop offscreen/hidden-tab, reduced motion = NO auto-orbit and the loop
+  pauses on the formed static graph after settle (deliberate engagement resumes it), low-poly spheres +
+  gl-line links + SpriteText labels on hubs (degree>=12) only. Slow auto-orbit (0.55) is the ambient
+  "alive" state; node-click flies the camera in; the R2-21 touch veil is UNCHANGED. Framing lesson (the
+  Phase B BLOCK): zoomToFit over ALL nodes fits the flung zero-link singletons and shrinks the real
+  cluster to a smudge - frame the CONNECTED mass (degree>=1 filter, padding 40), once, on first settle
+  (never after drag re-heats), re-fit on container resize.
+- **CSS 3D on everything else:** pointer-tracked tilt (rotateX/rotateY springs + a glare sheen riding
+  --mx/--my) on hover-capable fine pointers ONLY - the motion values don't even attach on touch (a
+  perspective transform would force GPU rasterization of every tile for zero effect); slow scroll
+  parallax on the background bubble layer; the whileInView stagger kept. Reduced motion wins everywhere:
+  QA re-run = zero running animations, tilt/parallax/orbit all gated.
+- **Layout pass (fold discipline, not an IA relitigation** - the TODAY/RHYTHMS/SYSTEM grouping and tile
+  map survived three owner review waves and stayed): 390 header holds ONE row (logo chip h-7 + compact
+  stamp + toggle; the stamp shows time-only while the payload is from TODAY and the full date the moment
+  it's stale - compactness never hides staleness; full stamp + event count stay on desktop + tooltip),
+  first TODAY tile ~500px, capture card untouched in fold 1. Desktop verdict line stepped up to
+  text-base/medium (it IS the answer - Phase B #4). Inbox-cadence copy fixed while in there: the desktop
+  schedule line still promised the retired 09/13/17 email-triage slots; now 05:00 / 08:00 / 08:45 (the
+  07-29 architecture-review correction, caught in its last surface).
+- **Phase B cold review applied** (BLOCK: graph framing, above; SHOULDs: light idle rings 0.7->0.9 alpha
+  (~6:1), verdict weight, guard/spec reconcile (this section + the Tools bullet), zero-dim check -
+  answered: the whisper is GREEN-zeros-only by design, an amber/stale zero must not whisper; NICEs taken:
+  ink logo chip behind the wordmark on light (the full-bleed-dark pattern - the pale-aqua letters washed
+  out on white; never retype the wordmark), me-legend dot hairline ring on light (D10 is a dark-canvas
+  call), one notch more light-face shadow depth, short unit accents ("/ 100", "steps", "2 of 19") joined
+  to their numeral's baseline. Amber-hue NICE answered, not changed: dot ring + ring gradient are Rusty
+  in BOTH themes; the "golden on dark" read is the glow, not the token).
+- **QA:** brand-guard PASS 4/4 probes (rewritten two-theme, see Tools); behavior 8/8 (reduced-motion zero
+  running animations, C13 overlay Back matrix + bounded history, overlay numerals = tile family, no tilt
+  residue on touch, grayscale state-encoding both themes); tsc clean, build green. Renders + grayscale +
+  the Phase B critique: outputs/alex-hq/2026-07-29/. Guard parser lesson: Lightning CSS minifies #ffffff
+  to #fff in the production bundle - a colour assertion that only parses 6-digit hex reads the light face
+  as undefined; the guard now accepts shorthand.
+- **DEPLOYED 2026-07-29 ~04:45 on Shaheen's explicit "and deploy"** (DEPLOY.md recipe; rollback copy
+  `/opt/alex-hq.bak-20260729` = the round-2 build). Live-verified with a real browser against production:
+  **11/11** (fresh 390 + 1440 open DARK on nothing-stored, Oxanium kickers + Martian Mono numerals
+  served, logo loads, no horizontal overflow, 3D brain canvas mounts at both widths, toggle flips to
+  light + persists across reload); bare 401 / authed 200; n8n untouched (200); first authed response was
+  the documented build-time prerender, live page 3 polls later. Live shots `live-dark-390-fold1` /
+  `live-light-390-fold1` / `live-dark-1440-full` in outputs/alex-hq/2026-07-29/. QA-harness lesson from
+  the verify run: a toggle test that stores a theme POLLUTES the shared browser profile for the next
+  probe - the "1440 opens dark" check first failed against its own predecessor's stored light, and the
+  first "dark 1440" live shot captured the light theme; always clear storage per probe and re-shoot.
 
 ## Design-overhaul ROUND 2 (2026-07-25, run-37 review; LIVE - deployed + live-verified same evening)
 All 21 items of `outputs/research-team/2026-07-25/alex-hq-design-overhaul-plan-v2.md`, built on Shaheen's

@@ -34,6 +34,18 @@ Get-NetTCPConnection -LocalPort 3000 -State Listen | Select -Expand OwningProces
 Then prove the stylesheet actually resolves before trusting ANY styling QA result: pull the
 `_next/static/chunks/*.css` href out of the served HTML and `curl` it, expecting 200.
 
+## 3D reskin: DEPLOYED 2026-07-29 (Shaheen: "Go back to the same colors, apply the new design and deploy")
+The 2026-07-29 reskin is live: DARK default (the pre-reskin tokens verbatim - his call after seeing the
+light renders), the measured light theme behind the header toggle, Oxanium / Instrument Sans / Martian
+Mono (D6 as replaced), the WebGL 3D Brain (react-force-graph-3d + three - the box build pulls the new
+deps from package.json), CSS tilt/parallax. Live-verified real-browser **11/11** at 390 + 1440 (fresh
+opens DARK with nothing stored, toggle flips + persists, 3D mounts both widths); bare 401 / authed 200;
+n8n untouched. **Rollback copy on the box: `/opt/alex-hq.bak-20260729`** (the round-2 build; restore it,
+then `docker compose up -d --build alex-hq`). Live shots: `outputs/alex-hq/2026-07-29/live-*.png`.
+Verify gotcha recorded: a toggle test STORES its theme in the shared headless profile and poisons the
+next probe's "default" - clear localStorage per probe or the dark-default check fails against the test's
+own leftovers (it did, once, here).
+
 ## Round-2 design overhaul: DEPLOYED 2026-07-25 (Shaheen: "deploy")
 All 21 items of `outputs/research-team/2026-07-25/alex-hq-design-overhaul-plan-v2.md` are live.
 Live-verified with a real browser at 390 + 1440 including both drill-downs: **13/13** (verdict line,

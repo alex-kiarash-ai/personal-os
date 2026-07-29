@@ -61,13 +61,13 @@ export function WaitingStrip({ metric }: { metric: Metric | null }) {
         Waiting on you
       </span>
       {/* C8: the waiting count is an unactioned action-count and must still burn; C12: it is a
-          data numeral, so Plex Mono. R2-5 corrects HOW it burns — Rusty Spice measured ~2.93:1
-          here, which fails 4.5:1 at 18px AND the 3:1 large-text floor, so no size could rescue
-          that color on this canvas. Vanilla Custard at 24px keeps the warm burn and the numeral
-          weight while clearing contrast with room to spare; the amber ring + dot carry the state. */}
+          data numeral, so the data mono. R2-5 set HOW it burns per measured ground: on the dark
+          --elev strip face Rusty fails every floor, so dark takes Vanilla Custard at 24px
+          (11.6:1); on the light face Rusty itself measures 5.1:1+, so light burns Rusty. The
+          per-theme token --count-warm carries that pair; the ring + dot carry the state. */}
       <span
         className="num-display flex-none text-2xl"
-        style={critical ? undefined : { color: "var(--custard)" }}
+        style={critical ? undefined : { color: "var(--count-warm)" }}
       >
         {count}
       </span>
