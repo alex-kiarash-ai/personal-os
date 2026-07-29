@@ -8,7 +8,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ## Active Schedules
 
-**Activated 2026-06-11 via Windows Task Scheduler.** Jobs: `PersonalOS-sprint-tracker` (weekdays 9:00), `PersonalOS-morning-brief` (daily 8:00), `PersonalOS-application-engine` (daily 8:30). Each runs `scripts/run-{name}.ps1` → headless `claude -p "Run /{name}"` → log in `outputs/logs/{name}.log`. No OAuth token needed; tasks run as the logged-in user and reuse existing credentials. Check: `schtasks /query /fo csv | findstr PersonalOS`.
+**Activated 2026-06-11 via Windows Task Scheduler.** It began with three jobs (`PersonalOS-sprint-tracker` weekdays 9:00, `PersonalOS-morning-brief` daily 8:00, `PersonalOS-application-engine` daily 8:30); **there are now 25 registered `PersonalOS-*` tasks, 23 Ready and 2 Disabled by design** (sprint-tracker, paused 2026-07-16; whatsapp-harvest, whose retired Phase-1 02:30 trigger must never be re-armed), plus 8 n8n crons on the box listed further down. *(Corrected 2026-07-29, architecture review: this paragraph still named only the original three as if they were the whole system, and the first one it named has been Disabled since 2026-07-16. Do not hardcode the count when it moves; verify with the check command below.)* Each runs `scripts/run-{name}.ps1` → headless `claude -p "Run /{name}"` → log in `outputs/logs/{name}.log`. No OAuth token needed; tasks run as the logged-in user and reuse existing credentials. Check: `schtasks /query /fo csv | findstr PersonalOS`.
 
 <!-- Agent adds entries here when user requests a schedule -->
 <!-- Format: -->
@@ -111,8 +111,8 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### n8n active-flag watcher (Recovery Layer, BUG-01 fix)
 - Command: scripts/n8n-active-check.ps1 (pure PowerShell, no claude call, zero tokens)
-- Frequency: daily at 8:10 AM (Task Scheduler job PersonalOS-n8n-active-check; StartWhenAvailable + ExecutionTimeLimit 15 min; NO restart policy: exit 1 = a workflow is OFF, a real finding, not a transient failure). Placed after the 07:00/07:30 engine crons so a failed activation is caught the same morning.
-- Description: Reads system/manifest.json, takes every LIVE project mapped to an n8n workflow id (currently #3/#12/#14/#15/#16/#17), GETs each workflow, asserts active==true. Any expected-active workflow found OFF -> RED to Alex HQ recovery/n8n_active + exit 1. A total-API outage is amber + exit 0 (transient, never a false RED). Born from the 2026-07-16 diagnostic audit (BUG-01): n8n's activate/deactivate does not bump `updatedAt`, so a silently deactivated workflow (the 2026-07-10 class) was invisible until a missed run - this reads the flag itself, daily.
+- Frequency: daily at 8:10 AM (Task Scheduler job PersonalOS-n8n-active-check; StartWhenAvailable + ExecutionTimeLimit 15 min; NO restart policy: exit 1 = a workflow is OFF, a real finding, not a transient failure). **Runs BEFORE the day's engine crons, not after** - the engines moved to Tue & Thu 15:00/15:30 on 2026-07-24, so the 08:10 watcher now reads each flag roughly seven hours ahead of the run it protects, which is the useful direction: a workflow found OFF at 08:10 can be re-activated before 15:00 rather than after a missed run. *(Corrected 2026-07-29, architecture review: this said "placed after the 07:00/07:30 engine crons so a failed activation is caught the same morning", a rationale that stopped being true at the retime.)*
+- Description: Reads system/manifest.json, takes every LIVE project mapped to an n8n workflow id (**#3/#12/#14/#15/#16/#17/#31/#32** as of 2026-07-29; the script reads the manifest at runtime so its behaviour was always correct, this parenthetical was simply two projects behind after the 07-28 portal split), GETs each workflow, asserts active==true. Any expected-active workflow found OFF -> RED to Alex HQ recovery/n8n_active + exit 1. A total-API outage is amber + exit 0 (transient, never a false RED). Born from the 2026-07-16 diagnostic audit (BUG-01): n8n's activate/deactivate does not bump `updatedAt`, so a silently deactivated workflow (the 2026-07-10 class) was invisible until a missed run - this reads the flag itself, daily.
 - Added: 2026-07-16
 
 ### Vault Search Index (upgrade-scan item 1)
@@ -199,6 +199,44 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 - Frequency: **Monday at 9:30 AM** (Task Scheduler job PersonalOS-modeling-weekly; StartWhenAvailable + WakeToRun + battery-safe).
 - Description: Deterministic scout-checks.mjs (site + intent pages + /now GETs, /now staleness, rights-register completeness, metrics freshness, ledger hygiene) + Cloudflare analytics snapshot to metrics.jsonl + judgment fix-list / collab drafts / follow-ups. Its first real run completes Phase-0 verification item (c). Spec: work/30-modeling/CLAUDE.md.
 - Added: 2026-07-22
+
+**n8n box crons (added 2026-07-29).** The five entries below run on the Hetzner box under n8n's own
+`scheduleTrigger`, so they never appear in `schtasks` and are invisible to a Task-Scheduler-only reading
+of this file. Every one was live and correct the whole time; this file simply had no entry. *(Added
+2026-07-29, architecture review, which verified each cron against a live read-only `GET /workflows`.
+Four of the five were undocumented here, and #31/#32 had been running a full day with no entry anywhere
+in this file after the 07-28 portal split.)* The engines #03/#14 are covered above (`0 15 * * 2,4` and
+`30 15 * * 2,4`).
+
+### Portal Scanner (#31) - box-side n8n cron, NOT a Windows task
+- Command: n8n workflow `5tPXbhdpp6PfF56V` (no local wrapper, no claude call, zero local tokens)
+- Frequency: **Tuesday & Thursday 15:13 Stockholm** (`13 15 * * 2,4`), active. 30 min ahead of #32 so the queue is filled before the drain.
+- Description: Stage 1 of the portal lane. Detects each company ATS once, hits its free public JSON, prefilters on the title/location list, and BANKS matching jobs to the queue #32 drains. Makes no model call. **Ordering is load-bearing:** #31 banks and #32 drains, so a silently deactivated scanner leaves #32 finishing clean on an empty queue and reporting GREEN, with "no new drafts" as the only symptom. That is exactly why the lane was split into two registry rows on 2026-07-28, so both ride V6 leg (c) and the 08:10 active-flag watcher.
+- Added: 2026-07-29 (documented; live since the 2026-07-28 split)
+
+### Portal Application Engine (#32) - box-side n8n cron, NOT a Windows task
+- Command: n8n workflow `sxEYRyeHH7i1mHzb`
+- Frequency: **Tuesday & Thursday 15:43 Stockholm** (`43 15 * * 2,4`), active.
+- Description: Stage 2 of the portal lane. Drains the queue #31 banked and runs its own cloned Match/Gate/Writer/Render pipeline to review-ready CV + cover-letter PDFs. Model calls run kimi-k3 at `reasoning_effort:'high'` per `meta.model_routing`. No send node exists; Shaheen submits.
+- Added: 2026-07-29 (documented; live since the 2026-07-28 split)
+
+### LinkedIn Series staging (#12) - box-side n8n cron, NOT a Windows task
+- Command: n8n workflow `v1GbDYganOz9EGpM`
+- Frequency: **Tuesday & Thursday 08:00 Stockholm** (`0 8 * * 2,4`), active.
+- Description: Stages episode TEXT only, behind the dash-scan and pronoun/fidelity gates, into a per-episode Drive folder with a link write-back. Shaheen makes the image and posts; nothing publishes itself. The manifest carried this cron correctly all along; the routing table showed only "on-demand + n8n staging (scheduled)" with no time, and this file had no entry.
+- Added: 2026-07-29 (documented; cron itself older)
+
+### Alex HQ Pipeline Stats (#16) - box-side n8n cron, NOT a Windows task
+- Command: n8n workflow `y5YbDZu8TT38XZ9r` (+ manual `GET /webhook/alex-hq-stats-run`)
+- Frequency: **daily 07:50 Stockholm** (`50 7 * * *`), active.
+- Description: Recomputes the dashboard's job-pipeline tiles. **Do not confuse this with the local `PersonalOS-landscape-eval`, which also runs at 07:50 but on Mondays, on the laptop, for #25.** Two machines, two jobs, one shared wall-clock minute; that collision is why this entry spells it out.
+- Added: 2026-07-29 (documented; cron itself older)
+
+### Alex Radar collector (#15) - box-side n8n cron, NOT a Windows task
+- Command: n8n workflow `PYePT4Al6aPZi56M` (+ manual `GET /webhook/radar-collect`)
+- Frequency: **daily 06:00**, active.
+- Description: Pulls the Tier-1 feeds (Claude Code / MCP / n8n release atoms, OpenAI + DeepMind RSS, HN queries) into the `radar_inbox` data table, so the Monday 07:30 local sweep reads a warm table instead of fetching everything live. An urgent lane POSTs breaking-change notes to the alex_inbox same-day.
+- Added: 2026-07-29 (documented; live since 2026-07-06)
 
 ---
 

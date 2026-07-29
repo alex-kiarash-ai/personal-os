@@ -120,7 +120,7 @@ const want = name => !ONLY || ONLY.includes(name);
       log.step(`  staged brand tokens: ${genTokens.CSS_REL} + ${genTokens.JSON_REL} (${model.colorTokens.tokens.size} tokens from the color law)`);
     }
 
-    // 3. Validate the staged set + live systems. The FULL suite (G1-G4 + V1-V9) runs on EVERY
+    // 3. Validate the staged set + live systems. The FULL suite (SUITE_RANGE, logged below) runs on EVERY
     //    run regardless of --only (c7 fix, P5): --only limits staging/applying, never checking.
     //    Async since Phase 3 - V6 checks the live n8n API, the live half of V2 queries schtasks.
     log.step(`[3/5] validate (${SUITE_RANGE}, full suite - never narrowed by --only, context=generator)`);

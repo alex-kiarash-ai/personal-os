@@ -145,7 +145,7 @@ so a health run in that window would have been retained too.
    score always runs on 4 of the 5 components (worth 80 of the 95 weight, rescaled). Block 6 (In Bed) is not
    reading - its Value word is probably off. Every scored night to date is affected, so scores are
    systematically approximate, not wrong-but-precise.
-4. **[server] The `gradeDay` grading gate is still not inlined** (see the section above).
+4. ~~**[server] The `gradeDay` grading gate is still not inlined**~~ ✅ **RESOLVED, and this entry was stale from the day it was written.** *(Corrected 2026-07-29, architecture review.)* The gate went live on 2026-07-27, which the section above recorded correctly, but this defect line was never struck through, so the same file asserted both "inlined and LIVE" and "still not inlined" on the same date and gave a reader no way to tell which was current. **Verified against the deployed workflow, not against this document:** a read-only `GET /workflows/WtOKBY00Cq1FhQ8T` shows the `Score + Normalize` Code node both DEFINES and CALLS `gradeDay`, and carries `grade_reason` and `sleep_score_ok`. Live state is the authority here; the file was simply behind on one line.
 
 ## Open items
 - ~~**HQ tile redeploy**~~ ✅ DONE 2026-07-04 (both Body tiles render live). Redeploy command, kept for the next frontend change: `tar czf - -C work/16-alex-hq --exclude=node_modules --exclude=.next --exclude=.env.local app | ssh n8n "rm -rf /opt/alex-hq && mkdir -p /opt/alex-hq && tar xzf - -C /opt/alex-hq --strip-components=1"` then `ssh n8n "cd /opt/n8n && docker compose up -d --build alex-hq"`. First read after rebuild can be Next's stale prerender (60s), re-request.

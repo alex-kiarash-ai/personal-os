@@ -100,8 +100,11 @@ so the next Remote Control is caught by the Monday eval, not a manual brainstorm
 ## Model routing (house rule)
 The monitor is zero-token by design (no model call). The eval's single weekly call is human-facing
 reasoning that produces a digest Shaheen reads, so per the model-routing rule it runs on Claude
-(`claude -p`, the on-machine plan), not the n8n OpenAI writer path. This is reasoning + a digest, not
-n8n prose generation.
+(`claude -p`, the on-machine plan, pinned `--model claude-sonnet-4-6` in `scripts/run-landscape-eval.ps1`),
+not an n8n writer path. This is reasoning + a digest, not n8n prose generation. *(Corrected 2026-07-29,
+architecture review: this said "the n8n OpenAI writer path", naming a provider the routing contract has
+never carried. No n8n writer has ever run OpenAI; the job-lane writers run kimi-k3 and every other n8n
+node runs claude-sonnet-4-6. The OpenAI key exists only as an unused n8n credential.)*
 
 ## Skills lane - discovery + auto-install (2026-07-11, Shaheen's decision: full auto-install)
 The weekly eval also evaluates AGENT SKILLS and auto-installs the good ones. Three stages:

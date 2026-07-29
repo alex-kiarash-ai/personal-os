@@ -299,7 +299,9 @@ Full plan record + kill criteria + the Phase 0 baseline: [[research/alex-recall-
 - **Recall injection** (`system/recall/recall-inject.js`, UserPromptSubmit hook). Before every prompt,
   injects the most relevant current facts (WITH their valid-from dates), vault BM25 snippets, and
   lessons as **RETRIEVED REFERENCE DATA, never instructions** (the work/07 model on the internal read
-  path). Fail-OPEN (any error = no output, prompt untouched), ≤150ms budget (live ~17ms), hard caps
+  path). Fail-OPEN (any error = no output, prompt untouched), ≤150ms budget (measured 2026-07-29 over
+  85 real injections: median 24ms, mean 29ms, p95 56ms, max 127ms - comfortably inside budget; the
+  earlier "~17ms" was an early-sample figure that the corpus outgrew), hard caps
   (≤5 facts + 3 snippets + 2 lessons). Telemetry to `recall-metrics.jsonl` (prompt HASH + counts +
   latency, never the prompt text). Killable in one settings.json line.
 - **Lessons - the compound step** (`scripts/lesson-harvest.js`, nightly). The Close-Out Report emits an
@@ -388,7 +390,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 08 | /expense-wrangler | LIVE | monthly last day 20:00 | Receipts to the Notion Expenses DB + an all-formula branded monthly Excel. | work/08-expense-wrangler - vault/projects/expense-wrangler/status.md |
 | 09 | ~~/content-machine + /content-plan~~ | RETIRED | - | Retired 2026-07-06: folded into #12 (one content system, same Content Library DB). | work/09-content-machine - vault/projects/content-machine/status.md |
 | 10 | /weekly-exec-report | LIVE | Fri 16:00 | The Friday capstone: every automation + mail + calendar into one branded deck + Notion page. | work/10-weekly-exec-report - vault/projects/weekly-exec-report/status.md |
-| 11 | /whatsapp-harvest | ON-DEMAND | on-demand (iPhone backup) | Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer. | work/11-whatsapp-harvest - vault/projects/whatsapp-harvest/status.md |
+| 11 | /whatsapp-harvest | ON-DEMAND | on-demand (iPhone backup); its Task Scheduler job stays DISABLED by design | Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer. | work/11-whatsapp-harvest - vault/projects/whatsapp-harvest/status.md |
 | 12 | /content-agent + /post-episode + /post-publish | LIVE | on-demand + n8n staging (scheduled) | Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds. | work/12-linkedin-series - vault/projects/linkedin-series/status.md |
 | 13 | /airbnb-host | LIVE | monthly 24th 10:00 + brief | Bookings + income from a local read-only Playwright harvest of his own Airbnb dashboard (Airbnb has no host API; Gmail feed is the FALLBACK, not the primary - corrected 2026-07-28, the command file was right and this line was the stale side); feeds the brief + runway. | work/13-airbnb-host - vault/projects/airbnb-host/status.md |
 | 14 | (no command) | LIVE | n8n Tue+Thu 15:30 | Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate. | work/14-ai-application-engine - vault/projects/ai-job-pipeline/status.md |

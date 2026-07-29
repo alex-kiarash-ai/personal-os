@@ -35,8 +35,14 @@ The external venture repos named in `_sync-config.md` (read-only); soul.md (voic
 - **Feeds:** venture context into the vault for any Alex reasoning; scaffolds new `projects/{name}.md` pages.
 - **Related:** [[me/situation]]; /lint (staleness nudge); [[projects/recovery/status]] (registered here after the sweep).
 
-## Status (2026-07-04)
-- **VESTIGIAL / PARKED** (stronger than dormant). Command + config exist and no `vault/ventures/{name}/docs/` output has ever been produced. The 4 `code_path`s (`~/Desktop/{brandmodal,AlphaStar,insightai,finance-us}`) were **confirmed ABSENT on this machine 2026-07-04** (QA-verified), so a run today produces nothing for any venture. This is a deliberate parked state, not a ready-to-run one.
+## Status (2026-07-04, state label corrected 2026-07-29)
+- **DORMANT** (revisit 2026-10-01), which is the registered lifecycle state in `system/manifest.json`
+  and the only one the checkers recognise. *(Corrected 2026-07-29, architecture review: this line read
+  "VESTIGIAL / PARKED (stronger than dormant)", which contradicted both the manifest AND this file's own
+  Type line four lines up. PARKED and DORMANT are distinct registered states with different revisit
+  rules, so inventing a third label in prose made the project's real state unreadable. The substance
+  below is unchanged and accurate: nothing has ever run, and that is deliberate.)* Command + config
+  exist and no `vault/ventures/{name}/docs/` output has ever been produced. The 4 `code_path`s (`~/Desktop/{brandmodal,AlphaStar,insightai,finance-us}`) were **confirmed ABSENT on this machine 2026-07-04** (QA-verified), so a run today produces nothing for any venture. This is a deliberate parked state, not a ready-to-run one.
 - Registered in the manifest (#19) + routing table so the recovery checker stops flagging the command as an orphan. Registration does not activate it.
 
 ## Post-Run (when first activated)

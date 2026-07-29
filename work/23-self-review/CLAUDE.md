@@ -65,7 +65,7 @@ The self-review doc; on approval, the target identity/rule/taste files (via Chan
 Proposes, never applies identity-file changes without approval. Fabricates nothing; every proposed change cites the correction/error it came from. If nothing meaningful accumulated in a week, says so plainly (a quiet week is a valid result), never invents proposals to look busy.
 
 ## Model Routing
-Claude for the clustering and the reasoning. If a human-readable weekly summary line is written for the Monday brief, OpenAI + soul.md.
+Claude for the clustering and the reasoning. **claude-sonnet-4-6 fed from soul.md** for the human-readable weekly summary line written into the Monday brief (prose model per the model-routing rule, corrected 2026-07-08). *(Corrected 2026-07-29, architecture review: this line still said "OpenAI + soul.md" three weeks after the rule changed. #21 and #22 carry the same correction from 07-08 and 07-14; #23 was the one that got missed. The enforced contract is `meta.model_routing` in `system/manifest.json`, which names no OpenAI anywhere, and the wrapper `scripts/run-self-review.ps1` pins `--model claude-sonnet-4-6`, so this file was the only surface still advertising a forbidden provider.)*
 
 ## Connections
 - **Fed by:** #22 Teach-Alex (corrections-log), error-log, close-out-log, soul.md My Words, decisions.

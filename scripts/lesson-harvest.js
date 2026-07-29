@@ -70,7 +70,14 @@ function main() {
     cursors[f] = size;
 
     for (const line of chunk.split(/\r?\n/)) {
-      if (!/^\s*L:/.test(line)) continue;
+      // Cheap screen only; parseLLine does the real work and owns the shape contract.
+      // NOT line-anchored, and the colon is optional: every scheduled automation emits its
+      // Close-Out Report as ONE middle-dot-separated line, so the L segment sits mid-line, and
+      // email-triage writes `L class=`. The old `^\s*L:` screen here was the SECOND of two
+      // line-anchored gates (the other was in parseLLine) that between them kept the lessons
+      // table at 0 rows for four days while this harvester reported success nightly. Fixed
+      // 2026-07-29; pinned by scripts/tests/test-lesson-parse.js.
+      if (!/(?:^|[^A-Za-z0-9])L:?\s*(?:class=|none\b)/i.test(line)) continue;
       const parsed = parseLLine(line.trim());
       if (!parsed) continue; // `L: none` or malformed
       processed++;

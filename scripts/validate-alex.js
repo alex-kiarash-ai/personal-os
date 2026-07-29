@@ -19,7 +19,7 @@
 // plus V14 Alex gender-neutrality contract (2026-07-28; the code behind work/12 HARD RULE 15 and
 //      the soul.md law of the same date. Two narrow scans: unpublished episode BODIES, and the
 //      pinned locked line. Published episodes are archive and are skipped by construction).
-// The full suite (SUITE_RANGE below, currently G1-G4 + V1-V14) runs on EVERY invocation (V10/V11 are
+// The full suite (SUITE_RANGE below, derived from V_MAX - never restate the number here) runs on EVERY invocation (V10/V11 are
 // commit-time only) - generate-alex.js --only=X limits what is staged/applied, never what is checked
 // (c7 fix, upgrade P5). V_MAX is the ONE declared suite number; every consumer derives from it (F-10).
 //

@@ -40,15 +40,41 @@ function upsertLesson(db, { date, source_runid = null, cls, lesson, evidence = n
   return { action: 'insert', id: Number(info.lastInsertRowid), hits: 1, promote: false };
 }
 
-/** Parse an L-line from a Close-Out Report. Returns null for `L: none` / non-matches. */
+/**
+ * Parse an L-line from a Close-Out Report. Returns null for `L: none` / non-matches.
+ *
+ * MATCHES THE L SEGMENT ANYWHERE IN THE LINE, and treats the colon as optional. Both are
+ * deliberate, and this is the 2026-07-29 fix for the "compounding loop is half open" finding.
+ *
+ * The original form anchored on `^L:` after trimming the whole line. No scheduled automation has
+ * ever written it that way: every one of them emits its Close-Out Report as a SINGLE line with
+ * middle-dot separators, e.g.
+ *   `Close-Out [morning-brief]: A1 N/A · ... · L: class=verification lesson="..." evidence=... · Verdict: COMPLETE`
+ * so `^L:` matched nothing, and email-triage writes `L class=` with no colon at all. The result was
+ * that the lessons table sat at 0 rows for the four days the ledger was live while lesson-harvest.js
+ * ran nightly and reported success, because finding nothing to parse is indistinguishable from
+ * there being nothing to find. The lessons were in the logs the whole time.
+ *
+ * The lesson of the lesson: parse what the reports ACTUALLY contain, not what the template draws.
+ * A format contract enforced only by asking a model to emit a line in a particular position is not
+ * a contract. Covered by scripts/tests/test-lesson-parse.js with the real log lines as fixtures.
+ */
 function parseLLine(line) {
   const s = String(line).trim();
-  if (/^L:\s*none\b/i.test(s)) return null;
-  const m = s.match(/^L:\s*class=([a-z]+)\s+lesson="([^"]+)"(?:\s+evidence=(\S+))?/i);
-  if (!m) return null;
-  const cls = m[1].toLowerCase();
   const allowed = new Set(['propagation', 'verification', 'cost', 'security', 'process']);
-  return { cls: allowed.has(cls) ? cls : 'process', lesson: m[2].trim(), evidence: m[3] || null };
+  // Real lesson first, so a stray "none" elsewhere in a long report line cannot mask it.
+  // evidence runs to the next middle-dot separator or end of line (it often contains spaces).
+  const m = s.match(
+    /(?:^|[^A-Za-z0-9])L:?\s*class=([a-z]+)\s+lesson="([^"]+)"(?:\s+evidence=(.+?))?\s*(?:·|$)/i
+  );
+  if (m) {
+    const cls = m[1].toLowerCase();
+    const evidence = m[3] ? m[3].trim() : null;
+    return { cls: allowed.has(cls) ? cls : 'process', lesson: m[2].trim(), evidence: evidence || null };
+  }
+  // `L: none` / `L none` anywhere in the line = a deliberate no-lesson run.
+  if (/(?:^|[^A-Za-z0-9])L:?\s*none\b/i.test(s)) return null;
+  return null;
 }
 
 module.exports = { upsertLesson, parseLLine, normalize };

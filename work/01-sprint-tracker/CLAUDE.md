@@ -9,8 +9,13 @@ Reads the Progress Tracker (the master list of automations to build), generates 
 **Read mode (Shaheen's call 2026-07-18): cache-mode is the ACCEPTED design, not a degradation.** The core reads the local snapshot table in status.md (cache fallback), not a live Notion board query - the integration token was never restored to `config/notion-token.txt`, and with #01 PARKED there's no reason to. This is deliberate: counts still compute; only the shipped/reconciled velocity split needs the live read, which nobody is watching while #01 is paused. If #01 is ever un-parked, restoring the token (Setup below) re-enables the live read. Docs must not claim a live board read while the token is absent.
 
 ## Entry Points
-- **Scheduled:** weekdays at 9:00 AM via system scheduler (`claude -p "Run /sprint-tracker"`)
-- **On-demand:** `/sprint-tracker`
+- **Scheduled: PAUSED since 2026-07-16 (Shaheen's call), and the project is PARKED.** The task
+  `PersonalOS-sprint-tracker` still exists but is **Disabled** in Task Scheduler and must stay that way
+  until Shaheen re-enables it; its old trigger was weekdays at 9:00 (`claude -p "Run /sprint-tracker"`).
+  *(Corrected 2026-07-29, architecture review: this bullet still advertised the weekday schedule as
+  live, three weeks after the pause. `system/manifest.json` and `scheduler/schedule.md` both had it
+  right; this spec was the stale side.)*
+- **On-demand:** `/sprint-tracker` (works today, reads the local cached board snapshot)
 
 ## Tools Used
 - **`node scripts/sprint-tracker-core.js`** (rebuilt 2026-07-10) - the zero-token deterministic core: reads the board, computes counts/velocity/stale/missed-run/contract, writes velocity.md + board-state.json + last-run.json + decisions-pending.md, pushes HQ green. Reads the board via the Notion REST API (paginated, `scripts/lib/notion-board.js`) with the integration token at `work/01-sprint-tracker/config/notion-token.txt`; falls back to parsing the status.md snapshot table when the token is absent. Runs with NO Claude tokens, so a quota blackout can't make the tracker dark.
