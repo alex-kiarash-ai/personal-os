@@ -1,4 +1,4 @@
-# Alex Cost Tracker (unnumbered, on-demand)
+# Alex Cost Tracker (unnumbered, RETIRED — absorbed into #08 Expense Wrangler 2026-07-31)
 
 ## What it actually does
 Answers "what does Alex itself cost?" with real deliverables: a branded Excel where every figure is a live formula, and a three-page Power BI dashboard (a real semantic model with 26 measures, built through the Power BI modeling connector) covering spend by category, cash versus accrual, and a forecast based on top-up cadence. Refreshes monthly alongside the expense run; the Excel twin lives on Google Drive.

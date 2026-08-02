@@ -161,10 +161,10 @@
       {
         "name": "alex-costs",
         "title": "Alex Cost Tracker",
-        "state": "ON-DEMAND",
+        "state": "RETIRED",
         "revisit": null,
         "trigger": "monthly (piggybacks expense slot)",
-        "one_liner": "What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + a zero-token per-project token-attribution collector (which project ate the quota).",
+        "one_liner": "RETIRED (absorbed into #08 Expense Wrangler at 2026-07-31 close, P9a/D10). HQ slug kept. Was: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + zero-token per-project token-attribution collector.",
         "hq_project": "alex-costs",
         "docs": "alex-costs.md",
         "spec": null,
@@ -174,8 +174,8 @@
           "label": "monthly",
           "note": "merging into #08 per D10 (P9a)"
         },
-        "first_fire": null,
-        "first_fire_kind": null
+        "first_fire": "2026-07-02",
+        "first_fire_kind": "live"
       }
     ]
   },

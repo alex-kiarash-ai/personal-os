@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-29. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-01. -->
 
 # Architecture: how Alex works
 
@@ -441,7 +441,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 | 31 | (no command) | LIVE | n8n Tue & Thu 15:13 (scan + bank) | Standalone company-portal job lane, STAGE 1 of 2: detect each company ATS once, hit its free public JSON, prefilter, and BANK matching jobs to the queue that #32 drains. Split from the engine 2026-07-28 so both workflows carry their own n8n id + cron and come under V6 leg (c) and the daily active-flag watcher. | work/31-portal-scanner - vault/projects/portal-scanner/status.md |
 | 32 | (no command) | LIVE | n8n Tue & Thu 15:43 (drain + draft) | Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28. | work/32-portal-application-engine - vault/projects/portal-application-engine/status.md |
 | - | Voice | EVENT | every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand | Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool. | work/voice/README.md |
-| - | Alex Cost Tracker | ON-DEMAND | monthly (piggybacks expense slot) | What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + a zero-token per-project token-attribution collector (which project ate the quota). | vault/projects/alex-costs/status.md |
+| - | Alex Cost Tracker | RETIRED | monthly (piggybacks expense slot) | RETIRED (absorbed into #08 Expense Wrangler at 2026-07-31 close, P9a/D10). HQ slug kept. Was: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + zero-token per-project token-attribution collector. | vault/projects/alex-costs/status.md |
 <!-- ROUTING-TABLE:END -->
 <!-- Entries added automatically when automations are built -->
 

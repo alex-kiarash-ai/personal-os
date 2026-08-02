@@ -142,5 +142,106 @@ cb.cell(ch, 7, "distinct months").font = Font(size=8, color="9CA3AF")
 cb.cell(ch, 7).value = '=SUMPRODUCT((\'Expense Log\'!G2:G100000<>"")/COUNTIF(\'Expense Log\'!G2:G100000,\'Expense Log\'!G2:G100000&""))'
 for c, w in zip("ABCD", [16, 14, 12, 14]): cb.column_dimensions[c].width = w
 
+# ---------- Uncaptured Burn row in Monthly Summary (P6 rider, first appears at 07-31 close) ----------
+# Monthly burn target from vault/projects/runway/status.md (monthly_burn_sek = 24000)
+MONTHLY_BURN_TARGET = 24000
+july_row_in_ms = hrow + 1 + 6          # 2026-07 is month index 6 (Jan=0)
+total_col_letter = get_column_letter(2 + len(CATS))  # H = the Total column
+ub_label_row = gr + 1
+ub_row = gr + 2
+ms.cell(ub_label_row, 1, "--- Jul 2026 close ---").font = Font(name="Calibri", color="9CA3AF", size=9)
+ms.cell(ub_row, 1, "Uncaptured burn est. (2026-07)").font = Font(name="Calibri", italic=True, color=TEAL, size=10)
+ms.cell(ub_row, 2 + len(CATS),
+        f"=MAX(0,{MONTHLY_BURN_TARGET}-{total_col_letter}{july_row_in_ms})").number_format = CURFMT
+
+# ---------- Sheet 5: Alex Costs (P9a merge, 2026-07-31) ----------
+# Receipt-backed rows from the 2026-07-02 alex-cost-tracker.xlsx, merged here at the monthly close.
+# Totals use real formulas; data rows are receipt-backed inputs (not computed values).
+ac = wb.create_sheet("Alex Costs")
+ac["A1"] = "Alex Costs"; ac["A1"].font = title_font
+ac.append([])
+
+# FX rate helper cells (editable inputs, referenced by run-rate formulas)
+ac["A3"] = "EUR/SEK (approx)";      ac["B3"] = 11.20; ac["B3"].number_format = "0.00"
+ac["A4"] = "USD/SEK (approx)";      ac["B4"] = 9.60;  ac["B4"].number_format = "0.00"
+ac["A5"] = "Hetzner monthly (EUR)"; ac["B5"] = 9.99;  ac["B5"].number_format = "0.00"
+ac.append([])
+
+# Ledger — receipt-backed rows (merged from alex-cost-tracker.xlsx, 2026-07-31)
+ACL_START = 8
+for c_idx, name in enumerate(["Date", "Type", "Vendor", "Description", "Amount (SEK)"], 1):
+    cell = ac.cell(ACL_START - 1, c_idx, name)
+    cell.fill = hdr_fill; cell.font = hdr_font; cell.border = border; cell.alignment = center
+AC_ROWS = [
+    ("2026-04-24", "Annual", "Anthropic",  "Claude Pro annual €225 @ EUR/SEK 11.20",   2520.00),
+    ("2026-05-16", "API",    "Anthropic",  "API top-up #1 $25 @ USD/SEK 9.60",          240.00),
+    ("2026-06-03", "Infra",  "Hetzner",    "VPS May invoice €7.44 @ EUR/SEK 11.20",      83.33),
+    ("2026-06-22", "API",    "Anthropic",  "API top-up #2 $25 @ USD/SEK 9.60",          240.00),
+    ("2026-07-02", "API",    "Anthropic",  "API top-up #3 $25 @ USD/SEK 9.60",          240.00),
+    ("2026-07-03", "Domain", "Cloudflare", "Domain renewal $10.46 @ USD/SEK 9.60",      100.42),
+]
+ACL_END = ACL_START + len(AC_ROWS) - 1
+for i, (d, tp, vendor, desc, amt) in enumerate(AC_ROWS):
+    r = ACL_START + i
+    ac.cell(r, 1, d); ac.cell(r, 2, tp); ac.cell(r, 3, vendor); ac.cell(r, 4, desc)
+    ac.cell(r, 5, amt).number_format = CURFMT
+    if i % 2 == 1:
+        for c in range(1, 6): ac.cell(r, c).fill = alt_fill
+
+# Cash Summary (SUMIFS on the Ledger)
+sr = ACL_END + 2
+ac.cell(sr, 1, "Cash Summary").font = bold_teal
+summary_items = [
+    ("Total Cash Spent (kr)",       f"=SUM(E{ACL_START}:E{ACL_END})"),
+    ("API Top-ups",                 f'=SUMIF(B{ACL_START}:B{ACL_END},"API",E{ACL_START}:E{ACL_END})'),
+    ("Infrastructure (Hetzner)",    f'=SUMIF(C{ACL_START}:C{ACL_END},"Hetzner",E{ACL_START}:E{ACL_END})'),
+    ("Annual Plan (Anthropic Pro)", f'=SUMIF(B{ACL_START}:B{ACL_END},"Annual",E{ACL_START}:E{ACL_END})'),
+    ("Domain / Other",              f'=SUMIF(B{ACL_START}:B{ACL_END},"Domain",E{ACL_START}:E{ACL_END})'),
+]
+for k, (label, formula) in enumerate(summary_items):
+    r = sr + 1 + k
+    ac.cell(r, 1, label)
+    ac.cell(r, 2, formula).number_format = CURFMT
+    if k == 0: ac.cell(r, 1).font = Font(name="Calibri", bold=True, color=TEAL)
+
+# Monthly Run Rate (Accrual)
+rr_start = sr + 1 + len(summary_items) + 1
+ac.cell(rr_start, 1, "Monthly Run Rate (Accrual Model)").font = bold_teal
+rr_items = [
+    ("Claude Pro / month",        f'=SUMIF(B{ACL_START}:B{ACL_END},"Annual",E{ACL_START}:E{ACL_END})/12'),
+    ("Hetzner / month",           "=$B$3*$B$5"),        # EUR/SEK rate * €9.99
+    ("Cloudflare / month",        f'=SUMIF(B{ACL_START}:B{ACL_END},"Domain",E{ACL_START}:E{ACL_END})/12'),
+]
+for k, (label, formula) in enumerate(rr_items):
+    r = rr_start + 1 + k
+    ac.cell(r, 1, label); ac.cell(r, 2, formula).number_format = CURFMT
+fixed_row = rr_start + 1 + len(rr_items)
+ac.cell(fixed_row, 1, "Fixed total / month").font = Font(name="Calibri", bold=True, color=TEAL)
+ac.cell(fixed_row, 2, f"=SUM(B{rr_start+1}:B{fixed_row-1})").number_format = CURFMT
+# API projection: 3 top-ups over ~2.5 months of actual data (Apr 24 → Jul 2)
+api_row = fixed_row + 1
+ac.cell(api_row, 1, "API projected / month (3 top-ups / 2.5 mo)")
+ac.cell(api_row, 2, f'=SUMIF(B{ACL_START}:B{ACL_END},"API",E{ACL_START}:E{ACL_END})/2.5').number_format = CURFMT
+total_rr_row = api_row + 1
+ac.cell(total_rr_row, 1, "Est. Total Run Rate / month").font = Font(name="Calibri", bold=True, color=TEAL)
+ac.cell(total_rr_row, 2, f"=B{fixed_row}+B{api_row}").number_format = CURFMT
+
+# Notes
+nr = total_rr_row + 2
+ac.cell(nr, 1, "Notes").font = bold_teal
+for row_offset, note in enumerate([
+    "Merged into #08 Expense Wrangler at 2026-07-31 close (P9a / D10).",
+    "July Hetzner invoice pending Gmail scan (est. EUR 9.99 + VAT; update E10 when confirmed).",
+    "FX rates approximate; update B3:B4 from card statements when available.",
+    "Power BI dashboard: outputs/alex-costs/2026-07-03/alex-cost-dashboard.pbip (open in Desktop).",
+]):
+    ac.cell(nr + 1 + row_offset, 1, note).font = Font(name="Calibri", color="4A5A5E", size=9)
+
+ac.column_dimensions["A"].width = 42
+ac.column_dimensions["B"].width = 14
+ac.column_dimensions["C"].width = 14
+ac.column_dimensions["D"].width = 50
+ac.column_dimensions["E"].width = 14
+
 wb.save(OUT)
 print("WROTE", OUT, "| sheets:", wb.sheetnames, "| seed rows:", len(SEED))

@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-07-29. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-01. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -76,7 +76,6 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **31 Portal Scanner** (LIVE; trigger: n8n Tue & Thu 15:13 (scan + bank)) - Standalone company-portal job lane, STAGE 1 of 2: detect each company ATS once, hit its free public JSON, prefilter, and BANK matching jobs to the queue that #32 drains. Split from the engine 2026-07-28 so both workflows carry their own n8n id + cron and come under V6 leg (c) and the daily active-flag watcher.
 - **32 Portal Application Engine** (LIVE; trigger: n8n Tue & Thu 15:43 (drain + draft)) - Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28.
 - **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
-- **Alex Cost Tracker** (ON-DEMAND; trigger: monthly (piggybacks expense slot)) - What Alex itself costs: all-formula Excel + 3-page Power BI dashboard (~1,032 kr/mo cash run rate) + a zero-token per-project token-attribution collector (which project ate the quota).
 
 **Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand (plus the global `/graphify`).
 
