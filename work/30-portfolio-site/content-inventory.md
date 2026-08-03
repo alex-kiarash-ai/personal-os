@@ -11,14 +11,16 @@ Built 2026-08-03 at B1-prep, from the **live 24-frame grid** (`Website-v2-build\
 
 ## The grid as it stands
 
+> **Tagging in progress (Shaheen, 2026-08-03). Rows 1-5 recorded. Row 6 pending one clarification. Rows 7-24 not yet tagged.**
+
 | # | File | Lane | What it shows | A/B/C | Repo rights OK? |
 |---|---|---|---|---|---|
-| 1 | portfolio-1 | Hair | seated resort portrait | | |
-| 2 | portfolio-2 | Fitness | pool portrait, wet look | | |
-| 3 | portfolio-5 | Commercial | tennis action, sportswear | | |
-| 4 | portfolio-22 | Fitness | barbell curl, outdoor | | |
-| 5 | portfolio-14 | Commercial | tennis campaign, **with co-model** | | |
-| 6 | portfolio-3 | Hair | navy blazer portrait | | |
+| 1 | portfolio-1 | Hair | seated resort portrait | **A** | |
+| 2 | portfolio-2 | Fitness | pool portrait, wet look | **B** | |
+| 3 | portfolio-5 | Commercial | tennis action, sportswear | **C** | |
+| 4 | portfolio-22 | Fitness | barbell curl, outdoor | **A** | |
+| 5 | portfolio-14 | Commercial | tennis campaign, **with co-model** | **C** | |
+| 6 | portfolio-3 | Hair | navy blazer portrait | *pending: "A1" - A, or A-and-hero?* | |
 | 7 | portfolio-8 | Fitness | poolside fitness portrait | | |
 | 8 | portfolio-21 | Commercial | tennis lunge on rock | | |
 | 9 | portfolio-13 | Fitness | poolside portrait in sun | | |
