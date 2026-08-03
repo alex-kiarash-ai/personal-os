@@ -43,7 +43,7 @@ Each run also creates one **standup page** under the Personal Ops System parent 
 - **Machine state (core-owned, 2026-07-10):** `board-state.json` (the Since/status ledger, replaces the hand-maintained page-ID snapshot as the diff source), `last-run.json` (the computed summary the prose pass reads instead of re-querying Notion), `decisions-pending.md` (stale rows the morning brief surfaces as keep/drop). `status-history.md` holds the archived per-day narrative; status.md keeps only the rolling summary + the current snapshot table.
 
 ## Vault Reads
-- soul.md (voice + priority filtering: rent-moving work first, job pipeline > modeling)
+- soul.md (voice + priority filtering: rent-moving work first, job pipeline > side projects)
 - vault/projects/sprint-tracker/status.md (IDs + previous snapshot)
 - vault/projects/{name}/status.md of any automation on the board (for "what's blocking" context)
 

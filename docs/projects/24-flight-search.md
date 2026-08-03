@@ -9,4 +9,4 @@ Booking a trip means opening five tabs and comparing the same flight priced diff
 ## Works together with
 - **Kiwi + Turkish Airlines** - live sources today, connected through Claude.
 - **Google Flights + Skyscanner** - plug-in lanes that switch on the moment their connector is added; until then they simply report "unavailable" and the other two answer.
-- **Modeling project + the calendar** - when a search is for a real planned trip (like the Istanbul runs), Alex captures the trip context to the calendar or vault, never the prices.
+- **Trip ops + the calendar** - when a search is for a real planned trip (like the Istanbul runs), Alex captures the trip context to the calendar or vault, never the prices.

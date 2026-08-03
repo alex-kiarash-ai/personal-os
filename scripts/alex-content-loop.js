@@ -8,7 +8,7 @@
  * resolves a CONTINUOUS one (engagement per impression). Forcing both shapes into one file would
  * bloat the job loop that deliberately stays dumb, so this is a clean sibling, not a fork.
  *
- * SCOPE (v1): Building Alex LinkedIn episodes (#12) ONLY. Modeling (#30) and any second content
+ * SCOPE (v1): Building Alex LinkedIn episodes (#12) ONLY. Any second content
  * channel come later and only if this loop proves it is read and acted on (same 60-day rail).
  *
  * SOURCE TABLE (Tier 2, append-only):

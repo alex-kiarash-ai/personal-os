@@ -39,7 +39,7 @@ claims to cover.
 5. **metrics-history**: append vault/projects/weekly-exec-report/metrics-history/YYYY-MM-DD.md (shipped, velocity, meetings, emails, spend, drafts) for trends.
 
 ## Tone
-soul.md / Alex: lead with the single biggest lever, no filler, priority-filter next-week by rent-first (job pipeline > learning > modeling).
+soul.md / Alex: lead with the single biggest lever, no filler, priority-filter next-week by rent-first (job pipeline > learning > side projects).
 
 ## Post-Run
 - status.md (last run, deck path) + vault/index.md + vault/log.md. Clean temp (recalc/JPGs); keep only the deliverable. Do NOT re-mark the sprint row (Done at build).

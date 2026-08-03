@@ -47,9 +47,7 @@
           "run-alex-radar.ps1": "claude-sonnet-4-6",
           "run-expense-wrangler.ps1": "claude-sonnet-4-6",
           "run-landscape-eval.ps1": "claude-sonnet-4-6",
-          "run-modeling-radar.ps1": "claude-sonnet-4-6",
           "run-personal-crm.ps1": "claude-sonnet-4-6",
-          "run-modeling-weekly.ps1": "claude-sonnet-4-6",
           "run-self-review.ps1": "claude-sonnet-4-6",
           "run-morning-brief.ps1": "claude-sonnet-4-6",
           "run-weekly-exec-report.ps1": "claude-sonnet-4-6",
@@ -175,6 +173,24 @@
           "note": "merging into #08 per D10 (P9a)"
         },
         "first_fire": "2026-07-02",
+        "first_fire_kind": "live"
+      },
+      {
+        "name": "modeling",
+        "title": "Modeling Growth Loop",
+        "state": "RETIRED",
+        "revisit": null,
+        "trigger": "-",
+        "one_liner": "RETIRED (full wipe 2026-08-03, Shaheen's ruling via /prompting run 43 + research-team run 40; the lane has NO SUCCESSOR by design - radar, weekly Scout's Eye, castings@ mailbox lane, HELD Postiz lane and content engine all retired together). HQ slug kept so historical metric rows stay readable. Number 30 was reassigned the SAME DAY to portfolio-site (shaheenkiarash.com), which inherits the number only, not the function. Archive: vault/archive/modeling/ (tombstone header carries the external-state teardown checklist; the Notion Modeling Leads ids ride in the archived status.md frontmatter, and that DB stays live read-only). Pre-wipe tree: dca7893819631bfc0f0c186fbc43041f678e0b6d - resurrect any file with `git show dca7893:<path>`; the two Task Scheduler XMLs are in vault/archive/modeling/task-xml/. Deliberately NOT preserved: work/30-modeling/config/postiz.env (secrets for a deploy that never happened; the encrypted-tar retention is allowed to age out). Was: a ToS-clean mailbox casting radar (platform alert emails to a castings@ alias, never scraping) scoring briefs into a Notion lead ledger + voice-gated Gmail application drafts; a content engine in staging mode; weekly Scout's Eye + collab pipeline; monthly strategy reviewer; vault rights register underneath.",
+        "hq_project": "modeling",
+        "docs": "modeling.md",
+        "spec": null,
+        "status_md": null,
+        "cadence": {
+          "expected_hours": null,
+          "label": "retired"
+        },
+        "first_fire": "2026-07-24",
         "first_fire_kind": "live"
       }
     ]
@@ -1135,36 +1151,33 @@
     },
     {
       "num": 30,
-      "name": "modeling",
-      "title": "Modeling Growth Loop",
-      "state": "DORMANT",
-      "trigger": "Calibration (from 2026-07-22, Shaheen finished platform signups 07-22): radar (EVERY 2nd DAY 06:45, sources narrowed to Statist + ModelManagement + ACasting ONLY; criteria worldwide / male / no-nude) + weekly Scout's Eye (Mon 09:30) ARMED to measure real casting-alert cadence; content (T/W/Th 17:00) + monthly review (1st 10:00) held. Flips LIVE at Phase-0 verification: first real alert parsed end-to-end + one weekly run + one hand-posted pack.",
-      "one_liner": "The modeling career loop (growth plan runs 29+30, Phase-0 build started 2026-07-18): a ToS-clean mailbox casting radar (platform alert emails to a castings@ alias, never scraping) scoring briefs into a Notion lead ledger + voice-gated Gmail application drafts; a content engine in staging mode (hand-post packs; Postiz draft-only queue after the deferred box+deploy); weekly Scout's Eye + collab pipeline; monthly strategy reviewer with the gate-then-rolling agency plan; vault rights register underneath. Every external send is a Gmail draft or an approval queue by construction. Postiz deploy stays HELD (new CX33 box deferred, Shaheen 2026-07-18); Phase 1 unblocks when the box lands. DORMANT until Phase-0 verification: first real platform alert parsed end-to-end + the signup calibration week (Shaheen-side).",
-      "docs": "30-modeling.md",
-      "schedule_jobs": [
-        "PersonalOS-modeling-radar",
-        "PersonalOS-modeling-weekly"
-      ],
-      "hq_project": "modeling",
-      "revisit": "2026-08-01",
-      "work_dir": "work/30-modeling",
+      "name": "portfolio-site",
+      "title": "Portfolio Website",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand build sessions; GitHub Actions deploys on push to main (repo-side CI, no local cron in v1)",
+      "one_liner": "shaheenkiarash.com rebuilt as a public-repo Astro static site (took number 30 from the retired modeling lane 2026-08-03; that lane was wiped whole with no successor, tombstone in meta.unnumbered). Images-as-content portfolio + the In Motion film section, docs-as-interview-artifact, zero secrets by construction. Serves from the existing Cloudflare Worker plain-block-545a, deployed by hardened GitHub Actions + wrangler with a scoped API token (amendment A1: VPS self-hosting evaluated and DEFERRED, to keep a public surface off the production n8n box whose Caddy container owns ports 80/443; the rejection is itself the interview artifact). The website repo lives at Desktop/shaheenkiarash.com, a SIBLING of personal-os, never nested. Build runs in phases B0-B5 with hard entry gates; no code before the content and design phase closes.",
+      "docs": "30-portfolio-site.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/30-portfolio-site",
       "commands": [],
-      "status_md": "vault/projects/modeling/status.md",
+      "status_md": "vault/projects/portfolio-site/status.md",
       "cadence": {
         "expected_hours": null,
-        "label": "dormant",
-        "note": "DORMANT-calibrating since 2026-07-22: radar (every 2nd day) + weekly armed to measure casting cadence (zero mail reads green pre-first_fire by design, mailbox.md). Radar sources narrowed to Statist/ModelManagement/ACasting; criteria worldwide, male, no-nude. Flips LIVE (expected_hours ~48, label every-2-days) at Phase-0 verification when all four jobs register."
+        "label": "on-demand",
+        "note": "Deploys ride GitHub Actions on push to main (repo-side, not a local job), so there is nothing here for C7/V2 to age. A Phase-4 local monitor, if ever built, arrives together with its wrapper + a schedule.md entry + a model_routing pin + an hq_project slug 'portfolio-site' - never one without the others."
       },
       "trifecta": {
-        "private_data": true,
-        "untrusted_content": true,
+        "private_data": false,
+        "untrusted_content": false,
         "external_comm": true,
-        "gate": "queue-only"
+        "gate": "human-posts"
       },
-      "first_fire": "2026-07-24",
+      "first_fire": null,
       "n8n": null,
       "claude_md_sha": null,
-      "first_fire_kind": "live"
+      "first_fire_kind": null
     },
     {
       "num": 31,

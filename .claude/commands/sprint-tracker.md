@@ -20,7 +20,7 @@ Spec: work/01-sprint-tracker/CLAUDE.md (read it first). Voice: Alex (soul.md) - 
 2. **Read `vault/projects/sprint-tracker/last-run.json`** - the computed summary: `counts`, `velocity` (delta, shipped, reconciled), `missed_runs`, `stale[]`, `contract_missing[]`.
 3. **Write the standup** `vault/projects/sprint-tracker/standups/YYYY-MM-DD.md` (Alex voice, [[wiki links]]):
    - Open with a missed-run warning if `missed_runs > 0`.
-   - **The one thing:** the single highest-leverage lever, priority-filtered by soul.md (Job Pipeline > learning > Modeling). Pull blocker context from `vault/projects/{name}/status.md`.
+   - **The one thing:** the single highest-leverage lever, priority-filtered by soul.md (Job Pipeline > learning > side projects). Pull blocker context from `vault/projects/{name}/status.md`.
    - **Board:** counts + the honest velocity (shipped vs reconciled, not the raw Done delta). **State the source:** if the core ran from cache, say the numbers are cache-derived and give the snapshot date. Never present cache-derived velocity as board-derived.
    - **Stale (5+ wd):** from `stale[]`, each with what it waits on.
    - **Contract:** if `contract_missing[]` is non-empty, flag it as a /new step-5 miss; else "clean".

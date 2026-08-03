@@ -110,11 +110,11 @@ still holds: the watch stores last-seen for the DROP comparison only, never reus
 - **Design intent:** graceful degradation is the whole point - a fresh session runs on **three live lanes** (Kiwi + Turkish + Google Flights), and Skyscanner activates the moment a legit MCP connects, with zero spec change.
 
 ## Notion Integration
-None by design. This is a live lookup tool - the table IS the deliverable, and prices go stale, so nothing is persisted to a database. (If a search maps to a **real trip Shaheen is planning**, capture the trip context - not the price table - per Activity Capture: a Google Calendar hold and/or a vault/research or vault/projects/modeling note. The fetched prices are never treated as durable.)
+None by design. This is a live lookup tool - the table IS the deliverable, and prices go stale, so nothing is persisted to a database. (If a search maps to a **real trip Shaheen is planning**, capture the trip context - not the price table - per Activity Capture: a Google Calendar hold and/or a vault/research note, or a #29 trip-ops trip note if it is a real booked trip. The fetched prices are never treated as durable.)
 
 ## Vault Structure
 - **Tier 1:** `vault/projects/flight-search/status.md` - last run, run count, which lanes are live, recent searches (routes + dates only, **never prices**).
-- **Tier 2:** none by default. Only when a search is for a real planned trip: the trip note lives where it belongs ([[projects/modeling/status]] for the Istanbul runs, vault/research/ for one-offs), linked, price-free.
+- **Tier 2:** none by default. Only when a search is for a real planned trip: the trip note lives where it belongs ([[projects/trip-ops/status]] for booked travel, vault/research/ for one-offs), linked, price-free. *(Corrected 2026-08-03: this pointed at `[[projects/modeling/status]]` for the Istanbul runs, which was archived when the #30 modeling lane was retired; travel is #29's job and always was.)*
 
 ## Vault Reads
 - soul.md (voice).

@@ -4,7 +4,7 @@
 Automation
 
 ## Purpose
-Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calendar, and relevant Notion/vault project context, filtered hard through soul.md priorities (priority order: job pipeline > learning > modeling; personal flagged warmly). Output is scannable in under 3 minutes: Urgent / Today's Calendar / Key Context / FYI. Noise (newsletters, promos) is counted, not listed.
+Daily 8:00 summary of what hit overnight: unread Gmail (last 12h), today's calendar, and relevant Notion/vault project context, filtered hard through soul.md priorities (priority order: job pipeline > learning > the portfolio website #30; personal flagged warmly). Output is scannable in under 3 minutes: Urgent / Today's Calendar / Key Context / FYI. Noise (newsletters, promos) is counted, not listed.
 
 ## Output format: the Index (7-line cap, added #02 Phase 1, 2026-07-25)
 Community consensus on daily agent briefs is unanimous: **length kills them.** The brief is an INDEX, not
