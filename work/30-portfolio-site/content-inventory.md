@@ -103,6 +103,18 @@ The whole set was shot professionally. Displaying them on a website is a grant y
 | **pietroboselli.com** | Celebrity-scale presentation, useful for how a physique-led book is sequenced | **No visible booking contact.** The review's sharpest finding: independents win on contact friction, so do the opposite here |
 | **oliviabannerman.com** | The Digitals-tab convention done properly, for when `/digitals` comes back | Different market; borrow the pattern, not the styling |
 
-Five is enough to pick three from, and every row is grounded. **If you want a wider field, say so and Alex will run a fresh verified sweep** rather than padding this table with names nobody has opened.
+## PICKED (Shaheen, 2026-08-03): orancusack.com · pedro-kalk.webflow.io · pietroboselli.com
 
-**How to pick:** one line each on what to steal and what to avoid. What matters is the *decision path* - how fast a booker gets from landing, to seeing your best frame, to knowing how to contact you. Pick three that differ from each other, not three variations of the same look.
+Steal/avoid drafted below by Alex from the run-31 findings on these exact sites. **Correct any line you disagree with** - these drive the wireframes, so a wrong read here becomes a wrong layout.
+
+| Site | STEAL | AVOID |
+|---|---|---|
+| **orancusack.com** | The whole decision path. It is the closest working comparable: a real book, campaigns stamped by season so the work reads as current, and a booking route that does not make you hunt. Season-stamping is the cheapest credibility win available and costs one line of front matter per photo | Its full structure. It carries an agency page and a booking form; v1 is four pages with no backend, so take the *sequence* (see the work, believe it is current, know how to book) and not the page count |
+| **pedro-kalk.webflow.io** | The proof layer, which is exactly what the 2026-07-18 review said your site was missing: a client strip and real stats presented as fact rather than decoration. You already have the clients credited (Shady Rays, Lullevibes) and the stats sitting in your own PDF | The Webflow finish. Template polish reads generic fast, and generic is the one thing a portfolio cannot afford. Your taste layer was the part the review told you to protect |
+| **pietroboselli.com** | How a physique-led book is sequenced at scale. Given your A-tier is ~64% shirtless, this is the most relevant reference you picked: it shows physique work presented as professional rather than as thirst, which is entirely a sequencing and restraint problem | **Its contact.** The review's sharpest single finding: it has no visible booking contact. That works when clients chase you and is fatal when you are the one being chosen. Do the opposite, deliberately and visibly |
+
+**The set is coherent, and worth naming:** two of the three are about *credibility* (Cusack's currency, Kalk's proof layer) and one is about *presentation of physique work*. Nothing you picked is about categories or galleries, which fits a 4-page v1 with one stream.
+
+**The one tension to hold:** Boselli is the reference for a body-led book, and your grid is body-led, so it will pull hardest on the design. But it is also the site that fails the thing you most need to succeed at, which is being easy to book. Steal the sequencing, refuse the contact model.
+
+**How the wireframes will use this:** the decision path is the spec. Landing, best frame, believe it is current, know how to book. Cusack sets the order, Kalk supplies the proof block, Boselli sets restraint in how the physique frames are paced.
