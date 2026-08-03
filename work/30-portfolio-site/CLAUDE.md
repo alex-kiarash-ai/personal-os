@@ -69,6 +69,23 @@ PROJECT.md specified self-hosting on the Hetzner VPS behind a reverse proxy. **R
 
 **If a local Phase-4 monitor is ever built**, its `scripts/run-*.ps1` wrapper, its `scheduler/schedule.md` entry, its `meta.model_routing.local_wrappers` pin and an `hq_project` slug all arrive in the SAME change. Not before.
 
+## Design system (locked at B1, 2026-08-04)
+
+Inherited from the current site, because the 2026-07-18 review judged its taste layer a strength to protect. This is a refinement, not a reinvention. Wireframes + the measured evidence: `outputs/portfolio-site/2026-08-04/wireframes.html`.
+
+**Palette (near-black, warm on both ends).** `--bg #0b0b0c` · `--bg-deep #070708` · `--bg-elevated #111113` · `--frame #1a1a1c` · `--ink #f3f2ef` · `--ink-soft #c7c6c1` · `--muted #8d8c87` · **`--faint #83827d`**.
+
+**The one change, and it fixes a real defect.** `--faint` was `#7a7974`, carrying a CSS comment saying it had been raised "to clear WCAG AA (~4.5:1 on --bg)". It does, at **4.51:1, by one hundredth** - but that was measured against the canvas only, and the token is also used on `--bg-elevated` and `--frame`, where it falls to **4.32 and 3.98** and stops passing. `#83827d` clears 4.5:1 on all four surfaces (5.11 / 4.90 / 4.51) and keeps the warm hue relationship. **Carry this into the Astro build; do not re-inherit the old value.** Everything else in the palette passes comfortably, `--ink` at 17.57:1 down to `--muted` at 5.16:1 on the worst surface.
+
+**Type.** Display: **Cormorant Garamond** - locked, it carries the entire editorial character and is the reason the site does not read as a template. Body/UI: **Inter today; Archivo proposed.** Not yet Shaheen's call. The spec requires self-hosted fonts and no third-party font calls, and the site currently pulls both faces from the Google Fonts CDN, so the loading changes at B2 regardless; that is the moment the question has to be answered. It is one CSS variable and blocks nothing.
+
+**Layout rules that came out of the wireframes:**
+- **Contact appears twice**, in the nav and as a full block on every page. This is the deliberate inversion of pietroboselli.com, whose hidden booking route was the review's sharpest single finding.
+- **Season-stamped captions** on portfolio frames (Cusack). A dated caption is the cheapest credibility signal available.
+- **Interleave rule, load-bearing:** never place two shirtless frames adjacent while a clothed A-frame is unplaced. The A-tier is ~64% shirtless and only 5 of 14 frames are fully clothed, so the interleave runs out about two thirds down. That constraint is the real argument for a shoot.
+- **No form anywhere.** v1 is email + Instagram links only, so nothing can silently fail and lose an enquiry.
+- **Any wide element scrolls inside its own container.** Found the hard way in the wireframe itself: a six-column table cannot shrink below its content and dragged the whole document wider than the viewport. The old site's worst mobile finding was the same class.
+
 ## Notion Integration
 None in v1. Nothing here is row-shaped; `vault/projects/portfolio-site/status.md` is the record. (The Progress Tracker board row is a separate, owner-side thing.)
 
