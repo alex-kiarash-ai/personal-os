@@ -29,7 +29,9 @@ Explicitly out of v1: booking/contact forms, lightbox (candidate v1.1), a CMS, a
 | Photo masters (private tier) | `Desktop\Claude\Modeling\{Website, _backups}\`, `Desktop\personal-os-backups\website-2026-07-18\` | full-resolution originals NEVER enter the public repo |
 | Live serving | Cloudflare Worker `plain-block-545a` | see deploy-runbook.md |
 
-## Hosting: Cloudflare, not the VPS (amendment A1, the one change to Shaheen's frozen spec)
+## Hosting: Cloudflare, not the VPS (amendment A1 - APPROVED by Shaheen 2026-08-03)
+
+> **Settled, and it is now the spec.** Shaheen's words: *"Approve A1, keep it on Cloudflare."* This was the one amendment that touched his frozen scope. The VPS path is deferred rather than dead; the conditions for reviving it are at the end of this section.
 
 PROJECT.md specified self-hosting on the Hetzner VPS behind a reverse proxy. **Rejected for v1, and the rejection is itself the interview artifact.** Three reasons, all evidence not taste:
 
@@ -56,7 +58,7 @@ PROJECT.md specified self-hosting on the Hetzner VPS behind a reverse proxy. **R
 
 | # | Phase | Entry gate | Output | Exit gate |
 |---|---|---|---|---|
-| **B0** | Spec amendments | T1 committed + Shaheen's A1 sign-off | PROJECT.md amended in place; rights ask sent; URL inventory + 301/kill map drafted | PROJECT.md internally consistent with A1 |
+| **B0** | Spec amendments | ~~T1 committed + Shaheen's A1 sign-off~~ **CLEARED 2026-08-03** | PROJECT.md amended in place; rights ask sent; URL inventory + 301/kill map drafted | **PASSED 2026-08-03.** PROJECT.md internally consistent with A1, consistency-checked; A1 approved by Shaheen the same day |
 | **B1** | Content + design | B0 | Photo inventory A/B/C + rights column + hero check; 3 reference sites picked; wireframes for 4 pages + film; palette stress-tested on near-black; typography locked | **PROJECT.md's own gate: no code before this is done** |
 | **B2** | Foundation | B1 + `portfolio-desktop-creds` closed | Public repo created (secret scanning + push protection on); Astro scaffold; LICENSE split; hardened `deploy.yml`; scoped CF token in Actions secrets; **first CI deploy to a STAGING worker**, not production; smoke checks wired; `deploy/README.md` + `docs/decisions.md` seeded | Scaffold live on staging via green CI |
 | **B3** | Build | B2 + the rights answer (or the private-fetch fallback wired) | 4 pages + film section; image pipeline from renamed masters; responsive; SEO + canonical/og; redirect map; Lighthouse 95+. **Then point CI at `plain-block-545a`** and cut over | New site live, old content one `wrangler rollback` away. Stamp `first_fire` + run the generator |
