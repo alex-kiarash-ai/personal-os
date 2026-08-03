@@ -21,7 +21,9 @@ Retiring it whole, in one deliberate move with a written record, is the point. A
 - **The Instagram account** is untouched; it is Shaheen's, and the new site links to it.
 
 ## What still needs a human hand
-Switching off a system that reaches outside the laptop is not finished by deleting files. Four things live in other people's systems and are on Shaheen's list: the forwarding rule for the casting email address (only that one rule, because his real contact address runs on the same settings), the two Gmail filters that sorted casting mail, a row on the Notion progress board, and the casting-platform accounts, one of which is a paid subscription that keeps charging until he cancels it.
+Switching off a system that reaches outside the laptop is not finished by deleting files. Three things live in other people's systems and are on Shaheen's list: the forwarding rule for the casting email address (only that one rule, because his real contact address runs on the same settings), the two Gmail filters that sorted casting mail, and a row on the Notion progress board.
+
+**His casting-platform accounts are deliberately not on that list.** An earlier version of this page said one of them should be cancelled. That was wrong, and Shaheen caught it. Those accounts are his, they belong to his modeling career rather than to this software, and switching off the program that read their emails says nothing about whether he wants the accounts. The paid one is also already paid a year ahead, so cancelling it early would throw away access he owns. The only thing left is a note to decide, at the renewal date, whether to renew it.
 
 ## Getting it back
 It is fully recoverable, which is why it could be removed with confidence. Every file of it is preserved in the project's own version history at the point just before deletion, the two scheduled jobs are saved as importable definitions, and the archived record explains exactly where everything sits. The single deliberate exception is a pair of passwords for the Instagram-publishing server that was never actually bought; they guarded nothing, so they were allowed to expire rather than be kept.
