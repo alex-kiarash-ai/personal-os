@@ -11,34 +11,49 @@ Built 2026-08-03 at B1-prep, from the **live 24-frame grid** (`Website-v2-build\
 
 ## The grid as it stands
 
-> **Tagging in progress (Shaheen, 2026-08-03). Rows 1-5 recorded. Row 6 pending one clarification. Rows 7-24 not yet tagged.**
+> ## TAGGING COMPLETE - Shaheen, 2026-08-03. All 24 rows.
+> **14 A · 4 B · 6 C.** Comfortably past the 12-frame minimum, so **no shoot is required to launch** on count.
+>
+> **A-tier (the site):** 1, 3, 4, 5, 6, 7, 9, 12, 13, 15, 16, 19, 21, 24
+> **B-tier (reserve):** 2, 11, 17, 23 · **Cut:** 8, 10, 14, 18, 20, 22
+>
+> **Three outcomes that change the build:**
+> 1. **The tennis problem solved itself.** Of the 8 near-identical campaign frames, 6 are cut and 2 kept (rows 3 and 5). The grid no longer reads as one shoot repeated.
+> 2. **Co-model exposure collapsed to ONE frame** (row 5). Rows 10, 18 and 22 are all cut. The rights ask still matters, but it now hangs on a single image instead of four, and a "no" costs one frame rather than a section.
+> 3. **The commercial lane got healthier, not smaller.** It was 10 frames of which 8 were tennis; it is now 4 genuinely different looks: two tennis, the white tee, the tailoring. All three clothed commercial frames survived.
+>
+> **A-tier lane mix:** Fitness 7 · Commercial 4 · Hair 3.
+>
+> **Two things the tagging did NOT fix, both real and both for the design phase:**
+> - **The shirtless proportion went UP, not down.** 8 of the 14 A-frames are shirtless and a 9th is sleeveless, so ~64% skin-forward against 46% before. That is arithmetic, not judgement: mostly-clothed tennis frames were cut, so what remains leans further that way. Only 5 A-frames are fully clothed (3, 5, 6, 12, 16). If the goal is still to reduce that skew, the lever is now a shoot, not a selection.
+> - **Still no horizontal frame.** All 14 A-frames are 4:5 portrait, so `hero.jpg` remains the only hero candidate with nothing in the book to support it.
 
 | # | File | Lane | What it shows | A/B/C | Repo rights OK? |
 |---|---|---|---|---|---|
 | 1 | portfolio-1 | Hair | seated resort portrait | **A** | |
 | 2 | portfolio-2 | Fitness | pool portrait, wet look | **B** | |
-| 3 | portfolio-5 | Commercial | tennis action, sportswear | **C** | |
+| 3 | portfolio-5 | Commercial | tennis action, sportswear | **A** *(reversed from C by Shaheen, "keep 3 and 5")* | |
 | 4 | portfolio-22 | Fitness | barbell curl, outdoor | **A** | |
-| 5 | portfolio-14 | Commercial | tennis campaign, **with co-model** | **C** | |
-| 6 | portfolio-3 | Hair | navy blazer portrait | *pending: "A1" - A, or A-and-hero?* | |
-| 7 | portfolio-8 | Fitness | poolside fitness portrait | | |
-| 8 | portfolio-21 | Commercial | tennis lunge on rock | | |
-| 9 | portfolio-13 | Fitness | poolside portrait in sun | | |
-| 10 | portfolio-15 | Commercial | seated tennis campaign | | |
-| 11 | portfolio-4 | Fitness | full-length denim | | |
-| 12 | portfolio-9 | Commercial | clean white-tee portrait | | |
-| 13 | portfolio-18 | Fitness | boxing warm-up, green setting | | |
-| 14 | portfolio-16 | Commercial | tennis campaign, crouching | | |
-| 15 | portfolio-20 | Fitness | seated by the sea, golden hour | | |
-| 16 | portfolio-6 | Commercial | white shirt and tailoring | | |
-| 17 | portfolio-23 | Fitness | post-training with towel | | |
-| 18 | portfolio-24 | Commercial | tennis campaign, **with co-model** | | |
-| 19 | portfolio-7 | Fitness | seated portrait | | |
-| 20 | portfolio-25 | Commercial | tennis crouch on rocks | | |
-| 21 | portfolio-27 | Fitness | physique portrait | | |
-| 22 | portfolio-17 | Commercial | tennis campaign, **with co-model** | | |
-| 23 | portfolio-26 | Fitness | barbell training, sun | | |
-| 24 | portfolio-12 | Hair | seated portrait, full length | | |
+| 5 | portfolio-14 | Commercial | tennis campaign, **with co-model** | **A** *(reversed from C; co-model frame, so the rights answer applies here)* | |
+| 6 | portfolio-3 | Hair | navy blazer portrait | **A** *("A1" confirmed as plain A, not a hero pick)* | |
+| 7 | portfolio-8 | Fitness | poolside fitness portrait | **A** | |
+| 8 | portfolio-21 | Commercial | tennis lunge on rock | **C** | |
+| 9 | portfolio-13 | Fitness | poolside portrait in sun | **A** | |
+| 10 | portfolio-15 | Commercial | seated tennis campaign, **with co-model** | **C** | |
+| 11 | portfolio-4 | Fitness | full-length denim | **B** | |
+| 12 | portfolio-9 | Commercial | clean white-tee portrait | **A** | |
+| 13 | portfolio-18 | Fitness | boxing warm-up, green setting | **A** | |
+| 14 | portfolio-16 | Commercial | tennis campaign, crouching | **C** | |
+| 15 | portfolio-20 | Fitness | seated by the sea, golden hour | **A** | |
+| 16 | portfolio-6 | Commercial | white shirt and tailoring | **A** | |
+| 17 | portfolio-23 | Fitness | post-training with towel | **B** | |
+| 18 | portfolio-24 | Commercial | tennis campaign, **with co-model** | **C** | |
+| 19 | portfolio-7 | Fitness | seated portrait | **A** | |
+| 20 | portfolio-25 | Commercial | tennis crouch on rocks | **C** | |
+| 21 | portfolio-27 | Fitness | physique portrait | **A** | |
+| 22 | portfolio-17 | Commercial | tennis campaign, **with co-model** | **C** | |
+| 23 | portfolio-26 | Fitness | barbell training, sun | **B** | |
+| 24 | portfolio-12 | Hair | seated portrait, full length | **A** | |
 
 Plus: `hero.jpg` (the current hero, separate from the grid), `about-portrait.jpg`, and 6 `digital-*` frames currently unpublished (the `/digitals` page is deliberately 404).
 
