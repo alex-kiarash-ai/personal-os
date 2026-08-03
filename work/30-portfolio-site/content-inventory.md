@@ -2,9 +2,12 @@
 
 Built 2026-08-03 at B1-prep, from the **live 24-frame grid** (`Website-v2-build\index.html`), which is already curated, already rights-vetted and already solo-rule filtered. This is a pass over a shortlist, not a blank page.
 
+**Look at the contact sheet first: `outputs/portfolio-site/2026-08-03/contact-sheet-24.jpg`.** All 24 frames on one image, in the same order as the table below, each labelled with its row number, its file, and its lane. Tag from that rather than from filenames.
+
 **Your job: fill the A/B/C column and the rights column. Everything else is done.**
 - **A** = definitely on the new site. **B** = maybe, use if the grid needs filling. **C** = cut.
 - Target: **12+ A-frames**. Below that, PROJECT.md says plan a shoot before launch.
+- You don't have to edit this file. Say the tags however is easiest ("1 A, 2 C, 3 B...") and Alex fills it in.
 
 ## The grid as it stands
 
@@ -49,9 +52,19 @@ Three consequences worth deciding on rather than discovering at launch:
 2. **Hair is under-served at 3 frames** while it is one of the three intent pages the old site ran for search. Either it earns more frames or it stops being a headline lane.
 3. **Repeating one campaign eight times reads as a thin book**, even when each frame is good. A tighter grid of ~16-20 with fewer near-duplicates will look stronger than 24 with eight tennis frames.
 
-**Variety check (PROJECT.md's own requirement):** close-up, half body and full body are all present. **The one strong horizontal for the hero still needs confirming** - the grid is uniformly 4:5 portrait and `hero.jpg` is the only candidate. Worth checking that it holds up wide on a desktop screen before the design phase locks.
+**Variety check (PROJECT.md's own requirement):** close-up, half body and full body are all present. **Confirmed by looking at the sheet: there is NO horizontal frame in the grid at all.** Every one of the 24 is 4:5 portrait, so `hero.jpg` is the only hero candidate and nothing in the book can back it up. Check it holds up wide on a desktop screen before the design locks, because if it doesn't, that is a shoot requirement rather than a design problem.
 
-**Three frames carry a co-model** (#5, 18, 22). Allowed under the solo rule as supporting frames, and you wanted them in for production value. Two notes: they must not lead a page, and the rights column matters more for them, because the co-model consented to the campaign, not necessarily to a public code repository.
+**FOUR frames carry a co-model, not three: rows 5, 10, 18, 22** *(corrected 2026-08-03 by looking at the contact sheet; the caption-derived list missed row 10 / `portfolio-15`, whose alt text never mentions the second person).* Allowed under the solo rule as supporting frames, and you wanted them for production value. Two notes: they must not lead a page, and **the rights column matters most on these four**, because the co-model consented to a campaign, not necessarily to a public code repository. The drafted photographer email asks about exactly this.
+
+### What the pictures show that the captions did not
+
+Reading the sheet rather than the alt text, two things stand out and both bear on how the new site positions you.
+
+**Roughly half the grid is shirtless** (rows 1, 2, 4, 7, 9, 11, 15, 19, 21, 23, 24, plus the tank and towel frames at 13 and 17). That is a real signal about what a booker will conclude you are for. Your own notes from the old lane already listed reducing the shirtless skew as a goal, and the numbers agree.
+
+**Only three frames are clothed, non-sport, commercial:** row 6 (navy blazer), row 16 (white shirt and tailoring), row 12 (clean white tee). Those three are carrying the entire "book me for commercial and tailoring" argument on their own. If that is work you want, they are automatic A-frames and the grid needs more like them, not more beach frames. If you are happy being booked as fitness and sportswear, the grid is already right and just needs trimming.
+
+**And the eight tennis frames really do look like eight tennis frames** (rows 3, 5, 8, 10, 14, 18, 20, 22): same location, same rocks, same kit, same light. Individually good. Side by side on one grid they read as one shoot repeated, which makes the book look thinner than it is. Picking the best two or three of them would make the whole page stronger.
 
 ## Alt text needs rewriting anyway
 
