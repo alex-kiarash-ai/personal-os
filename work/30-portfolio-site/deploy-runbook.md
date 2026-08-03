@@ -21,9 +21,30 @@ This file seeds the new repo's `deploy/README.md` at B2.
 - `Desktop\Claude\Modeling\Website\` is the pre-upgrade content, kept as a local rollback copy.
 
 ## After the B3 cutover
-Source of truth becomes the public repo at `Desktop\shaheenkiarash.com`. `dist/` is built by GitHub Actions and deployed with `wrangler deploy` to the **same worker name**, using a scoped Cloudflare API token held in Actions secrets. The `Website-v2-build` folder becomes a private archive, not a deploy source. Two mechanics to settle at B2 against live docs (both currently UNVERIFIED):
-- the current `cloudflare/wrangler-action` commit SHA to pin, and the exact API-token scope names;
-- whether `_redirects` is honoured by Workers static assets (it is a Pages convention). Fallback for the redirect map: an assets router or meta-refresh stubs. Also set `not_found_handling` for the deliberate 404s.
+Source of truth becomes the public repo at `Desktop\shaheenkiarash.com`. `dist/` is built by GitHub Actions and deployed with `wrangler deploy` to the **same worker name**, using a scoped Cloudflare API token held in Actions secrets. The `Website-v2-build` folder becomes a private archive, not a deploy source.
+
+**The B2 mechanics were resolved 2026-08-03, ahead of the phase, so it starts with no unknowns:**
+
+| Question | Answer | Source |
+|---|---|---|
+| `cloudflare/wrangler-action` pin | **v4.0.0 = commit `ebbaa1584979971c8614a24965b4405ff95890e0`** (released 2026-05-12; lightweight tag, so that ref IS the commit). Pin the SHA, not the tag, per hard rule 6 | GitHub API, read this session |
+| Does `_redirects` work on Workers static assets? | **YES, natively** - "Workers natively supports `_headers` and `_redirects` files for static assets", placed in the assets directory. No assets-router or meta-refresh fallback needed | developers.cloudflare.com/workers/static-assets/redirects |
+| Static-site `wrangler.jsonc` shape | No `main`, no Worker script. `assets.directory` plus `not_found_handling: "404-page"` and `html_handling: "auto-trailing-slash"` (the latter matters here: the indexed intent-page URLs carry no trailing slash) | Cloudflare Workers docs |
+| API token scope | Account-level **Workers Scripts: Edit**; the dashboard's "Edit Cloudflare Workers" template covers it. **Confirm against the template at creation** - not verified from a primary source, and Shaheen sees the real option names when he makes the token | to confirm |
+
+Concrete config for B2 (worker name kept, per hard rule 8):
+
+```jsonc
+{
+  "name": "plain-block-545a",
+  "compatibility_date": "2026-08-03",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  }
+}
+```
 
 ## To deploy a change (current, hand-run)
 1. Edit files in `Website-v2-build\`.

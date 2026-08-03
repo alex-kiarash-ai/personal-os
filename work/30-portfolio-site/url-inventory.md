@@ -35,7 +35,24 @@ The three `*-model-stockholm` pages were built deliberately (research run 31/32)
 
 ## Implementation notes for B2/B3
 
-- The redirect mechanism on Cloudflare Workers static assets is **UNVERIFIED** (`_redirects` is a Pages convention; Workers assets config may differ). Settle it at B2 from live docs. Fallbacks: an assets router, or `not_found_handling` plus meta-refresh stubs. Whatever wins, the map lives in ONE config block so v1.1 can reverse three rows cleanly.
+**RESOLVED 2026-08-03 (was UNVERIFIED): `_redirects` works natively on Workers static assets.** Cloudflare's own docs: *"Workers natively supports `_headers` and `_redirects` files for static assets. These files should be included in the static asset directory of your project."* (developers.cloudflare.com/workers/static-assets/redirects). So the fallbacks the plan reserved - an assets router, or `not_found_handling` plus meta-refresh stubs - are **not needed**. Drop this file into `public/` so Astro copies it to `dist/`:
+
+```
+# _redirects - the A5 map. Three of these reverse out at v1.1 when the
+# intent pages come back as tag-driven routes. Keep them together.
+/commercial-model-stockholm   /portfolio   301
+/fitness-model-stockholm      /portfolio   301
+/hair-model-stockholm         /portfolio   301
+/now                          /about       301
+```
+
+`/digitals` gets NO row: it should keep 404ing, which is its current deliberate state.
+
+**Also resolved, same session, from the same docs.** The `wrangler.jsonc` for a static site needs no `main` and no Worker script, and two asset keys matter here:
+- `"not_found_handling": "404-page"` - serves a real 404 page instead of an SPA fallback, which is right for a static portfolio and keeps `/digitals` honestly 404.
+- `"html_handling": "auto-trailing-slash"` - **load-bearing for this site specifically**, because the surviving intent-page URLs are indexed WITHOUT trailing slashes (`/commercial-model-stockholm`), and this is what makes those resolve to the redirect rather than miss.
+
+Still to confirm at token-creation time (Shaheen sees the option names in the dashboard): the exact API-token scope. The deploy needs account-level **Workers Scripts: Edit**; Cloudflare ships an "Edit Cloudflare Workers" template that covers it. Not asserted here from a primary source, so check the template rather than trusting this line.
 - Carry the existing `<link rel=canonical>` pattern: the workers.dev preview URL serves the same content, and canonical is what stops it competing with the apex in search.
 - The site has been indexed since July, so 301s (not 302s) are correct - the aim is to pass the earned signal to the surviving page.
 - After the cutover, resubmit `sitemap.xml` in Search Console and confirm the three retired URLs report as redirects rather than errors.
