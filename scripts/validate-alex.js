@@ -703,7 +703,7 @@ function v7StateDriftLint({ stagedDir, manifest }, failures, warnings) {
 
 // ---------------------------------------------------------------------------------------------
 // V8 - HQ hex scan + token staleness (upgrade P5, 2026-07-12, design 1.6/4.5). ERROR-tier.
-//      (a) every hex literal in the HQ app source (work/16-alex-hq/app: *.ts/*.tsx/*.css under
+//      (a) every hex literal in the HQ app source (the alex-hq repo's app/: *.ts/*.tsx/*.css under
 //          app/, lib/ and any future scripts/; node_modules, .next, public/data and the generated
 //          tokens.css itself excluded) must resolve to a hex the color law defines (parseColorTokens
 //          allHexes - the SAME contract V5 and the emitter use) or sit on the documented allowlist;
@@ -713,7 +713,9 @@ function v7StateDriftLint({ stagedDir, manifest }, failures, warnings) {
 //      V5 deliberately excludes work/** (the work/12 locked diagram palette); V8 is the surgical
 //      extension for the ONE work/ surface that is identity-carrying UI, the HQ app.
 // ---------------------------------------------------------------------------------------------
-const HQ_APP_DIR = 'work/16-alex-hq/app';
+// The HQ app moved to its own repo on 2026-08-04; its location is resolved, never hardcoded
+// (env ALEX_HQ_REPO -> manifest meta.paths.alex_hq_repo -> ../alex-hq sibling).
+const hqRepo = require('./lib/alex-hq-path');
 // V8 allowlist - every entry documented:
 //   #ffffff : law §4.2 primary text on dark (also in allHexes; listed for explicitness)
 //   (#ff8a75 retired from the allowlist 2026-07-12, P8/D5: it is now the law token Signal Coral
@@ -722,49 +724,67 @@ const HQ_APP_DIR = 'work/16-alex-hq/app';
 const V8_ALLOWLIST = new Set(['#ffffff']);
 const V8_EXTS = new Set(['.ts', '.tsx', '.css']);
 
-function v8HqHexScan({ stagedDir, colorTokens }, failures) {
-  // collect candidate rels from the repo tree AND the staged tree (staged copy wins via effective)
-  const rels = new Set();
-  const collect = (baseAbs, baseRel) => {
-    if (!fs.existsSync(baseAbs)) return;
-    (function walk(dir) {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (e.name === 'node_modules' || e.name === '.next') continue;
-        const p = path.join(dir, e.name);
-        const rel = baseRel + '/' + path.relative(baseAbs, p).split(path.sep).join('/');
-        if (e.isDirectory()) {
-          if (rel === `${HQ_APP_DIR}/public/data`) continue;
-          walk(p);
-        } else if (V8_EXTS.has(path.extname(e.name).toLowerCase()) && rel !== genTokens.CSS_REL) {
-          rels.add(rel);
-        }
-      }
-    })(baseAbs);
-  };
-  collect(path.join(REPO, HQ_APP_DIR), HQ_APP_DIR);
-  if (stagedDir) collect(path.join(stagedDir, HQ_APP_DIR), HQ_APP_DIR);
-
+function v8HqHexScan({ stagedDir, colorTokens }, failures, warnings) {
+  const norm = t => t.replace(/\r\n/g, '\n');
   const allHexes = colorTokens.allHexes;
+
+  // (b1) tokens.json - still a personal-os artifact, still staged + swapped normally.
+  {
+    const eff = effective(stagedDir, genTokens.JSON_REL);
+    if (!eff) failures.push(`FAILED V8: ${genTokens.JSON_REL} missing - run 'node scripts/generate-alex.js' to emit the brand tokens`);
+    else if (norm(eff.text) !== norm(genTokens.tokensJson(colorTokens)))
+      failures.push(`FAILED V8: ${genTokens.JSON_REL} (${eff.from}) is STALE against brand/config/color-system.md - regenerate (node scripts/generate-alex.js), never hand-edit`);
+  }
+
+  // The app itself left personal-os on 2026-08-04 (the website split), so (a) and (b2) read a
+  // SIBLING repo. A machine that has personal-os but not the website is legitimate - the checks
+  // then WARN. They must never silently pass (that would quietly retire the brand guard on the
+  // one identity-carrying UI surface, the exact class C19/C21 exist to catch) and must never hard
+  // fail either, or the pre-commit gate breaks on every machine that does not host the site.
+  if (!hqRepo.exists()) {
+    warnings.push(`WARNING V8 SKIPPED: the alex-hq website repo is not on this machine (${hqRepo.root()}) - the HQ off-palette hex scan and the tokens.css staleness check did NOT run. Clone it, or set ALEX_HQ_REPO / manifest meta.paths.alex_hq_repo.`);
+    return;
+  }
+
+  // (a) off-palette hex scan over the website's source. Paths are reported with an <alex-hq>/
+  //     prefix so a failure line names the repo it actually means.
+  // Repo root IS the app root since the 2026-08-04 flatten (no more nested app/app/).
+  const HQ_APP_ABS = hqRepo.root();
+  const rels = new Set();
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name === '.next' || e.name === 'qa') continue;
+      const p = path.join(dir, e.name);
+      const rel = path.relative(HQ_APP_ABS, p).split(path.sep).join('/');
+      if (e.isDirectory()) {
+        if (rel === 'public/data') continue;
+        walk(p);
+      } else if (V8_EXTS.has(path.extname(e.name).toLowerCase()) && rel !== genTokens.CSS_REL_IN_HQ) {
+        rels.add(rel);
+      }
+    }
+  })(HQ_APP_ABS);
+
   for (const rel of [...rels].sort()) {
-    const eff = effective(stagedDir, rel);
-    if (!eff) continue;
-    const lines = eff.text.split(/\r?\n/);
+    let text;
+    try { text = fs.readFileSync(hqRepo.hqPath(rel), 'utf8'); } catch { continue; }
+    const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       for (const m of lines[i].match(HEX_RE) || []) {
         const hex = normalizeHex(m);
         if (!allHexes.has(hex) && !V8_ALLOWLIST.has(hex))
-          failures.push(`FAILED V8: off-palette hex ${m} in ${rel}:${i + 1} (${eff.from}) - not a color-law token and not on the documented allowlist`);
+          failures.push(`FAILED V8: off-palette hex ${m} in <alex-hq>/${rel}:${i + 1} - not a color-law token and not on the documented allowlist`);
       }
     }
   }
 
-  // staleness: committed artifacts vs what the emitter would emit right now
-  const norm = t => t.replace(/\r\n/g, '\n');
-  for (const [rel, emit] of [[genTokens.CSS_REL, genTokens.tokensCss], [genTokens.JSON_REL, genTokens.tokensJson]]) {
-    const eff = effective(stagedDir, rel);
-    if (!eff) { failures.push(`FAILED V8: ${rel} missing - run 'node scripts/generate-alex.js' to emit the brand tokens`); continue; }
-    if (norm(eff.text) !== norm(emit(colorTokens)))
-      failures.push(`FAILED V8: ${rel} (${eff.from}) is STALE against brand/config/color-system.md - regenerate (node scripts/generate-alex.js), never hand-edit`);
+  // (b2) tokens.css staleness, read from the website repo where the generator now writes it.
+  {
+    let text = null;
+    try { text = fs.readFileSync(genTokens.cssAbs(), 'utf8'); } catch { /* missing */ }
+    if (text === null) failures.push(`FAILED V8: ${genTokens.CSS_LABEL} missing - run 'node scripts/generate-alex.js' to emit the brand tokens`);
+    else if (norm(text) !== norm(genTokens.tokensCss(colorTokens)))
+      failures.push(`FAILED V8: ${genTokens.CSS_LABEL} is STALE against brand/config/color-system.md - regenerate (node scripts/generate-alex.js), never hand-edit`);
   }
 }
 
@@ -1283,7 +1303,7 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   if (colorTokens) v5HexTokens({ stagedDir, allHexes: colorTokens.allHexes }, failures);
   if (manifest) await v6ModelRouting({ stagedDir, manifest, context }, failures, warnings);
   if (manifest) v7StateDriftLint({ stagedDir, manifest }, failures, warnings);
-  if (colorTokens) v8HqHexScan({ stagedDir, colorTokens }, failures);
+  if (colorTokens) v8HqHexScan({ stagedDir, colorTokens }, failures, warnings);
   if (manifest) v9FirstFireAging({ stagedDir, manifest }, failures, warnings);
   v10ProtectedFileGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)
   v11IgnoredStagedGuard({ context, changed }, failures, warnings); // commit-time only (no-op otherwise)

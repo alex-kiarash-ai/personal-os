@@ -8,9 +8,10 @@
 // Usage: node build-projects.mjs [manifest] [outFile]
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { repoPath, alexHqPath } from "./lib/paths.mjs";
 
-const SRC = process.argv[2] ?? "C:/Users/Thinkpad/Desktop/personal-os/system/manifest.json";
-const OUT = process.argv[3] ?? "C:/Users/Thinkpad/Desktop/personal-os/work/16-alex-hq/app/public/data/projects.json";
+const SRC = process.argv[2] ?? repoPath("system/manifest.json");
+const OUT = process.argv[3] ?? alexHqPath("public/data/projects.json");
 
 const m = JSON.parse(readFileSync(SRC, "utf8"));
 

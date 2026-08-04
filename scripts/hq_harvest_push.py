@@ -25,7 +25,12 @@ import sys, os, json, subprocess, datetime, urllib.request, urllib.error
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-DATA = REPO / "work" / "16-alex-hq" / "app" / "public" / "data"
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+from alex_paths import alex_hq_data  # noqa: E402  (needs REPO resolved first)
+
+# The website left personal-os on 2026-08-04; DATA now resolves to the alex-hq repo
+# (env ALEX_HQ_REPO -> manifest meta.paths.alex_hq_repo -> ../alex-hq sibling).
+DATA = alex_hq_data(REPO)
 TOKEN = (REPO / "work" / "16-alex-hq" / "config" / "alex-hq-token.txt").read_text(encoding="utf-8").strip()
 PUSH_URL = "https://n8n.shaheenkiarash.com/webhook/alex-push"
 SUMMARY_URL = "https://n8n.shaheenkiarash.com/webhook/alex-hq-summary"

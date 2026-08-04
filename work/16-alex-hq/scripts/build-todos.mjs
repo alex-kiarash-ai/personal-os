@@ -6,9 +6,10 @@
 // Usage: node build-todos.mjs [statusFile] [outFile]
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { repoPath, alexHqPath } from "./lib/paths.mjs";
 
-const SRC = process.argv[2] ?? "C:/Users/Thinkpad/Desktop/personal-os/vault/projects/sprint-tracker/status.md";
-const OUT = process.argv[3] ?? "C:/Users/Thinkpad/Desktop/personal-os/work/16-alex-hq/app/public/data/todos.json";
+const SRC = process.argv[2] ?? repoPath("vault/projects/sprint-tracker/status.md");
+const OUT = process.argv[3] ?? alexHqPath("public/data/todos.json");
 
 const text = readFileSync(SRC, "utf8");
 

@@ -9,6 +9,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 - **A paid Claude account** (Max recommended; Pro burns out fast). Alex *is* Claude, no subscription is no brain.
 - **Claude Code** (desktop app / Cowork, or the CLI). Windows 10/11 (Mac works too).
 - **A Google account** (Gmail, Calendar, Drive). **Notion** (free), optional for the base brain but required for the CRM, expenses, and meeting-intel databases (without it Alex degrades to local files, per the Bootstrap rule). **Obsidian** (free, to read the vault).
+- **Optional, only if you want the Alex HQ dashboard's own source:** the `alex-hq` repo. It split out of this one on 2026-08-04 and is expected to sit **beside** `personal-os`, as a sibling folder, not inside it. You do **not** need it to run the Personal Ops System: everything except the dashboard's own build works without it, and the two things that do want it (the brand-token generator and validator check V8) say so plainly and carry on. If you keep it somewhere other than a sibling folder, record that once in `system/manifest.json` → `meta.paths.alex_hq_repo`, or set an `ALEX_HQ_REPO` environment variable. Nothing needs configuring when the sibling layout holds.
 - Base install is about an hour.
 
 ## 2. Install and first boot

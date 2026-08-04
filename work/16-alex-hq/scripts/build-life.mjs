@@ -7,9 +7,10 @@
 // Usage: node build-life.mjs [vaultMeDir] [outFile]
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { repoPath, alexHqPath } from "./lib/paths.mjs";
 
-const ME = process.argv[2] ?? "C:/Users/Thinkpad/Desktop/personal-os/vault/me";
-const OUT = process.argv[3] ?? "C:/Users/Thinkpad/Desktop/personal-os/work/16-alex-hq/app/public/data/life.json";
+const ME = process.argv[2] ?? repoPath("vault/me");
+const OUT = process.argv[3] ?? alexHqPath("public/data/life.json");
 
 // Gym: "- **Start date:** YYYY-MM-DD" (+ page date_updated as the confirmation date)
 const gymText = readFileSync(join(ME, "gym.md"), "utf8");

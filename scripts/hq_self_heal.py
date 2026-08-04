@@ -27,12 +27,16 @@ for _s in (sys.stdout, sys.stderr):
         pass
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+from alex_paths import alex_hq_data  # noqa: E402  (needs REPO resolved first)
+
 TOKEN = (REPO / "work/16-alex-hq/config/alex-hq-token.txt").read_text(encoding="utf-8").strip()
 SUMMARY_URL = "https://n8n.shaheenkiarash.com/webhook/alex-hq-summary"
 PUSH_URL = "https://n8n.shaheenkiarash.com/webhook/alex-push"
 HEAL_MAP = REPO / "system/hq-heal-map.json"
 HEAL_LOG = REPO / "system/heal-log.jsonl"
-DATA = REPO / "work/16-alex-hq/app/public/data"
+# The website left personal-os on 2026-08-04; DATA now resolves to the alex-hq repo.
+DATA = alex_hq_data(REPO)
 JSONS = ["graph", "todos", "life", "projects", "n8n-workflows"]
 
 NOW = datetime.datetime.now(datetime.timezone.utc)

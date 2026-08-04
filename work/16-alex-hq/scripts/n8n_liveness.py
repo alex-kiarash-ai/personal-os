@@ -37,6 +37,9 @@ except Exception:
 
 BASE = "https://n8n.shaheenkiarash.com/api/v1"
 REPO = Path(__file__).resolve().parents[3]          # scripts -> 16-alex-hq -> work -> repo
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+from alex_paths import alex_hq_data  # noqa: E402  (needs REPO resolved first)
+
 KEYFILE = REPO / "work" / "03-application-engine" / "config" / "n8n-api-key.txt"
 
 # Daily-expected workflows that fire from an EXTERNAL producer (no n8n scheduleTrigger to read
@@ -47,7 +50,9 @@ EXPLICIT_DAILY = {
 }
 DAILY_WINDOW_H = 26  # daily cadence + 2h grace
 
-WORKFLOWS_JSON = REPO / "work" / "16-alex-hq" / "app" / "public" / "data" / "n8n-workflows.json"
+# The website left personal-os on 2026-08-04; this resolves to the alex-hq repo
+# (env ALEX_HQ_REPO -> manifest meta.paths.alex_hq_repo -> ../alex-hq sibling).
+WORKFLOWS_JSON = alex_hq_data(REPO) / "n8n-workflows.json"
 
 
 def api(path):

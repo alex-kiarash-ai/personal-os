@@ -10,7 +10,8 @@
 //   CLAUDE.md (constitution)       docs/ARCHITECTURE.md
 //   soul.md                        docs/README.md (custom zone preserved verbatim)
 //   brand/config/*                 docs/projects/README.md (marked table region)
-//   templates/*.template.md        work/16-alex-hq/app/app/tokens.css   (brand tokens, P5)
+//   templates/*.template.md        <alex-hq repo>/app/tokens.css        (brand tokens, P5; the
+//                                                                        website split out 2026-08-04)
 //                                  brand/tokens/tokens.json             (brand tokens, P5)
 //                                  n8n writer voice block (idempotent markers)
 //                                  Windows Task Scheduler jobs (create-missing-only)
@@ -47,6 +48,7 @@ const { claudeRegionBlock } = require('./lib/gen-routing-table');
 const genClaudeRegion = require('./lib/gen-claude-region');
 const genDocs = require('./lib/gen-docs');
 const genTokens = require('./lib/gen-tokens');
+const hqRepo = require('./lib/alex-hq-path');
 const genCmdHeaders = require('./lib/gen-command-headers');
 const n8nVoice = require('./lib/sync-n8n-voice');
 const scheduler = require('./lib/gen-scheduler');
@@ -115,9 +117,20 @@ const want = name => !ONLY || ONLY.includes(name);
       log.step(`  staged command headers: ${n} file(s) changed of ${genCmdHeaders.targets(model.manifest).length} LIVE/EVENT command(s)`);
     }
     if (want('tokens')) {
-      aw.stage(genTokens.CSS_REL, genTokens.tokensCss(model.colorTokens));
       aw.stage(genTokens.JSON_REL, genTokens.tokensJson(model.colorTokens));
-      log.step(`  staged brand tokens: ${genTokens.CSS_REL} + ${genTokens.JSON_REL} (${model.colorTokens.tokens.size} tokens from the color law)`);
+      // tokens.css lives in the alex-hq repo since the 2026-08-04 website split, so it is written
+      // DIRECTLY (the staging swap is repo-relative by design and must stay that way). A machine
+      // that has personal-os but not the website repo is a legitimate state: say so and carry on,
+      // never fabricate the write and never wedge the run.
+      if (hqRepo.exists()) {
+        const cssAbs = genTokens.cssAbs();
+        fs.mkdirSync(path.dirname(cssAbs), { recursive: true });
+        fs.writeFileSync(cssAbs, genTokens.tokensCss(model.colorTokens));
+        log.step(`  staged brand tokens: ${genTokens.JSON_REL} + wrote ${genTokens.CSS_LABEL} (${model.colorTokens.tokens.size} tokens from the color law)`);
+      } else {
+        log.step(`  staged brand tokens: ${genTokens.JSON_REL} (${model.colorTokens.tokens.size} tokens from the color law)`);
+        log.step(`  SKIPPED ${genTokens.CSS_LABEL}: the alex-hq website repo is not on this machine (${hqRepo.root()}) - clone it, or set ALEX_HQ_REPO / manifest meta.paths.alex_hq_repo, then re-run`);
+      }
     }
 
     // 3. Validate the staged set + live systems. The FULL suite (SUITE_RANGE, logged below) runs on EVERY
