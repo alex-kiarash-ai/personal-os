@@ -41,18 +41,12 @@ to IANA ones (W18).
 
 ## Jobs
 
-21 jobs generated.
+23 jobs generated.
 
 ### Disabled by design - do NOT enable
 
 - `PersonalOS-sprint-tracker` - paused by Shaheen 2026-07-16 until he says otherwise
 - `PersonalOS-whatsapp-harvest` - retired Phase-1 02:30 trigger must never be re-armed
-### Not generated
-
-These are documented but produced no unit. Each is a real finding, not noise.
-
-- PersonalOS-git-backup (wrapper scripts/git-backup.sh does not exist yet)
-- PersonalOS-vault-backup (wrapper scripts/vault-backup.sh does not exist yet)
 
 ## What is deliberately NOT here
 

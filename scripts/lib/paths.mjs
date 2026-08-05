@@ -46,7 +46,15 @@ export function expand(s) {
   if (out === '~') out = os.homedir();
   else if (out.startsWith('~/')) out = path.join(os.homedir(), out.slice(2));
   // Accept backslash-separated declared values (Windows-era manifest data) and normalize them.
-  if (process.platform !== 'win32' && out.includes('\\') && !out.includes('/')) {
+  // HARDENED 2026-08-05 (bash migration Phase 6): the guard used to require that the value contained
+  // NO forward slash, which broke on exactly the values that matter most - a declared path like
+  // `%USERPROFILE%\Desktop\...` expands its variable to a POSIX path and is then MIXED, so the
+  // conversion was skipped and the result was a single nonsense segment
+  // (`/Users/name\Desktop\Alex Project`). That silently made the identity docs unfindable, which the
+  // nightly backup would have reported as "not found" rather than as the path bug it was.
+  // On a non-Windows platform a backslash is a legal filename character but effectively never used
+  // as one here, and this registry holds paths, so normalizing unconditionally is the safe read.
+  if (process.platform !== 'win32' && out.includes('\\')) {
     out = out.replace(/\\/g, '/');
   }
   return out;
