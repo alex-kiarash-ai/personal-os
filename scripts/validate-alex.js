@@ -14,7 +14,7 @@
 // Any failure exits 1 and names exactly what drifted and where.
 //
 // plus V13 local wrapper model-pin contract (2026-07-25, stress-test F4; the local twin of V6,
-// COMPLETE by construction: every scripts/run-*.ps1 + auth-check.ps1 must be declared in the contract).
+// COMPLETE by construction: every scripts/run-*.sh + auth-check.sh must be declared in the contract).
 //
 // plus V14 Alex gender-neutrality contract (2026-07-28; the code behind work/12 HARD RULE 15 and
 //      the soul.md law of the same date. Two narrow scans: unpublished episode BODIES, and the
@@ -1054,7 +1054,7 @@ function v12TrifectaGate({ stagedDir, manifest }, failures, warnings) {
 //       network, so it runs in EVERY context (generator + pre-commit) - unlike V6 which is async/
 //       n8n-bound and SKIPs when n8n is unreachable. Root fix for "a wrapper omits --model and
 //       inherits the global opus default" (the 2026-07-16 cost cut was convention-only until now).
-//       COMPLETE by construction: every scripts/run-*.ps1 (+ auth-check.ps1) that makes a real
+//       COMPLETE by construction: every scripts/run-*.sh (+ auth-check.sh) that makes a real
 //       `claude -p` call MUST be in `pins` (with the matching model) or `deterministic_no_pin`
 //       (makes no claude call), else FAIL - so a new/copied wrapper cannot slip through uncovered.
 //       This is the bidirectional shape V2 uses for scheduled jobs, applied to the model contract.
@@ -1070,7 +1070,7 @@ function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
   const scriptsDir = path.join(REPO, 'scripts');
   let files;
   try {
-    files = fs.readdirSync(scriptsDir).filter(f => /^run-.*\.ps1$/.test(f) || f === 'auth-check.ps1');
+    files = fs.readdirSync(scriptsDir).filter(f => /^run-.*\.sh$/.test(f) || f === 'auth-check.sh');
   } catch (e) { failures.push(`FAILED V13: cannot read scripts/ to enforce the wrapper pin contract - ${e.message}`); return; }
 
   // The real reasoning-call line: a non-comment line that invokes claude (claude.ps1 / $ClaudeCmd /
@@ -1078,16 +1078,20 @@ function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
   // -p, so they are correctly ignored.)
   // HARDENED 2026-07-25 (stress-test T07/F-07): the original matcher required the `&` call operator
   // on the SAME single line, so a PowerShell backtick continuation or a `Start-Process`/bare-command
-  // invocation evaded it silently. Two changes: (1) logical lines are joined across backtick
-  // continuations and the `&` requirement is dropped; (2) COVERAGE no longer depends on this parser
-  // at all - see the declaration-completeness rule below - so a future unparseable shape can cost a
-  // model assertion but can never create an UNDECLARED wrapper.
+  // invocation evaded it silently. Two changes: (1) logical lines are joined across continuations
+  // and the `&` requirement is dropped; (2) COVERAGE no longer depends on this parser at all - see
+  // the declaration-completeness rule below - so a future unparseable shape can cost a model
+  // assertion but can never create an UNDECLARED wrapper.
+  // BASH MIGRATION 2026-08-05: the continuation character is now the shell's trailing BACKSLASH, not
+  // PowerShell's backtick. Every ported wrapper splits its claude call across lines exactly that way,
+  // so without this the --model flag and the -p flag land on different logical lines and V13 would
+  // silently stop asserting any model at all - a checker that passes because it sees nothing.
   const logicalLines = text => {
     const out = [];
     let buf = null;
     for (const raw of text.split(/\r?\n/)) {
       const line = buf === null ? raw : buf + ' ' + raw.trim();
-      if (/`\s*$/.test(line)) { buf = line.replace(/`\s*$/, ''); continue; } // PS line continuation
+      if (/\\\s*$/.test(line)) { buf = line.replace(/\\\s*$/, ''); continue; } // shell continuation
       buf = null;
       out.push(line);
     }
