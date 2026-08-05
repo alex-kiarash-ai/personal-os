@@ -15,7 +15,7 @@ Read `work/11-whatsapp-harvest/CLAUDE.md` first. It is the spec; its Hard Rules 
 Full runbook with exact commands: `work/11-whatsapp-harvest/phase2-runbook.md`. Read it before running.
 
 1. **Confirm prerequisites.** `wtsexporter` is installed at
-   `C:\Users\Thinkpad\AppData\Roaming\Python\Python312\Scripts\wtsexporter.exe` (NOT on PATH, call by
+   `wtsexporter` (installed user-scope via pip; if it is NOT on PATH, call by
    full path). Needs ~100GB free. If the Apple Devices app is absent, stop and ask Shaheen to install it.
 2. **Backup (Shaheen-side, ask, never assume).** iPhone on USB, Trust + passcode, **Encrypt local backup
    ON** in Apple Devices, Back Up Now. The WhatsApp DB only exists in ENCRYPTED backups. The password

@@ -3,11 +3,11 @@
 Replaces the fragile screen-scrape (phase 1) with a read of the actual WhatsApp database from an encrypted iPhone backup. Decided 2026-06-14 after phase-1 screen automation proved unreliable on the WinUI WhatsApp build (see [[projects/error-log]]).
 
 ## Method (chosen, Windows-friendly)
-Apple Devices app -> **encrypted local backup** -> `wtsexporter` (whatsapp-chat-exporter) parses the WhatsApp DB to text. Avoids `libimobiledevice` pairing pain on Windows. WhatsApp data is ONLY in **encrypted** backups, so encryption must be ON.
+Apple Devices app -> **encrypted local backup** -> `wtsexporter` (whatsapp-chat-exporter) parses the WhatsApp DB to text. Avoids `libimobiledevice` pairing pain. WhatsApp data is ONLY in **encrypted** backups, so encryption must be ON.
 
 ## Prep DONE 2026-06-14 (no phone needed)
 - Disk: **375 GB free** on C: (need ~100 GB for a full backup). OK.
-- `whatsapp-chat-exporter` 0.13.0 installed (user scope). Binary: `C:\Users\Thinkpad\AppData\Roaming\Python\Python312\Scripts\wtsexporter.exe` (NOT on PATH; call by full path or add to PATH).
+- `whatsapp-chat-exporter` 0.13.0 installed (user scope). Binary: `wtsexporter` (installed user-scope by pip; on Linux/macOS that is usually `~/.local/bin/wtsexporter`. If it is not on PATH, call it by full path or add that dir to PATH).
 - `ffmpeg` + `whisper` already present -> local voice-note transcription is POSSIBLE if Shaheen opts in (default is still text-only / ignore voice).
 
 ## Weekend steps (need Shaheen + iPhone)
@@ -16,7 +16,7 @@ Apple Devices app -> **encrypted local backup** -> `wtsexporter` (whatsapp-chat-
 3. In Apple Devices: turn ON **Encrypt local backup**, set a password (see password note below), **Back Up Now**. Wait for it to finish (tens of GB).
 4. **Find the backup folder** (Apple Devices app): `%USERPROFILE%\Apple\MobileSync\Backup\<UDID>` (older iTunes: `%APPDATA%\Apple Computer\MobileSync\Backup\<UDID>`).
 5. **Extract, TEXT ONLY:**
-   `wtsexporter -i -b "<backup folder>" --txt --no-html -o "outputs\whatsapp-harvest\phase2\<date>"`
+   `wtsexporter -i -b "<backup folder>" --txt --no-html -o "outputs/whatsapp-harvest/phase2/<date>"`
    - prompts for the backup password to decrypt.
    - `--include <numbers>` to limit to key people, or full run for all history.
    - **NO MEDIA (hard rule):** do not extract/keep pictures/videos. If the tool copies a media folder, delete it after; keep only the text export.

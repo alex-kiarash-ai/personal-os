@@ -1,7 +1,7 @@
 # Application Engine (job-application pipeline rebuild)
 
 ## Type
-Automation (n8n workflow on the Hetzner box - NOT a local Claude Code automation). This folder holds the regenerated workflow exports + the import runbook. The single source of truth for design is `C:\Users\Thinkpad\Desktop\Job Search\Job Applications\CV\LinkdIn Automation (1)\job_pipeline_documentation.md` (v1.17). (Path corrected 2026-07-25: the CV folder moved under `Desktop\Job Search\` on 07-21.)
+Automation (n8n workflow on the Hetzner box - NOT a local Claude Code automation). This folder holds the regenerated workflow exports + the import runbook. The single source of truth for design is `~/Documents/job-search/job-applications/cv/linkedin-automation/job_pipeline_documentation.md` (v1.17), an OUT-OF-REPO document that moves with the machine and is not in git. (Windows path retired 2026-08-05 with the Linux move; it previously sat under `Desktop\Job Search\`, corrected there 2026-07-25.)
 
 ## Purpose
 Tuesday & Thursday 15:00 Stockholm (was every-72h 07:00 until 2026-07-24): discover LinkedIn jobs per city via Bright Data, score fit + automation-interest with one Claude call, gate deterministically, write tailored CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job Google Drive folder, log every job + cost to the Google Sheet. Review-ready drafts; no auto-submit. Two reasoning calls wrapped in deterministic gates, not a chain of model verifiers.

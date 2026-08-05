@@ -1,6 +1,6 @@
 # Engines 03 + 14 Remediation, Status
 
-Source plan: `C:\Users\Thinkpad\Desktop\engines-03-14-remediation-plan.md` (external senior review, 2026-07-26).
+Source plan: `~/Documents/alex-project/engines-03-14-remediation-plan.md` (external senior review, 2026-07-26; out-of-repo, path updated for the 2026-08-05 Linux move).
 Applied 2026-07-27. Both engines went **41 -> 49 nodes**, both stayed `active=true` throughout.
 (Corrected 2026-07-28: this line read "41 -> 47" - it was written before F19 ran, which adds 2 nodes,
 `Read Bank` + `Append Seen Id`, per its own `node count +2` assertion. Final is 49, which the vault

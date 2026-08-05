@@ -24,7 +24,7 @@ Explicitly out of v1: booking/contact forms, lightbox (candidate v1.1), a CMS, a
 |---|---|---|
 | This spec + ops knowledge | `work/30-portfolio-site/` | personal-os side |
 | Deploy runbook (LIVE, the site ships through it today) | `work/30-portfolio-site/deploy-runbook.md` | seeds the new repo's `deploy/README.md` at B2 |
-| **The website repo** | `C:\Users\Thinkpad\Desktop\shaheenkiarash.com` | **a SIBLING of personal-os. NEVER nested inside it.** Two gits, two validator regimes, two publics; personal-os's hooks must never see the site tree. `git config core.longpaths true` on clone. |
+| **The website repo** | `~/shaheenkiarash.com` | **a SIBLING of personal-os. NEVER nested inside it.** Two gits, two validator regimes, two publics; personal-os's hooks must never see the site tree. (the `git config core.longpaths true` clone flag is gone with Windows). |
 | GitHub | public repo `shaheenkiarash.com` under Shaheen's own account | his portfolio, his commit identity - not the machine account |
 | Photo masters (private tier) | `Desktop\Claude\Modeling\{Website, _backups}\`, `Desktop\personal-os-backups\website-2026-07-18\` | full-resolution originals NEVER enter the public repo |
 | Live serving | Cloudflare Worker `plain-block-545a` | see deploy-runbook.md |

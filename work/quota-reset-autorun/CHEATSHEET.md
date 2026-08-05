@@ -13,7 +13,7 @@ Write it like you'd say it to Alex. Don't add "email me the result" - that's aut
 
 **2. Open PowerShell in the scripts folder.**
 ```powershell
-cd C:\Users\Thinkpad\Desktop\personal-os\work\quota-reset-autorun\scripts
+cd ~/personal-os/work/quota-reset-autorun/scripts
 ```
 
 **3. Arm it with a time.**
