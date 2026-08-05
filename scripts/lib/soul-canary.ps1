@@ -48,7 +48,7 @@ function Get-SoulCanaryInstruction {
     #       An opaque 16-hex value buried in a 143KB file is a retrieval task, and an un-anchored
     #       retrieval task is where a model guesses. Fixed by naming the exact anchor line to copy
     #       from and forbidding a guess outright.
-    #   (c) DROPPED NONCE. "SOUL-OK 0b03f461338e8658" with the nonce omitted (real log line). Fixed
+    #   (c) DROPPED NONCE. "SOUL-OK <the-real-token>" with the nonce omitted (real log line). Fixed
     #       by showing the shape as two required fields with the nonce pre-filled and marked verbatim.
     # The gate still cannot be faked: the token is still never in the prompt, and the nonce is still
     # per-run. This only makes the honest answer easy to give and the guess explicitly disallowed.
@@ -94,7 +94,7 @@ function Test-SoulCanary {
     if ($Out -match "SOUL-OK\s+\S+\s+$n(\s|$)") {
         return @{ Pass = $false; Reason = 'wrong token for this nonce (soul.md not injected or altered)'; Token = $token }
     }
-    # Correct token, nonce omitted entirely (real 2026-08-05 log line: "SOUL-OK 0b03f461338e8658").
+    # Correct token, nonce omitted entirely (real 2026-08-05 log line: "SOUL-OK <the-real-token>").
     # Still a FAIL - without the nonce there is no freshness proof, so the gate stays closed. But the
     # DIAGNOSIS matters: the token is unguessable, so its presence proves soul.md DID reach the model
     # and only the line shape was wrong. Before this case existed the run fell through to the catch-all

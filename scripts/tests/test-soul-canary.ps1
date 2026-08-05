@@ -62,7 +62,7 @@ try {
     # Each one reproduces a REAL line from outputs/logs/morning-brief.log, so a future refactor that
     # reintroduces the fault fails here instead of in production two weeks later.
 
-    # 9. Correct token, nonce omitted (real line: "SOUL-OK 0b03f461338e8658"). Must still FAIL closed,
+    # 9. Correct token, nonce omitted (real line: "SOUL-OK <the-real-token>"). Must still FAIL closed,
     #    but must NOT be diagnosed as "canary absent" - the token is unguessable, so soul.md arrived.
     $r = Test-SoulCanary -Out "the brief...`nSOUL-OK $token" -Nonce $nonce -SoulPath $armed
     Check 'token correct + nonce omitted -> FAIL closed' ($r.Pass -eq $false) $r.Reason
