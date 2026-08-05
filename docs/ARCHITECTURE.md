@@ -368,7 +368,7 @@ Applies to every n8n workflow, this project or any other.
 
 Alex only exists when Claude Code's session folder **is** the personal-os root - the folder that
 directly contains `CLAUDE.md` and `soul.md`. This constitution, every `.claude/commands/*` slash
-command, and the four hooks in `.claude/settings.json` are all downstream of that one fact.
+command, and the five hooks in `.claude/settings.json` are all downstream of that one fact.
 Attaching files to a chat, dragging the folder in, or pasting a path does NOT load Alex: that
 session is plain Claude with no commands, no vault, no voice.
 
@@ -378,7 +378,7 @@ session is plain Claude with no commands, no vault, no voice.
 - **The first-session script, verbatim, for a non-technical user:** open the folder -> `/status` to
   confirm it loaded -> `/setup` -> `/brand`. If `/status` comes back "unknown command", the folder is
   not loaded; say exactly that and send them back to step one instead of debugging anything else.
-- **Hook paths are cwd-proof since 2026-07-28.** All four hooks resolve through
+- **Hook paths are cwd-proof since 2026-07-28.** All five hooks (PreToolUse untrusted-lane guard added 2026-08-05) resolve through
   `${CLAUDE_PROJECT_DIR:-.}` instead of bare relative paths, so soul.md injection and the
   capture/recall hooks survive a session started from a subfolder. The commands and this
   constitution still only load at the root, so the root is still the answer.
@@ -504,7 +504,7 @@ All 47 auto-surface on their own rich descriptions (the discovery layer); this b
 | Lifecycle + retention (email/SMS flows, churn, referrals, community) | emails, sms, churn-prevention, referrals, community-marketing |
 | Research, psychology, strategy + planning (plans, ideas, loops, launches, PR, lead-gen, experiments, analytics, ASO, social, advisor council) | customer-research, marketing-psychology, marketing-plan, marketing-ideas, marketing-loops, marketing-council, product-marketing, launch, co-marketing, public-relations, lead-magnets, free-tools, ab-testing, analytics, aso, social |
 
-**Auto-install lane (#25 evolution, 2026-07-11, Shaheen's call):** the weekly evolution eval now scans skills.sh + skillsmp.com + skillhub.club, matches finds against every running project, and AUTO-INSTALLS the ones that clear a deterministic audit (trust allowlist + no install-hooks/process-spawning/exfil scripts + dedup + a 3/week cap), wiring each into the auto-region below AND the target project's `work/NN/CLAUDE.md` `## Skills` line. No human gate before install; every install is its own git commit, so `git revert <sha>` is the undo. Skills that fail the audit route to the weekly digest for manual review. This is a deliberate, owner-approved exception to "Alex proposes, Shaheen decides" for the SKILLS lane only; models/MCPs/patterns still go through the human-gated #25 integration runbook. Config: `system/skills-sources.json`. Engine: `scripts/skills-installer.js`. Never run `npx skills update` blind (clobbers the curated description rewrites).
+**Auto-install lane (#25 evolution, 2026-07-11, Shaheen's call):** the weekly evolution eval now scans skills.sh + skillsmp.com + skillhub.club, matches finds against every running project, and AUTO-INSTALLS the ones that clear a deterministic audit (revocation list + trust allowlist + no install-hooks/process-spawning/exfil scripts + dedup + a 3/week cap), wiring each into the auto-region below AND the target project's `work/NN/CLAUDE.md` `## Skills` line. No human gate before install; every install is its own git commit, so `git revert <sha>` is the undo. **SHA-pinned since 2026-08-05 (enterprise-assessment idea 4):** the audit resolves the source branch to ONE commit SHA and reads everything at it, `skills add` output is byte-verified against that same SHA (mismatch = automatic rollback + flag, closing the audit-vs-install TOCTOU gap), the SHA lands in `skills-lock.json` as `sourceCommit`, and a `revoked` list in `system/skills-sources.json` refuses named skills/repos forever (already-installed revoked skills are surfaced for MANUAL removal every weekly run, never auto-removed). Skills that fail the audit route to the weekly digest for manual review. This is a deliberate, owner-approved exception to "Alex proposes, Shaheen decides" for the SKILLS lane only; models/MCPs/patterns still go through the human-gated #25 integration runbook. Config: `system/skills-sources.json`. Engine: `scripts/skills-installer.js`. Never run `npx skills update` blind (clobbers the curated description rewrites).
 
 <!-- ALEX-AUTO-SKILLS:BEGIN (rows auto-appended by scripts/skills-installer.js; do not hand-edit between the markers) -->
 | Task trigger (auto-added by #25 evolution) | Skill | Strength |

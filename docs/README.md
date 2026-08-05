@@ -33,3 +33,7 @@ then type `/setup`. Full walkthrough in section 2 of GETTING-STARTED.md.
 - **The live n8n workflows:** [n8n/](n8n/) - node-by-node explanations of what runs on the server.
 
 Right now the registry holds **31 non-retired automations** (18 LIVE). The source of truth is `system/manifest.json`; every table and count in these docs is generated from it by `scripts/generate-alex.js`, then validated. Edit sources, not views.
+
+## License
+
+[MIT](../LICENSE) (since 2026-08-06). The vendored third-party agent skills in `.agents/skills/` keep their own authors' licenses - see [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md); per-skill provenance is machine-recorded in `skills-lock.json`.
