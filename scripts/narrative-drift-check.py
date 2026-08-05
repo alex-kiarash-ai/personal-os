@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Item 3 (2026-07-20): numbers-drift check for the identity-carrying master reference.
-# Zero-token. Called from check.ps1 as C19. Detect, never repair.
+# Zero-token. Called from check.mjs as C19. Detect, never repair.
 #
 # REPOINTED + EXPANDED 2026-07-25 (stress-test fix F2). The master reference MOVED out of the repo
 # on 2026-07-21, but this check still hardcoded the old in-repo path - now a 481-byte retirement
@@ -13,7 +13,7 @@
 #   (2) an ABSENT master returns 2 (amber), never 0 - so a move not reflected in the manifest, or a
 #       fresh clone without the out-of-repo doc, is SURFACED, never hidden behind a green;
 #   (3) the claim-set is DERIVED from ground-truth sources (not frozen numbers): the recovery
-#       C-count from check.ps1, the validator V-count from validate-alex.js, the non-retired project
+#       C-count from check.mjs, the validator V-count from validate-alex.js, the non-retired project
 #       count from the manifest, and the escrow attestation date from state/passphrase-attested.txt.
 #
 # Claims are checked ONLY in the STANDING part of the doc (everything before the "## 11. Running
@@ -27,7 +27,7 @@ import re, sys, os, json, hashlib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-CHECK_PS1 = REPO / "work" / "18-recovery-layer" / "check.ps1"
+CHECK_SRC = REPO / "work" / "18-recovery-layer" / "check.mjs"
 VALIDATE_JS = REPO / "scripts" / "validate-alex.js"
 ATTEST = REPO / "work" / "18-recovery-layer" / "state" / "passphrase-attested.txt"
 MANIFEST = REPO / "system" / "manifest.json"
@@ -39,8 +39,10 @@ def master_path(mani):
 
 
 def live_check_count():
-    txt = CHECK_PS1.read_text(encoding="utf-8", errors="replace")
-    return len(set(int(m) for m in re.findall(r'(?m)^\s*#\s*---\s*C(\d+)\b', txt)))
+    txt = CHECK_SRC.read_text(encoding="utf-8", errors="replace")
+    # Accepts BOTH comment markers: `#` was PowerShell's, `//` is the ported Node checker's. Dual on
+    # purpose so a stray old-format header can never be silently uncounted during the migration.
+    return len(set(int(m) for m in re.findall(r'(?m)^\s*(?:#|//)\s*---\s*C(\d+)\b', txt)))
 
 
 def live_v_count():
@@ -204,13 +206,13 @@ def main():
         print(f"cannot compute ground truth: {MANIFEST} missing", file=sys.stderr)
         return 1
     mani = json.loads(MANIFEST.read_text(encoding="utf-8", errors="replace"))
-    if not CHECK_PS1.exists():
-        print(f"cannot compute ground truth: {CHECK_PS1} missing", file=sys.stderr)
+    if not CHECK_SRC.exists():
+        print(f"cannot compute ground truth: {CHECK_SRC} missing", file=sys.stderr)
         return 1
 
     live_c = live_check_count()
     if live_c == 0:
-        print("cannot compute ground truth: no '# --- C<n>' headers found in check.ps1", file=sys.stderr)
+        print("cannot compute ground truth: no '// --- C<n>' headers found in check.mjs", file=sys.stderr)
         return 1
 
     # Duplicate-copy equality runs FIRST and independently of the master's own claims: a drifted copy is
@@ -236,7 +238,7 @@ def main():
     stated_c = [int(m.group(1)) for m in re.finditer(r'(\d+)\s+deterministic checks', text)]
     for v in stated_c:
         if v != live_c:
-            findings.append(f"master claims '{v} deterministic checks' but check.ps1 runs {live_c} (C1-C{live_c})")
+            findings.append(f"master claims '{v} deterministic checks' but check.mjs runs {live_c} (C1-C{live_c})")
     if len(set(stated_c)) > 1:
         findings.append(f"master is internally inconsistent on the check count: claims {sorted(set(stated_c))} (live {live_c})")
 

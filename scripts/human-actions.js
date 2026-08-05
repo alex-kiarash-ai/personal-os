@@ -30,7 +30,7 @@ const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 // The escrow queue items may only close when the attestation FILE actually proves escrow works.
 // This makes "queue says done, attestation says FAILED" (the 2026-07-18 contradiction) impossible:
 // a `done` on these ids is refused unless work/18-recovery-layer/state/passphrase-attested.txt
-// carries a real yyyy-MM-dd first line (not "PENDING"/malformed). escrow-test.ps1 is the ONE writer
+// carries a real yyyy-MM-dd first line (not "PENDING"/malformed). escrow-test.mjs is the ONE writer
 // of that file and, on a PASS, stamps the date THEN closes these ids in the same run, so the honest
 // close path is automatic and the manual one is gated. Deliberate bypass: append the done row by hand.
 const ATTEST_GATED = new Set(['passphrase-attestation', 'passphrase-escrow-retest', 'passphrase-safeplace-fix']);
@@ -96,7 +96,7 @@ if (cmd === 'add') {
   // Class A gate: an escrow item cannot be closed while the attestation file is unproven (F-01).
   if (ATTEST_GATED.has(id) && !attestationIsProven()) {
     console.error(`refusing to close '${id}': ${ATTEST_FILE} is not a fresh dated attestation (first line must be yyyy-MM-dd, not PENDING).`);
-    console.error(`Run the escrow drill: powershell -File work/18-recovery-layer/escrow-test.ps1 - it stamps the attestation and closes this item on PASS.`);
+    console.error(`Run the escrow drill: node work/18-recovery-layer/escrow-test.mjs - it stamps the attestation and closes this item on PASS.`);
     process.exit(1);
   }
   append({ id, done: true, done_date: today });

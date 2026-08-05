@@ -37,22 +37,16 @@ const ADVISORY = process.argv.includes('--advisory');
 const JSON_OUT = process.argv.includes('--json');
 const STRICT = process.argv.includes('--strict');
 
-// SHA256 the same way check.ps1's Get-Sha does (Get-FileHash -Algorithm SHA256, uppercase hex).
-function sha(p) {
-  try { return crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex').toUpperCase(); }
-  catch (_) { return null; }
-}
-
-// baseline.json is written by PowerShell 5.1 `Set-Content -Encoding utf8`, which emits a UTF-8 BOM
-// that JSON.parse rejects. Strip it on read - the same PS-writes/node-reads trap that already bit the
-// quota-state writer and the S4 JSONL pre-filter.
-function readJsonBomSafe(p) {
-  return JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
-}
+// Hashing lives in ONE place now (bash migration Phase 5, 2026-08-05). This file used to carry its
+// own copy, kept in agreement with check.ps1's Get-Sha by a comment; the migration plan named that
+// duplication as evidence the checker belonged in Node. check.mjs imports the same module, so there
+// is one implementation instead of two agreeing by convention. sameHash() is case-insensitive
+// because pre-migration baselines hold UPPERCASE digests (W22).
+const { sha, sameHash, readJsonBomSafe } = require('./lib/repo-hash');
 
 function main() {
   if (!fs.existsSync(BASELINE)) {
-    const msg = 'no baseline yet (run `check.ps1 -Init` once) - propagation debt cannot be computed';
+    const msg = 'no baseline yet (run `check.mjs --init` once) - propagation debt cannot be computed';
     if (JSON_OUT) console.log(JSON.stringify({ ok: true, reason: 'no-baseline', stale: [] }));
     else console.log(`stale-status: ${msg}`);
     return 0;
@@ -61,7 +55,7 @@ function main() {
   const manifest = readJsonBomSafe(MANIFEST);
   if (!bl.status_hashes) {
     if (JSON_OUT) console.log(JSON.stringify({ ok: true, reason: 'baseline-has-no-status-hashes', stale: [] }));
-    else console.log('stale-status: baseline carries no status_hashes (re-run `check.ps1 -Init`)');
+    else console.log('stale-status: baseline carries no status_hashes (re-run `check.mjs --init`)');
     return 0;
   }
 
@@ -74,7 +68,9 @@ function main() {
     const oldSpec = bl.hashes ? bl.hashes[String(p.num)] : null;
     const oldStatus = bl.status_hashes[String(p.num)];
     if (!oldSpec || !curSpec || !oldStatus || !curStatus) continue;   // nothing to compare (same as C8)
-    if (curSpec !== oldSpec && curStatus === oldStatus)
+    // sameHash, not !==: a pre-migration baseline holds UPPERCASE digests while sha() now returns
+    // lowercase, so a raw string compare would report EVERY project as spec-changed (W22).
+    if (!sameHash(curSpec, oldSpec) && sameHash(curStatus, oldStatus))
       stale.push({ num: p.num, name: p.name, spec: `${p.work_dir}/CLAUDE.md`, status: p.status_md });
   }
 
@@ -87,11 +83,11 @@ function main() {
   const names = stale.map(s => `#${s.num} ${s.name}`).join(', ');
   if (ADVISORY) {
     console.log(`${stale.length} project(s) have a CLAUDE.md change since the last -Init with NO status.md update: ${names}`);
-    console.log('propagate into each status.md (Close-Out B), then re-run `work/18-recovery-layer/check.ps1 -Init`. Recovery C8 reports the same debt on Monday.');
+    console.log('propagate into each status.md (Close-Out B), then re-run `node work/18-recovery-layer/check.mjs --init`. Recovery C8 reports the same debt on Monday.');
   } else {
     console.log(`stale-status: ${stale.length} propagation gap(s) - spec changed since the last -Init, status.md did not:`);
     for (const s of stale) console.log(`  #${s.num} ${s.name}: ${s.spec} moved, ${s.status} did not`);
-    console.log('Fix: propagate the real change into each status.md, then re-run `work/18-recovery-layer/check.ps1 -Init`.');
+    console.log('Fix: propagate the real change into each status.md, then re-run `node work/18-recovery-layer/check.mjs --init`.');
   }
   return STRICT ? 2 : (ADVISORY ? 0 : 2);
 }

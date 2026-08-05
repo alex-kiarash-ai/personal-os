@@ -33,9 +33,16 @@ const MODEL = process.env.ALEX_LIVE_TEST_MODEL || 'claude-haiku-4-5-20251001';
 
 function resolveClaude() {
   if (process.env.ALEX_CLAUDE_BIN) return process.env.ALEX_CLAUDE_BIN;
-  const which = spawnSync('command', ['-v', 'claude'], { shell: true, encoding: 'utf8' });
-  const found = (which.stdout || '').trim().split('\n')[0];
-  if (found) return found;
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    const cand = path.join(dir, 'claude');
+    try {
+      fs.accessSync(cand, fs.constants.X_OK);
+      return cand;
+    } catch {
+      /* not here */
+    }
+  }
   const local = path.join(os.homedir(), '.local', 'bin', 'claude');
   return fs.existsSync(local) ? local : null;
 }

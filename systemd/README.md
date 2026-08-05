@@ -41,7 +41,7 @@ to IANA ones (W18).
 
 ## Jobs
 
-17 jobs generated.
+21 jobs generated.
 
 ### Disabled by design - do NOT enable
 
@@ -52,11 +52,7 @@ to IANA ones (W18).
 These are documented but produced no unit. Each is a real finding, not noise.
 
 - PersonalOS-git-backup (wrapper scripts/git-backup.sh does not exist yet)
-- PersonalOS-n8n-active-check (wrapper scripts/n8n-active-check.mjs does not exist yet)
-- PersonalOS-recovery-check (wrapper work/18-recovery-layer/check.mjs does not exist yet)
-- PersonalOS-security-sweep (wrapper work/18-recovery-layer/security-sweep.mjs does not exist yet)
 - PersonalOS-vault-backup (wrapper scripts/vault-backup.sh does not exist yet)
-- PersonalOS-vault-index (wrapper scripts/run-vault-index.sh does not exist yet)
 
 ## What is deliberately NOT here
 

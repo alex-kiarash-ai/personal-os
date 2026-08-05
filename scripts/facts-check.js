@@ -7,7 +7,7 @@
  * DIRECTION (this is the whole point): the DOC is the test SUBJECT; facts.db is the EXPECTATION. A
  * doc that claims a value the ledger disproves is flagged. This does NOT reintroduce the V6
  * anti-pattern (deriving an expectation FROM prose): facts.db is derived from STRUCTURED sources
- * (manifest, validate-alex.js registry, check.ps1 headers, schtasks, skills-lock, the attestation
+ * (manifest, validate-alex.js registry, check.mjs headers, schtasks, skills-lock, the attestation
  * file), and the prose is checked against THAT. The ST-20 / FR-04 "a doc lying about the system"
  * class becomes one deterministic diff.
  *
