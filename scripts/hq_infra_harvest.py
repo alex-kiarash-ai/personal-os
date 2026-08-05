@@ -14,7 +14,7 @@ Emits three infra metrics:
                             counting to server counting on 2026-07-21: tool names cannot be
                             counted deterministically once tools are deferred, and "N servers
                             connected, K need auth" is both stable and more actionable.
-  * scheduled_jobs_active - enabled PersonalOS-* Windows scheduled tasks (from schtasks).
+  * scheduled_jobs_active - enabled PersonalOS-* systemd user timers (from systemctl).
   * vault_pages           - vault/**/*.md count (excludes .obsidian/.trash), with sub-counts.
 
 Any single source that fails degrades to skipping ITS metric with a stderr note (never a
@@ -28,7 +28,7 @@ VAULT = REPO / "vault"
 
 
 def sh(cmd):
-    """Run a command, return stdout text (or '' on failure). Windows-friendly."""
+    """Run a command, return stdout text (or '' on failure). No shell, ever."""
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, shell=False)
         return r.stdout or ""
@@ -37,10 +37,37 @@ def sh(cmd):
         return ""
 
 
+def resolve_claude():
+    """Absolute path to the Claude CLI, or None.
+
+    Ported from the Windows shim hunt 2026-08-05 (bash migration Phase 4, W2). It used to run
+    `cmd /c claude mcp list` and fall back to `%APPDATA%\\npm\\claude.cmd`, neither of which
+    exists on Linux. Same resolution order as resolve_claude() in scripts/lib/common.sh, so the
+    Python and bash sides cannot disagree about which binary they mean.
+    """
+    import os
+    import shutil
+    override = os.environ.get("ALEX_CLAUDE_BIN")
+    if override and Path(override).is_file():
+        return override
+    found = shutil.which("claude")
+    if found:
+        return found
+    local = Path.home() / ".local" / "bin" / "claude"
+    if local.is_file():
+        return str(local)
+    prefix = sh(["npm", "prefix", "-g"]).strip()
+    if prefix:
+        cand = Path(prefix) / "bin" / "claude"
+        if cand.is_file():
+            return str(cand)
+    return None
+
+
 # Anthropic-offered / optional connectors that are fine to leave unauthenticated: idle catalog
 # entries, not things any automation depends on. Windsor.ai = a lapsed marketing-data trial;
 # Microsoft 365 = a built-in claude.ai default connector never linked (Shaheen has no MS account).
-# The Sunday auth-check.ps1 ignores these same two for exactly this reason ("never cry wolf"), so
+# The Sunday auth-check.sh ignores these same two for exactly this reason ("never cry wolf"), so
 # the tile mirrors that: only a CRITICAL connector (Notion/Gmail/Calendar/Drive/...) going
 # unauthenticated is amber-worthy. (2026-07-21)
 OPTIONAL_IDLE_MCP = ("windsor", "microsoft 365")
@@ -49,11 +76,11 @@ OPTIONAL_IDLE_MCP = ("windsor", "microsoft 365")
 def count_mcp_servers():
     """Connected MCP servers from `claude mcp list`, plus which unauthenticated ones are the
     known-optional/idle catalog entries vs a real (critical) drop. None if the CLI can't be read."""
-    # claude is a .ps1/.cmd shim on Windows; resolve via the shell so PATH + shim work.
-    out = sh(["cmd", "/c", "claude", "mcp", "list"])
-    if not out.strip():
-        # Fallback: some environments expose it only through the APPDATA npm shim.
-        out = sh(["cmd", "/c", "%APPDATA%\\npm\\claude.cmd", "mcp", "list"])
+    claude = resolve_claude()
+    if not claude:
+        print("hq_infra_harvest: claude CLI not found - skipping the mcp_tools metric", file=sys.stderr)
+        return None
+    out = sh([claude, "mcp", "list"])
     if not out.strip():
         return None
     # Lines look like: "  name: URL - ✔ Connected"  /  "  name: URL - ! Needs authentication"
@@ -78,23 +105,32 @@ def count_mcp_servers():
 
 
 def count_scheduled_jobs():
-    """Enabled PersonalOS-* Windows scheduled tasks. None if schtasks can't be read."""
-    out = sh(["schtasks", "/query", "/fo", "LIST"])
+    """Enabled PersonalOS-* systemd user timers. None if systemctl can't be read.
+
+    Ported from schtasks 2026-08-05 (bash migration Phase 4). `list-unit-files` is the right
+    source rather than `list-timers`: it reports every installed timer WITH its enablement
+    state, so the two jobs that are Disabled by design (sprint-tracker, whatsapp-harvest) are
+    counted in `total` but not in `enabled` - exactly the distinction the Windows version drew
+    from the Status: line, and exactly what makes the HQ tile honest instead of alarming.
+
+    Returning None on an unreadable scheduler is deliberate and unchanged: this metric degrades
+    to ABSENT, never to a fabricated 0. A 0 here would read as "the whole job train is dead".
+    """
+    out = sh(["systemctl", "--user", "list-unit-files", "--no-pager", "--no-legend",
+              "PersonalOS-*.timer"])
     if not out.strip():
         return None
-    # Pair each "TaskName:" with the following "Status:" line, keep PersonalOS-* only.
-    name = None
     enabled = 0
     total = 0
     for line in out.splitlines():
-        s = line.strip()
-        if s.startswith("TaskName:"):
-            name = s.split(":", 1)[1].strip()
-        elif s.startswith("Status:") and name and "\\PersonalOS-" in name:
-            total += 1
-            if s.split(":", 1)[1].strip().lower() != "disabled":
-                enabled += 1
-            name = None
+        parts = line.split()
+        if len(parts) < 2 or not parts[0].startswith("PersonalOS-"):
+            continue
+        if parts[0].startswith("PersonalOS-retry-"):
+            continue  # ephemeral one-shots, excluded on every side (same as recovery C7)
+        total += 1
+        if parts[1].strip().lower() == "enabled":
+            enabled += 1
     if total == 0:
         return None
     return {"enabled": enabled, "total": total}

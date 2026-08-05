@@ -1,8 +1,8 @@
 # /cron-setup - Manage System Schedules
 
-Manage the local scheduled jobs. On this machine that means **Windows Task Scheduler**, one job per
-entry in `scheduler/schedule.md`, named `PersonalOS-{name}`, each running a **hardened wrapper**
-`scripts/run-{name}.ps1` (never a bare `claude -p`). Modes: on, off, update.
+Manage the local scheduled jobs. On this machine that means **systemd user timers**, one
+`PersonalOS-{name}.timer` + `.service` pair per entry in `scheduler/schedule.md`, each running a
+**hardened wrapper** `scripts/run-{name}.sh` (never a bare `claude -p`). Modes: on, off, update.
 
 ## Usage
 - `/cron-setup` or `/cron-setup on` - Register/refresh every job in scheduler/schedule.md
@@ -12,70 +12,111 @@ entry in `scheduler/schedule.md`, named `PersonalOS-{name}`, each running a **ha
 - `/cron-setup on morning-brief` - Re-enable a specific job
 
 ## Reality on this machine (read first)
-- **No auth token.** Tasks run as the logged-in user and reuse the existing Claude Code login. The old
+- **No auth token.** Timers run as the logged-in user and reuse the existing Claude Code login. The old
   `CLAUDE_CODE_OAUTH_TOKEN` / `claude setup-token` flow is gone - do NOT ask for a token.
 - **Source of truth:** `scheduler/schedule.md` (the `### ` entries carry the job name + frequency). The
-  unified generator `node scripts/generate-alex.js` CREATES MISSING tasks from it (create-missing-only,
-  never touching an existing job's hardening). `/cron-setup` is for the manual on/off/enable/disable and
-  for re-applying hardening after a task is re-created. Both read the same schedule.md.
+  unified generator `node scripts/generate-alex.js` writes the unit files into `systemd/` and creates
+  MISSING timers from it (create-missing-only, never touching a job that already exists). `/cron-setup`
+  is for the manual on/off/enable/disable. Both read the same schedule.md.
+- **Units live in the repo, at `systemd/`.** They are generated artifacts, so they belong beside the
+  source that produces them and are reviewable in git. `systemctl --user link` points at them from
+  there. NEVER hand-edit a unit file: edit schedule.md and regenerate, or the next generator run
+  silently reverts you.
 - **Validation couples them:** `scripts/validate-alex.js` check V2 compares schedule.md against the live
-  `schtasks` set. A job documented in schedule.md with no live task (or a live PersonalOS job absent from
-  schedule.md) fails V2 and blocks commits. So schedule.md and Task Scheduler must always agree.
-- **Check state:** `schtasks /query /fo csv | findstr PersonalOS`. Logs: `outputs/logs/{name}.log`.
+  `systemctl --user list-timers` set. A job documented in schedule.md with no live timer (or a live
+  PersonalOS timer absent from schedule.md) fails V2 and blocks commits. So schedule.md and systemd must
+  always agree.
+- **Check state:** `systemctl --user list-timers --all`. Logs: `outputs/logs/{name}.log`, plus
+  `journalctl --user -u PersonalOS-{name}.service` for anything the wrapper never got to write.
+
+## LINGERING - the one that silently breaks everything
+```sh
+loginctl enable-linger "$USER"
+```
+Without it, user timers only run while a login session is active. On a headless box that means the
+whole job train quietly does nothing, with no error anywhere. Check it before debugging anything else:
+`loginctl show-user "$USER" --property=Linger` must say `Linger=yes`.
+
+## Timezone
+Every `OnCalendar=` is wall-clock local time. Set the machine timezone BEFORE enabling any timer:
+```sh
+sudo timedatectl set-timezone Europe/Stockholm
+```
+DST is then the OS's problem, which is the entire reason the schema uses IANA IDs.
 
 ## How "On" works
 1. Read `scheduler/schedule.md` for every `### ` entry (name, command, frequency).
-2. For each entry, confirm a hardened wrapper `scripts/run-{name}.ps1` exists (dot-sources
-   `scripts/lib/close-out.ps1`; a wrapper that runs a real automation ends with `Invoke-CloseOutCheck`).
-   If the wrapper is missing, create it from the pattern (see run-alex-radar.ps1 / run-landscape-monitor.ps1)
-   BEFORE registering the task - never schedule a bare `claude -p`.
-3. Register any missing task (either `node scripts/generate-alex.js` for the whole set, or
-   `Register-ScheduledTask` directly for one), then apply the hardening for its class (below).
+2. For each entry, confirm a hardened wrapper `scripts/run-{name}.sh` exists (sources
+   `scripts/lib/common.sh`; a wrapper that runs a real automation ends with `close_out`). If the
+   wrapper is missing, create it from the canonical pattern (`scripts/run-expense-wrangler.sh`)
+   BEFORE registering the timer - never schedule a bare `claude -p`.
+3. Run `node scripts/generate-alex.js` to write/refresh the units, then link + enable what is missing.
 4. Report what was registered and what already existed.
 
-### Registering one task (PowerShell, current user, no password prompt)
-```powershell
-$repo = "C:\Users\Thinkpad\Desktop\personal-os"
-$a = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$repo\scripts\run-{name}.ps1`""
-$t = New-ScheduledTaskTrigger -Daily -At 8:00am   # or -Weekly -DaysOfWeek Monday -At 7:30am, etc.
-$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2) -RestartCount 4 -RestartInterval (New-TimeSpan -Minutes 90)
-Register-ScheduledTask -TaskName "PersonalOS-{name}" -Action $a -Trigger $t -Settings $s -Force
+### Registering one job by hand
+```sh
+systemctl --user link "$PWD/systemd/PersonalOS-{name}.service" "$PWD/systemd/PersonalOS-{name}.timer"
+systemctl --user daemon-reload
+systemctl --user enable --now PersonalOS-{name}.timer
+systemctl --user list-timers PersonalOS-{name}.timer     # verify it is scheduled
 ```
 
-### Hardening classes (canonical list: scheduler/schedule.md "Task Hardening")
-- **Standard (daily/weekly/monthly claude jobs):** RestartCount 4 / RestartInterval 90 min / ExecutionTimeLimit 2h.
-- **Light (probes + zero-token scripts, e.g. git-backup, vault-index, landscape-monitor):** RestartCount 2 / 30 min / ExecutionTimeLimit 30 min.
-- All jobs: `StartWhenAvailable`, `WakeToRun`, battery-safe, `MultipleInstances IgnoreNew`.
-- **The real retry is NOT RestartCount.** Task Scheduler's RestartCount only fires on a LAUNCH failure,
-  not on a wrapper that runs and exits 1 (proven 2026-07-06). The working retry is the close-out lib's
-  self-scheduled one-shot `PersonalOS-retry-{wrapper}-{n}` (+90 min, attempts 2-5, auto-deletes). The
-  RestartCount ladders stay as belt-and-suspenders for launch failures.
+### Hardening (canonical list: scheduler/schedule.md "Task Hardening")
+The Windows vocabulary maps like this, and the mapping is applied by `scripts/lib/gen-systemd.js`:
+
+| Windows | systemd | Note |
+|---|---|---|
+| `StartWhenAvailable` | `Persistent=true` | Strictly better: fires on the next boot if the machine was off |
+| `WakeToRun` | `WakeSystem=true` | Only where schedule.md documents it |
+| `ExecutionTimeLimit` | `RuntimeMaxSec=` | Read per job from schedule.md; 2h default |
+| `MultipleInstances IgnoreNew` | nothing | `Type=oneshot` already refuses a concurrent start |
+| `RestartCount` / `RestartInterval` | **deliberately unmapped** | See below |
+
+- **The real retry is NOT a unit setting.** It is the close-out lib's self-scheduled one-shot
+  (`PersonalOS-retry-{wrapper}-{n}`, +90 min, attempts 2-5, a transient `systemd-run --collect` unit
+  that self-deletes). systemd's `Restart=on-failure` WOULD fire on a non-zero exit, unlike Task
+  Scheduler's `RestartCount` - which is exactly why the ladder was written. That makes the ladder
+  arguably redundant here, and it is still ported as-is: changing failure-recovery behavior during a
+  platform move makes any incident un-diagnosable. Simplifying it is a separate decision.
 
 ## How "Off" works
-- `/cron-setup off` (no name): list the live PersonalOS jobs, confirm, then
-  `Disable-ScheduledTask -TaskName PersonalOS-{name}` for each. Disable, don't delete - a disabled job
-  keeps its hardening and stays documented in schedule.md, so V2 still sees it (mark it disabled in
-  schedule.md, as whatsapp-harvest is).
-- `/cron-setup off {name}`: `Disable-ScheduledTask -TaskName PersonalOS-{name}` for that one.
-- Re-enable: `Enable-ScheduledTask -TaskName PersonalOS-{name}`.
+- `/cron-setup off` (no name): list the live PersonalOS timers, confirm, then
+  `systemctl --user disable --now PersonalOS-{name}.timer` for each. Disable, don't delete the unit -
+  a disabled timer keeps its definition and stays documented in schedule.md, so V2 still sees it
+  (mark it disabled in schedule.md, as whatsapp-harvest is).
+- `/cron-setup off {name}`: `systemctl --user disable --now PersonalOS-{name}.timer`.
+- Re-enable: `systemctl --user enable --now PersonalOS-{name}.timer`.
 
-## Changing an existing task - NEVER `schtasks /change`
-`schtasks /change` hangs on a password prompt in this environment. Mutate in place instead, which
-preserves every other setting:
-```powershell
-$t = Get-ScheduledTask -TaskName "PersonalOS-{name}"; $s = $t.Settings
-$s.RestartCount = 4; $s.RestartInterval = 'PT90M'; $s.ExecutionTimeLimit = 'PT2H'; $s.WakeToRun = $true
-Set-ScheduledTask -TaskName "PersonalOS-{name}" -Settings $s
+### Disabled by design - do not "fix" these
+- `PersonalOS-sprint-tracker` - paused by Shaheen 2026-07-16 until he says otherwise.
+- `PersonalOS-whatsapp-harvest` - its retired Phase-1 02:30 trigger must never be re-armed.
+
+The generator writes their units but never enables them. Both are correct as they stand.
+
+## Changing an existing job
+Edit `scheduler/schedule.md`, run `node scripts/generate-alex.js`, then:
+```sh
+systemctl --user daemon-reload
+systemctl --user restart PersonalOS-{name}.timer
+```
+No in-place mutation dance is needed any more: the unit file IS the settings, it is generated from
+schedule.md, and it is in git. (The Windows note about `schtasks /change` hanging on a password prompt
+is gone with the platform.)
+
+## Testing a job without waiting for its slot
+```sh
+systemctl --user start PersonalOS-{name}.service    # runs it now, timer untouched
+journalctl --user -u PersonalOS-{name}.service -n 50 --no-pager
 ```
 
 ## After setup
-- Report: jobs registered/enabled/disabled, their schedules, `schtasks /query /fo csv | findstr PersonalOS`.
-- If schedule.md changed, run `node scripts/generate-alex.js` so the docs regenerate and V2 re-checks
-  schedule.md against the live set.
+- Report: jobs registered/enabled/disabled, their schedules, `systemctl --user list-timers --all`.
+- If schedule.md changed, run `node scripts/generate-alex.js` so the docs and units regenerate and V2
+  re-checks schedule.md against the live set.
 - Append the change to `vault/log.md`; update `scheduler/schedule.md` if a job was added/removed/retimed.
 
 ## Other platforms (portability note)
-This command is Windows-first because that is where Alex runs. On macOS/Linux the equivalent is a per-job
-`crontab` line that `cd`s into the repo first and runs the same wrapper; the schedule.md contract and the
-generator's create-missing behavior are the same. Do not reintroduce an OAuth token - reuse the logged-in
-session.
+This command is systemd-first because that is where Alex runs (ruling C: dev on macOS, run on Linux).
+**On the macOS dev box none of this works and that is expected** - `systemd/` is inert there, and the
+generator degrades to a LOUD SKIP rather than pretending. Do not reintroduce an OAuth token; reuse the
+logged-in session.

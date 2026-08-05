@@ -53,6 +53,7 @@ const path = require('path');
 const { parseScheduleJobs, parseMcpList, parseColorTokens, computeCounts } = require('./lib/read-sources');
 const { scheduledJobsRows } = require('./lib/gen-docs');
 const { liveJobs } = require('./lib/gen-scheduler');
+const { hasSystemd } = require('./lib/gen-systemd');
 const { TARGETS, NODE } = require('./lib/sync-n8n-voice');
 const genTokens = require('./lib/gen-tokens');
 
@@ -204,10 +205,11 @@ function v1AutomationCount({ stagedDir, manifest }, failures) {
 //      (a) doc side: the jobs table in generated GETTING-STARTED.md must equal the rows the
 //          generator derives from scheduler/schedule.md (scheduledJobsRows contract);
 //      (b) reality side: every documented PersonalOS-* job (parseScheduleJobs contract, retry-*
-//          excluded by convention) must exist in live Windows Task Scheduler, and every live
+//          excluded by convention) must exist as a live systemd user timer, and every live
 //          PersonalOS-* job must be documented. Transient tasks (schedule.md "## Transient tasks"
 //          section, e.g. the self-removing QRA poller) are exempt from must-exist-live but count
-//          as documented if armed (2026-07-13). schtasks unavailable: FAIL in generator context,
+//          as documented if armed (2026-07-13). No systemd at all (the macOS dev box): LOUD SKIP in every
+//          context. Systemd present but unreachable: FAIL in generator context,
 //          LOUD SKIP in pre-commit context (a clone on another machine can still commit).
 // ---------------------------------------------------------------------------------------------
 function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
@@ -238,12 +240,29 @@ function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
     }
   }
 
-  // (b) live Task Scheduler
+  // (b) live systemd user timers
+  // BASH MIGRATION 2026-08-05: this half read Windows Task Scheduler; it now reads
+  // `systemctl --user list-timers`. Two skip paths, and the difference between them matters:
+  //   - NO SYSTEM D AT ALL (the macOS dev box, ruling C): a LOUD SKIP in every context. The dev
+  //     machine has no job train to be in drift WITH, so failing there would make `validate` unusable
+  //     on the machine where the code is written - and a validator people learn to ignore is worse
+  //     than one that says plainly what it did not check.
+  //   - SYSTEMD PRESENT BUT UNREACHABLE: the pre-existing behavior is kept exactly - FAIL in
+  //     generator context, LOUD SKIP in pre-commit, so an offline machine can still commit but a
+  //     real generator run cannot quietly skip the reality check.
+  if (!hasSystemd()) {
+    warnings.push(
+      `WARNING V2 SKIPPED (live half): no systemd on this machine (platform=${process.platform}), so the ` +
+        `${schedule.allJobNames.length} documented jobs were NOT checked against a live scheduler. ` +
+        'Expected on the macOS dev box; on the Linux host this is a finding.'
+    );
+    return;
+  }
   let live;
   try {
     live = liveJobs();
   } catch (e) {
-    const msg = `V2 (live half): schtasks query unavailable - ${e.message}`;
+    const msg = `V2 (live half): systemd timer query unavailable - ${e.message}`;
     if (context === 'pre-commit') { warnings.push(`WARNING V2 SKIPPED (live half, pre-commit): ${msg}`); return; }
     failures.push(`FAILED V2: ${msg}`);
     return;
@@ -253,9 +272,9 @@ function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
   const notRegistered = schedule.allJobNames.filter(j => !liveSet.has(j));
   const unknown = live.filter(j => !docSet.has(j) && !transientSet.has(j));
   if (notRegistered.length)
-    failures.push(`FAILED V2: job(s) documented in scheduler/schedule.md but MISSING from live Windows Task Scheduler: ${notRegistered.join(', ')}`);
+    failures.push(`FAILED V2: job(s) documented in scheduler/schedule.md but MISSING from the live systemd user timers: ${notRegistered.join(', ')}`);
   if (unknown.length)
-    failures.push(`FAILED V2: live Task Scheduler job(s) not documented in scheduler/schedule.md: ${unknown.join(', ')}`);
+    failures.push(`FAILED V2: live systemd PersonalOS-* timer(s) not documented in scheduler/schedule.md: ${unknown.join(', ')}`);
 }
 
 // ---------------------------------------------------------------------------------------------

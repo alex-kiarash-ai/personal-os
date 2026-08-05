@@ -1,100 +1,88 @@
-// gen-scheduler.js - scheduler/schedule.md -> Windows Task Scheduler jobs (refactor P1-S3).
-// The ONLY PowerShell/Windows touchpoint in the generator (D11): schtasks is invoked as a
-// subprocess. Job-naming follows the existing /cron-setup pattern: PersonalOS-{name}, each running
-// a hardened wrapper scripts/run-{name}.ps1 (never a bare `claude -p`).
+// gen-scheduler.js - scheduler/schedule.md -> the machine's scheduler (refactor P1-S3).
 //
-// Idempotence + safety contract:
+// BASH MIGRATION 2026-08-05: this file used to describe itself as "the ONLY PowerShell/Windows
+// touchpoint in the generator". That is now true of the systemd backend instead, and this file is
+// the dispatcher. The generator was built cross-platform in 2026-07-08 (decision D11: "Node ... it
+// is cross-platform. PowerShell is invoked ONLY as a subprocess for Windows Task Scheduler
+// registration"); swapping that subprocess for systemd is the completion of a decision the repo
+// already made, not a new direction.
+//
+// Job-naming is unchanged and stays unchanged deliberately (W11): PersonalOS-{name}, each running a
+// hardened wrapper scripts/run-{name}.sh, never a bare `claude -p`. Recovery check C7 compares
+// documented names to live names, so preserving them keeps C7 meaningful across the migration.
+//
+// Idempotence + safety contract, identical on both backends:
 //   - dry-run (apply=false): parse the documented PersonalOS-* job set from scheduler/schedule.md,
-//     query the live set (schtasks /query), report missing / unknown / matched. No writes.
-//   - apply: creates ONLY jobs that are documented but not registered (schtasks /create /f by job
-//     name). It NEVER touches an existing job: the live jobs carry hand-applied hardening
-//     (RestartCount ladders, WakeToRun, battery settings) that re-creation would silently wipe -
-//     that is a documented past incident class, so "leave existing jobs alone" is a hard rule here.
+//     query the live set, report missing / unknown / matched. No writes to the scheduler.
+//   - apply: creates ONLY jobs that are documented but not registered. It NEVER touches an existing
+//     job: live jobs carry hand-applied hardening that re-creation would silently wipe, which is a
+//     documented past incident class, so "leave existing jobs alone" is a hard rule here.
 //   - PersonalOS-retry-* one-shots are ephemeral by design and excluded on both sides (same as
 //     recovery check C7).
+//
+// PLATFORM GUARD (ruling C): on a machine with no systemd - the macOS dev box - the LIVE half
+// cannot run. It degrades to a LOUD SKIP: never a silent no-op (which would let real drift hide),
+// never a crash (which would break `generate-alex.js` on the machine where it is edited). Unit
+// GENERATION still happens there, on purpose, so the units are reviewable in git before deploy.
 'use strict';
+const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const systemd = require('./gen-systemd');
 
 const REPO = path.join(__dirname, '..', '..');
 
-// Live PersonalOS-* task names from Windows Task Scheduler.
+// Live PersonalOS-* job names, from whichever scheduler this machine actually has.
 function liveJobs() {
-  let csv;
-  try {
-    csv = execFileSync('schtasks', ['/query', '/fo', 'CSV'], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-  } catch (e) {
-    throw new Error(`gen-scheduler: schtasks /query failed: ${e.message}`);
-  }
-  const names = new Set();
-  for (const m of csv.matchAll(/"\\([^"\\]*PersonalOS-[A-Za-z0-9-]+)"/g)) {
-    const name = m[1];
-    if (!name.startsWith('PersonalOS-retry-')) names.add(name);
-  }
-  return [...names].sort();
+  return systemd.liveJobs();
 }
 
-// Parse a schedule.md frequency phrase into schtasks args. Conservative on purpose: anything it
-// cannot parse must go through /cron-setup by hand - guessing a schedule is worse than failing.
+// Kept as a named export because validate-alex V2 and the tests import it. Delegates to the
+// systemd expression builder; the schtasks argument-array form is gone with the .ps1 files.
 function parseFrequency(freq) {
-  if (!freq) return null;
-  const f = freq.toLowerCase();
-  const time = f.match(/(\d{1,2})[:.](\d{2})\s*(am|pm)?/);
-  if (!time) return null;
-  let hh = parseInt(time[1], 10);
-  const mm = time[2];
-  if (time[3] === 'pm' && hh < 12) hh += 12;
-  if (time[3] === 'am' && hh === 12) hh = 0;
-  const st = `${String(hh).padStart(2, '0')}:${mm}`;
-  if (/weekday/.test(f)) return ['/sc', 'WEEKLY', '/d', 'MON,TUE,WED,THU,FRI', '/st', st];
-  const day = f.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/);
-  if (day) return ['/sc', 'WEEKLY', '/d', day[1].slice(0, 3).toUpperCase(), '/st', st];
-  if (/monthly.*last day/.test(f)) return ['/sc', 'MONTHLY', '/mo', 'LASTDAY', '/m', '*', '/st', st];
-  const dom = f.match(/monthly on the (\d{1,2})/);
-  if (dom) return ['/sc', 'MONTHLY', '/d', dom[1], '/st', st];
-  if (/daily|\bdays\b|3x daily/.test(f)) return ['/sc', 'DAILY', '/st', st];
-  return null;
-}
-
-// Map a documented job name back to its schedule.md entry (the entry text carries the job name).
-function entryForJob(schedule, jobName) {
-  return schedule.entries.find(e => e.jobNames.includes(jobName)) || null;
+  return systemd.parseFrequency(freq);
 }
 
 async function run({ schedule, apply, log }) {
   const documented = schedule.allJobNames;
-  const live = liveJobs();
+
+  // Generation is platform-independent and always runs: the units are a git artifact.
+  const gen = systemd.generateUnits({ schedule, log });
+
+  if (!systemd.hasSystemd()) {
+    log(
+      `  scheduler: LIVE CHECK SKIPPED - no systemd on this machine (platform=${process.platform}). ` +
+        `${documented.length} jobs documented, ${gen.written.length} unit pairs written to systemd/. ` +
+        'This is expected on the macOS dev box (ruling C: dev on macOS, run on Linux); on the Linux ' +
+        'host it means systemd is unreachable and the scheduler is UNVERIFIED.'
+    );
+    return {
+      documented,
+      live: [],
+      missing: [],
+      unknown: [],
+      matched: [],
+      applied: [],
+      skippedLive: true,
+      units: gen,
+    };
+  }
+
+  const live = systemd.liveJobs();
   const liveSet = new Set(live);
   const docSet = new Set(documented);
-  const missing = documented.filter(j => !liveSet.has(j));
-  const unknown = live.filter(j => !docSet.has(j));
-  const matched = documented.filter(j => liveSet.has(j));
+  const missing = documented.filter((j) => !liveSet.has(j));
+  const unknown = live.filter((j) => !docSet.has(j));
+  const matched = documented.filter((j) => liveSet.has(j));
 
   log(`  scheduler: documented=${documented.length} live=${live.length} matched=${matched.length}`);
-  if (missing.length) log(`  scheduler: MISSING from Task Scheduler: ${missing.join(', ')}`);
+  if (missing.length) log(`  scheduler: MISSING from systemd: ${missing.join(', ')}`);
   if (unknown.length) log(`  scheduler: live but NOT documented in schedule.md: ${unknown.join(', ')}`);
-  if (!missing.length && !unknown.length) log('  scheduler: schedule.md and Task Scheduler agree (verified no-op)');
+  if (!missing.length && !unknown.length) log('  scheduler: schedule.md and systemd agree (verified no-op)');
 
-  if (!apply) return { documented, live, missing, unknown, matched, applied: [] };
+  if (!apply) return { documented, live, missing, unknown, matched, applied: [], skippedLive: false, units: gen };
 
-  const applied = [];
-  for (const job of missing) {
-    const entry = entryForJob(schedule, job);
-    if (!entry) throw new Error(`gen-scheduler: ${job} is documented but no schedule.md entry names it - fix schedule.md`);
-    const schArgs = parseFrequency(entry.frequency);
-    if (!schArgs)
-      throw new Error(`gen-scheduler: cannot parse frequency '${entry.frequency}' for ${job} - register it via /cron-setup instead`);
-    const base = job.replace(/^PersonalOS-/, '');
-    const wrapper = path.join(REPO, 'scripts', `run-${base}.ps1`);
-    const fsx = require('fs');
-    if (!fsx.existsSync(wrapper))
-      throw new Error(`gen-scheduler: wrapper scripts/run-${base}.ps1 does not exist for ${job} - create the hardened wrapper first (never schedule a bare claude -p)`);
-    const tr = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${wrapper}"`;
-    execFileSync('schtasks', ['/create', '/f', '/tn', job, '/tr', tr, ...schArgs], { encoding: 'utf8' });
-    log(`  scheduler: CREATED ${job} (${entry.frequency}) - apply hardening per scheduler/schedule.md Task Hardening section`);
-    applied.push(job);
-  }
-  return { documented, live, missing, unknown, matched, applied };
+  const applied = systemd.applyUnits({ schedule, missing, log });
+  return { documented, live, missing, unknown, matched, applied, skippedLive: false, units: gen };
 }
 
-module.exports = { run, liveJobs, parseFrequency };
+module.exports = { run, liveJobs, parseFrequency, REPO, fs };

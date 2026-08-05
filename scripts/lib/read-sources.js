@@ -42,6 +42,11 @@ function parseScheduleJobs(scheduleMd) {
       command: cmd ? cmd[1].trim() : null,
       frequency: freq ? freq[1].trim() : null,
       jobNames: [...new Set((part.match(/PersonalOS-[A-Za-z0-9-]+/g) || []))].filter(j => !j.startsWith('PersonalOS-retry-')),
+      // The entry's raw body. Added 2026-08-05 (bash migration Phase 4) so the systemd unit
+      // generator can read the per-job hardening that is documented in this prose and nowhere
+      // else: ExecutionTimeLimit, WakeToRun, "NO restart policy", and DISABLED-by-design status.
+      // Additive - nothing iterates these keys.
+      text: part,
     });
   }
   const allJobNames = [...new Set((scheduleMd.match(/PersonalOS-[A-Za-z0-9-]+/g) || []))]
