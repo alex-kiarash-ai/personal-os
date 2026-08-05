@@ -323,16 +323,22 @@ export async function testQuotaGate(log, project = '') {
     `quota gate: claude_plan capped (detected ${plan.detected}), DEGRADED - core-only/skip (priority ${pri})`
   );
   if (project !== '') {
-    try {
-      await hqPush({
-        project,
-        metric_key: 'run_status',
-        value_num: 0,
-        headline: 'degraded: quota (plan limit) - deterministic core only this slot',
-        status: 'amber',
-      });
-    } catch (e) {
-      logLine(log, `quota gate: amber push failed: ${e.message}`);
+    // Same shape as the RED push below: an absent token is "not configured", not "failed". Saying
+    // "push failed" for a machine that simply has no HQ token trains you to ignore the line.
+    if (!hqToken()) {
+      logLine(log, 'quota gate: amber push skipped, token file missing');
+    } else {
+      try {
+        await hqPush({
+          project,
+          metric_key: 'run_status',
+          value_num: 0,
+          headline: 'degraded: quota (plan limit) - deterministic core only this slot',
+          status: 'amber',
+        });
+      } catch (e) {
+        logLine(log, `quota gate: amber push failed: ${e.message}`);
+      }
     }
   }
   return false;
@@ -429,6 +435,29 @@ export function detectFailure({ out, code = 0, degradedReason = '' }) {
   }
 
   return { reason, quotaKind, sentinelLog, degradedLog };
+}
+
+/**
+ * The DELIBERATELY NARROWER check for an OPTIONAL pass (the sprint-tracker prose pass is the only
+ * caller today). That pass is allowed to fail: the deterministic core already wrote the numbers and
+ * greened HQ, so a capped week is an accepted degradation, not an incident.
+ *
+ * Reusing detectFailure() here would be wrong in a specific way worth stating: its completion
+ * sentinel and its tail scan would turn every accepted degradation into a RED plus a retry ladder,
+ * i.e. a false alarm on exactly the weeks the core-first design was built to survive quietly.
+ *
+ * @returns {string} the reason, or '' when the optional pass was healthy enough.
+ */
+export function detectProseFailure({ out, code = 0 }) {
+  const text = typeof out === 'string' ? out : '';
+  const nonWs = text.replace(/\s/g, '');
+  const short = nonWs.length < 500;
+  if (nonWs.length === 0) return 'blank output';
+  if (/PROSE EXCEPTION/i.test(text)) return 'prose exception';
+  if (short && /Not logged in|Please run \/login/i.test(text)) return 'not logged in';
+  if (short && /session limit|usage limit|API usage limits/i.test(text)) return 'usage/session limit';
+  if (code !== 0) return `claude exit ${code}`;
+  return '';
 }
 
 // --- the retry ladder ----------------------------------------------------------------------------
@@ -647,6 +676,61 @@ async function main() {
       });
     }
 
+    // hq-push exists so a bash wrapper never has to hold the token itself. Eight PowerShell files
+    // each open the token file, build the JSON and call Invoke-RestMethod; in bash that would mean
+    // eight copies of a curl line with a credential on the command line, where `ps` can see it.
+    // One subcommand instead: the token never leaves Node, and the GREEN/AMBER heartbeat pushes the
+    // wrappers do on success get the same timeout and the same never-crash-the-wrapper behavior as
+    // the RED push above. Always exits 0: a heartbeat that cannot be delivered is a logged problem,
+    // never a failed run.
+    case 'hq-push': {
+      const status = a.status || 'green';
+      const body = {
+        project: project,
+        metric_key: a.metric || 'run_status',
+        value_num: a.value !== undefined ? Number(a.value) : status === 'green' ? 1 : 0,
+        headline: a.headline || '',
+        status,
+      };
+      if (!project) {
+        logLine(log, 'HQ push skipped: no project key given');
+        return 0;
+      }
+      if (a['dry-run']) {
+        logLine(log, `DRYRUN, would push: ${JSON.stringify(body)}`);
+        return 0;
+      }
+      if (!hqToken()) {
+        logLine(log, 'HQ push skipped: token file missing');
+        return 0;
+      }
+      try {
+        await hqPush(body);
+        logLine(log, `HQ ${status} push sent (project=${project}, ${body.metric_key})`);
+      } catch (e) {
+        logLine(log, `HQ push failed: ${e.message}`);
+      }
+      return 0;
+    }
+
+    // Prints the reason an OPTIONAL pass degraded, or nothing at all when it was healthy. Always
+    // exits 0: the caller decides what a non-empty reason means, because for an optional pass it
+    // means PARTIAL, not failure.
+    case 'prose-reason': {
+      let out = '';
+      if (a['out-file']) {
+        try {
+          out = fs.readFileSync(a['out-file'], 'utf8');
+        } catch {
+          out = '';
+        }
+      } else if (typeof a.out === 'string') {
+        out = a.out;
+      }
+      process.stdout.write(detectProseFailure({ out, code: a.code !== undefined ? parseInt(a.code, 10) || 0 : 0 }));
+      return 0;
+    }
+
     case 'quota-set':
       setQuotaCapped(a.kind, log);
       return 0;
@@ -664,6 +748,9 @@ async function main() {
           '  close-out.mjs check --log <file> [--project <key>] [--code N]\n' +
           '                      [--out-file <file> | --out <string>]\n' +
           '                      [--degraded-reason <text>] [--wrapper <path>] [--dry-run]\n' +
+          '  close-out.mjs hq-push --project <key> --log <file> [--status green|amber|red]\n' +
+          '                        [--metric <key>] [--value <n>] [--headline <text>] [--dry-run]\n' +
+          '  close-out.mjs prose-reason --out-file <file> [--code N]   # optional-pass check\n' +
           '  close-out.mjs quota-set --kind plan|api --log <file>\n' +
           '  close-out.mjs quota-clear [--kind plan|api|both] --log <file> [--reason <text>]\n'
       );
