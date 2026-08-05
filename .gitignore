@@ -226,12 +226,13 @@ soul.*.md
 
 # --- 3. system/ DEFAULT-DENY (was: every personal queue named individually) ---
 # A new queue/state file under system/ was open until someone remembered it. Now the
-# directory denies by default and the four genuinely-public files are re-included by name.
+# directory denies by default and the five genuinely-public files are re-included by name.
 system/*
 !system/manifest.json
 !system/hq-heal-map.json
 !system/skills-sources.json
 !system/landscape-log.jsonl
+!system/environment-schema.json
 !system/recall/
 # ...and re-exclude the recall DATA after re-including its code directory (last match wins).
 system/recall/*.db

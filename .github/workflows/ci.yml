@@ -33,6 +33,8 @@ jobs:
         run: node scripts/tests/test-lesson-parse.js
       - name: Protected-file guard (validate-alex V10 core)
         run: node scripts/tests/test-protected-guard.js
+      - name: Untrusted-lane egress guard (injection wall)
+        run: node scripts/tests/test-untrusted-guard.js
       - name: Vault-search freshness gate (sandboxed index)
         run: python scripts/tests/test_vault_search_freshness.py
       - name: Soul-canary verdict function (fails closed)

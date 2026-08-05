@@ -24,6 +24,17 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$ALEX_UNTRUSTED_LANE\" ]; then node \"${CLAUDE_PROJECT_DIR:-.}/scripts/untrusted-lane-guard.js\"; fi"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

@@ -23,6 +23,14 @@ if (-not $ready) { "WARNING: Gmail/Calendar connectors never attached; run may b
 
 # Arm the headless soul-injection gate: a per-run nonce the model must echo with the soul token.
 $nonce = New-SoulNonce
+
+# Untrusted-lane egress guard (2026-08-05, enterprise-assessment idea 5): the brief reads inbox
+# content + HQ notes, so the PreToolUse hook (scripts/untrusted-lane-guard.js) allowlists network
+# egress to the n8n box for this run; any block = DEGRADED (RED). Same mechanism as email-triage.
+$env:ALEX_UNTRUSTED_LANE = 'morning-brief'
+$blocksFile = "outputs\logs\untrusted-lane-blocks.jsonl"
+$blocksPre = if (Test-Path $blocksFile) { (Get-Item $blocksFile).Length } else { 0 }
+
 $out = ''
 try {
     $prompt = "Run /morning-brief" + (Get-SoulCanaryInstruction -Nonce $nonce)
@@ -33,11 +41,19 @@ try {
 } catch {
     $out = "WRAPPER EXCEPTION: $($_.Exception.Message)"; $code = 1
 }
+Remove-Item Env:ALEX_UNTRUSTED_LANE -ErrorAction SilentlyContinue
 $out | Out-File -Append -Encoding utf8 $log
+
+$blocksPost = if (Test-Path $blocksFile) { (Get-Item $blocksFile).Length } else { 0 }
+$egressReason = ''
+if ($blocksPost -gt $blocksPre) {
+    $egressReason = 'untrusted-lane guard BLOCKED egress attempt(s) this run (injection attempt or new legitimate need) - see outputs/logs/untrusted-lane-blocks.jsonl'
+    "egress guard: blocks file grew $blocksPre -> $blocksPost bytes this run" | Out-File -Append -Encoding utf8 $log
+}
 
 # Gate: did soul.md actually reach the model this run? Flag + RED on a miss (keep the brief).
 Assert-SoulCanary -Out $out -Nonce $nonce -Log $log -Project 'morning-brief' -SoftFail
-Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'morning-brief'
+Invoke-CloseOutCheck -Out $out -Code $code -Log $log -Project 'morning-brief' -DegradedReason $egressReason
 
 # Edit 3 (FIX-01 class, 2026-07-15 /prompting item 6): morning-brief is the day's first token job and
 # is budget_priority 1, so it always runs a real `claude -p`. Reaching this line means that run
