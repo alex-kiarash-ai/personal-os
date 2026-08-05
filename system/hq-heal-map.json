@@ -78,6 +78,15 @@
       "enabled": true
     },
     {
+      "id": "soul-canary-failed",
+      "desc": "a soul-canary miss is an IDENTITY failure on a lane that writes in Shaheen's name - escalate on the FIRST occurrence, never let it dissolve into the unknown-red catch-all (pen-test P-01, 2026-08-05)",
+      "probe": "soul_canary",
+      "risk": "HUMAN_ONLY",
+      "remedy": "no safe auto-fix: either the injection path broke or the model would not reproduce the token, and both need a person. Check scripts/lib/soul-canary.ps1 + the SOUL-CANARY-TOKEN blocks in soul.md",
+      "escalate_fail": "",
+      "enabled": true
+    },
+    {
       "id": "unknown-red",
       "desc": "CATCH-ALL: any project red that no check above claims - never let a red light be silently ignored",
       "probe": "unknown_red",

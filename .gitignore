@@ -187,3 +187,81 @@ system/personal-data-allowlist.json
 
 # Self-Heal Loop runtime log (headlines/project detail - local only, like human-actions)
 system/heal-log.jsonl
+
+# ==============================================================================
+# P-04 CLASS FIX (2026-08-05, pen test): the barrier was NAME-SHAPED and EXTENSION-SHAPED
+#
+# The repo is PUBLIC and .gitignore is the SOLE barrier, swept nightly by an unattended
+# `git add -A`. The pen test proved (via `git check-ignore --no-index`) that a rename, a
+# plural, or a re-save walked straight around it: `soul.md.bak`, `system/<any-new>.jsonl`,
+# `work/NN/data|cache|configs/`, `inbox/*`, `.../data/*.csv` were all UNCOVERED. This is the
+# same class that already fired twice - `work/31-portal-scanner/build/` (defeated `export/`
+# by rename, see line 82) and `system/pending-writes.jsonl.bak` (defeated the exact filename,
+# see line 99) - and it fired a THIRD time the same day this was written, when a routine
+# `.claude/settings.local.json.bak-20260805` came back uncovered and would have published 409
+# permission rules to the public repo at 21:30.
+#
+# The multiplier that makes each gap cost twice: `scripts/vault-backup.ps1:126` derives its
+# include set from `git ls-files --others --ignored`, i.e. FROM THIS FILE. An uncovered file is
+# therefore published to GitHub *and* absent from the encrypted off-machine backup.
+#
+# Fix shape: deny the risky CLASS by default, then re-include the named exceptions with `!`.
+# Ordering matters - these sit last on purpose, and every `!` is a reviewed decision.
+# ==============================================================================
+
+# --- 1. Backup siblings, ANYWHERE (was: system/*.jsonl.bak only) ---
+# An editor/script backup of a personal file is exactly as personal as the original.
+*.bak
+*.bak-*
+*.backup
+*.backup-*
+*.orig
+*~
+
+# --- 2. soul.md siblings (143KB of identity, voice corpus, personal history) ---
+# `soul.md` was covered; one copy or dated variant was not.
+soul.md.*
+soul-*.md
+soul.*.md
+
+# --- 3. system/ DEFAULT-DENY (was: every personal queue named individually) ---
+# A new queue/state file under system/ was open until someone remembered it. Now the
+# directory denies by default and the four genuinely-public files are re-included by name.
+system/*
+!system/manifest.json
+!system/hq-heal-map.json
+!system/skills-sources.json
+!system/landscape-log.jsonl
+!system/recall/
+# ...and re-exclude the recall DATA after re-including its code directory (last match wins).
+system/recall/*.db
+system/recall/*.db-wal
+system/recall/*.db-shm
+system/recall/*.jsonl
+
+# --- 4. Raw-source landing zones (where /ingest and forwarded mail drop personal files) ---
+inbox/*
+!inbox/.gitkeep
+work/*/inbox/*
+!work/*/inbox/README.md
+
+# --- 5. HQ generated data + QA captures ---
+# The data dir rule was `*.json` only; a builder emitting .csv/.jsonl published people names
+# and health numbers. qa/shots/ is where a screenshotter would land dashboard captures.
+work/16-alex-hq/app/public/data/
+work/16-alex-hq/qa/shots/
+
+# --- 6. Per-project data folders by CLASS, not by remembered name ---
+work/*/raw/
+work/*/data/
+work/*/output/
+work/*/cache/
+work/*/processed/
+
+# --- 7. Credential-folder name variants (the barrier was the literal word "config") ---
+work/*/configs/
+work/*/config-*/
+work/*/secrets/
+
+# --- 8. Extension-shaped rules widened where the sibling extension was open ---
+work/03-application-engine/powerbi/*.csv

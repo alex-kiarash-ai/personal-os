@@ -234,6 +234,52 @@ def probe_unknown_red(summary, entry, claimed):
         log("unknown-red", "ok", "no unclaimed FAULT reds")
 
 
+def probe_soul_canary(summary, entry, claimed):
+    """A soul-canary failure is an IDENTITY failure, so it escalates on the FIRST occurrence.
+
+    Added 2026-08-05 (pen-test finding P-01). The gate itself worked: it detected, pushed RED, and
+    refused a silent green, every time. What failed was the ROUTE. A canary miss matched nothing
+    specific, so it fell to the `unknown-red` catch-all, which is PROPOSE class and files a
+    medium-severity "needs diagnosis" row like any other red. The result: morning-brief and
+    email-triage failed the gate on and off from 2026-07-20 to 2026-08-05 and nobody was told,
+    because a HARD-gated voice lane drafting in Shaheen's name produced the same low-priority
+    queue line as a stale tile.
+
+    Two deliberate differences from every other probe here:
+      - NO age threshold. `stuck-red-status` waits 3 days on purpose; this waits zero. One run
+        writing in his name without a verified soul.md is already the thing worth interrupting for.
+      - HUMAN_ONLY, not PROPOSE. There is nothing safe to auto-fix: a canary miss means either the
+        injection path broke or the model would not reproduce the token, and both need a person to
+        look. Escalating is the whole remedy.
+
+    Claims its projects so the catch-all does not double-file the same red underneath it.
+    """
+    hits = []
+    for name, p in summary.get("projects", {}).items():
+        if name in ("infra", "health"):
+            continue
+        rs = p.get("metrics", {}).get("run_status", {})
+        if rs.get("status") != "red":
+            continue
+        headline = str(rs.get("headline", ""))
+        # The wrapper writes "soul canary failed: <reason>" (scripts/lib/soul-canary.ps1) and the
+        # voice lanes prefix it with "scheduled run failed: ". Match the stable middle, case-loose.
+        if "soul canary" not in headline.lower() and "soul-canary" not in headline.lower():
+            continue
+        hits.append((name, headline))
+        claimed.add(name)
+    if not hits:
+        return log("soul-canary-failed", "ok", "no soul-canary reds")
+    for name, headline in hits:
+        escalate(
+            f"soul-canary-{name}",
+            "high",
+            f"soul.md did not verifiably reach the model on '{name}': {headline}. "
+            f"Identity lane - check the injection path and scripts/lib/soul-canary.ps1 before the next run.",
+        )
+        log("soul-canary-failed", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
+
+
 def probe_identity_views(summary, entry):
     """The identity docs must stay ONE file object each, reached through a directory junction.
 
@@ -352,6 +398,13 @@ def main():
             continue
         if pid == "unknown_red":
             probe_unknown_red(summary, entry, claimed)
+        elif pid == "soul_canary":
+            # Takes `claimed` so the catch-all below does not re-file the same red at lower severity.
+            # The heal map orders this BEFORE unknown-red for exactly that reason.
+            try:
+                probe_soul_canary(summary, entry, claimed)
+            except Exception as e:
+                log(entry["id"], "error", f"probe crashed: {e}")
         elif pid in PROBES:
             try:
                 PROBES[pid](summary, entry)
