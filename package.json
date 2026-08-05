@@ -1,0 +1,27 @@
+{
+  "name": "personal-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Alex, a Personal Ops System. Node is the logic layer: generators, validators, the recall spine, and (from the bash migration) the Close-Out Gate and the recovery checker.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "generate": "node scripts/generate-alex.js",
+    "validate": "node scripts/validate-alex.js",
+    "test": "node --test \"scripts/tests/*.test.mjs\"",
+    "test:live": "ALEX_LIVE_TESTS=1 node --test \"scripts/tests/*.test.mjs\"",
+    "portability": "node scripts/tests/portability-check.mjs",
+    "recall:harvest": "node system/recall/harvest.js",
+    "ledger": "node scripts/outputs-ledger.js",
+    "human-actions": "node scripts/human-actions.js"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "nodeNotes": {
+    "why-22": "system/recall/ uses node:sqlite, which is only available from Node 22. The recall spine is a hard dependency of the nightly harvest, so 22 is a floor, not a preference.",
+    "why-no-dependencies": "Every Node file in this repo imports only builtins (assert, child_process, crypto, fs, https, os, path). That is deliberate: zero npm supply-chain surface on a machine that holds credentials, and `git clone` is a complete install. Verified 2026-08-05 during the bash migration Phase 1. Keep it that way; adding a dependency is a decision, not a convenience.",
+    "why-commonjs": "The existing scripts/*.js are CommonJS. New migration files are .mjs so ESM and CJS coexist without a flag day. Do not flip \"type\" to module without porting every .js file in the same commit."
+  }
+}

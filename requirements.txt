@@ -1,0 +1,32 @@
+# Alex, Python dependencies (bash migration Phase 1, 2026-08-05).
+#
+# Python floor: 3.9. Verified 2026-08-05 by compiling every tracked .py under 3.9.6:
+# no match statements, no `X | None` unions, no `from __future__` needed. 3.11+ is recommended
+# on the Linux host for speed, but 3.9 is what the code actually requires.
+#
+# MOST of the Python here needs NOTHING beyond the standard library. sqlite3 (the vault FTS5
+# index and the recall spine), json, hashlib, pathlib, subprocess, re and xml all ship with
+# CPython. Keep it that way where you can: this machine holds credentials, so every added
+# package is supply-chain surface.
+#
+# Install:  python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+# System packages are separate; see docs/INSTALL-LINUX.md.
+
+# --- core: needed by the scheduled job train -----------------------------------------------------
+openpyxl>=3.1.0      # #08 expense-wrangler + #20 runway: the all-formula .xlsx workbooks
+python-docx>=1.1.0   # the plain-English guide (Change Propagation item 7) is edited via python-docx
+
+# --- optional: analysis ---------------------------------------------------------------------------
+numpy>=1.24.0        # used by the voice DSP path and a couple of analysis scripts
+
+# --- PARKED: the voice layer (ruling D of bash-migration-plan.md) ----------------------------------
+# work/voice/** is DORMANT as of the Linux migration (revisit 2026-11-05) and its hooks are
+# neutralized, so these are NOT installed by default. Uncomment only if voice is un-parked, and
+# note the system dep libportaudio2 (see docs/INSTALL-LINUX.md) plus the fact that Windows SAPI
+# has no Linux equivalent, so a new never-mute floor (piper or espeak-ng) is needed first.
+# sounddevice>=0.4.6
+# soundfile>=0.12.1
+# edge-tts>=6.1.0
+# openai-whisper
+# openwakeword
+# onnxruntime
