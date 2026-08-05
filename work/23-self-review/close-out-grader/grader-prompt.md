@@ -45,5 +45,5 @@ THE ARTIFACT:
 The grader's VERDICT is advisory. On PASS, close-out item C is `verified (grader PASS)`. On FAIL, the
 producing session fixes the named criteria and re-grades, OR (if Shaheen ships anyway) records the
 FAIL and the reason in the Close-Out Report. The grader NEVER halts a scheduled run by itself
-(scheduled runs exit only on the mechanical A-checks in scripts/lib/close-out.ps1, which this does not
+(scheduled runs exit only on the mechanical A-checks in scripts/lib/close-out.mjs, which this does not
 touch). Advisory-first until it has proven itself; promotion to blocking is a later, separate decision.

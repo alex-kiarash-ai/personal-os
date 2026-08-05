@@ -4,7 +4,7 @@
 // WHY THIS EXISTS. The 2026-07-28 read-pass found six command files contradicting system/manifest.json
 // on trigger, schedule, method or source of truth. That was not six unrelated typos, it was the
 // predicted outcome of the system's own principle applied unevenly: every surface with a checker agreed
-// with reality, and the one large prose surface with nothing asserting it drifted six times. check.ps1
+// with reality, and the one large prose surface with nothing asserting it drifted six times. check.mjs
 // C1 asserts a declared command FILE EXISTS and C2 catches orphan command files; validator V7 uses
 // command NAMES to bind schedule.md sections to projects. All three are filename-level. NOTHING read
 // command file CONTENT.

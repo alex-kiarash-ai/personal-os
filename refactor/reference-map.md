@@ -1,5 +1,13 @@
 # Reference Map — Refactor v2 (P1-S0 step 4, built 2026-07-08)
 
+
+> **PLATFORM NOTE (added 2026-08-05).** This is a DATED RECORD of a past decision and its body is
+> deliberately left intact. Alex moved off Windows/PowerShell onto Linux (bash wrappers, Node logic,
+> systemd user timers) on 2026-08-05, so every `.ps1` path, Task Scheduler reference and `C:\...`
+> literal below describes the system as it was, not as it is. Rewriting a historical document to
+> match the present would destroy the thing that makes it useful. Current state: `bash-migration-plan.md`,
+> `CLAUDE.md`, `scheduler/schedule.md`.
+
 Every file that mentions `PROTOCOL.md`, `SYSTEM-GUIDE.md`, `SCHEDULING-GUIDE.md`, `GETTING-STARTED.md`,
 the global `~/.claude/CLAUDE.md`, the `work/18-recovery-layer/manifest.json` path, or the two scripts
 being absorbed (`generate-surfaces.ps1`, `sync-soul-to-n8n.js`). Grep of the whole tree including the

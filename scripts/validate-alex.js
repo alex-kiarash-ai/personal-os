@@ -633,7 +633,13 @@ function stateWordsIn(line, re = STATE_RE_CI) {
     if (/^-[A-Za-z0-9]/.test(after)) continue;               // compound: Event-driven
     if (/(->|→)\s*$/.test(before.slice(-8))) continue;       // transition target: "PARKED -> X"
     if (/^\s*(->|→)/.test(after.slice(0, 8))) continue;      // transition source: "X -> ON-DEMAND"
-    if (word === 'DISABLED' && /task scheduler|schtasks|scheduledtask/i.test(line)) continue;
+    // "DISABLED" beside SCHEDULER vocabulary is a statement about the JOB, not the project's
+    // lifecycle state ("the timer stays DISABLED" while the project is ON-DEMAND is correct, not a
+    // contradiction). The vocabulary list had to grow on 2026-08-05 with the systemd move: the
+    // Windows words were the ONLY trigger, so the moment schedule.md stopped saying "Task Scheduler"
+    // this exemption stopped matching and two correct lines started failing V7. Keep the Windows
+    // words too - historical entries still carry them.
+    if (word === 'DISABLED' && /task scheduler|schtasks|scheduledtask|systemctl|systemd|\btimer\b|\.timer\b/i.test(line)) continue;
     out.push(word);
   }
   return out;
@@ -812,7 +818,7 @@ function v8HqHexScan({ stagedDir, colorTokens }, failures, warnings) {
 //      row (numbered + meta.unnumbered) that has NEVER fired (first_fire null) is listed as a
 //      WARNING - never a failure (the aging rule blocks nothing; it makes scaffold-masquerade
 //      visible). The registry rule (manifest states_doc) allows 14 days from the project's
-//      status.md frontmatter `created:` date; rows past that window are marked OVERDUE (check.ps1
+//      status.md frontmatter `created:` date; rows past that window are marked OVERDUE (check.mjs
 //      C13 goes amber on the same condition). ON-DEMAND/DORMANT/PARKED/RETIRED are exempt by
 //      rule - they have no promise to fire. A documented drill counts (first_fire_kind=drill).
 // ---------------------------------------------------------------------------------------------
@@ -821,7 +827,7 @@ function v9FirstFireAging({ stagedDir, manifest }, failures, warnings) {
 
   // (a) FUTURE first_fire = FAILURE (added 2026-07-28, command-layer review F-8). first_fire is the
   //     registry's proof-of-life record: "has this project ever actually produced for real". Both this
-  //     check's aging half and check.ps1 C13 branch on first_fire being NULL, so a populated FUTURE date
+  //     check's aging half and check.mjs C13 branch on first_fire being NULL, so a populated FUTURE date
   //     passes every check while asserting a fire that has not happened - the claim sits inside the
   //     structure but outside what the structure validates. It also permanently disables the 14-day
   //     aging clock, so a project that never fires can never be flagged. #31 carried "2026-07-29" on
@@ -1092,9 +1098,9 @@ function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
     files = fs.readdirSync(scriptsDir).filter(f => /^run-.*\.sh$/.test(f) || f === 'auth-check.sh');
   } catch (e) { failures.push(`FAILED V13: cannot read scripts/ to enforce the wrapper pin contract - ${e.message}`); return; }
 
-  // The real reasoning-call line: a non-comment line that invokes claude (claude.ps1 / $ClaudeCmd /
-  // a bare `claude`) with the -p prompt flag. (mcp-list warmups use `& claude.ps1 mcp list` with no
-  // -p, so they are correctly ignored.)
+  // The real reasoning-call line: a non-comment line that invokes claude (the alex_claude helper,
+  // an $ALEX_CLAUDE_BIN/$CLAUDE variable, or a bare `claude`) with the -p prompt flag. (mcp-list
+  // warmups call `"$CLAUDE" mcp list` with no -p, so they are correctly ignored.)
   // HARDENED 2026-07-25 (stress-test T07/F-07): the original matcher required the `&` call operator
   // on the SAME single line, so a PowerShell backtick continuation or a `Start-Process`/bare-command
   // invocation evaded it silently. Two changes: (1) logical lines are joined across continuations
@@ -1120,7 +1126,7 @@ function v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings) {
   const claudeCallLine = text => {
     for (const line of logicalLines(text)) {
       if (/^\s*#/.test(line)) continue;                        // skip comments
-      if (!/claude/i.test(line)) continue;                     // names claude.ps1 / $ClaudeCmd / claude
+      if (!/claude/i.test(line)) continue;                     // names alex_claude / $CLAUDE / claude
       if (!/(^|\s)-p(\s|$)/.test(line)) continue;              // the prompt flag
       return line;
     }
@@ -1204,7 +1210,7 @@ const V14_GOVERNANCE = [
 //
 //       WHY: the read-pass found SIX command files contradicting the registry on trigger, schedule,
 //       method or source of truth. Distribution was the evidence - every surface with a checker agreed
-//       with reality, the one large prose surface without one drifted six times. check.ps1 C1/C2 and
+//       with reality, the one large prose surface without one drifted six times. check.mjs C1/C2 and
 //       V7 do read .claude/commands, but only for file EXISTENCE, ownership and NAMES; nothing read
 //       content. Concretely: /application-engine claimed "daily at 07:00" while #03 runs Tue+Thu 15:00,
 //       and since that command's own job is to report zero-job days, it manufactured five false alarms

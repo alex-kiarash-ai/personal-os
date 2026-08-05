@@ -37,13 +37,13 @@ on the laptop with `--dangerously-skip-permissions`, so it can never be an open 
 2. Arm it:
    ```powershell
    cd work\quota-reset-autorun\scripts
-   .\arm.ps1 -ResetTime "15:00"     # fires at 15:05; add -OffsetMinutes N to change the +5
+   .\arm.sh -ResetTime "15:00"     # fires at 15:05; add -OffsetMinutes N to change the +5
    ```
-   arm.ps1 arms the box, verifies the gate read-back, and registers a single-fire task at fire time
+   arm.sh arms the box, verifies the gate read-back, and registers a single-fire task at fire time
    (no every-minute polling; runs on wake if the laptop was asleep, self-expires after 12h).
 3. Keep the ThinkPad awake through the fire time. The result lands as a Gmail draft to
    shaheen.kiarash@gmail.com and a copy in `outputs/prompting-scheduled/YYYY-MM-DD/`.
-4. Cancel anytime: `.\disarm.ps1`.
+4. Cancel anytime: `.\disarm.sh`.
 
 ## Delivery
 The poller appends a delivery line so the single run emails/drafts the result to you. n8n has no
@@ -52,7 +52,7 @@ a hard-sent mail. Want true auto-send? Add an SMTP cred to n8n and switch the re
 
 ## Files
 - `quota-reset-autorun.workflow.json` - the deployed n8n workflow (id `ardWIfcbe5TwkMm8`), secret-free.
-- `scripts/arm.ps1` / `disarm.ps1` / `poll-and-run.ps1` - the laptop side.
+- `scripts/arm.sh` / `disarm.sh` / `poll-and-run.sh` - the laptop side.
 - `payload-prompt.txt` - paste your prompt here.
 - `config/` (gitignored) - token + n8n ids.
 
@@ -61,8 +61,8 @@ a hard-sent mail. Want true auto-send? Add an SMTP cred to n8n and switch the re
 - Auth: gate without token -> 403; with token -> 200.
 - Poller no-ops cleanly on `go:false` (no claude run, no task, no files).
 - NOT yet live-fired: the GO branch invoking `claude -p` + draft + result-post (spends quota + drops a
-  draft; uses the identical pattern as the 8 scheduler run-*.ps1 wrappers). First real arming proves it.
-- 2026-07-14: arm.ps1 failed repeatedly ("connection closed on send", then "problem executing the
+  draft; uses the identical pattern as the scheduler run-*.sh wrappers). First real arming proves it.
+- 2026-07-14: arm.sh failed repeatedly ("connection closed on send", then "problem executing the
   workflow"). REAL root cause: `Get-Content -Raw` returns a string decorated with PS provider
   NoteProperties, and `ConvertTo-Json` exploded them into a ~90MB body. Fix: read the prompt with
   `[System.IO.File]::ReadAllText` (plain string). Scripts also moved to **curl.exe** (temp-file

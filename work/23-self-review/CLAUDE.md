@@ -32,7 +32,7 @@ identity-carrying artifact + the rubric, never the producing session's reasoning
 per-criterion PASS/FAIL (palette / accent / type / red / logo; dashes / AI-tells / softeners / rhythm /
 his-words; pre-flight). It fixes the self-grading bias that let the 2026-07-03 brand incident ship.
 **ADVISORY ONLY, hard constraint:** it flags, it never blocks a run; it is deliberately NOT wired into
-`scripts/lib/close-out.ps1`, so a grader FAIL / slow grader / unavailable grader can never fail one of
+`scripts/lib/close-out.mjs`, so a grader FAIL / slow grader / unavailable grader can never fail one of
 the 15 scheduled jobs. Invoked via the Agent tool (Alex's existing inline-subagent convention, no new
 Claude Code config). Verified 2026-07-07 against a reconstructed 07-03 violator (FAIL) + a compliant
 artifact (PASS). #23 owns the kit because it owns the review/quality surface; the invocation is global
@@ -65,7 +65,7 @@ The self-review doc; on approval, the target identity/rule/taste files (via Chan
 Proposes, never applies identity-file changes without approval. Fabricates nothing; every proposed change cites the correction/error it came from. If nothing meaningful accumulated in a week, says so plainly (a quiet week is a valid result), never invents proposals to look busy.
 
 ## Model Routing
-Claude for the clustering and the reasoning. **claude-sonnet-4-6 fed from soul.md** for the human-readable weekly summary line written into the Monday brief (prose model per the model-routing rule, corrected 2026-07-08). *(Corrected 2026-07-29, architecture review: this line still said "OpenAI + soul.md" three weeks after the rule changed. #21 and #22 carry the same correction from 07-08 and 07-14; #23 was the one that got missed. The enforced contract is `meta.model_routing` in `system/manifest.json`, which names no OpenAI anywhere, and the wrapper `scripts/run-self-review.ps1` pins `--model claude-sonnet-4-6`, so this file was the only surface still advertising a forbidden provider.)*
+Claude for the clustering and the reasoning. **claude-sonnet-4-6 fed from soul.md** for the human-readable weekly summary line written into the Monday brief (prose model per the model-routing rule, corrected 2026-07-08). *(Corrected 2026-07-29, architecture review: this line still said "OpenAI + soul.md" three weeks after the rule changed. #21 and #22 carry the same correction from 07-08 and 07-14; #23 was the one that got missed. The enforced contract is `meta.model_routing` in `system/manifest.json`, which names no OpenAI anywhere, and the wrapper `scripts/run-self-review.sh` pins `--model claude-sonnet-4-6`, so this file was the only surface still advertising a forbidden provider.)*
 
 ## Connections
 - **Fed by:** #22 Teach-Alex (corrections-log), error-log, close-out-log, soul.md My Words, decisions.
@@ -74,7 +74,7 @@ Claude for the clustering and the reasoning. **claude-sonnet-4-6 fed from soul.m
 ## Close-Out Extras
 - Every review cites its sources; proposals cite their origin correction/error.
 - Nothing applied without approval; applied changes go through full Change Propagation + log.
-- The close-out-grader kit stays ADVISORY: never add it to scripts/lib/close-out.ps1 or gate any run on it.
+- The close-out-grader kit stays ADVISORY: never add it to scripts/lib/close-out.mjs or gate any run on it.
 
 ## Phasing
 - **Phase 1 (now):** the weekly proposal doc, Shaheen applies approved items; the general taste-profile + close-out-log seeded so the inputs actually exist. A first self-review proof written.

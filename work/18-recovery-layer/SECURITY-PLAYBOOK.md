@@ -1,6 +1,6 @@
 # Security Playbook (P5, 2026-07-17)
 
-Hand-written companion to `security-sweep.ps1`. When the monthly sweep turns a red (or you're setting it up), this is the procedure. The sweep DETECTS; a human ROTATES. Nothing here auto-repairs.
+Hand-written companion to `security-sweep.mjs`. When the monthly sweep turns a red (or you're setting it up), this is the procedure. The sweep DETECTS; a human ROTATES. Nothing here auto-repairs.
 
 ## Standing stance on a PUBLIC repo (read first)
 The repo is public since 2026-07-16. `.gitignore` is the SOLE barrier between personal data and the whole internet. Two rules follow:
@@ -15,7 +15,7 @@ The repo is public since 2026-07-16. `.gitignore` is the SOLE barrier between pe
 | Alex HQ token | `work/16-alex-hq/config/alex-hq-token.txt` (gitignored) | Rotate the bearer on the box's webhook config + update the file | Every wrapper's HQ run_status push + health/inbox webhooks. HQ tiles go stale until updated. |
 | Alex HQ basic-auth | Caddy config on the box (`/opt`) + password manager | Edit the Caddyfile hash + reload Caddy + password manager | Browser access to hq.shaheenkiarash.com only. |
 | Bright Data key | **data-gap - locate on first review** | Provider dashboard | Scraping lanes (radar/whatsapp Phase 3) if wired. |
-| GitHub backup PAT | Windows Credential Manager (age owned by recovery C15) | GitHub -> Settings -> Developer -> Tokens; update Credential Manager + `$patExpiry` in check.ps1 | The nightly 21:30 public push. Backup skips until fixed (RED HQ). |
+| GitHub backup PAT | Windows Credential Manager (age owned by recovery C15) | GitHub -> Settings -> Developer -> Tokens; update Credential Manager + `$patExpiry` in check.mjs | The nightly 21:30 public push. Backup skips until fixed (RED HQ). |
 | vault-backup GPG passphrase | local-only file, outside repo (path in `system/credentials-ledger.json`, gitignored) + password manager | Re-encrypt existing backups with a new passphrase; update both stores; refresh C14's `passphrase-attested.txt` | The nightly 21:45 encrypted backup. **If the ThinkPad dies and this is not in the password manager, the off-machine backup is unrecoverable.** |
 
 ## Per-assertion response
@@ -34,4 +34,4 @@ The pure assertions (S2, S7, S8) run live today; the rest need setup:
 2. Capture `ssh n8n 'ss -tlnp'`, Shaheen reviews, save `work/18-recovery-layer/baselines/hetzner-ports.json` (S5).
 3. Fill real `last_rotated` dates in `system/credentials-ledger.json` (S3) and locate the Bright Data key.
 4. (After P2) the Chat Gateway 2.0 gate writes `work/18-recovery-layer/baselines/mcp-clients.json` (S6).
-5. Register `PersonalOS-security-sweep` (monthly 1st Monday 07:20) via /cron-setup, add it to `system/manifest.json` #18 `schedule_jobs` + `scheduler/schedule.md` (with a light-class Task Hardening line), run `node scripts/generate-alex.js`, then `check.ps1 -Init`.
+5. Register `PersonalOS-security-sweep` (monthly 1st Monday 07:20) via /cron-setup, add it to `system/manifest.json` #18 `schedule_jobs` + `scheduler/schedule.md` (with a light-class Task Hardening line), run `node scripts/generate-alex.js`, then `check.mjs --init`.

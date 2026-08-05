@@ -12,10 +12,10 @@
 //                                                     enrichment lane for skeletal backfill rows. (upgrade P11)
 //   node scripts/outputs-ledger.js reconcile          self-heal: append skeleton rows for any
 //                                                     unledgered deliverable on disk, then render.
-//                                                     Idempotent. Runs nightly via vault-backup.ps1.
+//                                                     Idempotent. Runs nightly via vault-backup.sh.
 //   node scripts/outputs-ledger.js validate           naming check: outputs/ top-level dirs must be
 //                                                     manifest keys or declared exemptions.
-//                                                     Exit 0 ok / 2 violation (check.ps1 C12 calls this).
+//                                                     Exit 0 ok / 2 violation (check.mjs C12 calls this).
 //   node scripts/outputs-ledger.js render             regenerate both INDEX files from the ledger.
 //
 // Row: {"date","project","kind","desc","path","added","links"?}  path = repo-relative, forward slashes, THE key.
@@ -39,7 +39,7 @@ const STREAM_DIRS = ['logs', 'voice', 'typed'];
 // cv = working set; reports/brand/architecture/building-alex = frozen legacy (pre-ledger one-offs);
 // sessions = THE home for future one-off session outputs (sessions/YYYY-MM-DD-topic/);
 // prompting-scheduled = the Quota Reset Auto-Run tool's result dir (work/quota-reset-autorun/scripts/
-//   poll-and-run.ps1 writes qra-*.txt here by design; QRA is a registered known_work_folder, 2026-07-15).
+//   poll-and-run.sh writes qra-*.txt here by design; QRA is a registered known_work_folder, 2026-07-15).
 // explainer = the narrated-explainer lane's rendered MP4s (work/voice/explainer/make-explainer.py,
 //   built 2026-07-24). Deliberately a LIGHT TOOL, not a numbered project, so it has no manifest key to
 //   name its folder after - which is exactly what C12 flagged on 2026-07-25 (stress-test F-12). Its

@@ -1,4 +1,7 @@
 # Alex Voice - Cheatsheet (which mode, when)
+> **PARKED / DORMANT since 2026-08-05** (bash migration ruling D, revisit 2026-11-05). Everything
+> below is Windows-era and is kept as the spec a future port starts from. See `work/voice/README.md`
+> for what was actually done and what a Linux port would need.
 
 One page. Full detail in `README.md` (v3) + the v2 section. Decision record: [[research/alex-voice-in-session]] (v3, run 22), [[research/alex-voice-handsfree]] (v2, run 16).
 

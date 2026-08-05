@@ -1,6 +1,6 @@
 'use strict';
 /* h-n8n - per-engine facts, sourced from the manifest's structured routing contract + the existing
- * n8n active-flag watcher LOG (scripts/n8n-active-check.ps1 -> outputs/logs/n8n-active-check.log).
+ * n8n active-flag watcher LOG (scripts/n8n-active-check.mjs -> outputs/logs/n8n-active-check.log).
  * NEVER a new API call (plan constraint): the daily watcher already probes; this reads its last
  * result. Emits, per LIVE workflow-bearing project: expected-active + resolved model, and the last
  * OBSERVED active result if the log's tail is parseable. Model is resolved from model_routing so a

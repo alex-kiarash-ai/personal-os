@@ -6,7 +6,7 @@
 // quad-fail) because a mostly-deterministic data job ran inside a fragile LLM session. ~90% of the
 // work (read board, diff, count, velocity, stale, missed-run, contract, HQ push) needs zero tokens.
 // This core always runs and can't be quota-killed; the standup PROSE + "one thing" lever stay an
-// optional Claude pass on top (see run-sprint-tracker.ps1). If the prose pass dies on the cap, the
+// optional Claude pass on top (see run-sprint-tracker.sh). If the prose pass dies on the cap, the
 // numbers are already written and HQ is already green: degraded, never dark.
 //
 // STATE LEDGER: vault/projects/sprint-tracker/board-state.json holds {pageId: {status, since, task}}.

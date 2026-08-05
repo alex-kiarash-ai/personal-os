@@ -18,13 +18,13 @@ cd C:\Users\Thinkpad\Desktop\personal-os\work\quota-reset-autorun\scripts
 
 **3. Arm it with a time.**
 ```powershell
-.\arm.ps1 -ResetTime "15:00"
+.\arm.sh -ResetTime "15:00"
 ```
 - 24-hour time. If that time already passed today, it assumes tomorrow.
 - It fires **5 minutes after** the time you give (`"15:00"` runs at 15:05). That buffer is for the "5 min after my quota resets" case.
 - Want it at the **exact** time? Add `-OffsetMinutes 0`:
   ```powershell
-  .\arm.ps1 -ResetTime "15:00" -OffsetMinutes 0
+  .\arm.sh -ResetTime "15:00" -OffsetMinutes 0
   ```
 
 **You're armed when you see these 3 lines:**
@@ -38,7 +38,7 @@ cd C:\Users\Thinkpad\Desktop\personal-os\work\quota-reset-autorun\scripts
 
 ## Cancel it
 ```powershell
-.\disarm.ps1
+.\disarm.sh
 ```
 
 ## Remember

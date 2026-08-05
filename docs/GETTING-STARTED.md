@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-03. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-05. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -7,27 +7,28 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 ## 1. What you need
 
 - **A paid Claude account** (Max recommended; Pro burns out fast). Alex *is* Claude, no subscription is no brain.
-- **Claude Code** (desktop app / Cowork, or the CLI). Windows 10/11 (Mac works too).
+- **Claude Code** (desktop app / Cowork, or the CLI). **Linux is where Alex runs** (the scheduled job train is systemd user timers); macOS works for development.
 - **A Google account** (Gmail, Calendar, Drive). **Notion** (free), optional for the base brain but required for the CRM, expenses, and meeting-intel databases (without it Alex degrades to local files, per the Bootstrap rule). **Obsidian** (free, to read the vault).
+- **Optional, only if you want the Alex HQ dashboard's own source:** the `alex-hq` repo. It split out of this one on 2026-08-04 and is expected to sit **beside** `personal-os`, as a sibling folder, not inside it. You do **not** need it to run the Personal Ops System: everything except the dashboard's own build works without it, and the two things that do want it (the brand-token generator and validator check V8) say so plainly and carry on. If you keep it somewhere other than a sibling folder, record that once in `system/manifest.json` → `meta.paths.alex_hq_repo`, or set an `ALEX_HQ_REPO` environment variable. Nothing needs configuring when the sibling layout holds.
 - Base install is about an hour.
 
 ## 2. Install and first boot
 
-1. **Install Claude Code:** desktop app from claude.com/claude-code, or the CLI installer (`irm https://claude.ai/install.ps1 | iex` on Windows, `curl -fsSL https://claude.ai/install.sh | bash` on Mac; `npm install -g @anthropic-ai/claude-code` also works).
-2. **Get the files:** a direct copy (USB/zip) from Shaheen, OR `git clone -c core.longpaths=true` the **public** repo (public since 2026-07-16; the long-paths flag is mandatory on Windows). **Important:** the repo is scrubbed, so a git clone gives you a **vault-less skeleton** (the entire `vault/`, `soul.md`, and `work/*/config` are gitignored and local-only). Only a direct copy from Shaheen carries personal data. Because the repo is public, anyone can clone this skeleton, so the scrub + `.gitignore` are the only things keeping personal data off it.
+1. **Install Claude Code:** desktop app from claude.com/claude-code, or the CLI installer (`curl -fsSL https://claude.ai/install.sh | bash` on Linux/Mac; `npm install -g @anthropic-ai/claude-code` also works).
+2. **Get the files:** a direct copy (USB/zip) from Shaheen, OR `git clone` the **public** repo (public since 2026-07-16). **Important:** the repo is scrubbed, so a git clone gives you a **vault-less skeleton** (the entire `vault/`, `soul.md`, and `work/*/config` are gitignored and local-only). Only a direct copy from Shaheen carries personal data. Because the repo is public, anyone can clone this skeleton, so the scrub + `.gitignore` are the only things keeping personal data off it.
 3. **Point Claude Code at the folder. This is the step everything else depends on, and it is the one people get wrong.** Claude Code only becomes Alex inside the folder it is *opened in*. Dragging the folder into the chat, attaching `CLAUDE.md`, or pasting a file path does **not** work: you get plain Claude, no commands, no memory, no personality. You do this once per machine and Claude Code remembers it.
    - **Desktop app (Cowork):** start a new session, and when it asks for a folder pick the `personal-os` folder you just downloaded. It stays in your recent folders from then on, so every later session is one click.
-   - **Command line:** move into the folder *first*, then start Claude Code. On Windows:
+   - **Command line:** move into the folder *first*, then start Claude Code:
      ```
-     cd "C:\Users\YOURNAME\Desktop\personal-os"
+     cd ~/personal-os
      claude
      ```
-     On Mac or Linux: `cd ~/Desktop/personal-os` then `claude`. Replace the path with wherever you actually saved the folder. Starting `claude` from your home folder and opening files from there is the single most common first-session mistake.
+     Replace the path with wherever you actually saved the folder. Starting `claude` from your home folder and opening files from there is the single most common first-session mistake.
    - **Do not** open a *subfolder* (like `work/` or `docs/`) and expect the commands to work. The folder you open must be the one that directly contains `CLAUDE.md` and `soul.md`.
 4. **First boot: check it worked before you do anything else.** Type `/status`.
    - If Alex answers with a status report, the folder is loaded correctly. Go to step 5.
    - If you get "unknown command" or plain-Claude chat, the folder is **not** loaded. Close the session and redo step 3. Nothing below will work until `/status` responds.
-   - If you cloned the repo there is no soul.md yet, so the first reply is plain Claude even when the folder *is* loaded correctly. That is expected: `/status` still answers, and personality appears after `/setup` writes soul.md. If you *have* soul.md and still get plain Claude, the session hook needs `cat` (ships with Git for Windows).
+   - If you cloned the repo there is no soul.md yet, so the first reply is plain Claude even when the folder *is* loaded correctly. That is expected: `/status` still answers, and personality appears after `/setup` writes soul.md. If you *have* soul.md and still get plain Claude, the session hook needs `cat` (present on any Linux/macOS install).
 5. **Run `/setup` as your first real prompt.** That is the whole first-session instruction: open the folder, `/status` to confirm, then type `/setup` and answer its questions. It walks you through identity, brand, and the vault one step at a time.
 6. **Connect services** at claude.ai, Settings, Connectors: Gmail, Calendar, Drive (one Google sign-in), Notion (optional). The in-app `/mcp` manager inside Claude Code is an alternative path to the same connectors. These are one-time authentications; they persist across sessions. Install the "Claude in Chrome" extension for browser control. (GitHub is used only for backup via git + a token, not a connector.)
 7. **Optional phone control:** pair the Claude Code Desktop app (Cowork) with the mobile app so you can send Alex tasks from your phone. The Alex HQ dashboard is a separate phone surface for reading metrics.
@@ -53,7 +54,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **07 Email Triage** (LIVE; trigger: daily 05:00) - Inbox triage once each morning at 05:00 + voice-matched reply drafts; learns from Shaheen's edits.
 - **08 Expense Wrangler** (LIVE; trigger: monthly last day 20:00) - Receipts to the Notion Expenses DB + an all-formula branded monthly Excel.
 - **10 Weekly Exec Report** (LIVE; trigger: Fri 16:00) - The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.
-- **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup); its Task Scheduler job stays DISABLED by design) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
+- **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup); its timer stays DISABLED by design) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
 - **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.
 - **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from a local read-only Playwright harvest of his own Airbnb dashboard (Airbnb has no host API; Gmail feed is the FALLBACK, not the primary - corrected 2026-07-28, the command file was right and this line was the stale side); feeds the brief + runway.
 - **14 AI Application Engine** (LIVE; trigger: n8n Tue+Thu 15:30) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
@@ -75,7 +76,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **30 Portfolio Website** (ON-DEMAND; trigger: on-demand build sessions; GitHub Actions deploys on push to main (repo-side CI, no local cron in v1)) - shaheenkiarash.com rebuilt as a public-repo Astro static site (took number 30 from the retired modeling lane 2026-08-03; that lane was wiped whole with no successor, tombstone in meta.unnumbered). Images-as-content portfolio + the In Motion film section, docs-as-interview-artifact, zero secrets by construction. Serves from the existing Cloudflare Worker plain-block-545a, deployed by hardened GitHub Actions + wrangler with a scoped API token (amendment A1: VPS self-hosting evaluated and DEFERRED, to keep a public surface off the production n8n box whose Caddy container owns ports 80/443; the rejection is itself the interview artifact). The website repo lives at Desktop/shaheenkiarash.com, a SIBLING of personal-os, never nested. Build runs in phases B0-B5 with hard entry gates; no code before the content and design phase closes.
 - **31 Portal Scanner** (LIVE; trigger: n8n Tue & Thu 15:13 (scan + bank)) - Standalone company-portal job lane, STAGE 1 of 2: detect each company ATS once, hit its free public JSON, prefilter, and BANK matching jobs to the queue that #32 drains. Split from the engine 2026-07-28 so both workflows carry their own n8n id + cron and come under V6 leg (c) and the daily active-flag watcher.
 - **32 Portal Application Engine** (LIVE; trigger: n8n Tue & Thu 15:43 (drain + draft)) - Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28.
-- **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
+- **Voice** (DORMANT, revisit 2026-11-05; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 
 **Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand (plus the global `/graphify`).
 
@@ -89,52 +90,70 @@ MCP tools are deferred: load them with `ToolSearch("select:<tool>")` before call
 - Gmail
 - Notion
 
-## 6. Scheduling (Windows Task Scheduler)
+## 6. Scheduling (systemd user timers)
 
-Nothing runs until you schedule it. On this machine the scheduler is Windows Task Scheduler; `/cron-setup` builds the jobs from `scheduler/schedule.md`. The best first schedule is the morning brief, daily 8:00.
+Nothing runs until you schedule it. On this machine the scheduler is **systemd user timers**;
+`/cron-setup` builds the jobs from `scheduler/schedule.md`, and `node scripts/generate-alex.js`
+writes the unit files into `systemd/`. The best first schedule is the morning brief, daily 8:00.
 
-- **How a scheduled `claude -p` job works:** the scheduler fires at a time, runs `claude -p "Run /{command}" --dangerously-skip-permissions`, the work happens, the process exits, each run is a fresh session. The skip-permissions flag is required because a headless run has no TTY to approve prompts (do not carry it into interactive use). On this machine the jobs run as the logged-in user and reuse existing credentials, so no OAuth token is needed; a `claude setup-token` token is only for a truly detached cron (a headless Linux/macOS server).
-- **The real jobs are hardened, not naive one-shots:** the scheduled wrappers are `.ps1` scripts that detect failure, push a RED/GREEN `run_status` to Alex HQ so a dead run is never silent, and self-schedule one-shot retries past the quota reset (Task Scheduler's RestartCount only covers launch failures, proven 2026-07-06). When you add a new scheduled automation, wrap it the same way, do not schedule a bare `claude -p`.
-- **Not every job is a `claude -p` run.** Some are zero-token scripts or remote n8n: the recovery checker, the git and vault backups, the vault search index, the health ingest (n8n, phone-triggered).
-- **Check a job:** `schtasks /query /fo LIST | findstr PersonalOS`, logs in `outputs/logs/{name}.log`. Pause all: `/cron-setup off`. Pause one: `/cron-setup off {name}`. Resume: `/cron-setup on`.
-- On macOS/Linux the equivalent is `crontab` (detached, needs the OAuth token, all env vars inline, `cd` to the repo first, tag entries `# personal-os:{name}`).
+- **How a scheduled `claude -p` job works:** the timer fires at a time, runs `claude -p "Run
+  /{command}" --dangerously-skip-permissions`, the work happens, the process exits, each run is a
+  fresh session. The skip-permissions flag is required because a headless run has no TTY to approve
+  prompts (do not carry it into interactive use). The jobs run as your own user and reuse existing
+  credentials, so no OAuth token is needed.
+- **Run `loginctl enable-linger $USER` once.** Without it, user timers only fire while you are
+  logged in, so a headless box silently runs nothing at all, with no error anywhere. This is the
+  single easiest thing to forget and the hardest to diagnose after the fact.
+- **The real jobs are hardened, not naive one-shots:** the scheduled wrappers are `.sh` scripts that
+  detect failure, push a RED/GREEN `run_status` to Alex HQ so a dead run is never silent, and
+  self-schedule one-shot retries past the quota reset. When you add a new scheduled automation, wrap
+  it the same way; do not schedule a bare `claude -p`.
+- **Not every job is a `claude -p` run.** Some are zero-token scripts or remote n8n: the recovery
+  checker, the git and vault backups, the vault search index, the health ingest (n8n, phone-triggered).
+- **Check a job:** `systemctl --user list-timers --all`, logs in `outputs/logs/{name}.log` plus
+  `journalctl --user -u PersonalOS-{name}.service` for anything the wrapper never got to write.
+  Pause all: `/cron-setup off`. Pause one: `/cron-setup off {name}`. Resume: `/cron-setup on`.
+- **Set the machine timezone before enabling anything** (`sudo timedatectl set-timezone
+  Europe/Stockholm`): every schedule is wall-clock local time.
+- **On macOS none of this exists**, and that is expected: the dev machine has no systemd, so
+  `systemd/` is inert there and the generator degrades to a loud skip rather than pretending.
 
 ### The scheduled jobs (from scheduler/schedule.md)
 
 | Job | Command | Frequency |
 |---|---|---|
-| Health Tracker (#17) - phone-side, NOT a Windows task | none (no /command, no Task Scheduler job). | **daily 23:59, triggered ON the iPhone** by a native Shortcuts time-automation (Shaheen builds it, guide `work/17-health-tracker/IPHONE-SHORTCUT.md`). It POSTs to the n8n webhook `/webhook/alex-health-ingest`; n8n scores + stores. Nothing to add to /cron-setup on this machine. **23:59 chosen (2026-07-04) so the day's steps are complete while "is today" still captures last night's sleep - one combined row/day.** |
+| Health Tracker (#17) - phone-side, NOT a local timer | none (no /command, no timer). | **daily 23:59, triggered ON the iPhone** by a native Shortcuts time-automation (Shaheen builds it, guide `work/17-health-tracker/IPHONE-SHORTCUT.md`). It POSTs to the n8n webhook `/webhook/alex-health-ingest`; n8n scores + stores. Nothing to add to /cron-setup on this machine. **23:59 chosen (2026-07-04) so the day's steps are complete while "is today" still captures last night's sleep - one combined row/day.** |
 | Sprint Tracker | /sprint-tracker | weekdays at 9:00 AM (PAUSED, see Status above) |
-| Morning Brief | /morning-brief | daily at 8:00 AM (Task Scheduler job PersonalOS-morning-brief) |
-| Application Engine Watch | /application-engine | daily at 8:30 AM (Task Scheduler job PersonalOS-application-engine) |
+| Morning Brief | /morning-brief | daily at 8:00 AM (timer PersonalOS-morning-brief) |
+| Application Engine Watch | /application-engine | daily at 8:30 AM (timer PersonalOS-application-engine) |
 | Personal CRM | /personal-crm | Monday at 8:30 AM |
 | Email Triage | /email-triage scheduled | **daily at 5:00 AM** (changed 2026-07-16, cost cut: was 3x daily at 9/13/17). Model: claude-sonnet-4-6 (per-wrapper `--model`). |
 | Expense Wrangler | /expense-wrangler | monthly, last day of each month at 8:00 PM |
 | Weekly Exec Report | /weekly-exec-report | Friday at 4:00 PM |
 | WhatsApp Harvest (#11) | /whatsapp-harvest | on-demand (the retired Phase 1 slot was daily at 2:30 AM, a usage-based slot that ran while Shaheen slept; kept here as history only) |
-| Airbnb Host | /airbnb-host (monthly-sync) | monthly on the 24th at 10:00 AM (Task Scheduler job PersonalOS-airbnb-host, scheduled runs use **`--headless`** since 2026-07-14 so the harvest launches unattended under Task Scheduler; reuses the saved login session read-only. Manual runs you start yourself stay headed. See work/13 Data Access.) |
-| Alex AI Radar (weekly sweep) | /alex-radar --weekly | Monday at 7:30 AM (Task Scheduler job PersonalOS-alex-radar; 07:30 so the output is in the vault before the 08:00 Morning Brief surfaces it as the Radar section) |
-| Git Backup (Recovery Phase 0) | scripts/git-backup.ps1 (pure git, no claude call) | daily at 9:30 PM (Task Scheduler job PersonalOS-git-backup; RestartCount 2 / RestartInterval 30 min / ExecutionTimeLimit 30 min / StartWhenAvailable) |
-| Vault Backup - encrypted local-only (Recovery Phase 1) | scripts/vault-backup.ps1 (pure PowerShell, no claude call) | daily at 9:45 PM (Task Scheduler job PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push. |
-| Recovery Layer sweep (Recovery Phase 2) | work/18-recovery-layer/check.ps1 (pure PowerShell, no claude call, zero tokens) | Mondays at 7:30 AM (Task Scheduler job PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure. |
-| n8n active-flag watcher (Recovery Layer, BUG-01 fix) | scripts/n8n-active-check.ps1 (pure PowerShell, no claude call, zero tokens) | daily at 8:10 AM (Task Scheduler job PersonalOS-n8n-active-check; StartWhenAvailable + ExecutionTimeLimit 15 min; NO restart policy: exit 1 = a workflow is OFF, a real finding, not a transient failure). **Runs BEFORE the day's engine crons, not after** - the engines moved to Tue & Thu 15:00/15:30 on 2026-07-24, so the 08:10 watcher now reads each flag roughly seven hours ahead of the run it protects, which is the useful direction: a workflow found OFF at 08:10 can be re-activated before 15:00 rather than after a missed run. *(Corrected 2026-07-29, architecture review: this said "placed after the 07:00/07:30 engine crons so a failed activation is caught the same morning", a rationale that stopped being true at the retime.)* |
-| Vault Search Index (upgrade-scan item 1) | scripts/run-vault-index.ps1 (pure Python/SQLite, no claude call, zero tokens) | daily at 9:35 PM (Task Scheduler job PersonalOS-vault-index; StartWhenAvailable + battery-safe + ExecutionTimeLimit 15 min; NO restart ladder - a missed rebuild self-heals next night and on-demand `build` always works). Placed 10 min before the 21:45 vault backup so the fresh .db ships in the encrypted blob. |
+| Airbnb Host | /airbnb-host (monthly-sync) | monthly on the 24th at 10:00 AM (timer PersonalOS-airbnb-host, scheduled runs use **`--headless`** since 2026-07-14 so the harvest launches unattended; reuses the saved login session read-only. Manual runs you start yourself stay headed. See work/13 Data Access.) |
+| Alex AI Radar (weekly sweep) | /alex-radar --weekly | Monday at 7:30 AM (timer PersonalOS-alex-radar; 07:30 so the output is in the vault before the 08:00 Morning Brief surfaces it as the Radar section) |
+| Git Backup (Recovery Phase 0) | scripts/git-backup.sh (pure git, no claude call) | daily at 9:30 PM (timer PersonalOS-git-backup; RestartCount 2 / RestartInterval 30 min / ExecutionTimeLimit 30 min / StartWhenAvailable) |
+| Vault Backup - encrypted local-only (Recovery Phase 1) | scripts/vault-backup.sh (zero-token Node, no claude call) | daily at 9:45 PM (timer PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push. |
+| Recovery Layer sweep (Recovery Phase 2) | work/18-recovery-layer/check.mjs (zero-token Node, no claude call, zero tokens) | Mondays at 7:30 AM (timer PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure. |
+| n8n active-flag watcher (Recovery Layer, BUG-01 fix) | scripts/n8n-active-check.mjs (zero-token Node, no claude call, zero tokens) | daily at 8:10 AM (timer PersonalOS-n8n-active-check; StartWhenAvailable + ExecutionTimeLimit 15 min; NO restart policy: exit 1 = a workflow is OFF, a real finding, not a transient failure). **Runs BEFORE the day's engine crons, not after** - the engines moved to Tue & Thu 15:00/15:30 on 2026-07-24, so the 08:10 watcher now reads each flag roughly seven hours ahead of the run it protects, which is the useful direction: a workflow found OFF at 08:10 can be re-activated before 15:00 rather than after a missed run. *(Corrected 2026-07-29, architecture review: this said "placed after the 07:00/07:30 engine crons so a failed activation is caught the same morning", a rationale that stopped being true at the retime.)* |
+| Vault Search Index (upgrade-scan item 1) | scripts/run-vault-index.sh (pure Python/SQLite, no claude call, zero tokens) | daily at 9:35 PM (timer PersonalOS-vault-index; StartWhenAvailable + battery-safe + ExecutionTimeLimit 15 min; NO restart ladder - a missed rebuild self-heals next night and on-demand `build` always works). Placed 10 min before the 21:45 vault backup so the fresh .db ships in the encrypted blob. |
 | Alex HQ Local Push | /alex-hq | daily at 8:45 AM (staggered from 8:30 on 2026-07-12, upgrade P1/c11: it shared the slot with application-engine, both spawning Claude sessions with no serialization) |
 | Runway Command Center | /runway | monthly, last day of month at 21:15, AFTER /expense-wrangler 20:00 (reads the freshest expense + booking data) |
-| Interview-to-Offer Copilot | /interview | NO dedicated schedule. Event-driven (the morning brief flags interview invites/events) + on-demand /interview. No Task Scheduler job by design. |
-| Teach-Alex Button | /teach-alex | NO dedicated schedule. Event-driven (a correction note in the alex_inbox, caught at the morning-brief inbox step + other touchpoints) + on-demand. No Task Scheduler job by design. |
-| Alex Reviews Alex (Self-Review) | /self-review | weekly, Sunday 20:00 (quiet slot, before the Monday brief). **REGISTERED 2026-07-06:** job PersonalOS-self-review, wrapper scripts/run-self-review.ps1, standard hardening. Also on-demand. |
-| Gated Monthly Lint (Recovery Phase 3) | scripts/run-lint.ps1 (checker first, then claude -p "/lint gated") | monthly, first Monday at 10:00 AM (Task Scheduler job PersonalOS-lint-monthly; after the 07:30 recovery sweep + radar and the 08:00 brief) |
-| Monthly Security Sweep (Recovery Phase 5) | work/18-recovery-layer/security-sweep.ps1 (pure PowerShell, zero tokens, detect-only) | monthly, first Monday at 7:20 AM (Task Scheduler job PersonalOS-security-sweep; ahead of the 07:30 recovery sweep, the 08:00 brief and the 10:00 lint) |
-| Auth Freshness Probe | scripts/auth-check.ps1 (one micro claude -p probe, pattern detection, HQ push) | weekly, Sunday at 7:30 PM (Task Scheduler job PersonalOS-auth-check; before the 20:00 self-review, ahead of the Monday job train) |
-| Landscape Monitor (#25) | scripts/run-landscape-monitor.ps1 (pure Node, no claude call, zero tokens) | daily at 7:10 AM (Task Scheduler job PersonalOS-landscape-monitor; StartWhenAvailable + WakeToRun + battery-safe + ExecutionTimeLimit 30 min; RestartCount 2 / 30 min - light class, and the close-out lib self-schedules the real retry) |
-| Voice-audio orphan sweep (#16 inbox, upgrade P12) - box-side cron, NOT a Windows task | - | daily 04:17 - `find /opt/alex-inbox-audio -type f -mtime +30 -delete`. |
-| Landscape Eval (#25) | scripts/run-landscape-eval.ps1 (one claude -p call per week) | Monday at 7:50 AM (Task Scheduler job PersonalOS-landscape-eval; standard hardening RestartCount 4 / 90 min / ExecutionTimeLimit 2h, WakeToRun, battery-safe) |
-| Portal Scanner (#31) - box-side n8n cron, NOT a Windows task | n8n workflow `5tPXbhdpp6PfF56V` (no local wrapper, no claude call, zero local tokens) | **Tuesday & Thursday 15:13 Stockholm** (`13 15 * * 2,4`), active. 30 min ahead of #32 so the queue is filled before the drain. |
-| Portal Application Engine (#32) - box-side n8n cron, NOT a Windows task | n8n workflow `sxEYRyeHH7i1mHzb` | **Tuesday & Thursday 15:43 Stockholm** (`43 15 * * 2,4`), active. |
-| LinkedIn Series staging (#12) - box-side n8n cron, NOT a Windows task | n8n workflow `v1GbDYganOz9EGpM` | **Tuesday & Thursday 08:00 Stockholm** (`0 8 * * 2,4`), active. |
-| Alex HQ Pipeline Stats (#16) - box-side n8n cron, NOT a Windows task | n8n workflow `y5YbDZu8TT38XZ9r` (+ manual `GET /webhook/alex-hq-stats-run`) | **daily 07:50 Stockholm** (`50 7 * * *`), active. |
-| Alex Radar collector (#15) - box-side n8n cron, NOT a Windows task | n8n workflow `PYePT4Al6aPZi56M` (+ manual `GET /webhook/radar-collect`) | **daily 06:00**, active. |
+| Interview-to-Offer Copilot | /interview | NO dedicated schedule. Event-driven (the morning brief flags interview invites/events) + on-demand /interview. No timer by design. |
+| Teach-Alex Button | /teach-alex | NO dedicated schedule. Event-driven (a correction note in the alex_inbox, caught at the morning-brief inbox step + other touchpoints) + on-demand. No timer by design. |
+| Alex Reviews Alex (Self-Review) | /self-review | weekly, Sunday 20:00 (quiet slot, before the Monday brief). **REGISTERED 2026-07-06:** job PersonalOS-self-review, wrapper scripts/run-self-review.sh, standard hardening. Also on-demand. |
+| Gated Monthly Lint (Recovery Phase 3) | scripts/run-lint.sh (checker first, then claude -p "/lint gated") | monthly, first Monday at 10:00 AM (timer PersonalOS-lint-monthly; after the 07:30 recovery sweep + radar and the 08:00 brief) |
+| Monthly Security Sweep (Recovery Phase 5) | work/18-recovery-layer/security-sweep.mjs (zero-token Node, zero tokens, detect-only) | monthly, first Monday at 7:20 AM (timer PersonalOS-security-sweep; ahead of the 07:30 recovery sweep, the 08:00 brief and the 10:00 lint) |
+| Auth Freshness Probe | scripts/auth-check.sh (one micro claude -p probe, pattern detection, HQ push) | weekly, Sunday at 7:30 PM (timer PersonalOS-auth-check; before the 20:00 self-review, ahead of the Monday job train) |
+| Landscape Monitor (#25) | scripts/run-landscape-monitor.sh (pure Node, no claude call, zero tokens) | daily at 7:10 AM (timer PersonalOS-landscape-monitor; StartWhenAvailable + WakeToRun + battery-safe + ExecutionTimeLimit 30 min; RestartCount 2 / 30 min - light class, and the close-out lib self-schedules the real retry) |
+| Voice-audio orphan sweep (#16 inbox, upgrade P12) - box-side cron, NOT a local timer | - | daily 04:17 - `find /opt/alex-inbox-audio -type f -mtime +30 -delete`. |
+| Landscape Eval (#25) | scripts/run-landscape-eval.sh (one claude -p call per week) | Monday at 7:50 AM (timer PersonalOS-landscape-eval; standard hardening RestartCount 4 / 90 min / ExecutionTimeLimit 2h, WakeToRun, battery-safe) |
+| Portal Scanner (#31) - box-side n8n cron, NOT a local timer | n8n workflow `5tPXbhdpp6PfF56V` (no local wrapper, no claude call, zero local tokens) | **Tuesday & Thursday 15:13 Stockholm** (`13 15 * * 2,4`), active. 30 min ahead of #32 so the queue is filled before the drain. |
+| Portal Application Engine (#32) - box-side n8n cron, NOT a local timer | n8n workflow `sxEYRyeHH7i1mHzb` | **Tuesday & Thursday 15:43 Stockholm** (`43 15 * * 2,4`), active. |
+| LinkedIn Series staging (#12) - box-side n8n cron, NOT a local timer | n8n workflow `v1GbDYganOz9EGpM` | **Tuesday & Thursday 08:00 Stockholm** (`0 8 * * 2,4`), active. |
+| Alex HQ Pipeline Stats (#16) - box-side n8n cron, NOT a local timer | n8n workflow `y5YbDZu8TT38XZ9r` (+ manual `GET /webhook/alex-hq-stats-run`) | **daily 07:50 Stockholm** (`50 7 * * *`), active. |
+| Alex Radar collector (#15) - box-side n8n cron, NOT a local timer | n8n workflow `PYePT4Al6aPZi56M` (+ manual `GET /webhook/radar-collect`) | **daily 06:00**, active. |
 
 ## 7. Backup and recovery, in one paragraph
 

@@ -8,7 +8,7 @@
 // THE ORDER, for every lookup (first hit wins):
 //   1. explicit argv          - the caller always overrides, unchanged behaviour
 //   2. env var                - PERSONAL_OS_REPO / ALEX_HQ_REPO, for odd layouts + CI
-//   3. manifest meta.paths    - the SSOT (system/manifest.json), same well check.ps1 reads
+//   3. manifest meta.paths    - the SSOT (system/manifest.json), same well check.mjs reads
 //   4. structural default     - derived from this file's own location, so it cannot rot
 //
 // This module is a THIN ESM wrapper: the website-repo lookup is delegated to the canonical CJS

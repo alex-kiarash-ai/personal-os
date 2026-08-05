@@ -34,14 +34,14 @@ unchanged value is a no-op, so a supersession is always a real change (which kee
 
 ## Run it
 ```
-node system/recall/harvest.js          # populate/refresh facts.db (nightly 21:35, in run-vault-index.ps1)
+node system/recall/harvest.js          # populate/refresh facts.db (nightly 21:35, in run-vault-index.sh)
 node scripts/facts-check.js            # C21: harvest fresh, then diff docs vs facts (Monday sweep)
 node scripts/facts-check.js --no-harvest   # check as-is (nightly chain already harvested)
 node scripts/lesson-harvest.js         # harvest Close-Out L-lines (nightly 21:35)
 ```
 
 ## Direction law (why this is not the V6 anti-pattern)
-facts.db is derived from STRUCTURED sources (manifest.json, validate-alex.js registry, check.ps1
+facts.db is derived from STRUCTURED sources (manifest.json, validate-alex.js registry, check.mjs
 `# --- C<n>` headers, schtasks, skills-lock.json, the attestation file). C21 tests DOC PROSE against
 that. The doc is the subject; facts.db is the expectation. A validator never derives its expectation
 from prose.
@@ -54,4 +54,4 @@ not become a prompt injection.
 ## Reversibility
 Fully reversible, local, no live engine/cron/model touched: delete `system/recall/`, remove the one
 `recall-inject.js` line from `.claude/settings.json` UserPromptSubmit, remove the C21 block from
-`check.ps1` (+ its bullet), and drop the harvest lines from `run-vault-index.ps1`.
+`check.mjs` (+ its bullet), and drop the harvest lines from `run-vault-index.sh`.

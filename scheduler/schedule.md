@@ -2,13 +2,14 @@
 
 This file is maintained by the agent. When the user asks to schedule something, add it here.
 
-To activate these schedules: Open Cowork → Schedule sidebar → Create a local task for each entry below.
+To activate these schedules: run `/cron-setup`, or `node scripts/generate-alex.js` then
+`systemctl --user enable --now PersonalOS-*.timer`. Units are generated into `systemd/`.
 
 ---
 
 ## Active Schedules
 
-**Activated 2026-06-11 via Windows Task Scheduler.** It began with three jobs (`PersonalOS-sprint-tracker` weekdays 9:00, `PersonalOS-morning-brief` daily 8:00, `PersonalOS-application-engine` daily 8:30); **there are now 25 registered `PersonalOS-*` tasks, 23 Ready and 2 Disabled by design** (sprint-tracker, paused 2026-07-16; whatsapp-harvest, whose retired Phase-1 02:30 trigger must never be re-armed), plus 8 n8n crons on the box listed further down. *(Corrected 2026-07-29, architecture review: this paragraph still named only the original three as if they were the whole system, and the first one it named has been Disabled since 2026-07-16. Do not hardcode the count when it moves; verify with the check command below.)* Each runs `scripts/run-{name}.ps1` → headless `claude -p "Run /{name}"` → log in `outputs/logs/{name}.log`. No OAuth token needed; tasks run as the logged-in user and reuse existing credentials. Check: `schtasks /query /fo csv | findstr PersonalOS`.
+**Activated 2026-06-11; migrated to systemd user timers 2026-08-05.** It began with three jobs (`PersonalOS-sprint-tracker` weekdays 9:00, `PersonalOS-morning-brief` daily 8:00, `PersonalOS-application-engine` daily 8:30); **there are now 25 registered `PersonalOS-*` units, 23 enabled and 2 disabled by design** (sprint-tracker, paused 2026-07-16; whatsapp-harvest, whose retired Phase-1 02:30 trigger must never be re-armed), plus 8 n8n crons on the box listed further down. *(Corrected 2026-07-29, architecture review: this paragraph still named only the original three as if they were the whole system, and the first one it named has been Disabled since 2026-07-16. Do not hardcode the count when it moves; verify with the check command below.)* Each runs `scripts/run-{name}.sh` → headless `claude -p "Run /{name}"` → log in `outputs/logs/{name}.log`. No OAuth token needed; timers run as the logged-in user and reuse existing credentials. **`loginctl enable-linger $USER` is mandatory**, or user timers never fire on a headless box. Check: `systemctl --user list-timers --all`.
 
 <!-- Agent adds entries here when user requests a schedule -->
 <!-- Format: -->
@@ -18,29 +19,29 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 <!-- - Description: what it does -->
 <!-- - Added: YYYY-MM-DD -->
 
-### Health Tracker (#17) - phone-side, NOT a Windows task
-- Command: none (no /command, no Task Scheduler job).
+### Health Tracker (#17) - phone-side, NOT a local timer
+- Command: none (no /command, no timer).
 - Frequency: **daily 23:59, triggered ON the iPhone** by a native Shortcuts time-automation (Shaheen builds it, guide `work/17-health-tracker/IPHONE-SHORTCUT.md`). It POSTs to the n8n webhook `/webhook/alex-health-ingest`; n8n scores + stores. Nothing to add to /cron-setup on this machine. **23:59 chosen (2026-07-04) so the day's steps are complete while "is today" still captures last night's sleep - one combined row/day.**
 - Note: the ingest workflow (`WtOKBY00Cq1FhQ8T`) runs on the Hetzner box, always-on. Consumers (brief/HQ) read on their own schedules. If iOS skips a run, the pipeline is idempotent; optional 00:30 catch-up automation.
 - Added: 2026-07-04
 
 ### Sprint Tracker
-- **STATUS: DISABLED 2026-07-16 (Shaheen: "stop it FOR NOW until I tell you to turn it on"). Task PersonalOS-sprint-tracker set Disabled in Task Scheduler; do NOT `Enable-ScheduledTask` until Shaheen says. Wrapper + hardening left intact for instant re-enable.**
+- **STATUS: DISABLED 2026-07-16 (Shaheen: "stop it FOR NOW until I tell you to turn it on"). Timer PersonalOS-sprint-tracker left disabled; do NOT `systemctl --user enable` it until Shaheen says. Wrapper + hardening left intact for instant re-enable.**
 - Command: /sprint-tracker
 - Frequency: weekdays at 9:00 AM (PAUSED, see Status above)
 - Description: Reads the Notion Progress Tracker board, writes a standup summary to vault + Notion, appends velocity.
 - Added: 2026-06-10
-- **Task settings (hardened 2026-07-02, MUST survive any task re-creation):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 1h, StartWhenAvailable. The wrapper (scripts/run-sprint-tracker.ps1) exits 1 on login/quota/blank-output failures and pushes sprint/run_status RED to Alex HQ. **CORRECTION 2026-07-06 (the quad failure): RestartCount does NOT fire on exit 1 (launch failures only), so the 10:30/12:00/13:30/15:00 ladder never actually ran. The working retry is now the close-out lib's self-scheduled one-shot task (+90 min, attempts 2-5) - see Task Hardening below.** If /cron-setup re-creates this task, re-apply: `Set-ScheduledTask -TaskName "PersonalOS-sprint-tracker" -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -WakeToRun -RestartCount 4 -RestartInterval (New-TimeSpan -Minutes 90) -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew)`
+- **Unit settings:** `RuntimeMaxSec=3600` (the old ExecutionTimeLimit 1h), `Persistent=true`, generated from this entry. The wrapper (scripts/run-sprint-tracker.sh) exits 1 on login/quota/blank-output failures and pushes sprint/run_status RED to Alex HQ. **HISTORY 2026-07-06 (the quad failure): Task Scheduler's RestartCount did NOT fire on exit 1 (launch failures only), so the 10:30/12:00/13:30/15:00 ladder never actually ran. The working retry is the close-out lib's self-scheduled one-shot (+90 min, attempts 2-5) - see Task Hardening below, which also explains why that ladder is kept even though systemd would now fire on a non-zero exit.** Nothing to re-apply by hand: the unit is generated, so a regeneration restores the settings.
 
 ### Morning Brief
 - Command: /morning-brief
-- Frequency: daily at 8:00 AM (Task Scheduler job PersonalOS-morning-brief)
+- Frequency: daily at 8:00 AM (timer PersonalOS-morning-brief)
 - Description: Unread Gmail (12h) + today's calendar + project context, priority-filtered. Writes vault history + Daily Briefs row in Notion.
 - Added: 2026-06-10
 
 ### Application Engine Watch
 - Command: /application-engine
-- Frequency: daily at 8:30 AM (Task Scheduler job PersonalOS-application-engine)
+- Frequency: daily at 8:30 AM (timer PersonalOS-application-engine)
 - **Box engines retimed 2026-07-24: the n8n Application Engine (#03) + AI Application Engine (#14) now run TUESDAY & THURSDAY afternoon (15:00 / 15:30, cron `0 15 * * 2,4` and `30 15 * * 2,4`), the 30-min stagger preserved. (Prior state, from 2026-07-16 cost cut: every-72h 07:00/07:30.) Source window is "Past week" (lowercase - Bright Data's time_range label is case-sensitive; the capitalized "Past Week" typo broke Stage 1 on 07-19, fixed 07-20) so nothing in the last week is missed even across the 4-day Thu->Tue gap (the processed-log dedup keeps it exactly-once). This local watch stays daily; on off-days it simply reports "no new pipeline run".**
 - Description: Reads the Job Search Pipeline sheet (run_log + needs_review) after the pipeline run; reports drafts, costs, flags, anomalies; updates vault. Surveillance only, never modifies the workflow.
 - Added: 2026-06-11
@@ -48,29 +49,29 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 ### Personal CRM
 - Command: /personal-crm
 - Frequency: Monday at 8:30 AM
-- Description: Syncs the Notion Personal CRM from vault/people/ + Gmail/Calendar, builds the weekly follow-up list, stages voice-matched Gmail drafts behind a hard draft gate (never sends). Task Scheduler job PersonalOS-personal-crm.
+- Description: Syncs the Notion Personal CRM from vault/people/ + Gmail/Calendar, builds the weekly follow-up list, stages voice-matched Gmail drafts behind a hard draft gate (never sends). timer PersonalOS-personal-crm.
 - Added: 2026-06-11
 
 ### Email Triage
 - Command: /email-triage scheduled
 - Frequency: **daily at 5:00 AM** (changed 2026-07-16, cost cut: was 3x daily at 9/13/17). Model: claude-sonnet-4-6 (per-wrapper `--model`).
-- Description: Classifies unread mail (Act Now/Read Later/Archive), pulls CRM sender context, writes voice-matched reply drafts to outputs/ (scheduled mode never stages blind). Task Scheduler job PersonalOS-email-triage.
+- Description: Classifies unread mail (Act Now/Read Later/Archive), pulls CRM sender context, writes voice-matched reply drafts to outputs/ (scheduled mode never stages blind). timer PersonalOS-email-triage.
 - Added: 2026-06-12 (retimed to a single 05:00 run 2026-07-16)
 
 ### Expense Wrangler
 - Command: /expense-wrangler
 - Frequency: monthly, last day of each month at 8:00 PM
-- Description: Batch mode - Gmail receipts since last run + inbox files + bank cross-reference (Chrome), regenerates the branded 4-sheet Excel (all formulas) and the Notion Expenses DB. Task Scheduler job PersonalOS-expense-wrangler.
+- Description: Batch mode - Gmail receipts since last run + inbox files + bank cross-reference (Chrome), regenerates the branded 4-sheet Excel (all formulas) and the Notion Expenses DB. timer PersonalOS-expense-wrangler.
 - Added: 2026-06-12
 
 ### Weekly Exec Report
 - Command: /weekly-exec-report
 - Frequency: Friday at 4:00 PM
-- Description: Capstone. Aggregates all 9 automations + Gmail/Calendar into a branded 7-slide deck + Notion weekly page. Trend metrics to metrics-history. Task Scheduler job PersonalOS-weekly-exec-report.
+- Description: Capstone. Aggregates all 9 automations + Gmail/Calendar into a branded 7-slide deck + Notion weekly page. Trend metrics to metrics-history. timer PersonalOS-weekly-exec-report.
 - Added: 2026-06-12
 
 ### WhatsApp Harvest (#11)
-- Status: **ON-DEMAND since 2026-07-10** (manifest state; the first successful Phase 2 iPhone-backup harvest resolved the parked revisit early). No cron: runs are manual /whatsapp-harvest sessions when a fresh backup is worth ingesting. The Task Scheduler job `PersonalOS-whatsapp-harvest` stays DISABLED in Task Scheduler as a fact - do NOT `Enable-ScheduledTask` it; that would re-arm the retired Phase 1 daily 02:30 trigger.
+- Status: **ON-DEMAND since 2026-07-10** (manifest state; the first successful Phase 2 iPhone-backup harvest resolved the parked revisit early). No cron: runs are manual /whatsapp-harvest sessions when a fresh backup is worth ingesting. The timer `PersonalOS-whatsapp-harvest` stays DISABLED as a fact - do NOT `systemctl --user enable` it; that would re-arm the retired Phase 1 daily 02:30 trigger.
 - History: PAUSED 2026-06-18 (Shaheen: the screen-scrape was eating tokens too fast) -> State PARKED 2026-07-06 (audit step 4, revisit was set for 2026-08-01) -> flipped PARKED -> ON-DEMAND 2026-07-10 (Phase 2 proven; details in vault/projects/whatsapp-harvest/status.md).
 - Command: /whatsapp-harvest
 - Frequency: on-demand (the retired Phase 1 slot was daily at 2:30 AM, a usage-based slot that ran while Shaheen slept; kept here as history only)
@@ -79,7 +80,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### Airbnb Host
 - Command: /airbnb-host (monthly-sync)
-- Frequency: monthly on the 24th at 10:00 AM (Task Scheduler job PersonalOS-airbnb-host, scheduled runs use **`--headless`** since 2026-07-14 so the harvest launches unattended under Task Scheduler; reuses the saved login session read-only. Manual runs you start yourself stay headed. See work/13 Data Access.)
+- Frequency: monthly on the 24th at 10:00 AM (timer PersonalOS-airbnb-host, scheduled runs use **`--headless`** since 2026-07-14 so the harvest launches unattended; reuses the saved login session read-only. Manual runs you start yourself stay headed. See work/13 Data Access.)
 - Description: Read-only Playwright harvest of Shaheen's own Airbnb host dashboard. Wrapper runs scrape + ingest (rebuilds the income model Excel with real payouts), then the agent syncs the Notion Bookings DB + vault and flags new pending requests. No host API; guests stay transactional (no people pages). Spec: work/13-airbnb-host/CLAUDE.md.
 - Added: 2026-06-14
 
@@ -87,143 +88,143 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### Alex AI Radar (weekly sweep)
 - Command: /alex-radar --weekly
-- Frequency: Monday at 7:30 AM (Task Scheduler job PersonalOS-alex-radar; 07:30 so the output is in the vault before the 08:00 Morning Brief surfaces it as the Radar section)
+- Frequency: Monday at 7:30 AM (timer PersonalOS-alex-radar; 07:30 so the output is in the vault before the 08:00 Morning Brief surfaces it as the Radar section)
 - Description: Weekly Stream B sweep on free feeds (HN, GitHub releases, Product Hunt, model changelogs, MCP registry). Scores against the taste profile, updates landscape memory, writes radars/YYYY-MM-DD.md + Notion AI Radar Tools rows (Status <= Interesting), auto deep-dives at most 2 items clearing 16/20 + 2 corroborations. Spec: work/15-alex-ai-radar/CLAUDE.md.
 - Added: 2026-07-02 (Monday slot confirmed by Shaheen same day; Phase 1 live)
 
 ### Git Backup (Recovery Phase 0)
-- Command: scripts/git-backup.ps1 (pure git, no claude call)
-- Frequency: daily at 9:30 PM (Task Scheduler job PersonalOS-git-backup; RestartCount 2 / RestartInterval 30 min / ExecutionTimeLimit 30 min / StartWhenAvailable)
+- Command: scripts/git-backup.sh (pure git, no claude call)
+- Frequency: daily at 9:30 PM (timer PersonalOS-git-backup; RestartCount 2 / RestartInterval 30 min / ExecutionTimeLimit 30 min / StartWhenAvailable)
 - Description: Commits the whole personal-os tree (respecting .gitignore: secrets/outputs/build artifacts excluded) and pushes to the GitHub repo alex-kiarash-ai/personal-os (PUBLIC since 2026-07-16, Shaheen's call; scrubbed, so .gitignore is the sole barrier keeping personal data off it). Pushes recovery/run_status GREEN to Alex HQ on success, RED with reason on failure, so a dead backup is never silent. PAT lives in Windows Credential Manager (expires ~2027-07, rotation note in the plan). Plan: vault/projects/recovery/github-backup-plan.md.
 - Added: 2026-07-02
 
 ### Vault Backup - encrypted local-only (Recovery Phase 1)
-- Command: scripts/vault-backup.ps1 (pure PowerShell, no claude call)
-- Frequency: daily at 9:45 PM (Task Scheduler job PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push.
+- Command: scripts/vault-backup.sh (zero-token Node, no claude call)
+- Frequency: daily at 9:45 PM (timer PersonalOS-vault-backup; StartWhenAvailable / ExecutionTimeLimit 30 min). Staggered 15 min after the git push.
 - Description: Closes the privacy-scrub gap. Tars everything git IGNORES (minus regenerable junk - set derived from .gitignore so it can't drift), gpg AES256-encrypts it, round-trip-verifies before shipping, scp's the single .gpg off-machine to the n8n box backup dir (path local-only, last 14 kept), pushes recovery/vault_backup GREEN/RED to Alex HQ. Passphrase in a local-only file OUTSIDE the repo (icacls-locked; path in system/credentials-ledger.json, gitignored) - **must also be in Shaheen's password manager or the off-machine blob is unrecoverable if this machine dies.** Restore drill proven 2026-07-04. Plan: vault/projects/recovery/vault-backup-plan.md. **Since 2026-07-11** it FIRST runs the outputs-ledger nightly self-heal (`node scripts/outputs-ledger.js reconcile`, best-effort, never blocks the backup), and the whitelist also carries outputs/weekly-exec-report + outputs/ledger.jsonl (the amended-Ledger build, [[research/output-structure-review]]).
 - Added: 2026-07-04 (ledger hook 2026-07-11)
 
 ### Recovery Layer sweep (Recovery Phase 2)
-- Command: work/18-recovery-layer/check.ps1 (pure PowerShell, no claude call, zero tokens)
-- Frequency: Mondays at 7:30 AM (Task Scheduler job PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure.
-- Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against system/manifest.json (21 checks, C1-C22 with C16 retired: quad completeness, orphans x3, wiki-link resolution, routing rows, scheduler↔Task Scheduler, dependent staleness, log monotonicity, manifest hash self-check, index↔disk, outputs naming, first-fire aging, passphrase attestation, PAT expiry, skills-symlink restore guard, machine timezone vs travel-state, narrative numbers-drift, backup destinations, facts-ledger doc drift, soul-corpus monotonicity). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
+- Command: work/18-recovery-layer/check.mjs (zero-token Node, no claude call, zero tokens)
+- Frequency: Mondays at 7:30 AM (timer PersonalOS-recovery-check; StartWhenAvailable + WakeToRun + ExecutionTimeLimit 15 min; shares the Alex Radar Monday sweep slot). NO restart policy: exit 2 means drift-found (normal), not failure.
+- Description: Level-triggered deterministic consistency sweep. Validates the WHOLE system against system/manifest.json (21 checks, C1-C22 with C16 retired: quad completeness, orphans x3, wiki-link resolution, routing rows, scheduler↔systemd timers, dependent staleness, log monotonicity, manifest hash self-check, index↔disk, outputs naming, first-fire aging, passphrase attestation, PAT expiry, skills-symlink restore guard, machine timezone vs travel-state, narrative numbers-drift, backup destinations, facts-ledger doc drift, soul-corpus monotonicity). Detects, never repairs. Exit 0 clean / 2 drift / 1 error. Writes vault/projects/recovery/last-sweep.md (Monday brief reads it) + pushes recovery/integrity to Alex HQ (green clean / amber drift). Plan: vault/projects/recovery/recovery-layer-plan.md.
 - Added: 2026-07-04
 
 ### n8n active-flag watcher (Recovery Layer, BUG-01 fix)
-- Command: scripts/n8n-active-check.ps1 (pure PowerShell, no claude call, zero tokens)
-- Frequency: daily at 8:10 AM (Task Scheduler job PersonalOS-n8n-active-check; StartWhenAvailable + ExecutionTimeLimit 15 min; NO restart policy: exit 1 = a workflow is OFF, a real finding, not a transient failure). **Runs BEFORE the day's engine crons, not after** - the engines moved to Tue & Thu 15:00/15:30 on 2026-07-24, so the 08:10 watcher now reads each flag roughly seven hours ahead of the run it protects, which is the useful direction: a workflow found OFF at 08:10 can be re-activated before 15:00 rather than after a missed run. *(Corrected 2026-07-29, architecture review: this said "placed after the 07:00/07:30 engine crons so a failed activation is caught the same morning", a rationale that stopped being true at the retime.)*
+- Command: scripts/n8n-active-check.mjs (zero-token Node, no claude call, zero tokens)
+- Frequency: daily at 8:10 AM (timer PersonalOS-n8n-active-check; StartWhenAvailable + ExecutionTimeLimit 15 min; NO restart policy: exit 1 = a workflow is OFF, a real finding, not a transient failure). **Runs BEFORE the day's engine crons, not after** - the engines moved to Tue & Thu 15:00/15:30 on 2026-07-24, so the 08:10 watcher now reads each flag roughly seven hours ahead of the run it protects, which is the useful direction: a workflow found OFF at 08:10 can be re-activated before 15:00 rather than after a missed run. *(Corrected 2026-07-29, architecture review: this said "placed after the 07:00/07:30 engine crons so a failed activation is caught the same morning", a rationale that stopped being true at the retime.)*
 - Description: Reads system/manifest.json, takes every LIVE project mapped to an n8n workflow id (**#3/#12/#14/#15/#16/#17/#31/#32** as of 2026-07-29; the script reads the manifest at runtime so its behaviour was always correct, this parenthetical was simply two projects behind after the 07-28 portal split), GETs each workflow, asserts active==true. Any expected-active workflow found OFF -> RED to Alex HQ recovery/n8n_active + exit 1. A total-API outage is amber + exit 0 (transient, never a false RED). Born from the 2026-07-16 diagnostic audit (BUG-01): n8n's activate/deactivate does not bump `updatedAt`, so a silently deactivated workflow (the 2026-07-10 class) was invisible until a missed run - this reads the flag itself, daily.
 - Added: 2026-07-16
 
 ### Vault Search Index (upgrade-scan item 1)
-- Command: scripts/run-vault-index.ps1 (pure Python/SQLite, no claude call, zero tokens)
-- Frequency: daily at 9:35 PM (Task Scheduler job PersonalOS-vault-index; StartWhenAvailable + battery-safe + ExecutionTimeLimit 15 min; NO restart ladder - a missed rebuild self-heals next night and on-demand `build` always works). Placed 10 min before the 21:45 vault backup so the fresh .db ships in the encrypted blob.
+- Command: scripts/run-vault-index.sh (pure Python/SQLite, no claude call, zero tokens)
+- Frequency: daily at 9:35 PM (timer PersonalOS-vault-index; StartWhenAvailable + battery-safe + ExecutionTimeLimit 15 min; NO restart ladder - a missed rebuild self-heals next night and on-demand `build` always works). Placed 10 min before the 21:45 vault backup so the fresh .db ships in the encrypted blob.
 - Description: Rebuilds the FTS5 keyword index over vault/**/*.md (scripts/vault_search.py build) so cross-session recall scales past read-the-index-and-drill (2026-07-06 audit weakness 2). The .db lives in the gitignored in-repo dir scripts/vault-index/ (off GitHub, but inside the repo tree so the vault backup covers it; also fully regenerable). Pushes infra/vault_index GREEN/RED to Alex HQ. On-demand search: `python scripts/vault_search.py search "query"`. Built 2026-07-07. **Since 2026-07-25 this same job also runs the Recall Spine harvests (zero-token node): `system/recall/harvest.js` populates the bi-temporal fact ledger facts.db (pushes infra/recall_facts GREEN/RED, RED on the mass-drift tripwire) and `scripts/lesson-harvest.js` files Close-Out L-lines into the lessons table. Same job, same 21:35 slot; nothing else changed.**
 - Added: 2026-07-07
 
 ### Alex HQ Local Push
 - Command: /alex-hq
 - Frequency: daily at 8:45 AM (staggered from 8:30 on 2026-07-12, upgrade P1/c11: it shared the slot with application-engine, both spawning Claude sessions with no serialization)
-- Description: Build #16 local-side feed. Harvests the metrics only this ThinkPad can see (MCP tool count, vault page counts, scheduler health), pushes them to the Alex HQ ingest webhook, regenerates + ships the Brain graph (scp, no rebuild), then presents the health summary. Failure-tolerant; never prints the token. Spec: work/16-alex-hq/CLAUDE.md, command: .claude/commands/alex-hq.md. Task Scheduler job PersonalOS-alex-hq.
+- Description: Build #16 local-side feed. Harvests the metrics only this ThinkPad can see (MCP tool count, vault page counts, scheduler health), pushes them to the Alex HQ ingest webhook, regenerates + ships the Brain graph (scp, no rebuild), then presents the health summary. Failure-tolerant; never prints the token. Spec: work/16-alex-hq/CLAUDE.md, command: .claude/commands/alex-hq.md. timer PersonalOS-alex-hq.
 - Added: 2026-07-02
 
 ### Runway Command Center
 - Command: /runway
 - Frequency: monthly, last day of month at 21:15, AFTER /expense-wrangler 20:00 (reads the freshest expense + booking data)
 - Description: Build #20. Joins starting savings + burn + the salary/severance/a-kassa timeline + Airbnb income into a month-by-month runway model with a zero date + a new-job scenario. Branded all-formula SEK Excel; reads the Expenses + Bookings DBs, no Notion DB. Spec work/20-runway/CLAUDE.md, command .claude/commands/runway.md.
-- **REGISTERED 2026-07-06:** Task Scheduler job PersonalOS-runway, monthly LASTDAY 21:15 (after expense-wrangler 20:00), wrapper scripts/run-runway.ps1, standard hardening (4x90min, 2h limit, wake, battery-safe).
+- **REGISTERED 2026-07-06:** timer PersonalOS-runway, monthly LASTDAY 21:15 (after expense-wrangler 20:00), wrapper scripts/run-runway.sh, standard hardening (4x90min, 2h limit, wake, battery-safe).
 - Added: 2026-07-06
 
 ### Interview-to-Offer Copilot
 - Command: /interview
-- Frequency: NO dedicated schedule. Event-driven (the morning brief flags interview invites/events) + on-demand /interview. No Task Scheduler job by design.
+- Frequency: NO dedicated schedule. Event-driven (the morning brief flags interview invites/events) + on-demand /interview. No timer by design.
 - Description: Build #21. Dossier + prep against Shaheen's answer bank, notes capture, runway-aware negotiation drafts. Drafts only, never sends. Spec work/21-interview-copilot/CLAUDE.md, command .claude/commands/interview.md.
 - Added: 2026-07-06
 
 ### Teach-Alex Button
 - Command: /teach-alex
-- Frequency: NO dedicated schedule. Event-driven (a correction note in the alex_inbox, caught at the morning-brief inbox step + other touchpoints) + on-demand. No Task Scheduler job by design.
+- Frequency: NO dedicated schedule. Event-driven (a correction note in the alex_inbox, caught at the morning-brief inbox step + other touchpoints) + on-demand. No timer by design.
 - Description: Build #22. Classifies + files corrections (voice/fact/label/rule/format), identity files confirm, all logged to the corrections-log. Rides the #16 inbox. Spec work/22-teach-alex/CLAUDE.md.
 - Added: 2026-07-06
 
 ### Alex Reviews Alex (Self-Review)
 - Command: /self-review
-- Frequency: weekly, Sunday 20:00 (quiet slot, before the Monday brief). **REGISTERED 2026-07-06:** job PersonalOS-self-review, wrapper scripts/run-self-review.ps1, standard hardening. Also on-demand.
+- Frequency: weekly, Sunday 20:00 (quiet slot, before the Monday brief). **REGISTERED 2026-07-06:** job PersonalOS-self-review, wrapper scripts/run-self-review.sh, standard hardening. Also on-demand.
 - Description: Build #23. Reads corrections/error-log/INCOMPLETE close-outs/My Words weekly, proposes upgrades to its own rules/voice/taste behind approval, never self-edits identity files unapproved. Spec work/23-self-review/CLAUDE.md.
 - Added: 2026-07-06
 
 ### Gated Monthly Lint (Recovery Phase 3)
-- Command: scripts/run-lint.ps1 (checker first, then claude -p "/lint gated")
-- Frequency: monthly, first Monday at 10:00 AM (Task Scheduler job PersonalOS-lint-monthly; after the 07:30 recovery sweep + radar and the 08:00 brief)
-- Description: Recovery Phase 3, live 2026-07-06. The zero-token checker (work/18-recovery-layer/check.ps1) runs FIRST as the nomination pass; if it errors (exit 1) the LLM pass is skipped. Otherwise /lint judges ONLY the nominated items + semantic drift on the pages they touch, writes vault/projects/recovery/lint-YYYY-MM.md, and PROPOSES fixes (applies nothing unapproved). Project key: recovery.
+- Command: scripts/run-lint.sh (checker first, then claude -p "/lint gated")
+- Frequency: monthly, first Monday at 10:00 AM (timer PersonalOS-lint-monthly; after the 07:30 recovery sweep + radar and the 08:00 brief)
+- Description: Recovery Phase 3, live 2026-07-06. The zero-token checker (work/18-recovery-layer/check.mjs) runs FIRST as the nomination pass; if it errors (exit 1) the LLM pass is skipped. Otherwise /lint judges ONLY the nominated items + semantic drift on the pages they touch, writes vault/projects/recovery/lint-YYYY-MM.md, and PROPOSES fixes (applies nothing unapproved). Project key: recovery.
 - Added: 2026-07-06
 
 ### Monthly Security Sweep (Recovery Phase 5)
-- Command: work/18-recovery-layer/security-sweep.ps1 (pure PowerShell, zero tokens, detect-only)
-- Frequency: monthly, first Monday at 7:20 AM (Task Scheduler job PersonalOS-security-sweep; ahead of the 07:30 recovery sweep, the 08:00 brief and the 10:00 lint)
-- Description: P5 (three-plan validation), activated 2026-07-18. Alex's security conscience beside check.ps1: 8 assertions (S1 gitleaks over history with a tuned .gitleaks.toml allowlist; S2 no gitignored path tracked - the V11 monthly backstop; S3 credential-age ledger; S4 n8n version-vs-advisory read from the deployed probe, never prose; S5 Hetzner ss -tlnp port baseline; S6 instance-MCP connected clients; S7 skills-lock hash; S8 repo visibility vs manifest.meta). Detect-never-repair. Exit 0 clean / 2 findings-or-setup (amber) / 1 sweep-error (red = a configured live source unreachable). Writes vault/projects/recovery/last-security-sweep.md, pushes recovery/security_sweep to Alex HQ. First-run gaps (S3 dates, S5 baseline, S6 pre-gateway) surface as amber SETUP by design. Playbook: work/18-recovery-layer/SECURITY-PLAYBOOK.md.
+- Command: work/18-recovery-layer/security-sweep.mjs (zero-token Node, zero tokens, detect-only)
+- Frequency: monthly, first Monday at 7:20 AM (timer PersonalOS-security-sweep; ahead of the 07:30 recovery sweep, the 08:00 brief and the 10:00 lint)
+- Description: P5 (three-plan validation), activated 2026-07-18. Alex's security conscience beside check.mjs: 8 assertions (S1 gitleaks over history with a tuned .gitleaks.toml allowlist; S2 no gitignored path tracked - the V11 monthly backstop; S3 credential-age ledger; S4 n8n version-vs-advisory read from the deployed probe, never prose; S5 Hetzner ss -tlnp port baseline; S6 instance-MCP connected clients; S7 skills-lock hash; S8 repo visibility vs manifest.meta). Detect-never-repair. Exit 0 clean / 2 findings-or-setup (amber) / 1 sweep-error (red = a configured live source unreachable). Writes vault/projects/recovery/last-security-sweep.md, pushes recovery/security_sweep to Alex HQ. First-run gaps (S3 dates, S5 baseline, S6 pre-gateway) surface as amber SETUP by design. Playbook: work/18-recovery-layer/SECURITY-PLAYBOOK.md.
 - Added: 2026-07-18
 
 ### Auth Freshness Probe
-- Command: scripts/auth-check.ps1 (one micro claude -p probe, pattern detection, HQ push)
-- Frequency: weekly, Sunday at 7:30 PM (Task Scheduler job PersonalOS-auth-check; before the 20:00 self-review, ahead of the Monday job train)
+- Command: scripts/auth-check.sh (one micro claude -p probe, pattern detection, HQ push)
+- Frequency: weekly, Sunday at 7:30 PM (timer PersonalOS-auth-check; before the 20:00 self-review, ahead of the Monday job train)
 - Description: Catches headless-claude login expiry / quota exhaustion Sunday evening instead of via a dead Monday (the 06-26/29/30 blackout class). Pushes infra/auth_ok GREEN/RED to Alex HQ. Light hardening (2x30min retries, 30min limit). From audit step 2 + self-review proposal 3.
 - Added: 2026-07-06
 
 ### Landscape Monitor (#25)
-- Command: scripts/run-landscape-monitor.ps1 (pure Node, no claude call, zero tokens)
-- Frequency: daily at 7:10 AM (Task Scheduler job PersonalOS-landscape-monitor; StartWhenAvailable + WakeToRun + battery-safe + ExecutionTimeLimit 30 min; RestartCount 2 / 30 min - light class, and the close-out lib self-schedules the real retry)
+- Command: scripts/run-landscape-monitor.sh (pure Node, no claude call, zero tokens)
+- Frequency: daily at 7:10 AM (timer PersonalOS-landscape-monitor; StartWhenAvailable + WakeToRun + battery-safe + ExecutionTimeLimit 30 min; RestartCount 2 / 30 min - light class, and the close-out lib self-schedules the real retry)
 - Description: #25 Evolution monitoring layer. Fetches public keyless feeds (Claude models, MCPs, n8n patterns) and appends new items to system/landscape-log.jsonl. GREEN/RED run_status to Alex HQ (project evolution). Zero-token by design. Spec: work/25-evolution/CLAUDE.md.
 - Added: 2026-07-09 (activated with the v2 refactor merge)
 
-### Voice-audio orphan sweep (#16 inbox, upgrade P12) - box-side cron, NOT a Windows task
-- Where: the Hetzner box (`root@62.238.21.62`, host crontab, not Task Scheduler, not n8n).
+### Voice-audio orphan sweep (#16 inbox, upgrade P12) - box-side cron, NOT a local timer
+- Where: the Hetzner box (`root@62.238.21.62`, host crontab, not a local timer, not n8n).
 - Frequency: daily 04:17 - `find /opt/alex-inbox-audio -type f -mtime +30 -delete`.
 - Why a cron, not the n8n workflow the design suggested (2026-07-12 call): n8n `:latest` restricts file access (`N8N_RESTRICT_FILE_ACCESS_TO`, a documented box gotcha), so file deletion inside n8n fights the allowlist; a host cron is the robust, self-contained path. Filed voice-note audio is ALREADY deleted at mark-time by the Inbox Contract (`ssh n8n rm` after a successful `/webhook/alex-inbox-mark`), so this sweep only catches ORPHANS (a mark that failed, a note never filed) so audio never persists >30d (f7). Verify: `ssh n8n "crontab -l | grep alex-inbox-audio"`.
 - Added: 2026-07-12 (upgrade P12).
 
 ### Landscape Eval (#25)
-- Command: scripts/run-landscape-eval.ps1 (one claude -p call per week)
-- Frequency: Monday at 7:50 AM (Task Scheduler job PersonalOS-landscape-eval; standard hardening RestartCount 4 / 90 min / ExecutionTimeLimit 2h, WakeToRun, battery-safe)
+- Command: scripts/run-landscape-eval.sh (one claude -p call per week)
+- Frequency: Monday at 7:50 AM (timer PersonalOS-landscape-eval; standard hardening RestartCount 4 / 90 min / ExecutionTimeLimit 2h, WakeToRun, battery-safe)
 - Description: #25 Evolution evaluation layer. Reads the week's landscape log, one Claude call assesses each item (add/replace/relevance) with a recommend/skip verdict, writes outputs/evolution/YYYY-MM-DD/digest.md and opens an ai-landscape-update GitHub issue if gh is installed (else local fallback). Empty week posts nothing, stays GREEN. Alex proposes, Shaheen decides. Spec: work/25-evolution/CLAUDE.md.
 - Added: 2026-07-09 (activated with the v2 refactor merge)
 
-*(Removed 2026-08-03: the two Modeling jobs, the casting radar (every 2nd day 06:45) and the weekly Scout's Eye (Mon 09:30). The #30 modeling lane was retired whole that day with no successor; both Task Scheduler jobs were unregistered in the same change, and their XML definitions are archived under `vault/archive/modeling/task-xml/` if they ever need re-registering. The replacement #30, portfolio-site, deploys through GitHub Actions on push to main and has NO local job by design - if a Phase-4 uptime monitor ever lands locally, it gets a fresh entry here alongside its wrapper and its model-routing pin.*
-*Deliberately worded without the literal job-name tokens: `parseScheduleJobs` harvests every `PersonalOS-*` string anywhere in this file, prose included, so naming a REMOVED job here would re-register it as documented and fail validator V2 against live Task Scheduler. The archived XMLs carry the exact names.)*
+*(Removed 2026-08-03: the two Modeling jobs, the casting radar (every 2nd day 06:45) and the weekly Scout's Eye (Mon 09:30). The #30 modeling lane was retired whole that day with no successor; both jobs were unregistered in the same change, and their Windows-era XML definitions are archived under `vault/archive/modeling/task-xml/` as a historical record (they predate the systemd move and would need re-expressing as units, not re-importing). The replacement #30, portfolio-site, deploys through GitHub Actions on push to main and has NO local job by design - if a Phase-4 uptime monitor ever lands locally, it gets a fresh entry here alongside its wrapper and its model-routing pin.*
+*Deliberately worded without the literal job-name tokens: `parseScheduleJobs` harvests every `PersonalOS-*` string anywhere in this file, prose included, so naming a REMOVED job here would re-register it as documented and fail validator V2 against the live timers. The archived XMLs carry the exact names.)*
 
 **n8n box crons (added 2026-07-29).** The five entries below run on the Hetzner box under n8n's own
-`scheduleTrigger`, so they never appear in `schtasks` and are invisible to a Task-Scheduler-only reading
+`scheduleTrigger`, so they never appear in `systemctl --user list-timers` and are invisible to a local-timer-only reading
 of this file. Every one was live and correct the whole time; this file simply had no entry. *(Added
 2026-07-29, architecture review, which verified each cron against a live read-only `GET /workflows`.
 Four of the five were undocumented here, and #31/#32 had been running a full day with no entry anywhere
 in this file after the 07-28 portal split.)* The engines #03/#14 are covered above (`0 15 * * 2,4` and
 `30 15 * * 2,4`).
 
-### Portal Scanner (#31) - box-side n8n cron, NOT a Windows task
+### Portal Scanner (#31) - box-side n8n cron, NOT a local timer
 - Command: n8n workflow `5tPXbhdpp6PfF56V` (no local wrapper, no claude call, zero local tokens)
 - Frequency: **Tuesday & Thursday 15:13 Stockholm** (`13 15 * * 2,4`), active. 30 min ahead of #32 so the queue is filled before the drain.
 - Description: Stage 1 of the portal lane. Detects each company ATS once, hits its free public JSON, prefilters on the title/location list, and BANKS matching jobs to the queue #32 drains. Makes no model call. **Ordering is load-bearing:** #31 banks and #32 drains, so a silently deactivated scanner leaves #32 finishing clean on an empty queue and reporting GREEN, with "no new drafts" as the only symptom. That is exactly why the lane was split into two registry rows on 2026-07-28, so both ride V6 leg (c) and the 08:10 active-flag watcher.
 - Added: 2026-07-29 (documented; live since the 2026-07-28 split)
 
-### Portal Application Engine (#32) - box-side n8n cron, NOT a Windows task
+### Portal Application Engine (#32) - box-side n8n cron, NOT a local timer
 - Command: n8n workflow `sxEYRyeHH7i1mHzb`
 - Frequency: **Tuesday & Thursday 15:43 Stockholm** (`43 15 * * 2,4`), active.
 - Description: Stage 2 of the portal lane. Drains the queue #31 banked and runs its own cloned Match/Gate/Writer/Render pipeline to review-ready CV + cover-letter PDFs. Model calls run kimi-k3 at `reasoning_effort:'high'` per `meta.model_routing`. No send node exists; Shaheen submits.
 - Added: 2026-07-29 (documented; live since the 2026-07-28 split)
 
-### LinkedIn Series staging (#12) - box-side n8n cron, NOT a Windows task
+### LinkedIn Series staging (#12) - box-side n8n cron, NOT a local timer
 - Command: n8n workflow `v1GbDYganOz9EGpM`
 - Frequency: **Tuesday & Thursday 08:00 Stockholm** (`0 8 * * 2,4`), active.
 - Description: Stages episode TEXT only, behind the dash-scan and pronoun/fidelity gates, into a per-episode Drive folder with a link write-back. Shaheen makes the image and posts; nothing publishes itself. The manifest carried this cron correctly all along; the routing table showed only "on-demand + n8n staging (scheduled)" with no time, and this file had no entry.
 - Added: 2026-07-29 (documented; cron itself older)
 
-### Alex HQ Pipeline Stats (#16) - box-side n8n cron, NOT a Windows task
+### Alex HQ Pipeline Stats (#16) - box-side n8n cron, NOT a local timer
 - Command: n8n workflow `y5YbDZu8TT38XZ9r` (+ manual `GET /webhook/alex-hq-stats-run`)
 - Frequency: **daily 07:50 Stockholm** (`50 7 * * *`), active.
 - Description: Recomputes the dashboard's job-pipeline tiles. **Do not confuse this with the local `PersonalOS-landscape-eval`, which also runs at 07:50 but on Mondays, on the laptop, for #25.** Two machines, two jobs, one shared wall-clock minute; that collision is why this entry spells it out.
 - Added: 2026-07-29 (documented; cron itself older)
 
-### Alex Radar collector (#15) - box-side n8n cron, NOT a Windows task
+### Alex Radar collector (#15) - box-side n8n cron, NOT a local timer
 - Command: n8n workflow `PYePT4Al6aPZi56M` (+ manual `GET /webhook/radar-collect`)
 - Frequency: **daily 06:00**, active.
 - Description: Pulls the Tier-1 feeds (Claude Code / MCP / n8n release atoms, OpenAI + DeepMind RSS, HN queries) into the `radar_inbox` data table, so the Monday 07:30 local sweep reads a warm table instead of fetching everything live. An urgent lane POSTs breaking-change notes to the alex_inbox same-day.
@@ -233,24 +234,37 @@ in this file after the 07-28 portal split.)* The engines #03/#14 are covered abo
 
 ## Task Hardening (Close-Out Gate, 2026-07-03)
 
-Every scheduled wrapper dot-sources `scripts/lib/close-out.ps1` (shared mechanism). On a failed run (blank output, wrapper crash, not-logged-in, usage/session limit including the "reached your <model> limit" wording, non-zero exit) it logs `FAILED: reason`, pushes `run_status` RED to Alex HQ where a tile exists, **registers its own one-shot retry task** (`PersonalOS-retry-{wrapper}-{n}`, +90 min, attempts 2-5 via `$env:ALEX_RETRY_ATTEMPT`, StartWhenAvailable + WakeToRun, auto-deletes after its window), and exits 1. No scheduled run can die silent (exit 0) anymore, and a transient quota/auth window self-heals without touching any wrapper.
+Every scheduled wrapper dot-sources `scripts/lib/close-out.mjs` (shared mechanism). On a failed run (blank output, wrapper crash, not-logged-in, usage/session limit including the "reached your <model> limit" wording, non-zero exit) it logs `FAILED: reason`, pushes `run_status` RED to Alex HQ where a tile exists, **registers its own one-shot retry task** (`PersonalOS-retry-{wrapper}-{n}`, +90 min, attempts 2-5 via `$env:ALEX_RETRY_ATTEMPT`, StartWhenAvailable + WakeToRun, auto-deletes after its window), and exits 1. No scheduled run can die silent (exit 0) anymore, and a transient quota/auth window self-heals without touching any wrapper.
 
-**RestartCount is NOT the retry (proven 2026-07-06, the quad failure):** Task Scheduler's restart-on-failure only fires when the task fails to LAUNCH; a wrapper that runs and exits 1 counts as "completed", so the 2026-07-02 RestartCount ladders below never fired once. They stay in place (they still cover true launch failures), but the working retry is the close-out lib's self-scheduled one-shot task above. All tasks keep `MultipleInstances IgnoreNew`, `StartWhenAvailable`, `WakeToRun`, battery-safe.
+**The retry is the close-out ladder, not a unit setting (history worth keeping):** on Windows,
+Task Scheduler's restart-on-failure only fired when a task failed to LAUNCH, so a wrapper that ran
+and exited 1 counted as "completed" and the RestartCount ladders never fired once (proven 2026-07-06,
+the quad failure). That is WHY the close-out lib self-schedules its own one-shot retry.
+
+systemd's `Restart=on-failure` **does** fire on a non-zero exit, so on Linux the ladder is arguably
+redundant. It is deliberately kept as-is anyway (bash migration §2.2): changing failure-recovery
+behavior during a platform move makes any incident un-diagnosable. Simplifying it is a separate
+decision with its own verification. The generated units therefore set **no** `Restart=`.
+
+Mapped settings, applied by `scripts/lib/gen-systemd.js`: `StartWhenAvailable` → `Persistent=true`
+(better - it fires on the next boot if the machine was off), `WakeToRun` → `WakeSystem=true`,
+`ExecutionTimeLimit` → `RuntimeMaxSec=`, and `MultipleInstances IgnoreNew` needs nothing because
+`Type=oneshot` already refuses a concurrent start.
 - **Standard (daily/weekly/monthly):** RestartCount 4, RestartInterval 90 min, ExecutionTimeLimit 2h - morning-brief, application-engine, personal-crm, expense-wrangler, weekly-exec-report, airbnb-host, alex-radar, alex-hq, whatsapp-harvest (disabled), runway, self-review, lint-monthly (all three added 2026-07-06), landscape-eval (added 2026-07-09, the #25 weekly claude job). *(modeling-radar + modeling-weekly were in this class from 2026-07-22 until the #30 lane was retired 2026-08-03; both jobs are unregistered.)*
 - **Landscape Monitor (#25, added 2026-07-09):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a zero-token fetch, light class like git-backup/vault-index.
 - **Auth-check (added 2026-07-06):** RestartCount 2, RestartInterval 30 min, ExecutionTimeLimit 30 min - a probe, not a run.
-- **Security Sweep (P5, added 2026-07-18):** NO restart policy (exit 2 = findings/setup is normal, not failure - same convention as recovery-check); ExecutionTimeLimit 30 min, StartWhenAvailable + WakeToRun. Registered directly (powershell -File), not wrapped: it does its own HQ push + exit codes, like check.ps1.
+- **Security Sweep (P5, added 2026-07-18):** NO restart policy (exit 2 = findings/setup is normal, not failure - same convention as recovery-check); ExecutionTimeLimit 30 min, StartWhenAvailable + WakeToRun. Registered directly (`node .../security-sweep.mjs`), not wrapped: it does its own HQ push + exit codes, like check.mjs.
 - **Sprint Tracker:** RestartCount 4, 90 min, ExecutionTimeLimit 1h (see its entry).
 - **Email Triage:** RestartCount 2, RestartInterval 60 min, ExecutionTimeLimit 2h (task PersonalOS-email-triage; single daily 05:00 run since 2026-07-16, was x3 at 9/13/17).
 - **Git Backup:** RestartCount 2, 30 min, ExecutionTimeLimit 30 min.
 
-Re-apply after any task re-creation (never `schtasks /change` - it hangs on a password prompt; use `Set-ScheduledTask`). Mutate-in-place preserves every other setting:
-`$t = Get-ScheduledTask -TaskName <name>; $s = $t.Settings; $s.RestartCount = 4; $s.RestartInterval = 'PT90M'; $s.ExecutionTimeLimit = 'PT2H'; $s.WakeToRun = $true; Set-ScheduledTask -TaskName <name> -Settings $s`
+Nothing needs re-applying by hand any more: the unit file IS the settings, it is generated from this document, and it is in git. Edit here, run `node scripts/generate-alex.js`, then `systemctl --user daemon-reload`. (The old warning about `schtasks /change` hanging on a password prompt is gone with the platform.)
+`systemctl --user daemon-reload && systemctl --user restart PersonalOS-<name>.timer`
 
 Fixed 2026-07-03: alex-radar and sprint-tracker had `WakeToRun=False` (a Monday / weekday-morning laptop job that could not wake the machine = a silent miss); both flipped to True.
 
 ## Transient tasks (not standing jobs)
-- **PersonalOS-qra-poller** (added 2026-07-13, Quota Reset Auto-Run): a ONE-SHOT task created by `work/quota-reset-autorun/scripts/arm.ps1` when Shaheen arms a quota-reset auto-run. Fires ONCE at reset+offset (single-fire trigger, no every-minute polling; StartWhenAvailable so it runs on wake, self-expiring after 12h), runs the armed prompt, then **unregisters itself**. Not a standing job, not created by /cron-setup. If you see it in Task Scheduler, a run is armed; `disarm.ps1` removes it. Documented here so it is not mistaken for a rogue task.
+- **PersonalOS-qra-poller** (added 2026-07-13, Quota Reset Auto-Run): a ONE-SHOT task created by `work/quota-reset-autorun/scripts/arm.sh` when Shaheen arms a quota-reset auto-run. Fires ONCE at reset+offset (a transient `systemd-run --collect` unit, no every-minute polling; `Persistent=true` so it runs on wake), runs the armed prompt, then **removes itself**. Not a standing job, not created by /cron-setup. If you see it in `systemctl --user list-timers`, a run is armed; `disarm.sh` removes it. Documented here so it is not mistaken for a rogue task.
 
 ## How to Set Up in Cowork
 
@@ -261,18 +275,29 @@ For each entry above:
 4. Name: use the task name above
 5. Prompt: use the command above (e.g., "Run /morning-brief")
 6. Frequency: match the frequency above
-7. Enable "Keep computer awake" in Cowork Settings if you want it to run while you're away
+7. Run `loginctl enable-linger $USER` so the timers fire without an active login session
 
 ## Timezone Policy (P8 scheduler timezone audit, 2026-07-17)
 
-**Scope.** This governs ONLY the local Windows Task Scheduler jobs. The n8n-side crons run on the Hetzner box in Europe/Stockholm and are IMMUNE to the laptop timezone. The laptop currently runs on "W. Europe Standard Time" (Stockholm/Sweden).
+**Scope.** This governs ONLY the local systemd user timers. The n8n-side crons run on the Hetzner box in Europe/Stockholm and are IMMUNE to the host timezone. The host runs `Europe/Stockholm` (IANA; the Windows-era id was "W. Europe Standard Time").
 
-**How Windows daily triggers behave.** A trigger whose StartBoundary carries a UTC offset (e.g. `...T05:00:00+02:00`) is "synchronize across time zones" = anchored to an absolute instant (it fires at the Stockholm-equivalent hour even if the laptop tz changes). A StartBoundary with NO offset floats with the local wall clock (fires at the same local time-of-day in whatever tz the machine is set to).
+**How systemd calendar timers behave, and it is SIMPLER than the Windows model.** Every `OnCalendar=`
+is wall-clock in the machine's local timezone and FLOATS with it - there is no per-trigger
+"synchronize across time zones" flag to get wrong, so the Windows anchored-vs-floating split below is
+history rather than live configuration. A timer can be pinned to an absolute instant by writing the
+zone into the expression (`OnCalendar=Mon *-*-* 07:30 Europe/Stockholm`), which is the tool if a
+must-anchor job ever needs it. DST is handled by the OS, which is the whole reason the schema moved
+from Windows timezone IDs to IANA ones.
 
 **Classification (audit outcome, enumerated live 2026-07-16/17 - the count moves, do not hardcode it):**
 - **follows-Shaheen** (his local wall clock is the right time): morning-brief, email-triage, alex-hq push, sprint-tracker, personal-crm, application-engine watch, self-review, weekly-exec-report, expense-wrangler, runway, airbnb-host, whatsapp-harvest, lint-monthly, auth-check, security-sweep.
 - **must-anchor** (coordinate with the Stockholm-anchored box; keep near Stockholm time): n8n-active-check, landscape-monitor, landscape-eval, alex-radar, recovery-check, git-backup, vault-backup, vault-index.
 
-**Observed registration split (recorded, deliberately NOT changed).** The must-anchor jobs are all registered offset-anchored (`+02:00`); the follows-Shaheen jobs are mostly floating, with three (email-triage, alex-hq, whatsapp-harvest) also anchored - which is harmless (a 05:00 triage / 08:45 push / 02:30 harvest firing at the Stockholm instant abroad is fine). So the split already largely matches the classification and **no task was at risk, no task was changed** ("policy written down" is the declared success for this audit). IF a future normalization is wanted, re-register each trigger with/without `-Synchronize` to match its class, read-back verified per the Verify-after-write order.
+**Registration split after the systemd move (2026-08-05).** Every generated timer FLOATS with the
+machine clock, because that is systemd's default and the classification above is satisfied by the
+practical rule below (keep the host on Stockholm time). The Windows-era anchored/floating split is
+recorded here as history: it described `StartBoundary` offsets that no longer exist. If a must-anchor
+job ever genuinely needs pinning, append ` Europe/Stockholm` to its `OnCalendar=` and read it back
+with `systemd-analyze calendar` per the Verify-after-write order.
 
-**The practical rule when Shaheen travels.** KEEP the laptop on Stockholm time (do not switch the Windows tz). That holds must-anchor jobs coordinated with the box and follows-Shaheen jobs at Stockholm hours (a few hours off his local morning is harmless). If he ever wants the brief on local time abroad, switch the tz AND accept the must-anchor jobs shift too. Either way, `system/travel-state.json` (P7 trip-ops) records the expectation and **recovery check C18** ambers on a machine-tz-vs-expectation mismatch.
+**The practical rule when Shaheen travels.** KEEP the host on Stockholm time (do not run `timedatectl set-timezone`). That holds must-anchor jobs coordinated with the box and follows-Shaheen jobs at Stockholm hours (a few hours off his local morning is harmless). If he ever wants the brief on local time abroad, switch the tz AND accept that the must-anchor jobs shift too. Either way, `system/travel-state.json` (P7 trip-ops) records the expectation and **recovery check C18** ambers on a machine-tz-vs-expectation mismatch.

@@ -1,5 +1,5 @@
 // gen-routing-table.js - system/manifest.json -> routing rows (refactor P1-S3).
-// Absorbs the row logic of scripts/generate-surfaces.ps1 verbatim: same columns, same padding,
+// Absorbs the row logic of the retired scripts/generate-surfaces.ps1 verbatim: same columns, same padding,
 // same RETIRED strikethrough, same revisit suffix, same unnumbered handling. The recovery
 // checker's C5 check pattern-matches these rows ("| NN |" + work_dir), so the shape is a contract.
 'use strict';

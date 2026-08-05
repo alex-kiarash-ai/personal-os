@@ -5,7 +5,7 @@ Alex's memory recall was read-the-index-and-drill (vault/index.md first), which 
 scaling as the vault grows (2026-07-06 audit weakness 2; 2026-07-07 upgrade scan item 1).
 This adds keyword search with BM25 ranking, zero new dependencies (stdlib sqlite3 ships FTS5),
 no embeddings. The vault stays plain markdown and Obsidian is untouched; the .db is derived and
-disposable, rebuilt nightly by scripts/run-vault-index.ps1 (a zero-token scheduled job).
+disposable, rebuilt nightly by scripts/run-vault-index.sh (a zero-token scheduled job).
 
 Usage:
   python scripts/vault_search.py build            # (re)build the index from vault/**/*.md

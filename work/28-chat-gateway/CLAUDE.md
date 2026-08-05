@@ -28,7 +28,7 @@ Registered #28, spec + status + human-readable doc written, config dir gitignore
 ## Build phases (from the plan, none live yet)
 - **2.0 Gate test** (~30 min): pong from the phone, Connected clients shows exactly one, write the baseline artifact.
 - **2.1 Gateway workflow + storage:** one MCP-exposed n8n workflow, deterministic validation (trim, reject empty, 4,000-char cap, strip control chars, content-is-data), write-first insert into alex_inbox, prefix router, deterministic ack.
-- **2.2 Laptop poller:** `scripts/chat-poller.ps1` (zero-token, wrapper convention), routes by row kind (`action-close` -> `human-actions.js done <id>`; `action-request` -> `human-actions.js add --id chat-<inbox id> --what "..."`, no `--source` flag exists; `correction` -> #22). State file `system/chat-poller-state.json` gitignored first, verify-after-write on every ack.
+- **2.2 Laptop poller:** `scripts/chat-poller.sh` (zero-token, wrapper convention), routes by row kind (`action-close` -> `human-actions.js done <id>`; `action-request` -> `human-actions.js add --id chat-<inbox id> --what "..."`, no `--source` flag exists; `correction` -> #22). State file `system/chat-poller-state.json` gitignored first, verify-after-write on every ack.
 - **2.3 Connector + mobile** (~30 min).
 - **2.4 Governance wiring:** registry before first run (done here), generator, quad, docs/n8n export, recovery checks (daily n8n-active-check extension for the instance-MCP toggle + backlog; weekly C18 asserts `PersonalOS-chat-poller` in Task Scheduler AND the manifest), both masters.
 

@@ -7,7 +7,7 @@ Automation (scheduled weekly + on-demand)
 A personal relationship manager backed by a Notion "Personal CRM" database. It keeps one row per real contact (sourced from vault/people/, Gmail senders, and Calendar attendees), tracks last-contact and follow-up dates, scores each relationship, and every Monday produces a follow-up list. For the subset of contacts that are appropriate to nudge, it drafts a follow-up email in Shaheen's voice (soul.md) and stages it as a Gmail draft. It never sends, never drafts to off-limits contacts, and never invents an email address.
 
 ## Entry Points
-- **Scheduled:** Monday 8:30 AM via Task Scheduler (`PersonalOS-personal-crm` → scripts/run-personal-crm.ps1 → `claude -p "Run /personal-crm"`).
+- **Scheduled:** Monday 8:30 AM via Task Scheduler (`PersonalOS-personal-crm` → scripts/run-personal-crm.sh → `claude -p "Run /personal-crm"`).
 - **On-demand:** `/personal-crm` (full sync + follow-up list), `/personal-crm sync` (DB sync only, no drafts).
 
 ## Tools Used
@@ -88,7 +88,7 @@ Execute the action, then mark the note filed: POST `/webhook/alex-inbox-mark` wi
 
 ## Reliability SLA (since 2026-07-10)
 The Monday run is a local `claude -p` job and CAN silently miss (the 07-06 usage-limit skip lost three weeks of drift). Two guards:
-- The scheduled wrapper already routes through `Invoke-CloseOutCheck` (scripts/lib/close-out.ps1): a blocked/degraded run pushes RED `run_status` to HQ, and a clean run pushes GREEN so there is always a fresh timestamp to age against.
+- The scheduled wrapper already routes through `Invoke-CloseOutCheck` (scripts/lib/close-out.mjs): a blocked/degraded run pushes RED `run_status` to HQ, and a clean run pushes GREEN so there is always a fresh timestamp to age against.
 - **Staleness watch (external, zero-token):** the morning brief (#02) / recovery drift checker (#18) flags when this status.md `last_run` age exceeds **8 days** (one missed Monday + slack) and pushes AMBER/RED to HQ. A missed run can no longer go quiet for weeks.
 
 ## Vault Structure

@@ -29,10 +29,10 @@ Alex) is exactly the class a cold grader with a rubric catches mechanically.
 
 ## The hard constraint: ADVISORY, never a new blocking gate
 The grader reports; it does not stop anything. Scheduled runs exit ONLY on the mechanical A-checks in
-`scripts/lib/close-out.ps1` (blank output, crash, not-logged-in, quota, non-zero exit). This grader is
+`scripts/lib/close-out.mjs` (blank output, crash, not-logged-in, quota, non-zero exit). This grader is
 deliberately NOT wired into that script, so a grader FAIL, a grader that is slow, or a grader that is
 unavailable can never fail one of the 15 scheduled jobs. It is a judgment aid for item C, advisory
-until it earns promotion. Do not add it to close-out.ps1.
+until it earns promotion. Do not add it to close-out.mjs.
 
 ## Verified 2026-07-07
 Run against a reconstructed 2026-07-03-style violating artifact (retired-brand navy #0C1651 + Arial +

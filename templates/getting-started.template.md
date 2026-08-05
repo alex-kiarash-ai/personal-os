@@ -7,28 +7,28 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 ## 1. What you need
 
 - **A paid Claude account** (Max recommended; Pro burns out fast). Alex *is* Claude, no subscription is no brain.
-- **Claude Code** (desktop app / Cowork, or the CLI). Windows 10/11 (Mac works too).
+- **Claude Code** (desktop app / Cowork, or the CLI). **Linux is where Alex runs** (the scheduled job train is systemd user timers); macOS works for development.
 - **A Google account** (Gmail, Calendar, Drive). **Notion** (free), optional for the base brain but required for the CRM, expenses, and meeting-intel databases (without it Alex degrades to local files, per the Bootstrap rule). **Obsidian** (free, to read the vault).
 - **Optional, only if you want the Alex HQ dashboard's own source:** the `alex-hq` repo. It split out of this one on 2026-08-04 and is expected to sit **beside** `personal-os`, as a sibling folder, not inside it. You do **not** need it to run the Personal Ops System: everything except the dashboard's own build works without it, and the two things that do want it (the brand-token generator and validator check V8) say so plainly and carry on. If you keep it somewhere other than a sibling folder, record that once in `system/manifest.json` → `meta.paths.alex_hq_repo`, or set an `ALEX_HQ_REPO` environment variable. Nothing needs configuring when the sibling layout holds.
 - Base install is about an hour.
 
 ## 2. Install and first boot
 
-1. **Install Claude Code:** desktop app from claude.com/claude-code, or the CLI installer (`irm https://claude.ai/install.ps1 | iex` on Windows, `curl -fsSL https://claude.ai/install.sh | bash` on Mac; `npm install -g @anthropic-ai/claude-code` also works).
-2. **Get the files:** a direct copy (USB/zip) from Shaheen, OR `git clone -c core.longpaths=true` the **public** repo (public since 2026-07-16; the long-paths flag is mandatory on Windows). **Important:** the repo is scrubbed, so a git clone gives you a **vault-less skeleton** (the entire `vault/`, `soul.md`, and `work/*/config` are gitignored and local-only). Only a direct copy from Shaheen carries personal data. Because the repo is public, anyone can clone this skeleton, so the scrub + `.gitignore` are the only things keeping personal data off it.
+1. **Install Claude Code:** desktop app from claude.com/claude-code, or the CLI installer (`curl -fsSL https://claude.ai/install.sh | bash` on Linux/Mac; `npm install -g @anthropic-ai/claude-code` also works).
+2. **Get the files:** a direct copy (USB/zip) from Shaheen, OR `git clone` the **public** repo (public since 2026-07-16). **Important:** the repo is scrubbed, so a git clone gives you a **vault-less skeleton** (the entire `vault/`, `soul.md`, and `work/*/config` are gitignored and local-only). Only a direct copy from Shaheen carries personal data. Because the repo is public, anyone can clone this skeleton, so the scrub + `.gitignore` are the only things keeping personal data off it.
 3. **Point Claude Code at the folder. This is the step everything else depends on, and it is the one people get wrong.** Claude Code only becomes Alex inside the folder it is *opened in*. Dragging the folder into the chat, attaching `CLAUDE.md`, or pasting a file path does **not** work: you get plain Claude, no commands, no memory, no personality. You do this once per machine and Claude Code remembers it.
    - **Desktop app (Cowork):** start a new session, and when it asks for a folder pick the `personal-os` folder you just downloaded. It stays in your recent folders from then on, so every later session is one click.
-   - **Command line:** move into the folder *first*, then start Claude Code. On Windows:
+   - **Command line:** move into the folder *first*, then start Claude Code:
      ```
-     cd "C:\Users\YOURNAME\Desktop\personal-os"
+     cd ~/personal-os
      claude
      ```
-     On Mac or Linux: `cd ~/Desktop/personal-os` then `claude`. Replace the path with wherever you actually saved the folder. Starting `claude` from your home folder and opening files from there is the single most common first-session mistake.
+     Replace the path with wherever you actually saved the folder. Starting `claude` from your home folder and opening files from there is the single most common first-session mistake.
    - **Do not** open a *subfolder* (like `work/` or `docs/`) and expect the commands to work. The folder you open must be the one that directly contains `CLAUDE.md` and `soul.md`.
 4. **First boot: check it worked before you do anything else.** Type `/status`.
    - If Alex answers with a status report, the folder is loaded correctly. Go to step 5.
    - If you get "unknown command" or plain-Claude chat, the folder is **not** loaded. Close the session and redo step 3. Nothing below will work until `/status` responds.
-   - If you cloned the repo there is no soul.md yet, so the first reply is plain Claude even when the folder *is* loaded correctly. That is expected: `/status` still answers, and personality appears after `/setup` writes soul.md. If you *have* soul.md and still get plain Claude, the session hook needs `cat` (ships with Git for Windows).
+   - If you cloned the repo there is no soul.md yet, so the first reply is plain Claude even when the folder *is* loaded correctly. That is expected: `/status` still answers, and personality appears after `/setup` writes soul.md. If you *have* soul.md and still get plain Claude, the session hook needs `cat` (present on any Linux/macOS install).
 5. **Run `/setup` as your first real prompt.** That is the whole first-session instruction: open the folder, `/status` to confirm, then type `/setup` and answer its questions. It walks you through identity, brand, and the vault one step at a time.
 6. **Connect services** at claude.ai, Settings, Connectors: Gmail, Calendar, Drive (one Google sign-in), Notion (optional). The in-app `/mcp` manager inside Claude Code is an alternative path to the same connectors. These are one-time authentications; they persist across sessions. Install the "Claude in Chrome" extension for browser control. (GitHub is used only for backup via git + a token, not a connector.)
 7. **Optional phone control:** pair the Claude Code Desktop app (Cowork) with the mobile app so you can send Alex tasks from your phone. The Alex HQ dashboard is a separate phone surface for reading metrics.
@@ -55,15 +55,33 @@ MCP tools are deferred: load them with `ToolSearch("select:<tool>")` before call
 
 {{MCP_LIST}}
 
-## 6. Scheduling (Windows Task Scheduler)
+## 6. Scheduling (systemd user timers)
 
-Nothing runs until you schedule it. On this machine the scheduler is Windows Task Scheduler; `/cron-setup` builds the jobs from `scheduler/schedule.md`. The best first schedule is the morning brief, daily 8:00.
+Nothing runs until you schedule it. On this machine the scheduler is **systemd user timers**;
+`/cron-setup` builds the jobs from `scheduler/schedule.md`, and `node scripts/generate-alex.js`
+writes the unit files into `systemd/`. The best first schedule is the morning brief, daily 8:00.
 
-- **How a scheduled `claude -p` job works:** the scheduler fires at a time, runs `claude -p "Run /{command}" --dangerously-skip-permissions`, the work happens, the process exits, each run is a fresh session. The skip-permissions flag is required because a headless run has no TTY to approve prompts (do not carry it into interactive use). On this machine the jobs run as the logged-in user and reuse existing credentials, so no OAuth token is needed; a `claude setup-token` token is only for a truly detached cron (a headless Linux/macOS server).
-- **The real jobs are hardened, not naive one-shots:** the scheduled wrappers are `.ps1` scripts that detect failure, push a RED/GREEN `run_status` to Alex HQ so a dead run is never silent, and self-schedule one-shot retries past the quota reset (Task Scheduler's RestartCount only covers launch failures, proven 2026-07-06). When you add a new scheduled automation, wrap it the same way, do not schedule a bare `claude -p`.
-- **Not every job is a `claude -p` run.** Some are zero-token scripts or remote n8n: the recovery checker, the git and vault backups, the vault search index, the health ingest (n8n, phone-triggered).
-- **Check a job:** `schtasks /query /fo LIST | findstr PersonalOS`, logs in `outputs/logs/{name}.log`. Pause all: `/cron-setup off`. Pause one: `/cron-setup off {name}`. Resume: `/cron-setup on`.
-- On macOS/Linux the equivalent is `crontab` (detached, needs the OAuth token, all env vars inline, `cd` to the repo first, tag entries `# personal-os:{name}`).
+- **How a scheduled `claude -p` job works:** the timer fires at a time, runs `claude -p "Run
+  /{command}" --dangerously-skip-permissions`, the work happens, the process exits, each run is a
+  fresh session. The skip-permissions flag is required because a headless run has no TTY to approve
+  prompts (do not carry it into interactive use). The jobs run as your own user and reuse existing
+  credentials, so no OAuth token is needed.
+- **Run `loginctl enable-linger $USER` once.** Without it, user timers only fire while you are
+  logged in, so a headless box silently runs nothing at all, with no error anywhere. This is the
+  single easiest thing to forget and the hardest to diagnose after the fact.
+- **The real jobs are hardened, not naive one-shots:** the scheduled wrappers are `.sh` scripts that
+  detect failure, push a RED/GREEN `run_status` to Alex HQ so a dead run is never silent, and
+  self-schedule one-shot retries past the quota reset. When you add a new scheduled automation, wrap
+  it the same way; do not schedule a bare `claude -p`.
+- **Not every job is a `claude -p` run.** Some are zero-token scripts or remote n8n: the recovery
+  checker, the git and vault backups, the vault search index, the health ingest (n8n, phone-triggered).
+- **Check a job:** `systemctl --user list-timers --all`, logs in `outputs/logs/{name}.log` plus
+  `journalctl --user -u PersonalOS-{name}.service` for anything the wrapper never got to write.
+  Pause all: `/cron-setup off`. Pause one: `/cron-setup off {name}`. Resume: `/cron-setup on`.
+- **Set the machine timezone before enabling anything** (`sudo timedatectl set-timezone
+  Europe/Stockholm`): every schedule is wall-clock local time.
+- **On macOS none of this exists**, and that is expected: the dev machine has no systemd, so
+  `systemd/` is inert there and the generator degrades to a loud skip rather than pretending.
 
 ### The scheduled jobs (from scheduler/schedule.md)
 

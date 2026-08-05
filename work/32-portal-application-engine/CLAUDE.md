@@ -37,7 +37,7 @@ and the scanner id `5tPXbhdpp6PfF56V` appeared exactly once in the whole registr
 
 - **V6 leg (c)** asserts a declared `n8n_cron` against the live scheduleTrigger. The scanner's cron was
   undeclared, so a drifted or PUT-clobbered trigger would never fail a build.
-- **`scripts/n8n-active-check.ps1`** (daily 08:10) walks LIVE projects whose `n8n` field is a workflow-id
+- **`scripts/n8n-active-check.mjs`** (daily 08:10) walks LIVE projects whose `n8n` field is a workflow-id
   string and asserts `active == true`. The scanner was not a value it could see.
 
 **The stage ordering is what makes that dangerous.** #31 banks, #32 drains. If the scanner silently

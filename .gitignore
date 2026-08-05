@@ -1,4 +1,9 @@
 # === SECRETS - never commit; if one is ever staged/pushed, rotate it immediately ===
+# KEPT AS A SAFETY NET (bash migration ruling A, 2026-08-05): the four real credentials now live
+# OUTSIDE the repo at ~/.config/alex/secrets/ (mode 600), resolved through
+# system/credentials-ledger.json, so no code names a credential path any more. These entries are
+# DELIBERATELY not deleted - a stale ignore rule costs nothing and still catches a file recreated in
+# the old location by an un-migrated script or an old runbook.
 work/03-application-engine/config/n8n-api-key.txt
 work/03-application-engine/config/brightdata-api-key.dpapi
 work/16-alex-hq/config/alex-hq-token.txt
@@ -9,10 +14,13 @@ work/16-alex-hq/config/hq-basic-auth.txt
 *.key
 *.dpapi
 
-# Agent-skills symlink layer (machine-local; core.symlinks=false on Windows would
-# duplicate content). Canonical skill content is committed under .agents/skills/.
-# Rebuild on restore: recreate .claude/skills/<name> -> ../../.agents/skills/<name>
-# per pair (or re-run `npx skills add`). The symlink layer also rides the encrypted vault backup.
+# Agent-skills symlink layer (machine-local). Canonical skill content is committed under
+# .agents/skills/. Rebuild on restore, per pair:
+#   ln -s ../../.agents/skills/<name> .claude/skills/<name>
+# (Before the 2026-08-05 Linux move these were NTFS junctions, because core.symlinks=false on
+# Windows would have duplicated the content. On Linux they are ordinary symlinks and recovery
+# check C17 also catches a BROKEN one, which the old check could not distinguish from healthy.)
+# The symlink layer also rides the encrypted vault backup.
 .claude/skills/
 
 # Chrome user-data profile (cookies, session tokens) - airbnb-host headed browser
@@ -43,7 +51,7 @@ work/29-trip-ops/state/
 scripts/vault-index/
 
 # Recall Spine bi-temporal fact ledger (2026-07-25): facts.db is DERIVED from structured sources
-# (manifest, validate-alex.js, check.ps1, schtasks, skills-lock, the attestation file) and fully
+# (manifest, validate-alex.js, check.mjs, the live timers, skills-lock, the attestation file) and fully
 # regenerable via `node system/recall/harvest.js`. It mirrors private ledger dates + never leaves the
 # machine; gitignored so it stays off the PUBLIC repo but IS in the repo tree, so the encrypted vault
 # backup covers it. recall-metrics.jsonl is per-prompt injection telemetry (hit/miss/latency, no prompt text).

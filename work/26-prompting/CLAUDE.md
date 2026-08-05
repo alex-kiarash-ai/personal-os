@@ -149,7 +149,7 @@ Before delivering, confirm each is present. If missing, ask in the single batche
 - Delivery format stated.
 - Destination / project name known.
 - Any MCP or API the task needs is named (ambiguous = ask which).
-- **One-off task, or durable automation?** Durable -> the generated prompt routes through the /new flow (registry-first: `system/manifest.json` entry, `node scripts/generate-alex.js`, scaffold, `check.ps1 -Init` re-baseline). Never free-build a permanent automation.
+- **One-off task, or durable automation?** Durable -> the generated prompt routes through the /new flow (registry-first: `system/manifest.json` entry, `node scripts/generate-alex.js`, scaffold, `check.mjs --init` re-baseline). Never free-build a permanent automation.
 - **Overlap resolution recorded** (step 0): extend vs build new, per Shaheen's answer.
 
 Do not ask more than needed. One clean round beats three small ones. Nothing missing = skip straight to delivery. Always offer the *defaults* skip.

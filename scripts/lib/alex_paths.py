@@ -6,7 +6,7 @@ absolute path or assume the site lives inside personal-os again.
 
 THE ORDER, for every lookup (first hit wins):
   1. env var             - ALEX_HQ_REPO, for odd layouts + CI
-  2. manifest meta.paths - system/manifest.json, the SSOT check.ps1 already reads
+  2. manifest meta.paths - system/manifest.json, the SSOT check.mjs already reads
   3. structural default  - <personal-os>/../alex-hq, a sibling
 
 Node twin: work/16-alex-hq/scripts/lib/paths.mjs. Keep the two in agreement.

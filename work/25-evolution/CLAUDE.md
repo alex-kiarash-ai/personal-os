@@ -62,9 +62,9 @@ as an open option for Shaheen, deliberately not built yet (no premature coupling
   current automations + the MCP Reference section + the three questions + output format) and writes it
   to `outputs/evolution/YYYY-MM-DD/eval-prompt.txt` (+ `overlaps.json`, the P4 platform overlap pre-scan).
   Zero-token; the model call lives in the wrapper. Requireable for tests (main guarded by require.main).
-- `scripts/run-landscape-monitor.ps1` - hardened wrapper (close-out gate, HQ heartbeat). Runs the node
+- `scripts/run-landscape-monitor.sh` - hardened wrapper (close-out gate, HQ heartbeat). Runs the node
   monitor; no claude call.
-- `scripts/run-landscape-eval.ps1` - hardened wrapper. Runs the assembler, feeds the prompt to a single
+- `scripts/run-landscape-eval.sh` - hardened wrapper. Runs the assembler, feeds the prompt to a single
   `claude -p`, saves `outputs/evolution/YYYY-MM-DD/digest.md`, opens a GitHub issue tagged
   `ai-landscape-update` IF `gh` is installed (else keeps the digest local and says so), HQ push, close-out.
 - `system/landscape-log.jsonl` - append-only monitor memory `{date, category, source, item, link, id}`
@@ -91,7 +91,7 @@ so the next Remote Control is caught by the Monday eval, not a manual brainstorm
   CAPABILITY OVERLAP block into the eval prompt requiring the model to resolve EACH to Recommend or Skip.
   Bias: a false overlap costs one digest row, the cheap direction.
 - **Digest rule, enforced in code** (not model self-policing, per the no-model-verifier-chains guardrail):
-  `landscape-eval-check.js`, wired into `run-landscape-eval.ps1`, fails the run RED if any overlap is dropped.
+  `landscape-eval-check.js`, wired into `run-landscape-eval.sh`, fails the run RED if any overlap is dropped.
 - **One-time backfill** (P4 step 4): the Q1-Q2 2026 Claude Code set (Remote Control, Dispatch, Channels,
   /loop, Agent View, Auto Mode, voice mode) seeded as historical `platform` rows (dated 2026-01-01 sentinel)
   + a propose/skip resolution doc at `outputs/evolution/2026-07-17/backfill-claude-code-q1q2-2026.md`
@@ -100,7 +100,7 @@ so the next Remote Control is caught by the Monday eval, not a manual brainstorm
 ## Model routing (house rule)
 The monitor is zero-token by design (no model call). The eval's single weekly call is human-facing
 reasoning that produces a digest Shaheen reads, so per the model-routing rule it runs on Claude
-(`claude -p`, the on-machine plan, pinned `--model claude-sonnet-4-6` in `scripts/run-landscape-eval.ps1`),
+(`claude -p`, the on-machine plan, pinned `--model claude-sonnet-4-6` in `scripts/run-landscape-eval.sh`),
 not an n8n writer path. This is reasoning + a digest, not n8n prose generation. *(Corrected 2026-07-29,
 architecture review: this said "the n8n OpenAI writer path", naming a provider the routing contract has
 never carried. No n8n writer has ever run OpenAI; the job-lane writers run kimi-k3 and every other n8n
@@ -163,13 +163,13 @@ Alex HQ.
 ### schedule.md entry templates (paste on activation)
 ```
 ### Landscape Monitor (#25)
-- Command: scripts/run-landscape-monitor.ps1 (pure Node, no claude call, zero tokens)
+- Command: scripts/run-landscape-monitor.sh (pure Node, no claude call, zero tokens)
 - Frequency: daily at 7:10 AM (Task Scheduler job PersonalOS-landscape-monitor)
 - Description: Fetches public keyless feeds (Claude models, MCPs, n8n patterns), appends new items to system/landscape-log.jsonl. GREEN/RED to Alex HQ.
 - Added: <activation date>
 
 ### Landscape Eval (#25)
-- Command: scripts/run-landscape-eval.ps1 (one claude -p call/week)
+- Command: scripts/run-landscape-eval.sh (one claude -p call/week)
 - Frequency: Monday at 7:50 AM (Task Scheduler job PersonalOS-landscape-eval)
 - Description: Reads the week's landscape log, one Claude call assesses each item (add/replace/relevance) with recommend/skip, writes outputs/evolution/YYYY-MM-DD/digest.md + opens an ai-landscape-update issue if gh is present. Empty week posts nothing.
 - Added: <activation date>

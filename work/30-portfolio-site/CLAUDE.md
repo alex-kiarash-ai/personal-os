@@ -67,7 +67,7 @@ PROJECT.md specified self-hosting on the Hetzner VPS behind a reverse proxy. **R
 
 **B2 does NOT deploy to production.** PROJECT.md says "hello world live on day one of Phase 2", which was written for a parallel VPS host; under A1 the first CI deploy would land on the Worker serving the live portfolio. Staging worker first; production sees CI at B3 exit, content-complete and rollback-armed.
 
-**If a local Phase-4 monitor is ever built**, its `scripts/run-*.ps1` wrapper, its `scheduler/schedule.md` entry, its `meta.model_routing.local_wrappers` pin and an `hq_project` slug all arrive in the SAME change. Not before.
+**If a local Phase-4 monitor is ever built**, its `scripts/run-*.sh` wrapper, its `scheduler/schedule.md` entry, its `meta.model_routing.local_wrappers` pin and an `hq_project` slug all arrive in the SAME change. Not before.
 
 ## Notion Integration
 None in v1. Nothing here is row-shaped; `vault/projects/portfolio-site/status.md` is the record. (The Progress Tracker board row is a separate, owner-side thing.)

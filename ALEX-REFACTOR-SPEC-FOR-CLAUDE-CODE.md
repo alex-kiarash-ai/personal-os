@@ -1,5 +1,13 @@
 # ALEX PERSONAL OPS SYSTEM — REFACTOR SPEC v2.1 (FOR CLAUDE CODE)
 
+
+> **PLATFORM NOTE (added 2026-08-05).** This is a DATED RECORD of a past decision and its body is
+> deliberately left intact. Alex moved off Windows/PowerShell onto Linux (bash wrappers, Node logic,
+> systemd user timers) on 2026-08-05, so every `.ps1` path, Task Scheduler reference and `C:\...`
+> literal below describes the system as it was, not as it is. Rewriting a historical document to
+> match the present would destroy the thing that makes it useful. Current state: `bash-migration-plan.md`,
+> `CLAUDE.md`, `scheduler/schedule.md`.
+
 **Date:** 2026-07-08
 **Root:** `C:/Users/Thinkpad/Desktop/personal-os`
 **Audience:** Claude Code. This document is your instruction set. Execute it in order, step by step.
