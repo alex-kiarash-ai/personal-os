@@ -48,26 +48,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "PD=\"${CLAUDE_PROJECT_DIR:-.}\"; if [ -f \"$PD/work/voice/.venv/Scripts/python.exe\" ]; then \"$PD/work/voice/.venv/Scripts/python.exe\" \"$PD/work/voice/v3/speak_hook.py\"; else echo '{\"systemMessage\":\"VOICE HOOK DOWN: work/voice/.venv missing or broken - speech out is dead until rebuilt (work/voice/README.md)\"}'; mkdir -p \"$PD/outputs/logs\"; echo \"$(date '+%Y-%m-%d %H:%M') speak_hook: venv python missing\" >> \"$PD/outputs/logs/voice-hook-errors.log\"; fi"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "PD=\"${CLAUDE_PROJECT_DIR:-.}\"; if [ -f \"$PD/work/voice/.venv/Scripts/python.exe\" ]; then \"$PD/work/voice/.venv/Scripts/python.exe\" \"$PD/work/voice/v3/notify_hook.py\"; else echo '{\"systemMessage\":\"VOICE HOOK DOWN: work/voice/.venv missing or broken - notifications are silent until rebuilt (work/voice/README.md)\"}'; mkdir -p \"$PD/outputs/logs\"; echo \"$(date '+%Y-%m-%d %H:%M') notify_hook: venv python missing\" >> \"$PD/outputs/logs/voice-hook-errors.log\"; fi"
-          }
-        ]
-      }
     ]
   }
 }

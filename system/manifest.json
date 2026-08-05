@@ -144,8 +144,9 @@
       {
         "name": "voice",
         "title": "Voice",
-        "state": "EVENT",
-        "revisit": null,
+        "state": "DORMANT",
+        "revisit": "2026-11-05",
+        "dormant_reason": "Windows-era TTS layer; needs a Linux never-mute floor before it can run on the new host (bash migration ruling D, 2026-08-05). PARKED, not retired: 1,625 lines of Python with only 2 inbound references, so parking is cheap and fully reversible where retiring is not. The Stop + Notification hooks were removed from .claude/settings.json in the same change because they tested for work/voice/.venv/Scripts/python.exe, a Windows path that never exists on Linux, and would have emitted VOICE HOOK DOWN on EVERY turn. work/voice/** is left in the tree untouched. A future port needs (a) a Linux never-mute floor, since Windows SAPI has no equivalent - piper for quality with a model download, espeak-ng as the truly-unkillable floor; (b) libportaudio2 for sounddevice; (c) acceptance that the Ctrl+Alt+D global hotkey is desktop-environment specific (GNOME custom shortcut, sxhkd on a WM) and can only be documented, never automated. DORMANT carries the two-unchanged-revisits activate-or-retire rule, so this cannot quietly become permanent by neglect.",
         "trigger": "every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand",
         "one_liner": "Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.",
         "docs": "voice.md",

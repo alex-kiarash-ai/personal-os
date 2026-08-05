@@ -1,4 +1,39 @@
-# Alex Voice v3 - in-session (THE voice solution since 2026-07-12)
+# Alex Voice v3 - in-session
+
+> ## PARKED / DORMANT since 2026-08-05 (bash migration, ruling D). Revisit 2026-11-05.
+>
+> **This is Windows-era code. It is parked, not broken, and not retired.** Everything below
+> describes how voice worked on the Windows machine and is kept verbatim as the spec a future port
+> would start from. Nothing in this folder was changed by the Linux migration.
+>
+> **What was actually done to park it:** the `Stop` and `Notification` hooks were REMOVED from
+> `.claude/settings.json`. They tested for `work/voice/.venv/Scripts/python.exe` and, when absent,
+> emitted a `VOICE HOOK DOWN` system message plus an error-log line **on every single turn**. That
+> path never exists on Linux, so left alone they would have been the loudest thing in the system,
+> every turn, forever, for a capability that is deliberately switched off. Restoring them is one
+> `git revert`.
+>
+> `outputs/voice/voice-on.flag` handling is untouched. With the hooks gone the flag is simply inert,
+> so there was nothing to delete.
+>
+> **What a real port needs, and why it was deferred rather than rushed:**
+> 1. **A Linux never-mute floor. Windows SAPI has no equivalent** - that single fact is the reason
+>    this was parked instead of ported. `piper` gives good quality but needs a model download;
+>    `espeak-ng` is the truly-unkillable floor. The never-mute property is the design's whole point,
+>    so a port that cannot guarantee it is not a port.
+> 2. `libportaudio2` for `sounddevice`.
+> 3. Acceptance that the **Ctrl+Alt+D global hotkey has no portable equivalent**: it is desktop-
+>    environment specific (a GNOME custom shortcut, `sxhkd` on a plain WM) and can only ever be
+>    documented, never automated by this repo.
+>
+> Porting would also have meant maintaining **two** never-mute floors (macOS `say`, Linux `piper`)
+> across the dev/run split, spent during the phases where attention belonged on the backup layer.
+> The registry row carries `DORMANT` + a revisit date, so the two-unchanged-revisits rule forces an
+> activate-or-retire call rather than letting this rot quietly.
+
+## (original spec follows, unchanged)
+
+### Alex Voice v3 - THE voice solution since 2026-07-12
 
 Two-way voice INSIDE the interactive Claude Code session: the working session is the one
 brain, no separate voice process. Built 2026-07-12 from [[research/alex-voice-in-session]]

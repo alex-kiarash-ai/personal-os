@@ -220,7 +220,7 @@ elif [ -z "$reason" ]; then
         if ! scp -o BatchMode=yes "$gpg_file" "n8n:/opt/alex-backups/$remote_name" >> "$LOG" 2>&1; then
             reason="scp failed - network or SSH key?"
         else
-            remote_size="$(ssh -o BatchMode=yes n8n "stat -c%s /opt/alex-backups/$remote_name" 2>/dev/null | tr -d ' \r')"
+            remote_size="$(ssh -o BatchMode=yes n8n "stat -c%s /opt/alex-backups/$remote_name" 2>/dev/null | tr -d ' \r')"  # portability-ok: stat -c runs on the REMOTE box, which is Linux
             if [ -z "$remote_size" ] || [ "$remote_size" -lt 100000 ] 2>/dev/null; then
                 reason="remote file missing/truncated (${remote_size:-none} bytes)"
             else

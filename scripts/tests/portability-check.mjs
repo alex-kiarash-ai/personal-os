@@ -161,10 +161,23 @@ const BASH4 = [
   [/\blocal\s+-n\b/, '`local -n` nameref is bash 4.3+.'],
 ];
 
+// ESCAPE HATCH, deliberately narrow (added 2026-08-05, Phase 7): a line ending in
+//   # portability-ok: <reason>
+// is exempt. It exists for ONE real case the pattern match cannot see - a GNU command that runs on
+// the REMOTE Linux box over ssh, where GNU is exactly right and the BSD spelling would be wrong
+// (vault-backup.sh's `ssh n8n "stat -c%s ..."`).
+//
+// It requires a written reason on the same line on purpose. A bare suppression comment is how a lint
+// quietly stops being a lint: the next person adds one to make a red go away and nobody can tell the
+// justified exemptions from the lazy ones. Requiring the reason keeps every exemption reviewable in
+// a diff. If you find yourself adding a third or fourth, the rule is probably wrong - fix the rule.
+const OK_MARKER = /#\s*portability-ok:\s*\S/;
+
 function checkShell(file, text) {
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (OK_MARKER.test(line)) continue;
     const code = line.replace(/#.*$/, ''); // ignore comments; this file documents the bans in prose
     if (!code.trim()) continue;
     for (const [re, msg] of GNUISMS) if (re.test(code)) add('P2 BSD/GNU', file, i + 1, msg);
