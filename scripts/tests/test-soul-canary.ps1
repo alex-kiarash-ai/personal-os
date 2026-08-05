@@ -57,6 +57,47 @@ try {
 
     # 8. Nonce freshness: two calls to New-SoulNonce differ (per-run uniqueness).
     Check 'New-SoulNonce is per-run unique' ($nonce -ne $stale) "$nonce vs $stale"
+
+    # --- Added 2026-08-05 (pen-test P-01 fix). Regression cases for the three measured flake modes.
+    # Each one reproduces a REAL line from outputs/logs/morning-brief.log, so a future refactor that
+    # reintroduces the fault fails here instead of in production two weeks later.
+
+    # 9. Correct token, nonce omitted (real line: "SOUL-OK 0b03f461338e8658"). Must still FAIL closed,
+    #    but must NOT be diagnosed as "canary absent" - the token is unguessable, so soul.md arrived.
+    $r = Test-SoulCanary -Out "the brief...`nSOUL-OK $token" -Nonce $nonce -SoulPath $armed
+    Check 'token correct + nonce omitted -> FAIL closed' ($r.Pass -eq $false) $r.Reason
+    Check 'token correct + nonce omitted -> diagnosed as malformed, NOT absent' `
+        ($r.Reason -match 'nonce omitted' -and $r.Reason -notmatch 'absent') $r.Reason
+
+    # 10. Confabulated token (real lines: "SOUL-OK eyJ-kiarash <nonce>", "SOUL-OK brkb-canary-2026 <nonce>").
+    #     A guessed token must never pass, however plausible it looks.
+    foreach ($fake in @('eyJ-kiarash', 'brkb-canary-2026', '<token>')) {
+        $r = Test-SoulCanary -Out "SOUL-OK $fake $nonce" -Nonce $nonce -SoulPath $armed
+        Check "confabulated token '$fake' -> FAIL" ($r.Pass -eq $false -and $r.Reason -match 'wrong token') $r.Reason
+    }
+
+    # 11. The instruction must SEQUENCE the verdict line and the canary line rather than both claiming
+    #     the last line. The collision with $AlexVerdictInstruction was root cause (a) of the flake.
+    $instr = Get-SoulCanaryInstruction -Nonce $nonce
+    Check 'instruction no longer claims "the very last line"' ($instr -notmatch 'very last line') ''
+    Check 'instruction sequences verdict THEN canary' `
+        ($instr -match 'Verdict:\s*COMPLETE' -and $instr -match 'in this exact order') ''
+    Check 'instruction names the anchor line to copy from' ($instr -match "SOUL-CANARY-TOKEN:") ''
+    Check 'instruction forbids guessing the token' ($instr -match 'NEVER guess') ''
+    Check 'instruction still withholds the real token' ($instr -notmatch [regex]::Escape($token)) ''
+    Check 'instruction carries this run nonce' ($instr -match [regex]::Escape($nonce)) ''
+
+    # 12. Real-file invariant (new 2026-08-05): soul.md now carries the token TWICE (top anchor +
+    #     the explanatory block). Get-SoulToken takes the FIRST match, so a rotation that updates one
+    #     block and not the other would leave the file disagreeing with itself, silently.
+    $realSoul = Join-Path $PSScriptRoot '..\..\soul.md'
+    if (Test-Path $realSoul) {
+        $hits = [regex]::Matches((Get-Content $realSoul -Raw), 'SOUL-CANARY-TOKEN:\s*([0-9a-f]{12,})') |
+                ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
+        Check 'live soul.md: all SOUL-CANARY-TOKEN blocks agree' ($hits.Count -eq 1) ("distinct values: " + ($hits -join ', '))
+    } else {
+        Write-Host '  [skip] live soul.md not present (gitignored clone) - two-block invariant unchecked'
+    }
 }
 finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue

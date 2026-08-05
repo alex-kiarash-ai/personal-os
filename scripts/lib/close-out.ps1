@@ -187,7 +187,12 @@ function Invoke-CloseOutCheck {
         # silently clobbered and the run failed with a BLANK reason. Caught by the F-04 negative test
         # before it shipped. Never reuse an internal variable name as a parameter name in this file.
         [string]$DegradedReason = '',
-        [switch]$DryRun
+        [switch]$DryRun,
+        # -NoExit (2026-08-05, public-CI enablement): log the failure but do NOT kill the calling
+        # process. An in-process test harness (test-completion-sentinel.ps1) cannot survive `exit`;
+        # that is how the sentinel test sat broken-and-silent from the 07-21 Stage-2 flip until CI
+        # work found it. Production wrappers never pass this: the exit code IS their contract.
+        [switch]$NoExit
     )
 
     # --- A1: blocked/degraded detection (the 06-26/29/30 blackout classes) ---
@@ -336,5 +341,6 @@ function Invoke-CloseOutCheck {
         }
     }
 
+    if ($NoExit) { return }
     exit 1
 }
