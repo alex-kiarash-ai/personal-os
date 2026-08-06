@@ -6,6 +6,20 @@ Automation (n8n workflow on the Hetzner box). A faithful CLONE of the BI Applica
 ## Purpose
 Tuesday & Thursday 15:30 Stockholm (was every-72h 07:30 until 2026-07-24): discover LinkedIn AI/automation jobs per location via Bright Data, score fit against the AI CV + AI-centrality with one Claude call, gate deterministically, write a tailored AI CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job folder under the AI Drive folder, log every job + cost to the AI sheet. Review-ready drafts, no auto-submit. Runs ALONGSIDE the BI pipeline (does not replace it).
 
+## 2026-08-06 429 resilience + volume cut (this engine ONLY, not mirrored to #03/#32)
+
+Exec 3670 (08-06 15:30) sourced 150 jobs fine, then died at `Claude Match+Research` on **HTTP 429, Moonshot `engine_overloaded_error`, at item 13 of 150**. The 08-04 Bright Data "Customer is not active" block had cleared; this is a different failure. Same day, same cred, same model, same batching: #03 did 46 items in 113s and #32 did 2, both clean. **This engine is oversized, not misconfigured**: 15 active search rows vs #03's 5, so `limit_per_input=10` meant 150 jobs into a per-item reasoning call, and the 07-28 simplify deleted the banking layer so one transient error discarded all 150.
+
+Two changes, live, independently GET-verified, active flag + node count (32) + model literals + URLs unchanged:
+1. `Claude Match+Research` + `Claude Writer`: **`onError: continueRegularOutput`, `maxTries` 4 -> 5.** A 429'd job is skipped instead of killing the run. **Retry tuning alone cannot fix this**: n8n caps `maxTries` at 5 and `waitBetweenTries` at 5000ms and both nodes were already at 4/5000.
+2. `BD Trigger Search`: **`limit_per_input` 10 -> 4** (URL query param, NOT a search_config column), so 15 x 4 = 60 jobs/run. Cuts depth per search, keeps all 15 searches. Also trims Bright Data spend ($0.00075/record).
+
+**Why the skip path is safe (verified by running the live node code offline, 4/4 cases, not assumed):** `Parse Match` catches the missing `choices[0]`, sets `stage2_parse_error`; `Stage 3 Gate` adds `stage2_parse_error` + `missing_fit_score` + `target_role_missing` so `gate_status` is never `pass`; `Passed Gate?` forwards only `pass`. A skipped job **cannot** reach the writer or become a draft. Healthy control still passes.
+
+Scripts + backups (gitignored, `.gitignore:80`): `config/apply-429-resilience-2026-08-06.js`, `config/apply-limit-per-input-2026-08-06.js`, each reversible in one value. **NOT mirrored to #03/#32 by Shaheen's call** (they work; mirror after the next #14 run proves this). **Unproven until Tue 2026-08-11 15:30** (a manual test today proves little: `discover_new` returns only never-seen records).
+
+> DOC DRIFT, found 08-06, left as-is: live `Stage 3 Gate` runs `FIT_THRESHOLD = 50`, but item 3 of the differences list below still says 70. **Live 50 is the real value.**
+
 ## 2026-07-28 SIMPLIFY (Shaheen's call): live graph is now 32 nodes, dedup/ledger/review layer DELETED
 Applied in lockstep with #03 via `scripts/simplify-engine.js` (2026-07-28 01:45): both engines **50 -> 32 nodes** (verified live). The 18-node dedup/bank/drain/ledger/`needs_review`/timeout layer was deleted, `Compute Costs` gutted to a run_log row builder (no cost maths), `Append Run Log` cut to 9 columns. Net: no dedup ledger (Bright Data `discover_new` only), no banking/drain, **no cross-lane dedup (this engine's `Read Sibling Log` -> #03 is gone, so both engines can now draft the same vacancy)**, no needs_review queue, no cost tracking. The F09 `consultant` match-schema edit SURVIVES (it lives in `Build Match Request`, not a deleted node). Full detail + node list: `work/03-application-engine/CLAUDE.md` §"2026-07-28 SIMPLIFY". Backup: `scripts/n8n-backups/9x9M3EnEEeX3O8dy-pre-simplify-2026-07-28T0145.json`. The remediation section below is now HISTORY.
 
