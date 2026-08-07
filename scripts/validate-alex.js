@@ -529,6 +529,31 @@ async function v6ModelRouting({ manifest, context }, failures, warnings) {
       if (m !== exp)
         flag(`V6: model routing mismatch - manifest.meta.model_routing expects ${exp} for ${t.id} (${t.name}) '${node}', live runs ${m}`);
     }
+
+    // (a2) PER-NODE pins (added 2026-08-07). A lane can run two models: claude-opus-5 on the
+    // Match/scoring call, claude-sonnet-5 on the Writer. Leg (a) above only inspects `checked_node`
+    // and leg (b) skips voice-sync targets, so WITHOUT this the second model is enforced by nothing
+    // and can drift silently - the exact failure class this contract exists to prevent. Overrides
+    // with no `models` key behave exactly as before.
+    const ovNodes = ((mr.overrides || []).find(o => o.workflow === t.id) || {}).models;
+    if (ovNodes) {
+      for (const [nodeName, wantModel] of Object.entries(ovNodes)) {
+        const pinned = (wf.nodes || []).find(n => n.name === nodeName);
+        if (!pinned) {
+          flag(`V6: meta.model_routing.overrides pins '${nodeName}' of ${t.id} (${t.name}) to ${wantModel}, but the live workflow has no such node`);
+          continue;
+        }
+        const got = modelIdsInNode(pinned);
+        if (got.length === 0) {
+          flag(`V6: no model id found in the pinned node '${nodeName}' of ${t.id} (${t.name}) (contract expects ${wantModel})`);
+          continue;
+        }
+        for (const m of got) {
+          if (m !== wantModel)
+            flag(`V6: model routing mismatch - meta.model_routing pins '${nodeName}' of ${t.id} (${t.name}) to ${wantModel}, live runs ${m}`);
+        }
+      }
+    }
   }
 
   // (b) the sweep: every other workflow (F-07)

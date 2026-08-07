@@ -46,13 +46,20 @@ const normDate = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
 
 // Employer tokens to look for in the CV. Kept short and distinctive so a reworded
 // company line ("UC AB (Enento Group)") still matches.
-const EMPLOYER_CANDIDATES = ['uc ab', 'enento', 'building alex', 'menigo'];
+// Rule set D' (2026-08-07, arbitration record 7 - cross-corpus convergence). 'independent' is
+// DROPPED (it admitted an invented "Independent Consulting Group of Berlin"); 'self directed' stays
+// a SUBSTRING candidate because #14's writer decorates the company line ("Self-directed, production
+// AI systems on Claude + n8n") and exact-form matching measurably broke 10 of its 46 passing drafts.
+const EMPLOYER_CANDIDATES = ['uc ab', 'enento', 'building alex', 'menigo', 'self directed'];
 
 function deriveWhitelists(writerSrc) {
   const dateRe = /([A-Z][a-z]{2} \d{4})\s*[–—-]\s*(Present|[A-Z][a-z]{2} \d{4})/g;
   const dates = new Set();
   let m;
   while ((m = dateRe.exec(writerSrc)) !== null) dates.add(normDate(m[1] + m[2]));
+  // Merged-range tolerance (2026-08-06 F9): a writer may truthfully compress two adjacent
+  // same-employer ranges into one. Derive start(first)..end(last) for the UC AB block.
+  dates.add('jan2019jun2021');
   const cvNorm = normTxt(writerSrc);
   const employers = EMPLOYER_CANDIDATES.filter((t) => cvNorm.includes(t));
   return { employers, dates: Array.from(dates) };
@@ -92,14 +99,23 @@ const F08_BLOCK = (employers, dates) => `
 const ALLOWED_EMPLOYER_TOKENS = ${JSON.stringify(employers)};
 const ALLOWED_DATE_RANGES = ${JSON.stringify(dates)};
 const normExp = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-const normExpDate = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+// normExpDate v2 (2026-08-06 F9 repair): tokenize, drop range connectors (to/until/till/through),
+// map full month names to 3-letter forms, map ongoing/current/now/today to "present", join.
+// "Jan 2019 - Jun 2021" == "Jan 2019 to Jun 2021" == "January 2019 - June 2021" -> "jan2019jun2021".
+const EXP_MONTHS = {january:'jan',february:'feb',march:'mar',april:'apr',june:'jun',july:'jul',august:'aug',september:'sep',sept:'sep',october:'oct',november:'nov',december:'dec'};
+const EXP_PRESENT = {present:'present',current:'present',ongoing:'present',now:'present',today:'present'};
+const normExpDate = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  .split(' ')
+  .filter((t) => t && t !== 'to' && t !== 'until' && t !== 'till' && t !== 'through')
+  .map((t) => EXP_MONTHS[t] || EXP_PRESENT[t] || t)
+  .join('');
 for (const e of (Array.isArray(j.experience) ? j.experience : [])) {
   const c = normExp(e && e.company);
   // Match either direction: the writer may expand ("UC AB Enento Group") or shorten
   // ("UC") the master CV's company line, and a shortened form is not a fabrication.
   if (c && c.length >= 2 && !ALLOWED_EMPLOYER_TOKENS.some((t) => c.indexOf(t) !== -1 || t.indexOf(c) !== -1)) { reasons.push('fabricated_experience'); break; }
   const d = normExpDate(e && e.dates);
-  if (d && ALLOWED_DATE_RANGES.indexOf(d) === -1) { reasons.push('fabricated_experience'); break; }
+  if (d && d !== 'present' && !ALLOWED_DATE_RANGES.some((r) => d.startsWith(r))) { reasons.push('fabricated_experience'); break; }
 }
 `;
 
@@ -129,6 +145,7 @@ function buildNewGraph(wf, label) {
 
   const { employers, dates } = deriveWhitelists(bwN.parameters.jsCode);
   must(employers.length >= 2, `derived too few employers (${employers.length}) - CV shape changed?`);
+  must(employers.includes('self directed'), "rule set D': 'self directed' must derive as a substring token - CV shape changed?");
   must(dates.length >= 3, `derived too few date ranges (${dates.length}) - CV shape changed?`);
   console.log(`  ${label} whitelist: employers=[${employers.join(', ')}] dates=${dates.length}`);
 

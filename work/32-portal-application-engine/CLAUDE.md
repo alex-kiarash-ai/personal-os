@@ -4,6 +4,54 @@
 > workflows, but the manifest carried only one, so the scanner's id and cron lived in prose and nothing
 > asserted them. This entry gives the drain half its own registry row. See "Why the split" below.
 
+## 2026-08-07 Anthropic split migration: opus-5 scores, sonnet-5 writes (SUPERSEDES kimi-k3)
+
+Moved off Moonshot kimi-k3 back to Anthropic, Shaheen's call. **`Claude Match+Research` -> `claude-opus-5`**
+(fit scoring is the judgment call), **`Claude Writer` -> `claude-sonnet-5`** (the soul.md voice block carries the
+prose). Both call `api.anthropic.com/v1/messages` with `anthropic-version: 2023-06-01`.
+
+**Why:** the Moonshot org went to a NEGATIVE balance (`cash_balance -4.37`, `available 0`) and every kimi-k3 call
+returned HTTP 429 *"account is suspended due to insufficient balance"*. An account suspension wearing a rate-limit
+status code, so retry/backoff/spacing do nothing: 60/60 failed at one call per 3s. The account had been recharged
+8.34 USD on 08-05 and drained inside a day. **n8n discards the provider body on a thrown HTTP error**, so the
+execution record shows only its canned "too many requests" text - the real reason is not visible there. Read the
+body from a live probe before diagnosing a 429.
+
+**Provider migration, not a string swap.** Per lane: the two `Claude *` HTTP nodes repointed to Anthropic with
+`predefinedCredentialType`/`anthropicApi`; the two Build nodes rewritten from OpenAI `messages:[system,user]` +
+`reasoning_effort` to a top-level Anthropic `system` BLOCK with a `cache_control` breakpoint +
+`thinking:{type:'adaptive'}` + `output_config:{effort:'high'}` + user-only `messages`; the two Parse nodes moved
+from `choices[0].message.content` to the TEXT blocks of `content[]` and to Anthropic usage fields
+(`input_tokens`/`output_tokens`/`cache_creation_input_tokens`/`cache_read_input_tokens`), with `stop_reason`
+handling for `max_tokens` and `refusal`. `max_tokens` stays 16384: on this family it caps thinking AND text together.
+
+**The trap that would have failed silently:** adaptive thinking is ON BY DEFAULT on opus-5/sonnet-5, so
+`content[0]` is a THINKING block. A `content[0].text` reader returns empty on every call and every job dies at the
+gate as a parse error - an outage that looks like a model fault. The parse filters `type === 'text'` and joins.
+
+**Prompt caching is back and it is the cost story:** system prompt + master CV is ~9.3K chars of identical prefix
+per job, and Moonshot had no cache-write tier. From the second call in a run that prefix bills at ~0.1x (live probe:
+2277 cache-write tokens, 12 uncached input). opus-5 $5/$25 per M, sonnet-5 $3/$15 ($2/$10 intro to 2026-08-31).
+
+**Proven, not asserted:** both credentials probed live on 4 candidate models (200 OK); the exact generated body
+shape probed against the real API on both models (200, cache write confirmed); the patched Parse nodes run offline
+against healthy / thinking-first / refusal / truncated / n8n-error-item / fenced replies (35/35); Writer Voice Eval
+re-run on sonnet-5 = **6/6 ALL PASS, 0 dashes, no AI tells**; independent read-back on all four lanes.
+
+**V6 enforces BOTH models now.** `meta.model_routing.overrides[].models` pins each node by name, because V6 leg (a)
+only inspects `checked_node` (`Build Writer Request`) and leg (b) skips voice-sync targets - the opus-5 scoring call
+would otherwise have been enforced by nothing. Negative-tested: a deliberately wrong pin fails V6 naming the node.
+
+Script + backups (gitignored, `.gitignore:80`): `work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js`
+(`--dry` / `--restore` / `--only=<id>`), `backup-before-anthropic-<id>-*.json`.
+
+**#32 only:** `Format Processed Row` still carries a live RATES map (its processed_jobs ledger survived the 07-28
+simplify; #03/#14's did not). `claude-opus-5` ($5/$25, cache 6.25/0.5) and `claude-sonnet-5` ($3/$15, cache
+3.75/0.3) were priced in. **The `kimi-k3` row is kept on purpose** so already-logged rows still price correctly
+instead of falling through to the deliberately-expensive `_fallback`. sonnet-5 is listed at LIST price, not the
+$2/$10 intro, matching that module's rule that a model should over-report rather than quietly under-report.
+**Posture untouched:** loud posture (retry 4x5s, no `onError`), node count 34, canvas positions unmoved.
+
 ## Type
 Automation (LIVE, n8n on the Hetzner box). Stage 2 of 2. Owns no scanning: it drains the queue that
 [[work/31-portal-scanner]] banks and turns it into review-ready drafts.

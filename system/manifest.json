@@ -14,26 +14,41 @@
         {
           "workflow": "9XuIEfxS71DEetVR",
           "name": "Application Engine (BI)",
-          "model": "kimi-k3",
-          "reason": "Shaheen 2026-07-27: all four job lanes moved from Opus 4.8 to Moonshot kimi-k3 (his call, 'best results instead of Opus'). Bodies rewritten to OpenAI/Moonshot format; voice + no-dash re-proven on the Writer Voice Eval before rollout. reasoning_effort=high (rolled out at max, flipped to high the same day: a measured max-vs-high comparison on the real writer prompt showed near-identical draft quality - both pass voice + 0 dashes - at ~1/3 the latency (79s vs 231s) and ~half the cost ($0.05 vs $0.12/call); max's only edge was a slightly sharper opening line). max_tokens 16384 + 10-min HTTP node timeout kept as headroom."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js",
+          "models": {
+            "Build Match Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5"
+          }
         },
         {
           "workflow": "9x9M3EnEEeX3O8dy",
           "name": "AI Application Engine",
-          "model": "kimi-k3",
-          "reason": "Shaheen 2026-07-27: all four job lanes moved from Opus 4.8 to Moonshot kimi-k3 at reasoning_effort=high (rolled out at max, flipped to high the same day, see the #03 override reason). OpenAI/Moonshot body format; Kimi K3 (Moonshot header) credential."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js",
+          "models": {
+            "Build Match Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5"
+          }
         },
         {
           "workflow": "grMqmGzzbTXTEdKr",
           "name": "Writer Voice Eval (regression)",
-          "model": "kimi-k3",
-          "reason": "regression harness mirrors the live writers; moved to kimi-k3 in lockstep 2026-07-27 so it grades the same model that ships. Warn-only (not a registered production engine)."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js The eval has no Match call (its Build Match Request is a case seeder), so only the writer is pinned. Warn-only: not a registered production engine.",
+          "models": {
+            "Build Writer Request": "claude-sonnet-5"
+          }
         },
         {
           "workflow": "sxEYRyeHH7i1mHzb",
           "name": "Portal Application Engine",
-          "model": "kimi-k3",
-          "reason": "Shaheen 2026-07-27: all four job lanes run the same model. Clone of #03, moved from Opus 4.8 to kimi-k3 (reasoning_effort=high, flipped from max the same day) with the other three."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js",
+          "models": {
+            "Build Match Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5"
+          }
         }
       ],
       "local_wrappers": {
@@ -60,7 +75,8 @@
           "run-vault-index.ps1",
           "run-landscape-monitor.ps1"
         ]
-      }
+      },
+      "models_doc": "`models` (added 2026-08-07) pins EXTRA nodes by name, because a lane can now run two different models. `model` stays the contract for `checked_node` (Build Writer Request); without `models` the second model - the Match/scoring call - would be invisible to V6, since leg (a) only inspects checked_node and leg (b) skips voice-sync targets. That is exactly the unenforced-drift class this contract exists to prevent."
     },
     "cost_budgets": {
       "doc": "Per-project monthly NOTIONAL-USD token budgets (alex-costs upgrade, 2026-07-25). Units match scripts/alex-cost-attribution.js's notional cost (a flat-Max quota-consumption proxy, NOT a cash bill; the numbers are large because they price the full token volume on a flat plan). The collector computes month-to-date cost per project and, when a project crosses warn_pct of its budget mid-month, writes a tripwire to system/cost-tripwires.json + a loud line (HQ push on the nightly path) - LEVEL-triggered, replacing the reactive 'the $40 bill crossed' discovery that forced the 07-16 cut. default_monthly_usd applies to any project without an override. Also fires a PACE tripwire when the month-to-date run rate projects to exceed 100% by month-end. CALIBRATION: values are set with ~20-40% headroom above the 2026-07 baseline (day-25 snapshot: interactive ~$27k/mo projected, prompting/email-triage ~$2k, morning-brief ~$0.6k, app-engine ~$0.6k, rest < $0.4k) so normal operation is QUIET and only a genuine spike trips it - NOT cry-wolf. Retune monthly against the real attribution table. The collector validates every override key against real project/utility/unnumbered names at read time and fails loud on a typo (a formal V14 can graduate that later without churning the V-count contract).",
