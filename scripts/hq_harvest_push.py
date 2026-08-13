@@ -26,12 +26,15 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
-from alex_paths import alex_hq_data  # noqa: E402  (needs REPO resolved first)
+from alex_paths import alex_hq_data, secret  # noqa: E402  (needs REPO resolved first)
 
 # The website left personal-os on 2026-08-04; DATA now resolves to the alex-hq repo
 # (env ALEX_HQ_REPO -> manifest meta.paths.alex_hq_repo -> ../alex-hq sibling).
 DATA = alex_hq_data(REPO)
-TOKEN = (REPO / "work" / "16-alex-hq" / "config" / "alex-hq-token.txt").read_text(encoding="utf-8").strip()
+# Resolved through the credentials ledger, never a literal path (ruling A). This line USED to name
+# work/16-alex-hq/config/alex-hq-token.txt directly and broke the moment that file was relocated to
+# ~/.config/alex/secrets/ - a module-level read, so the whole script died on import.
+TOKEN = secret(REPO, "alex-hq-token")
 PUSH_URL = "https://n8n.shaheenkiarash.com/webhook/alex-push"
 SUMMARY_URL = "https://n8n.shaheenkiarash.com/webhook/alex-hq-summary"
 JSONS = ["graph", "todos", "life", "projects", "n8n-workflows"]

@@ -33,7 +33,11 @@ import { spawnSync } from 'node:child_process';
 import { ROOT, metaPaths, secretsDir, secretPath } from './paths.mjs';
 
 // Regenerable build/runtime junk. Excluded because restoring it is worthless and taring it is slow.
-const JUNK = /(^|\/)(node_modules|\.next|venv|__pycache__|outputs|\.browser-profile|\.obsidian)\/|\.(pyc|log|tmp|lock)$|\/\.pbi\/|(^|\/)\.DS_Store$|next-env\.d\.ts$/;
+// `\.venv` added 2026-08-06: the pattern only had bare `venv`, and `(^|\/)venv\/` cannot match a
+// leading dot, so work/voice/.venv (a 298 MB Windows virtualenv, 3,105 .pyc + .pyd) rode along in
+// every nightly archive. Found during the first real restore. .gitignore already ignored BOTH
+// spellings, so the include set and the ignore file had silently disagreed since the venv appeared.
+const JUNK = /(^|\/)(node_modules|\.next|venv|\.venv|__pycache__|outputs|\.browser-profile|\.obsidian)\/|\.(pyc|log|tmp|lock)$|\/\.pbi\/|(^|\/)\.DS_Store$|next-env\.d\.ts$/;
 
 // Irreplaceable outputs (audit step 7, 2026-07-06): deliverables that exist nowhere else (PBIP
 // dashboard, monthly workbooks, final reports). outputs/ stays excluded as a CLASS; only these named

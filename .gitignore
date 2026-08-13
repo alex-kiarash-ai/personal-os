@@ -31,6 +31,9 @@ node_modules/
 .next/
 venv/
 .venv/
+# TypeScript incremental build cache (Alex HQ app). Regenerated on every build; it was the one
+# file under work/16-alex-hq/app/ that no rule covered, so the whole dir showed as untracked.
+*.tsbuildinfo
 work/voice/.venv/
 __pycache__/
 *.pyc

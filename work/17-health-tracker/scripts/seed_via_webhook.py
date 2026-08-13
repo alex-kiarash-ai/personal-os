@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Seed the full backfill history through the live ingest webhook (n8n scores each night).
 POSTs in chunks; tags rows source=backfill; verifies the final table. No secrets printed."""
-import os, json, time, urllib.request, urllib.error
+import os, sys, json, time, urllib.request, urllib.error
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-TOKEN = open(os.path.join(REPO, "work", "16-alex-hq", "config", "alex-hq-token.txt"), encoding="utf-8").read().strip()
+sys.path.insert(0, os.path.join(REPO, "scripts", "lib"))
+from alex_paths import secret  # noqa: E402  (needs REPO resolved first)
+from pathlib import Path  # noqa: E402
+
+# Ledger-resolved (ruling A). The literal in-repo path this replaced broke when the credential moved
+# to ~/.config/alex/secrets/. NKEY below still resolves fine only because that file has not moved yet.
+TOKEN = secret(Path(REPO), "alex-hq-token")
 NKEY = open(os.path.join(REPO, "work", "03-application-engine", "config", "n8n-api-key.txt"), encoding="utf-8").read().strip()
 TID = open(os.path.join(REPO, "work", "17-health-tracker", "config", "table-id.txt"), encoding="utf-8").read().strip()
 SEED = os.path.join(REPO, "vault", "projects", "health-tracker", "seed-rows.json")

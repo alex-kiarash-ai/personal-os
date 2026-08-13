@@ -28,9 +28,11 @@ for _s in (sys.stdout, sys.stderr):
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
-from alex_paths import alex_hq_data  # noqa: E402  (needs REPO resolved first)
+from alex_paths import alex_hq_data, secret  # noqa: E402  (needs REPO resolved first)
 
-TOKEN = (REPO / "work/16-alex-hq/config/alex-hq-token.txt").read_text(encoding="utf-8").strip()
+# Ledger-resolved, never a literal path (ruling A). Same module-level break as hq_harvest_push.py:
+# naming the in-repo file killed the script on import once the credential moved to ~/.config.
+TOKEN = secret(REPO, "alex-hq-token")
 SUMMARY_URL = "https://n8n.shaheenkiarash.com/webhook/alex-hq-summary"
 PUSH_URL = "https://n8n.shaheenkiarash.com/webhook/alex-push"
 HEAL_MAP = REPO / "system/hq-heal-map.json"

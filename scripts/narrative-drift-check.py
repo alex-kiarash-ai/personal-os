@@ -33,9 +33,22 @@ ATTEST = REPO / "work" / "18-recovery-layer" / "state" / "passphrase-attested.tx
 MANIFEST = REPO / "system" / "manifest.json"
 
 
+def _expand(p):
+    """Expand %VAR%/$VAR *and* a leading ~ in a declared manifest path.
+
+    ADDED 2026-08-06. os.path.expandvars alone does NOT expand `~`, and bash-migration ruling B
+    rewrote meta.paths from `%USERPROFILE%\\Documents\\...` to `~/Documents/...`. expandvars handled
+    the Windows spelling, so the four call sites below kept working right up until the value changed,
+    then silently resolved to the literal string `~/Documents/...` - a path that never exists. The
+    visible symptom was C19 reporting "the real directory is missing" for identity docs that were
+    sitting right there. Mirrors the `~` handling already in scripts/lib/paths.mjs expand().
+    """
+    return Path(os.path.expanduser(os.path.expandvars(p)))
+
+
 def master_path(mani):
     p = (mani.get("meta", {}).get("paths", {}) or {}).get("master_reference_md")
-    return Path(os.path.expandvars(p)) if p else None
+    return _expand(p) if p else None
 
 
 def live_check_count():
@@ -125,7 +138,7 @@ def view_findings(mani):
     views = paths.get("identity_doc_views") or []
     if not real_raw:
         return ["meta.paths.identity_doc_real_dir is not set - the identity-doc layout cannot be verified"]
-    real = Path(os.path.expandvars(real_raw))
+    real = _expand(real_raw)
 
     # (a) the real directory must exist, be a directory, and NOT itself be a link (nobody inverts this)
     if not real.is_dir():
@@ -147,10 +160,32 @@ def view_findings(mani):
         vp_raw, kind = v.get("path"), (v.get("kind") or "junction")
         if not vp_raw:
             continue
-        vp = Path(os.path.expandvars(vp_raw))
+        vp = _expand(vp_raw)
         if not vp.exists():
-            out.append(f"identity docs: the view {vp} is MISSING - re-create it: cmd /c mklink /J \"{vp}\" \"{real}\"")
+            how = (f'cmd /c mklink /J "{vp}" "{real}"' if os.name == "nt"
+                   else f'ln -s "{real}" "{vp}"')
+            out.append(f"identity docs: the view {vp} is MISSING - re-create it: {how}")
             continue
+
+        # POSIX symlink view (bash-migration W19, wired up 2026-08-06). Off Windows the manifest
+        # declares kind="symlink" and st_reparse_tag does not exist on stat_result at all, so the
+        # junction branch below could only ever report "cannot prove it is a junction" - a permanent
+        # amber on a correctly-built layout. This proves the SAME one-file-object property by a
+        # different mechanism: samefile(), which is also correct for a RELATIVE symlink target
+        # (os.readlink returns the relative string, so the readlink compare below would miss it).
+        if kind == "symlink":
+            if not vp.is_symlink():
+                out.append(f"identity docs: the view {vp} is declared a symlink but is NOT one - it is a real "
+                           f"directory or a copy, so the documents can now diverge. Compare it against {real} "
+                           f"BY HAND before removing anything; a file there may hold edits that exist nowhere else.")
+                continue
+            try:
+                if not os.path.samefile(vp, real):
+                    out.append(f"identity docs: the symlink view {vp} does not resolve to the declared real dir {real}")
+            except OSError as e:
+                out.append(f"identity docs: cannot resolve the symlink view {vp} ({e})")
+            continue
+
         try:
             tag = os.lstat(vp).st_reparse_tag
         except (AttributeError, OSError) as e:
@@ -185,7 +220,7 @@ def view_findings(mani):
         canon_raw, copy_raw = pair.get("canonical"), pair.get("copy")
         if not canon_raw or not copy_raw:
             continue
-        canon, copy = Path(os.path.expandvars(canon_raw)), Path(os.path.expandvars(copy_raw))
+        canon, copy = _expand(canon_raw), _expand(copy_raw)
         label = pair.get("doc") or canon.name
         if not canon.exists():
             out.append(f"{label}: canonical missing at {canon}")
