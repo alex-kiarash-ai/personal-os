@@ -1,0 +1,341 @@
+# Alex HQ
+
+## Type
+Automation (metrics dashboard: always-on backend + PWA frontend + on-demand local push command)
+
+## Purpose
+The glanceable numbers layer of the Personal Ops System. Every automation reports its key metrics to one store; Alex HQ renders them as a branded, advanced bento dashboard reachable from Shaheen's phone (PWA) and PC, answering "how is my life-system doing today" in 10 seconds. **Two-way since 2026-07-02:** metrics flow up to Shaheen's eyes, and Shaheen's notes (typed or voice) flow down to Alex through the Inbox Contract below - an ASYNC capture inbox, not a chat. VS Code stays the cockpit, the vault stays the brain, HQ is the face (now with ears). Born from [[research/alex-push-ui-delivery-layer]] (architecture) + [[research/alex-hq-tiles-and-stack]] (tiles, infra signals, stack; /research-team run 6).
+
+## Entry Points
+- **Always-on backend:** two n8n webhook endpoints on the Hetzner box (see Infrastructure).
+- **Producers:** every automation's post-run step POSTs metric events (retrofit one at a time, morning-brief first).
+- **On-demand:** `/alex-hq` - harvests local-only metrics (MCP tool count, vault page counts, scheduler status), pushes them, prints the live summary.
+- **Frontend:** Next.js PWA (the **alex-hq repo**, `app/`), Docker on Hetzner beside n8n (deployment pending, see status.md).
+
+## Where the website lives (SPLIT 2026-08-04)
+The Next.js app and its `qa/` harness are **no longer in this repo**. They live in their own repo, a
+SIBLING of personal-os (`../alex-hq` by default). A private dashboard's frontend has its own build,
+deploy and history; keeping it here meant every style tweak landed in the ops repo's backup stream.
+
+- **Authoritative pointer:** `system/manifest.json` → `meta.paths.alex_hq_repo`. Never hardcode it.
+  Resolvers: `scripts/lib/alex_paths.py` (Python) and `work/16-alex-hq/scripts/lib/paths.mjs` (Node),
+  both `env ALEX_HQ_REPO` → that field → `../alex-hq`.
+- **Still here:** this spec, DEPLOY.md, `scripts/` (the vault→JSON builders + n8n plumbing), and the
+  gitignored `config/` (tokens, workflow backups).
+- **The seam is `public/data/*.json`.** personal-os builds those five files from the vault and the
+  manifest and scp's them to `/opt/alex-hq-data` on the box; the website only ever READS them. That is
+  the entire contract between the two repos.
+- **PATH CONVENTION for the rest of this file:** any path written `app/...`, `components/...`,
+  `lib/...`, `public/...`, or `qa/...` is relative to the **alex-hq repo root**, not to
+  work/16-alex-hq. Paths written `scripts/...` or `config/...` are relative to work/16-alex-hq, as
+  before. **The alex-hq repo itself was flattened 2026-08-04:** its Next.js app used to live nested
+  one level down at `<alex-hq repo>/app/`; it now sits directly at the repo root (so `app/` inside
+  that repo means only the Next.js App Router folder, e.g. `app/page.tsx`, `app/tokens.css`), and the
+  Dockerfile was removed - the site deploys automatically via Vercel on every push to `main` now, not
+  the Hetzner/Docker recipe. DEPLOY.md was rewritten 2026-08-04 for the Vercel move; its old box/Caddy
+  mechanics are gone, replaced by an "Open items" list (no auth gate, no custom domain, data-serving
+  mechanism unresolved) that still needs closing before the Vercel deploy is production-equivalent to
+  the retired Hetzner one.
+
+## The Metrics Contract (v1, frozen 2026-07-02)
+One event = one JSON object. POST single, array, or `{"events": [...]}` to the ingest endpoint:
+```json
+{ "project": "app-engine-bi",        // required, stable slug
+  "metric_key": "drafted_today",     // required, stable per project
+  "value_num": 2,                    // optional number (sparkline source)
+  "value_text": "2 of 20",           // optional display string
+  "headline": "Acme Corp drafted",    // optional one-liner
+  "status": "green|amber|red",       // optional, default green
+  "ts": "ISO-8601"                   // optional, default now
+}
+```
+Append-only history; the summary endpoint reduces to latest-per-(project, metric_key) + last-14 history + worst-status-per-project. New automation = one POST line. Store keeps ~90 days (pruning TODO once volume justifies it); the vault remains the permanent memory.
+
+## Infrastructure (as built 2026-07-02)
+- **Store:** n8n Data Table `alex_metrics`, id `etzrOnviaxXQFPll` (7 columns matching the contract). Native on the box, zero new infra.
+- **Ingest:** workflow `V0AXq5QfJBu8WMk5` "Alex HQ - Metrics Ingest (16)" → `POST https://n8n.shaheenkiarash.com/webhook/alex-push`.
+- **Read API:** workflow `GLcMPA4m0DRGjnQH` "Alex HQ - Summary API (16)" → `GET https://n8n.shaheenkiarash.com/webhook/alex-hq-summary`.
+- **Notes inbox (two-way, 2026-07-02):** data table `alex_inbox`, id `vxiU4IU7S0OvmcXy` (note, source, status, filed_to, ts, filed_ts, audio) + workflow `701jclfh3q4d8l1q` "Alex HQ - Notes Inbox (16)" with 4 lanes: `POST /webhook/alex-note` (typed) · `POST /webhook/alex-note-voice` (multipart audio → file on the box, see Inbox Contract) · `GET /webhook/alex-inbox` (list: count_new/new/recent) · `POST /webhook/alex-inbox-mark` (flip to filed). Voice audio lands in `/opt/alex-inbox-audio` (bind-mounted at `/data/inbox-audio` in the n8n container; `N8N_RESTRICT_FILE_ACCESS_TO=/data/inbox-audio` allowlists exactly that dir).
+- **Auth:** ALL webhooks gated by header `X-Alex-Token` (n8n credential `m6VkVeG9bym6OFID` "Alex HQ Token"). Token at `work/16-alex-hq/config/alex-hq-token.txt` - NEVER in the vault, repo docs, or logs. 403 without it (verified).
+- **Seeding/ops fallback:** the n8n REST rows API (`/api/v1/data-tables/{id}/rows`, X-N8N-API-KEY) can read/write rows directly for repairs.
+- Workflow JSON backups in config/ (wf-ingest, wf-summary, wf-inbox, wf-pipeline-stats).
+
+## Tools Used
+- n8n REST API (workflow + data-table management, pattern from work/03/14)
+- Bash/curl (push + verify), PowerShell (local metric harvest: schtasks, file counts)
+- Frontend: Next.js + Tailwind + shadcn/ui + Recharts, official shadcn MCP server during builds, headless Chrome screenshot QA
+- Skills: frontend-design (visual direction), ui-ux-pro-max, ui-styling, design-system
+- Skill: webapp-testing (advisory, 2026-07-11) - after any HQ frontend/config change, drive the live PWA with Playwright and verify the change rendered before close-out.
+- **Brand & layout guard (advisory, added 2026-07-24, Item 4 of the AI-guide upgrade plan; rewritten 2026-07-29 for the two-theme reskin): `qa/brand-guard.mjs`, **in the alex-hq repo since the 2026-08-04 split**.** Before shipping any HQ frontend change, run it against the LOCAL build (from that repo's root: `npm start &` then `node qa/brand-guard.mjs`). It probes BOTH themes at both viewports (light selected the way a fresh open is, dark the way the toggle persists it - localStorage) and asserts the invariants per theme: light canvas white `#ffffff` / dark canvas Ink Black `#001219`, Oxanium kickers, Martian Mono numerals, one-accent law, tile grid 1-col mobile / multi-col desktop, logo loaded, the per-theme luminance ladder (light 255.0/245.7, dark 42.7/28.4 - healthy BRIGHTER than alarm in both, a future flatten fails), and the ONE WebGL canvas mounted in `.brain-wrap`. All computed styles, so it catches a broken color / swapped font / collapsed grid / accent explosion / wrong default theme WITHOUT screenshotting private data. A FAIL blocks the deploy Close-Out until the regression is fixed or the new look is accepted (update `EXPECT` in the script). NOT a pixel-diff: HQ's data is doubly-dynamic (server Summary/Inbox + client /data/*.json, all private/gitignored), so a masked pixel baseline both leaks and false-fails; a true pixel-diff needs a synthetic fixture server (Phase 2, deferred). Spec: `qa/README.md`. Sibling tool: `qa/render-shots.mjs` (permanent render harness, both themes + widths into a dated outputs folder).
+
+## Notion Integration
+**None, by design** (decided 2026-07-02). The metrics store is the n8n data table; mirroring it to Notion would duplicate state the dashboard already renders. HQ READS nothing from Notion directly (producers do that in their own pipelines).
+
+## The Inbox Contract (two-way notes, v1, 2026-07-02)
+Shaheen drops a note (typed or voice) into the "Drop a note to Alex" card on the PWA; Alex files it into the vault at the next touchpoint. **Async inbox, NOT a chat** - the expectation set with Shaheen is explicit: notes are read at **05:00 (email-triage), 08:00 (morning-brief), 08:45 (/alex-hq push)**, any /alex-hq or /status run, and every live session. A note at 18:45 about a 19:00 meeting will not beat the clock. *(Corrected 2026-07-29, architecture review: this said "09:00/13:00/17:00 (email-triage)". That three-slot cadence was cut to a single 05:00 run on 2026-07-16 as a cost measure. This matters more than a typical stale time, because the Inbox Contract is the promise about WHEN a phone note gets seen: as written it implied three afternoon pickups that no longer happen, so a note dropped at 10:00 would have looked like it was covered at 13:00 when in reality it waits for the next day's 05:00 run or a live session.)*
+
+**Flow:**
+1. PWA card → `/api/note` (typed JSON) or `/api/voice` (MediaRecorder FormData, max ~2 min) - Next.js route handlers hold the token server-side (`HQ_WEBHOOK_BASE` + `ALEX_HQ_TOKEN` envs); the browser never sees it.
+2. n8n inserts an `alex_inbox` row (`status=new`). Voice: audio file written to `/opt/alex-inbox-audio/{name}` (host), row carries the filename in `audio`, `note` stays empty until transcription.
+3. **Ingest (every touchpoint):** GET `/webhook/alex-inbox`; if `count_new` 0 → skip. Voice notes: `scp n8n:/opt/alex-inbox-audio/{audio}` to the session scratchpad → transcribe with LOCAL Whisper (`whisper <file> --model base --output_format txt`, the #06 meeting-intel protocol; no OpenAI key exists or is needed) → transcript = note text. File EVERY note per the standing vault protocols (dated event → Google Calendar; person → People Intake; goal/preference → vault/me/; meeting → vault/meetings/; project → vault/projects/; else best-fit page) with [[links]] + vault/log.md. Scheduled runs never block on questions: best-guess + `data-gap` tag, questions surface in the next interactive session.
+4. **Mark filed:** POST `/webhook/alex-inbox-mark` `{"marks":[{"id":N,"filed_to":"<short destination>","note":"<final text>"}]}`. `note` is REQUIRED on every mark (original text for typed, transcript for voice - it backfills the voice row so the PWA list shows what was heard). After a successful voice mark: delete the remote audio (`ssh n8n "rm -f /opt/alex-inbox-audio/{audio}"`) and the local copy. Audio never persists anywhere after filing.
+5. The PWA card shows the last 5 notes with waiting/filed status + destination, so Shaheen sees the loop close.
+
+**Hard rules:** never print the token; never fail a parent run on an unreachable inbox (one line, continue); never leave audio behind after a mark; a note is never deleted, only filed (append-only history in the table, ~90-day pruning with the metrics).
+
+## Tile Map v2.1 (2026-07-06 feedback round; v1 archived in git history of this file)
+- **Header:** ALEX mark + `{row_count} events · updated {absolute Stockholm stamp}` (relative age in the tooltip). Background: 3 slow blurred brand bubbles (pure CSS, transform-only, 90/120/150s, reduced-motion aware).
+- **Glance grid:** Applications drafted-today (spans 2, both-lanes drill-down) · n8n broken-today (drill-down = full workflow list, see below) · morning-brief `urgent_count` · email-triage `act_now` · airbnb `ytd_income_kr` (sub = `next_booking`: guest + dates, seeded "a guest · sample dates") · radar `shipped_30d` (+ "last run {stamp}") · expenses `mtd_total_kr` (sub = `mtd_by_category` compact string; drill-down parses it into category rows) · sprint `velocity` (+ "last run {stamp}") · **To-Do · build board** (IP+Next count; drill-down = open items grouped by status with since dates; data = `todos.json` from the sprint vault snapshot via `scripts/build-todos.mjs`) · health sleep + steps (each with "pushed {stamp}"; drill-downs scoped via metricKeys so they no longer duplicate) · **Body · gym today** (GYM/REST computed at render from `life.json` cycle anchor; not clickable) · **Home · plants due** (count due today computed at render from `life.json` last-watered dates; names in sub; drill-down lists all 8 with next-due; stale-log guard when everything is >2x cadence overdue).
+- **Sparklines:** only steps (14-day trend) + expenses keep tile sparklines (Shaheen 2026-07-06: removed from email/brief/airbnb/radar/build/sleep/n8n). Big history charts inside drill-downs stay.
+- **Timestamps:** every drill-down shows `{absolute Europe/Stockholm} · {relative}` per project header and per metric row; Brain graph card + Brain drill-down show the graph build stamp. Formatter: `fmtDateTime` in app/lib/types.ts (Intl formatToParts en-GB + manual assembly - deterministic, hydration-safe; never raw toLocaleString).
+- **Infra row / Alex Brain strip:** automation health board (derived from per-project `status` + `last_ts` age) · infra `mcp_tools` (**connected MCP servers** via `claude mcp list`, switched from tool-name counting 2026-07-21; **only a CRITICAL connector unauthenticated is amber** - the known-optional idle catalog entries `OPTIONAL_IDLE_MCP` = Windsor.ai (lapsed trial) + Microsoft 365 (Anthropic default connector, never linked - Shaheen has no MS account) stay GREEN, mirroring auth-check.mjs's "never cry wolf" rule; value_text = "N connected · K optional idle") + `vault_pages` · infra `scheduled_jobs_active` (enabled `PersonalOS-*` schtasks) · infra `n8n_up_today` (**scheduled workflows ON-CADENCE** over the cadence-monitored count - each scheduled workflow is measured against a window DERIVED from its own trigger cadence by `scripts/n8n_liveness.py` (`cadence_window_hours`): daily 26h, every-72h engines ~82h, Tue/Thu LinkedIn ~144h. Reads "6 of 6 scheduled on-cadence". The 10 webhook/MCP/on-demand workflows have no cadence (idle by design) and are error-tested only. **Silence-aware since 2026-07-21b:** a scheduled workflow that quietly STOPS firing - not just one that errors - is now caught within its own window + grace, closing the gap that let the job engines "quietly stop" (07-10 silent deactivation, 07-19 error found late) while reading healthy off a stale success).
+- **Static data JSONs (channel B, scp to n8n:/opt/alex-hq-data/, volume-mounted, NO rebuild):** `graph.json` (build-graph.mjs) · `todos.json` (build-todos.mjs, parses vault/projects/sprint-tracker/status.md snapshot table + newer "New row" update lines) · `life.json` (build-life.mjs, parses vault/me/gym.md Start-date line + vault/me/plants.md table - update those vault pages from the Life Ops sheet FIRST when fresher) · `n8n-workflows.json` (written by n8n_liveness.py alongside its stdout metrics) · **`projects.json` (build-projects.mjs, the project roster - see the Automation Health board note below)**. All five built + shipped by /alex-hq step 1b.
+- **Automation Health board = REGISTRY-DRIVEN (2026-07-07, fixes the "HQ shows 15 of 25 projects" drift):** the board and the Brain "projects" count used to come only from `Object.values(summary.projects)` = the `alex_metrics` store, so HQ showed only projects that PUSH telemetry (~15). It now renders **one row per registered project** from `projects.json` (built from `system/manifest.json` by `build-projects.mjs`), merging live metrics on by each project's `hq_project` slug. Reporting projects keep their live dot + age + cadence-stale; non-reporting ones (ON-DEMAND/EVENT/DORMANT/PARKED, plus any LIVE not yet retrofitted) show an honest **idle** ticket (hollow `dot-idle` + state label; tap = `RegistryCard` with the registry one-liner/state/trigger). Any live slug the registry doesn't claim (`infra`) is still shown (no regression); registry unreachable → graceful fallback to the old live-only board. Header counts "systems" (registry + infra = 26); Brain header "projects" = registered total (25); Brain drill-down shows registered + reporting-live. **This stays correct on its own:** add a project to the registry (/new writes it there first) → it appears on the next /alex-hq harvest, no HQ edit. The one maintenance rule: keep `hq_project` in the registry pointing at the exact metric slug a producing project pushes under (null if it pushes none).
+- **"n8n · broken today" glance tile (added 2026-07-06):** infra `n8n_broken_today` - the one card that answers "is anything on the box down right now?". Green 0 whispers, a red count burns and names the offenders. The number = workflows broken RIGHT NOW: latest run errored, OR an expected-daily workflow (`#03`/`#14`/pipeline-stats/health-ingest/radar-collector, the last added 2026-07-06) gone silent >26h. Computed by the enhanced `scripts/n8n_liveness.py` (emits a 2-event array `n8n_up_today` + `n8n_broken_today` on stdout AND writes `public/data/n8n-workflows.json`, the per-workflow list) on every daily/on-demand harvest, AND flipped red instantly by the **Pipeline Error Alert** workflow (it writes `n8n_broken_today` red straight into `alex_metrics` the moment any guarded workflow throws; the next harvest reconciles the exact count / clears to green - self-heals like sprint run_status). Full n8n error-handler coverage was wired 2026-07-06 (`scripts/wire-all-error-handlers.js`, 13/14 active workflows). The break also cascades to two backup surfaces via worst-status-per-project: the Alex Brain strip and the `infra` health-board row both go red. **Drill-down (v2.1, 2026-07-06):** tapping the tile opens the full list - "broken now" section (or "all N healthy") + every active workflow with its last-execution stamp, footer honest about harvest-cadence freshness ("as of {stamp} · an error flips the tile red instantly").
+
+## Design-overhaul wave 1 (2026-07-13, from the run-25 design-review plan; LIVE - deployed + live-verified same evening)
+The 12 wave-1 items of `outputs/research-team/2026-07-13/alex-hq-design-overhaul-plan.md`, all in app/:
+- **C2 (the big one): the PWA now re-fetches on resume.** `dashboard.tsx` holds a client `now` (ticks 60s while visible) and calls `router.refresh()` on visibilitychange->visible + every 120s while visible (page revalidate is 60s, so every refresh past that lands fresh data). Client state survives the refresh (half-typed note proven). Before this, a resumed standalone PWA showed last night's tiles forever.
+- **C1: mobile fold.** notes.tsx history collapses on mobile behind a "history · N" tap; auto-shown while any note is pending/waiting; desktop unchanged. Capture input stays in fold 1; first TODAY tile at ~523px @390.
+- **C5+C6: waiting strip.** `splitHeadline` now splits on `·` OR `|` and finds `oldest Nd` anywhere (the live producer sends `·`; the badge was dead). The drill-down overlay is DELETED - the strip is a non-expanding banner (it only repeated itself). Rider: any future waiting overlay must reuse the DetailOverlay focus-trap hook.
+- **C7: stalled health tiles are honest in weight, not just words.** Red sleep/steps: the last real numeral renders dim (the healthy-zero treatment) + `last real: {day}` stamp; a dead-default 0 renders "–"; sparkline suppressed. Helper `stallHealthTile` in dashboard.tsx.
+- **C9+C20: health board.** `DISPLAY_NAMES` in lib/types.ts translates unclaimed live slugs (infra -> "HQ Infra", human-actions -> "Waiting on You", quota -> "Claude Quota"; fallback = the slug). Mobile folds the idle tier behind "+N idle / on-demand" (desktop always expanded). Header counts "N projects + M feeds". Brain card: "N graph pages · nav excluded". Honest end-state (claim the 3 feeds in the registry) is on the system backlog.
+- **C3/C14/C15/C16/C17:** placeholder -> var(--mute) (last off-palette literal gone); em-dash -> interpunct (brain footer); close-btn 44px hit target padding-based (visual unchanged); apps overlay unit numerals "10.1%"/"$1.56" dot-decimal (fmtNum + kr untouched - owner decision 2 of the plan); --mute 0.62->0.70 + dot-idle ring 0.55; red-tile subs clamp-3.
+- QA: scripted puppeteer 24/24 (gates from the plan), renders in outputs/alex-hq/2026-07-13/. Wave 2 built same night (next section); wave 3 built 2026-07-14 (section after).
+
+## Design-overhaul wave 2 (2026-07-13 late, structure wave; LIVE - deployed 2026-07-14 ~00:05 on Shaheen's "deploy HQ wave 2")
+All 6 wave-2 items of the run-25 plan, in app/:
+- **C4 (the wave's spine): red retreats to the ring.** `.tile-red`/`.tile-amber` interiors are now OPAQUE `--elev` (#00232e) under the border gradient - the old 52%-alpha card fill let the red border-box wash the whole face (§4.1 violation, the maroon upper page). Red survives in the 1px ring + dot + kicker (red-tile kickers = Signal Coral, the §4.4 D5 small-red-text token) + a <=6% wash for red only. Amber: no wash, kicker stays aqua (no law-compliant small amber text). The Waiting strip alone keeps face-level primacy via a new `.strip-red` class (the plan's explicit exception).
+- **C8: dot grammar + burning counts.** `.dot-amber` is a thick 3px ring (red stays filled+pulse; grayscale-verified separable). New `TileDef.burn`: action counts (brief urgent, email act-now, n8n broken) render the big numeral Rusty Spice when >0, dim-zero rule mirrored ("zeros whisper, actionable counts burn"). Waiting-strip count burns too (white on the critical red face - max contrast wins there).
+- **C10:** note history rows wrap `line-clamp-2` (was one truncated line); `.note-row` top-aligned with an optically-centered dot.
+- **C18:** section labels unified aqua (the muted THIS WEEK / MONTH override removed) + section breaks mt-6 -> mt-10.
+- **C19:** kicker 0.66 -> 0.7rem, state-chip 0.6 -> 0.66rem. Zero-wrap gate forced 2 copy/layout fixes: build tile kicker shortened to "Build · done this week"; health-board header row wraps instead of its kicker.
+- **C21:** apps span-2 tile promotes lane counts to the aqua accent tier as mono secondary numerals ("ready to apply BI 27 · AI 69", new `.accent-num`, `TileDef.accent` now ReactNode); RHYTHMS re-bentoed build/todos/radar/plants + airbnb(span-2) + expenses(span-2). DEVIATION from the plan noted: the plan gave only airbnb span-2, but 6 tiles with one double = 7 grid units can never fill 4 columns - expenses (the only RHYTHMS tile with a sparkline + category sub) took the second double to actually meet the plan's own "no empty trailing cells at 1440" gate.
+- QA: scripted puppeteer **21/21** (wave2-qa gates incl. computed-style checks for every criterion), renders + grayscale pass in outputs/alex-hq/2026-07-13/ (wave2-*). Build green, tsc clean. Grader PASS 11/11.
+- Deployed + live-verified 2026-07-14 ~00:05 (DEPLOY.md recipe; all 6 wave-2 SSR markers + real-browser 5/5 at 390, shot wave2-live-390-fold1.png). Deploy gotcha recorded: `config/hq-basic-auth.txt` is labeled lines, parse the user/password fields before `curl -u`. Wave 3 built 2026-07-14 (next section).
+
+## Design-overhaul wave 3 (2026-07-14, behavior wave — the plan's final band; LIVE - deployed ~00:52 on Shaheen's "deploy HQ wave 3", real-browser 7/7 vs production; the run-25 plan is COMPLETE)
+All 3 wave-3 items of the run-25 plan + the QA close, in app/:
+- **C11: motion integrity.** New `components/motion-provider.tsx` wraps the app in `MotionConfig reducedMotion="user"` (layout.tsx) so every motion/react component obeys the OS setting. The two raw CSS keyframes that ignored it (`.dot-pulse`, `.btn-mic.rec`) get their own reduced-motion block. **CountUp no longer lies for 1.2s:** first paint shows the FINAL value (useState initializer); the count-up runs only on live C2 updates, animating from the previous value via a `prev` ref, and sits still under reduced motion (`useReducedMotion` — imperative `animate()` doesn't read MotionConfig). Sparkline draw-in skipped under reduced motion (`initial={false}`). **Pulse is opt-in now:** `.dot-red` is a steady alarm; `.dot-pulse` carries the heartbeat and exactly ONE dot per section wears it (dashboard marks the first red tile per grid via `markWorstPulse`; health board pulses only its first red row — rows sort red-first; brain strip + waiting strip are their sections' only dots; the notes recording dot keeps its pulse as a live-process indicator).
+- **C12: one numeral voice + D6 amendment.** Overlay headline numerals (`overlay.tsx` MetricRow, `breakdowns/apps.tsx` lane headline) and the waiting-strip count drop `font-display` (Chakra) for the new `.num-display` (Plex Mono 600, tabular-nums — Plex Mono ships 500/600, no 700, hence no `font-bold`). Chakra keeps kickers + display WORDS (lane labels, GYM/REST). `brand/config/brand-config.md` D6 parenthetical amended same session (owner-visible): big data numerals = IBM Plex Mono; the doc previously granted Chakra "big stat numbers", which the live tiles never did.
+- **C13: overlay Back/popstate.** Opening a drill-down pushes ONE history entry (`{...history.state, hqOverlay: true}` — merged so Next's router keys survive); the Back gesture (popstate) closes the overlay; programmatic closes (Escape / ✕ / backdrop) consume the entry via `history.back()` so the stack never grows (QA: start=2 end=3 after 5 open/close cycles). Refresh-with-overlay-open strands nothing (the reloaded page has no overlay; the first Back just re-lands). All open/close paths route through `openOverlay`/`closeOverlay` + an `openRef` in dashboard.tsx.
+- QA: scripted puppeteer **18/18** (wave3-qa gates: reduced-motion zero running animations via `document.getAnimations()`, pulse budget one-per-section on real data — 9 reds, 4 pulses, 0 dupes —, CountUp stability, overlay numeral family = tile family, full Back matrix) + a strengthened CountUp invariant check (numerals never change once painted, incl. a non-zero live numeral; client-JSON "–"→value fills are data arrival, allowed once). Renders + grayscale in outputs/alex-hq/2026-07-14/. Build green, tsc clean.
+- **Deployed + live-verified 2026-07-14 ~00:52** (DEPLOY.md recipe; SSR markers dot-pulse + num-display in the served HTML with wave-1/2 markers intact; real-browser **7/7** at 390 vs production: pulse budget 9-reds/4-pulses/0-dupes, steady reds unanimated, strip count Plex Mono, Back closes overlay + app stays, Escape consumes the entry, reduced-motion zero running animations; live shot wave3-live-390-fold1.png). Grader observation RESOLVED same night: the amended D6 said "timestamps" = Plex Mono while stamps have always rendered Plex Sans tabular-nums - brand-config.md D6 wording corrected to match the render (doc-only fix, no app change).
+
+## 3D reskin (2026-07-29, Shaheen's commission; DEPLOYED same day on his "Go back to the same colors, apply the new design and deploy")
+Shaheen: the page opens dark on phone and PC and he does not want that; the font should read more tech; he
+wants a 3D animated tech page that moves like the newest AI-built sites. Built first as LIGHT-default per
+the commission decision; **he saw the renders and reversed the default the same day - "Go back to the same
+colors, apply the new design and deploy" - so DARK (the pre-reskin tokens, verbatim) is the default face
+again and the measured light theme lives behind the toggle.** 3D stayed HYBRID as decided (ONE WebGL
+surface - the Brain - so the always-on phone dashboard stays phone-safe; CSS 3D everywhere else).
+Two-role relay held: Phase A senior-UX rebuild, then a genuinely COLD-CONTEXT Phase B senior-UI subagent
+that saw only the renders + brand files + this spec. All in app/:
+- **Theme system: two themes, no flash, DARK default.** globals.css re-architected into semantic tokens:
+  `:root` = the pre-reskin dark values VERBATIM, `[data-theme="light"]` = the measured light system
+  (every pairing MEASURED 2026-07-29: teal secondary 7.28:1, #4a5a5e tertiary 7.20:1, mute blend 5.58:1,
+  Rusty burn 5.52/5.10:1 on white/cream). A parser-blocking inline script in layout.tsx replays
+  localStorage("hq-theme") before first paint (no flash either direction); `components/theme-toggle.tsx`
+  is the 44px header control (persists + rewrites the theme-color meta); manifest.ts + viewport + apple
+  status bar stay dark. Toggle round-trip QA'd locally AND against production: flip -> storage ->
+  reload-persists -> flip back.
+- **The luminance ladder survived the polarity flip in DIRECTION** (R2-4 invariant): light healthy faces
+  = white 255.0, light alarm faces = Warm Cream #fff5e1 245.7 (the law §6 "softening error surfaces"
+  companion + §7 light --bg-elevated), gap 9.3 - health still reads brighter than sickness in both themes.
+  D7 re-measured and re-scoped DARK-ONLY in brand-config.md (burn numerals pass 4.5:1 on the light faces);
+  light small-error text = Oxidized Iron 6.97:1 (Signal Coral stays dark-only), the strip count burns
+  Rusty on light / Custard on dark via the per-theme `--count-warm` token.
+- **Type re-picked (D6 REPLACED in brand-config.md, same session):** Oxanium (display words + kickers) +
+  Instrument Sans (body + stamps) + Martian Mono (ALL data numerals), all variable via next/font/google.
+  Same role split as the 07-14 amendment, only the families moved ("the font should read more tech").
+- **The Brain went WebGL 3D** (react-force-graph-3d + three + three-spritetext; react-force-graph-2d
+  removed): components/brain-3d.tsx holds the ref logic behind next/dynamic ssr:false (dynamic drops
+  refs), app/brain.tsx stays the shell. Same graph.json contract. Phone-safety levers: DPR capped at 2,
+  `paused` freezes the render loop offscreen/hidden-tab, reduced motion = NO auto-orbit and the loop
+  pauses on the formed static graph after settle (deliberate engagement resumes it), low-poly spheres +
+  gl-line links + SpriteText labels on hubs (degree>=12) only. Slow auto-orbit (0.55) is the ambient
+  "alive" state; node-click flies the camera in; the R2-21 touch veil is UNCHANGED. Framing lesson (the
+  Phase B BLOCK): zoomToFit over ALL nodes fits the flung zero-link singletons and shrinks the real
+  cluster to a smudge - frame the CONNECTED mass (degree>=1 filter, padding 40), once, on first settle
+  (never after drag re-heats), re-fit on container resize.
+- **CSS 3D on everything else:** pointer-tracked tilt (rotateX/rotateY springs + a glare sheen riding
+  --mx/--my) on hover-capable fine pointers ONLY - the motion values don't even attach on touch (a
+  perspective transform would force GPU rasterization of every tile for zero effect); slow scroll
+  parallax on the background bubble layer; the whileInView stagger kept. Reduced motion wins everywhere:
+  QA re-run = zero running animations, tilt/parallax/orbit all gated.
+- **Layout pass (fold discipline, not an IA relitigation** - the TODAY/RHYTHMS/SYSTEM grouping and tile
+  map survived three owner review waves and stayed): 390 header holds ONE row (logo chip h-7 + compact
+  stamp + toggle; the stamp shows time-only while the payload is from TODAY and the full date the moment
+  it's stale - compactness never hides staleness; full stamp + event count stay on desktop + tooltip),
+  first TODAY tile ~500px, capture card untouched in fold 1. Desktop verdict line stepped up to
+  text-base/medium (it IS the answer - Phase B #4). Inbox-cadence copy fixed while in there: the desktop
+  schedule line still promised the retired 09/13/17 email-triage slots; now 05:00 / 08:00 / 08:45 (the
+  07-29 architecture-review correction, caught in its last surface).
+- **Phase B cold review applied** (BLOCK: graph framing, above; SHOULDs: light idle rings 0.7->0.9 alpha
+  (~6:1), verdict weight, guard/spec reconcile (this section + the Tools bullet), zero-dim check -
+  answered: the whisper is GREEN-zeros-only by design, an amber/stale zero must not whisper; NICEs taken:
+  ink logo chip behind the wordmark on light (the full-bleed-dark pattern - the pale-aqua letters washed
+  out on white; never retype the wordmark), me-legend dot hairline ring on light (D10 is a dark-canvas
+  call), one notch more light-face shadow depth, short unit accents ("/ 100", "steps", "2 of 19") joined
+  to their numeral's baseline. Amber-hue NICE answered, not changed: dot ring + ring gradient are Rusty
+  in BOTH themes; the "golden on dark" read is the glow, not the token).
+- **QA:** brand-guard PASS 4/4 probes (rewritten two-theme, see Tools); behavior 8/8 (reduced-motion zero
+  running animations, C13 overlay Back matrix + bounded history, overlay numerals = tile family, no tilt
+  residue on touch, grayscale state-encoding both themes); tsc clean, build green. Renders + grayscale +
+  the Phase B critique: outputs/alex-hq/2026-07-29/. Guard parser lesson: Lightning CSS minifies #ffffff
+  to #fff in the production bundle - a colour assertion that only parses 6-digit hex reads the light face
+  as undefined; the guard now accepts shorthand.
+- **DEPLOYED 2026-07-29 ~04:45 on Shaheen's explicit "and deploy"** (DEPLOY.md recipe; rollback copy
+  `/opt/alex-hq.bak-20260729` = the round-2 build). Live-verified with a real browser against production:
+  **11/11** (fresh 390 + 1440 open DARK on nothing-stored, Oxanium kickers + Martian Mono numerals
+  served, logo loads, no horizontal overflow, 3D brain canvas mounts at both widths, toggle flips to
+  light + persists across reload); bare 401 / authed 200; n8n untouched (200); first authed response was
+  the documented build-time prerender, live page 3 polls later. Live shots `live-dark-390-fold1` /
+  `live-light-390-fold1` / `live-dark-1440-full` in outputs/alex-hq/2026-07-29/. QA-harness lesson from
+  the verify run: a toggle test that stores a theme POLLUTES the shared browser profile for the next
+  probe - the "1440 opens dark" check first failed against its own predecessor's stored light, and the
+  first "dark 1440" live shot captured the light theme; always clear storage per probe and re-shoot.
+
+## Design-overhaul ROUND 2 (2026-07-25, run-37 review; LIVE - deployed + live-verified same evening)
+All 21 items of `outputs/research-team/2026-07-25/alex-hq-design-overhaul-plan-v2.md`, built on Shaheen's
+"Run all waves" and deployed on his "deploy". Scripted QA **22/22** + brand-guard PASS at 390 + 1440 pre-
+deploy; **real-browser 13/13 against production** after (both viewports + both drill-downs), bare 401 /
+authed 200, n8n untouched. Rollback copy on the box: `/opt/alex-hq.bak-20260725`. Renders in
+outputs/alex-hq/2026-07-25/ (`r2-*` local, `live-*` production).
+- **R2-4 the luminance ladder (the brighter directive, done inside the law).** `--card`
+  rgba(0,35,46,.52) -> rgba(0,53,66,.6) (healthy face ~#00303C), new `--elev2 #003240` for the drill-down
+  panel, canvas radials .38/.14/.2 -> .5/.22/.3, grid .028 -> .045, tile ring .5 -> .7 + inset .06 -> .10,
+  `--mute` .7 -> .78, tile SUBS promoted from `--mute` to full Pearl Aqua. **Alarm faces deliberately stay
+  `--elev` #00232e**, so healthy tiles now glow BRIGHTER than sick ones: state is encoded in luminance and
+  red still retreats to the ring (wave-2 C4 strengthened, not reversed). Also contrast-mandatory - Rusty
+  burn numerals measure ~2.56:1 on a lifted face. brand-guard gained a ladder assertion (healthy >= 38,
+  alarm <= 29, gap >= 8) so a future flatten fails the deploy.
+- **R2-1 cold-start staleness killed.** C2 covered resume but not a cold open: `now` initialised to the
+  server value and the first refresh sat 120s away, so a cold open painted a stale page (proven: desktop
+  said REST on a live GYM day). Mount kick (`setNow` + `router.refresh()`) **plus a ~6s follow-up refresh**,
+  because ISR SERVES stale on the first hit past the window and only regenerates behind it - one kick can
+  re-serve the same stale payload. Kills the class, not the instance.
+- **R2-2 the verdict line.** The header's one line was store plumbing; it now carries the answer:
+  "Needs you 3 email · 1 urgent · 1 n8n broken · 22 waiting · phone sync stalled" / "all clear".
+  It **enumerates producer-pushed facts verbatim and never totals them** - a count would require deciding
+  whether two reds are one problem, which is the fabricated correlation the run-25 debate killed.
+- **R2-6 twin-stall dedup (and a dead-parser lesson).** One dead Shortcut printed two identical alarm
+  paragraphs; the second tile now reads "same phone sync as sleep · no fresh steps either". The predicate
+  is **same project + both red + identical push `ts`** (both metrics arrive in one delivery). Matching on
+  headline TEXT was tried first and was DEAD ON ARRIVAL - the live producer sends "night of 2026-07-22 ·
+  6.4h", never the word "stalled" (that wording is client-authored by `stallHealthTile`). Same bug class as
+  the C5 `oldest Nd` parser: never match a string the producer doesn't actually send.
+- **R2-21 the touch trap, finally MEASURED.** Run 25 deferred "graph static on mobile" behind a touch-scroll
+  pass that was never run; run 37 ran it. First attempt was a false positive (the graph is the last card, so
+  `scrollIntoView` lands at MAX scroll and an upward drag reads 0px regardless). Re-tested downward WITH a
+  footer control in the same run: live canvas moved the page 0px, control moved -165px, and the canvas
+  carries `touch-action: none`. **The hijack is real**, so tap-to-activate ships: a veil (`touch-action:
+  pan-y`, no preventDefault) passes vertical scroll straight through and a deliberate tap hands the canvas
+  its gestures; scrolling the card away re-arms it. Pointer devices never see it.
+- **R2-3 n8n idle branch** (both review lanes, independently): `!broken_reason && !last_exec` -> the hollow
+  `dot-idle` + "idle · never ran". Five idle-by-design rows stopped wearing the alarm ring around the one
+  real offender. **R2-5 four measured WCAG fixes**: small error text -> Signal Coral, small warning text ->
+  Vanilla Custard, waiting-strip count -> Custard at 24px (Rusty fails ~2.93:1 at ANY size on these faces)
+  on a new `.strip-amber` `--elev` face. **R2-14 Send armed orange at rest** (owner call, taken with "run
+  all waves"): genuinely enabled, empty-tap focuses the field - the one accent finally exists on a healthy
+  view without an affordance lie. Recorded as brand deviation **D7** (burn numerals ~2.98:1, kept because
+  shape+ring+kicker carry the state redundantly).
+- Also: R2-7 strip names its top item (full-width line on mobile), R2-8 amber carries its reason, R2-9
+  period honesty for reset-period tiles only (cumulative tiles exempt by design), R2-10 "mcp servers" +
+  the n8n denominator extracted from value_text, R2-11 overlay elevation + 36px headline numerals, R2-12
+  focus grammar (panel takes focus; `.close-btn` joined the cyan ring rule), R2-13 mobile fold (schedule
+  line hidden, inline compose row, tighter header chrome: first tile 523px -> **500px** even after adding
+  the verdict line), R2-15 plants "log watering -> note" prefill via a `hq:prefill-note` CustomEvent,
+  R2-16 graph quieted a half-step, R2-17 GYM/REST back in Chakra (D6 drift), R2-18 brain strip 6-track
+  re-span + 0.7rem labels, R2-19 apps overlay period suffixes, R2-20 `STATUS_ANNOUNCE` (dots announce
+  states not colours; the health board's two raw spans went through the Dot component).
+- **Deploy gotcha learned this session:** `pkill` does NOT free port 3000 on Windows. Kill by port
+  (`Get-NetTCPConnection -LocalPort 3000 | Stop-Process`) or the old server keeps serving HTML that points
+  at CSS chunk names the rebuild renamed - which looks exactly like a catastrophic CSS regression.
+
+## Tile cadence + due-today + health-honesty pass (2026-07-08, fixes "four frozen tiles")
+Shaheen reported radar/expenses/sleep/steps frozen at a shared ~07-06 22:00 stamp and asked for the single upstream cause. There is NONE (full diagnosis: [[projects/error-log]] three 2026-07-08 entries). The four cluster because each is fed by a producer that does NOT run daily, and the glance TILES had no cadence model - a weekly (radar), monthly (expenses) or flaky-daily (health) metric looked identical to a dead daily one. Changes, all in `app/app/dashboard.tsx` (typecheck-clean; live on the next container rebuild):
+- **Radar tile**: stamp now `weekly - last run {stamp}` so a 6-day-old push reads as on-schedule. Also cleared its stuck `run_status` RED with a truthful corrective green dated to the real 07-06 20:03Z recovery (data fix, already live).
+- **Expenses tile**: stamp now `monthly - updates at month-end` so a mid-month 0 reads as "not captured yet", not broken. Data ("July: 0 kr") is correct - no fabrication.
+- **Health tiles (sleep/steps)**: when the metric is red, the sub now says `phone sync stalled - no fresh {sleep/steps} from the iPhone - fix the Shortcut` instead of showing a stale number as if fresh. The real break is phone-side (iPhone Shortcut delivered 2 rows ever, both 07-05, none since); can't be fixed from the machine.
+- **Plants "Home · plants due" tile + drill-down**: due-ness is now **due-TODAY-only** (`due_today = daysSince>0 && daysSince % every_days === 0`), NOT due-or-overdue. The old `overdue_days >= 0` logic + the drill-down's "Nd over" grew a guilt list of already-watered plants; Shaheen asked to remove carry-over entirely. Tile counts due-today ("due today: X" / "none due today"); drill-down flags only today's and shows each plant's `next_due` date (no "Nd over"). The stale-log guard (all plants past 2x cadence) + "watering data as of {date}" stamp stay so a frozen `vault/me/plants.md` (last_watered all 07-02, log not being written) is visible, not hidden.
+
+## Deterministic Harvest - the number path left the model (2026-07-21, "never happen again")
+Born from a five-metric break (MCP 0, steps blank, sleep faked 38, n8n up 7/16, graph + 4 JSONs stale;
+full record: [[projects/error-log]] 2026-07-21). Root class: the scheduled `/alex-hq` harvest runs on
+headless Haiku and used to ask the MODEL to count its `mcp__` tools, count schtasks jobs, and scp the data
+files. When MCP tools went DEFERRED in the harness (~07-17) the model could no longer see them and pushed
+`mcp_tools=0`; the jobs count drifted to 0; the scp silently stopped. None of that is model work.
+- **`scripts/hq_harvest_push.py`** now owns the ENTIRE number path and is what the wrapper runs:
+  1. `scripts/hq_infra_harvest.py` - `mcp_tools` (connected servers via `claude mcp list`),
+     `scheduled_jobs_active` (enabled `PersonalOS-*` schtasks), `vault_pages` (+ sub-counts). All deterministic.
+  2. `work/16-alex-hq/scripts/n8n_liveness.py` - `n8n_up_today` + `n8n_broken_today`, writes n8n-workflows.json.
+  3. build the 5 static JSONs (graph/todos/life/projects/n8n-workflows).
+  4. **scp to `/opt/alex-hq-data/` THEN read back each box mtime** - RED if any file isn't fresh within 15 min
+     (this is the step that silently froze the box at 07-20; it is now loud).
+  5. push the events, then **read-back-verify** the infra metrics came back in the summary.
+  Exit 0 clean; exit 1 (with RED lines) on push-fail / stale-ship / read-back-mismatch. Token never printed.
+- **`scripts/run-alex-hq.sh`** runs `hq_harvest_push.py` FIRST, then calls Haiku with `Run /alex-hq status`
+  (fetch + present + file HQ notes only, NO recount). A non-zero harvest exit fails the run regardless of the
+  model. The `/alex-hq` command doc step 1 is rewritten: "do NOT count tools/jobs yourself, the script does it."
+- **`n8n_up_today` = scheduled workflows ON-CADENCE (cadence-aware)**: `cadence_window_hours()` derives each
+  scheduled workflow's expected max-gap from its trigger (daily 26h; every-72h `*/3` engines ~82h; Tue/Thu
+  `2,4` LinkedIn ~144h; plus the explicit daily health webhook). A workflow is on-cadence if it ran within its
+  own window and its latest run didn't error; the ratio is over the cadence-monitored set (`6 of 6 scheduled`).
+  Self-maintaining (add a scheduled workflow -> it joins with its own window). **Silence-aware:** a scheduled
+  workflow that quietly stops firing is now flagged broken within its own window + grace (was daily-only before,
+  so the 72h engines could silently stop and read healthy off a stale success - the 07-10/07-19 class). The 10
+  webhook/MCP/error/execute workflows have no cadence and are error-tested only (idle-by-design never alarms).
+- **Rule**: never delegate a deterministic count/ship to a headless model's self-introspection. The harness can
+  silently remove the model's ability to see a thing (deferred tools) and the number zeros with no error.
+
+## Summary reducer - health merge (gotcha, 2026-07-07)
+The `Reduce To Summary` node builds the `health` project by a **field-level merge per date: latest non-null wins per field** (so a phone row carrying only steps and another carrying only sleep coalesce into one day). Two consequences, both bit us on 2026-07-07 (see [[projects/error-log]]): (1) a null does NOT erase a prior non-null - to correct a bad value you must insert a NON-null override (or exclude its source), never a null; (2) synthetic rows are dangerous. The reducer now **drops any `source` matching `/test/i`** from the health merge so leftover `setup-test`/`alex-*-test` rows can never surface as real steps/sleep. The public data-table API has no delete, so read-time exclusion is the only lever. Canonical reducer lives in `work/17-health-tracker/scripts/deploy_summary.py` (keep it in sync with live if you re-deploy). Recommended next safeguard: flag a completed-day `steps == 0` / stale phone sync (>26h no `source:phone` row) red with an explicit "sync may be stalled" headline instead of a silent 0. **DONE 2026-07-21 (phantom-night honesty):** the reducer now treats a phantom reading - `steps == 0` on a completed day, or a night with `< 60min` asleep - as a stalled phone sync: `steps_today`/`sleep_score_today` come back `value_num: null` + status red + headline "phone sync stalled since {last real date}", never a fabricated score (the Score node was emitting 38 off a 0.1h night). Real history stays behind them; the already-deployed `stallHealthTile` renders `-` + "last real: {day}", no frontend redeploy. Detection: `isRealNight`/`isRealStepDay` + freshest-vs-last-real comparison in `REDUCE_JS`. Mirror in `deploy_summary.py` (kept in sync). **Steps "today so far" bridge (same day):** if no COMPLETE day has real steps yet but steps ARE flowing today, the tile shows `today so far · {count}` (green) instead of "stalled" - a live partial day is honest proof the sync works and beats a misleading stall; it reverts to `yesterday · {count}` once today completes. (Frontend kicker still hardcodes "steps yesterday" - cosmetic mismatch during the "today so far" state, fix on next app redeploy.) **Health root-caused + FIXED 2026-07-21:** the phone bugs behind this were found (steps "Source is iPhone" filter matched zero - removed; sleep asleep_min shipped the awakenings count - now derived server-side from `deep+rem+core` in the ingest Score node). Sleep scores correctly (80 live); steps flow (530 live). `iphone-health-shortcut` closed. See [[projects/error-log]] 2026-07-21.
+
+## Vault Structure
+- Tier 1: vault/projects/alex-hq/status.md (endpoints, IDs, last run, deployment state)
+- Tier 2: none yet (metrics history lives in the data table, not the vault)
+
+## Vault Reads
+- soul.md (voice for any user-facing output), vault/research/alex-hq-tiles-and-stack.md (tile map), brand + work/12-linkedin-series/screenshots/DIAGRAM-DESIGN-SYSTEM.md (visual system)
+
+## Vault Writes
+- vault/projects/alex-hq/status.md per change; vault/log.md per run; vault/index.md on new pages
+
+## Connections
+- **Fed by:** every automation (post-run POST), /alex-hq local harvest (MCP count, vault size, scheduler, n8n workflow liveness), **Shaheen's notes** (typed + voice via the PWA card, Inbox Contract)
+- **Feeds into:** Shaheen's phone/PC (the UI), the vault (filed notes → calendar/people/me/meetings/projects), morning-brief ("Notes you dropped" block + may quote HQ health), Building Alex episode ("I gave Alex a face"), Alex-product demo
+
+## Post-Run (mandatory)
+1. No people/companies expected (metrics only); if any appear in headlines, standard intake applies
+2. Update vault/projects/alex-hq/status.md (last push, row count)
+3. Update vault/log.md
+4. vault/index.md if new pages
+5. Sprint board: mark Done on first build only
+
+## Producer Retrofit - COMPLETE 2026-07-02 (ALL producers, sprint closed same day)
+- **Local commands** (01, 02, 07, 12/post-publish, 13, 08, 05, 15): failure-tolerant curl in each post-run (command file + spec both updated). Never fail the run on a push failure; never log the token.
+- **Sprint (#01) closed 2026-07-02:** post-run pushes `velocity` + `run_status` green as one array POST; the hardened wrapper (scripts/run-sprint-tracker.sh) pushes `run_status` RED with the failure reason on a dead run, so the health board distinguishes "ran and reported" from "died at the scheduler". Worst-status-per-project means a leftover red run_status is cleared by the next clean run's green push.
+- **Pipelines #03/#14: fed by the SIDECAR, not by in-pipeline nodes** (workflow `y5YbDZu8TT38XZ9r` "Alex HQ - Pipeline Stats (16)", JSON archived in config/wf-pipeline-stats.json). Daily 07:50 Stockholm + on-demand `GET /webhook/alex-hq-stats-run` (X-Alex-Token). Design: 2× `values:batchGetByDataFilter` POSTs (one per pipeline spreadsheet, all 3 tabs per call) → Compute Stats (drafted/processed today by UTC date, review depth, cumulative pass rate + spend from run_log.total_cost) → direct data-table insert (no HTTP, no token inside n8n). Pipelines untouched; backups in work/03+14/config/backup-pre-hqpush-*.json.
+
+### Sidecar debug ledger (2026-07-02, cost ~2h - read before touching)
+1. httpHeaderAuth creds created with `allowedHttpRequestDomains` CANNOT be used in HTTP Request nodes at all ("configured to prevent use"); even a domain-scoped copy failed. Solution: skip HTTP entirely, insert into the data table directly (same box).
+2. **This Google project has a TINY Sheets READ quota** (429 "too many requests" after ~1 read/min; writes are a separate quota, which is why the pipelines never noticed). 6 sequential reads can never fit, waits/retries don't help. Solution: batch to 1 read-unit per spreadsheet.
+3. **n8n's HTTP Request node collapses duplicate query params** - both in `queryParameters` AND when baked into the URL string, so GET `values:batchGet` (which needs repeated `ranges=`) silently returns only the LAST range. Solution: POST `values:batchGetByDataFilter` with `dataFilters` in the JSON body; response nests each range under `.valueRange`.
+4. First real read of the numbers corrected stale docs: #14 AI pipeline = 905 processed / 48 drafts / $2.815, NOT "deployed inactive".
+
+## Implementation Notes (as built 2026-07-02)
+- Backend built and verified end to end in one session: table + credential + 2 workflows + auth tests (403 unauthenticated) + 18 seed rows across 13 projects with REAL current values from the 07-02 audit.
+- httpHeaderAuth credential API gotcha (same family as the runbook's httpBearerAuth): schema demands `allowedHttpRequestDomains`; `"none"` passes.
+- Data Table node accepted `autoMapInputData` mapping first try; summary `operation: get` with `returnAll: true` worked unmodified.
+- **Frontend v0 built + QA'd same session** (app/): Next 16.2 / React 19 / Tailwind v4, no component library needed at this size (hand-rolled glass tiles beat pulling shadcn for 4 primitives; revisit shadcn + its MCP when the chat pane lands). next/font Sora + Hanken Grotesk; manifest.ts + Pillow-generated icons for PWA; `output: "standalone"` + Dockerfile for the box; server-component-only (zero client JS beyond Next runtime), fetch revalidate 60s; graceful "backend unreachable" state.
+- Health board staleness: expected-cadence map lives in app/app/components.tsx (CADENCE_HOURS); a project turns amber when last_ts exceeds its cadence even if its own status is green.
+- **QA gotcha that cost 20 min:** raw `chrome --headless --screenshot --window-size=390` renders layout at a ~500px minimum window and crops to 390, faking a mobile overflow. Diagnose with puppeteer-core viewport emulation (devDependency, recipe in DEPLOY.md); the page was correct all along (scrollWidth 390, zero wide elements).
+- Bugs caught in visual QA: Applications tile showed green dot while its text said "AI lane unverified" (merged status now passed via statusOverride); runway line needed min-w-0 to wrap on phones.
+- Deployment: LIVE at https://hq.shaheenkiarash.com (see DEPLOY.md for the full box-side state + gotchas).
+- **v1.2 (2026-07-02, feedback #2 - The Brain):** scripts/build-graph.mjs (node, no deps) walks the vault, parses `[[links]]` (excludes index.md/log.md as navigation hubs, .obsidian/.trash; resolves by lowercase basename; skips unresolved), emits public/data/graph.json. Box side: `/opt/alex-hq-data` volume-mounted read-only at `/app/public/data`, so a graph refresh is `node scripts/build-graph.mjs && scp .../graph.json n8n:/opt/alex-hq-data/` with NO container rebuild (/alex-hq step 1b). UI: app/brain.tsx, react-force-graph-2d via next/dynamic ssr:false, canvas nodeCanvasObject (glow dots by section, degree-sized, labels at zoom>2.2 or hubs degree>=12), transparent bg over .brain-wrap, ResizeObserver sizing.
+- **v2.1 (2026-07-06, feedback round on the v2 skin - 18 items):** absolute Europe/Stockholm stamps everywhere (`fmtDateTime`/`daysSinceStockholm` in lib/types.ts - Intl formatToParts, deterministic across server/client, the fmtNum lesson applied to dates); slow CSS background bubbles (transform-only, reduced-motion aware); tap-hint affordances removed; tile sparklines cut to steps + expenses only; n8n tile drill-down = live workflow list from `n8n-workflows.json`; airbnb tile carries `next_booking`; expenses tile + drill-down carry `mtd_by_category`; Body drill-downs scoped per tile via `metricKeys`; new To-Do tile (`todos.json` from the sprint snapshot), gym card (render-time GYM/REST from `life.json`, cycle anchor restarted 2026-07-03 via Life Ops write-back) and plants card (render-time due-ness, stale-log guard). New scripts: build-todos.mjs, build-life.mjs; n8n_liveness.py extended (workflows JSON + radar-collector in EXPECTED_DAILY). Producers extended: /airbnb-host + morning-brief push `next_booking`, /expense-wrangler pushes `mtd_by_category` in both modes. Life Ops source order for the gym/plants data: Google Sheet → Notion mirror → vault pages (vault/me/gym.md + plants.md refreshed from the sheet 2026-07-06, then build-life.mjs reads the vault). QA renders: outputs/alex-hq/2026-07-06/.
+- **v1.1 (2026-07-02, Shaheen feedback round 1):** added `motion` (v12, import from "motion/react"). Server/client split: page.tsx fetches, app/dashboard.tsx ("use client") renders everything; shared pure helpers in lib/types.ts (deterministic fmtNum avoids sv-SE nbsp hydration mismatches; `now` computed server-side and passed down so ageLabel matches). Drill-down = layoutId shared-element morph from tile → overlay; overlay renders every metric of the tile's project list (Applications = both lanes). Scroll reveals via whileInView (once, -40px margin). QA gotcha: an INSTANT programmatic jump-scroll never fires IntersectionObserver, so fullPage screenshots show unrevealed tiles - step-scroll in the QA script (shots2 pattern); real momentum scrolling is fine. Per-job drill-down depth needs the pipeline retrofit; the overlay says so honestly.
+
+## Trifecta
+Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private dashboard + phone-originated note inbox; Shaheen own surface, no third-party emit. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.
