@@ -155,7 +155,7 @@ Identity-carrying output is NEVER generated from memory; the files are the truth
 
 **The gate, in order, BEFORE generating a single byte:**
 1. Read brand/config/brand-config.md - the actual file, this session, again after any compaction.
-2. Voice involved? Re-read soul.md (including My Words). Same after-compaction rule.
+2. Voice involved? Re-read the loaded soul core (the session's card: voice rules + pinned registers + newest My Words). Pull FULL soul.md when the task calls for a register the card lacks (older series/campaign registers, deep corpus work) - the corpus stays complete and searchable. (Shaheen's gate-40 YES, 2026-08-16; his n8n writers have run a distilled slice at 6/6 since 07-07.) Same after-compaction rule.
 3. Print the pre-flight line visibly before generating:
    `Pre-flight: surface=<ALEX brand (default) | Building Alex series (locked diagram system)> | palette=<exact hexes> | font=<name> | logo=<rule applied> | voice=<register + soul.md section>`
 4. Any slot you cannot fill straight from the files = STOP and read until you can. No line, no generation.
@@ -355,7 +355,7 @@ Git (branch main) + daily 21:30 push to the **PUBLIC** GitHub repo `alex-kiarash
 - Spec + troubleshooting: `work/voice/README.md` (v3 section). Decision record: vault/research/alex-voice-in-session.md. v2 (`alex_voice.py`) stays the on-demand walk-around tool.
 
 ## Voice (non-negotiable, ALL outputs, ALL times)
-- The Brand + Soul Pre-Flight Gate applies to every voice output: re-read soul.md before drafting anything as Shaheen.
+- The Brand + Soul Pre-Flight Gate applies to every voice output: re-read the loaded soul core before drafting anything as Shaheen (full soul.md when the needed register is not in the card - gate-40 YES, 2026-08-16).
 - Never sound like AI. No polished, robotic, corporate tone.
 - Never use em-dashes.
 - No filler phrases, no generic AI patterns.
@@ -411,4 +411,4 @@ The mechanical enforcement of Change Propagation + Post-Run Ingestion + Output H
 - Run post-run ingestion after every command.
 - One topic per page. Use [[wiki links]].
 - Update vault/index.md for new pages.
-- Re-read soul.md after context compaction.
+- Re-read the soul core after context compaction (full soul.md if the card is absent or the register you need is not in it).

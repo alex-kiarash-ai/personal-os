@@ -64,7 +64,7 @@ const REPO = path.join(__dirname, '..');
 // deriving its expectation from prose (the V6 lesson): so V_MAX is declared HERE, once, and
 // generate-alex.js + the recall h-validators harvester + narrative-drift-check.py all read THIS
 // declaration (a structured `const V_MAX = <n>`), never a printed string or a prose claim.
-const V_MAX = 16;
+const V_MAX = 17;
 const SUITE_RANGE = `G1-G4 + V1-V${V_MAX}`;
 
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -1292,6 +1292,37 @@ function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
   }
 }
 
+// V17 - MANDATORY skill bindings resolve (S1 Compiled Surfaces P4, 2026-08-16). Every skill
+//       named in a MANDATORY row of the constitution's Skill Bindings table must resolve to a
+//       LIVE `.claude/skills/<name>` junction (readable dir with a SKILL.md). Built BEFORE the
+//       first skills parking on purpose: parking removes junctions, and this check makes
+//       "parking broke a MANDATORY binding" a build failure instead of a silent capability loss.
+//       Compute-and-compare: skill tokens parsed from the Skill(s) CELL of MANDATORY rows only
+//       (kebab-case tokens), each asserted resolvable. ERROR tier.
+// ---------------------------------------------------------------------------------------------
+function v17MandatorySkillBindings({ stagedDir }, failures) {
+  const claude = effective(stagedDir, 'CLAUDE.md');
+  if (!claude) return; // G2 owns a missing CLAUDE.md
+  const rows = claude.text.split(/\r?\n/).filter(l => /^\|.*\|\s*MANDATORY\s*\|/.test(l));
+  const skills = new Set();
+  for (const row of rows) {
+    const cells = row.split('|').map(c => c.trim());
+    if (cells.length < 4) continue;
+    for (const tok of (cells[2].match(/[a-z0-9]+(?:-[a-z0-9]+)+/g) || [])) skills.add(tok);
+  }
+  if (skills.size === 0) return; // no MANDATORY rows = nothing to assert (not an error shape)
+  const dead = [];
+  for (const s of skills) {
+    const p = path.join(REPO, '.claude', 'skills', s, 'SKILL.md');
+    try { fs.readFileSync(p); } catch { dead.push(s); }
+  }
+  if (dead.length) {
+    failures.push(`FAILED V17: MANDATORY skill binding(s) do not resolve to a live .claude/skills junction: ` +
+      `${dead.join(', ')} - re-link with 'node scripts/skills-park.js --wake <name>' (or cmd /c mklink /J); ` +
+      `a MANDATORY row must never point at a parked or missing skill.`);
+  }
+}
+
 // runAll - the single entry point (async since Phase 3: V6 talks to the live n8n API).
 // ---------------------------------------------------------------------------------------------
 async function runAll({ stagedDir, context = 'generator', changed = false } = {}) {
@@ -1340,6 +1371,7 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   v14AlexGenderNeutrality({ stagedDir }, failures, warnings); // Alex has no gender (every run; no manifest needed)
   if (manifest) v15CommandHeaders({ stagedDir, manifest }, failures, warnings); // command-file state/trigger headers (WARN-tier for now)
   if (manifest) v16ConstitutionBudget({ stagedDir, manifest }, failures); // constitution byte budget (armed by meta.constitution)
+  v17MandatorySkillBindings({ stagedDir }, failures); // MANDATORY skill rows resolve to live junctions (every run)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);

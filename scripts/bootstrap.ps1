@@ -93,8 +93,18 @@ try {
     else { Report 'MISS' 'scheduler' 'PersonalOS-* jobs' "$($missingJobs.Count) of $($declared.Count) missing (recreate via /cron-setup): $($missingJobs -join ', ')" }
 
     # --- 5. skill junctions (.agents/skills -> .claude/skills) ----------------------------------
+    # PARKED skills (skills-lock.json `parked: true`, S1 Compiled Surfaces P4 2026-08-16) are
+    # deliberately link-less; the doctor must not count them broken nor resurrect them on repair
+    # (wake = node scripts/skills-park.js --wake <name>).
     $jr = $schema.junction_rule
-    $targets = @(Get-ChildItem $jr.target_dir -Directory -ErrorAction SilentlyContinue)
+    $parkedSet = @{}
+    try {
+        $lk = Get-Content (Join-Path $repo 'skills-lock.json') -Raw | ConvertFrom-Json
+        foreach ($n in ($lk.skills | Get-Member -MemberType NoteProperty).Name) {
+            if ($lk.skills.$n.parked) { $parkedSet[$n] = $true }
+        }
+    } catch {}
+    $targets = @(Get-ChildItem $jr.target_dir -Directory -ErrorAction SilentlyContinue | Where-Object { -not $parkedSet.ContainsKey($_.Name) })
     $broken = @()
     foreach ($d in $targets) {
         $link = Join-Path $jr.link_dir $d.Name

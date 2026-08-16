@@ -433,12 +433,24 @@ if ($patDaysLeft -le 60) {
 $agentsSkills = Join-Path $repo '.agents\skills'
 $claudeSkills = Join-Path $repo '.claude\skills'
 if (Test-Path $agentsSkills) {
+    # PARKED skills (S1 Compiled Surfaces P4, 2026-08-16) are DELIBERATELY link-less: the docket
+    # Shaheen approved parks a skill by removing its junction and flagging `parked: true` in
+    # skills-lock.json (content stays; wake = node scripts/skills-park.js --wake <name>). A parked
+    # row is exempt here; an UNPARKED row with no link is still the restore-gap this check exists for.
+    $parkedSet = @{}
+    try {
+        $lk = Get-Content (Join-Path $repo 'skills-lock.json') -Raw | ConvertFrom-Json
+        foreach ($n in ($lk.skills | Get-Member -MemberType NoteProperty).Name) {
+            if ($lk.skills.$n.parked) { $parkedSet[$n] = $true }
+        }
+    } catch {}
     $missingLinks = @()
     foreach ($d in (Get-ChildItem $agentsSkills -Directory -ErrorAction SilentlyContinue)) {
+        if ($parkedSet.ContainsKey($d.Name)) { continue }
         if (-not (Test-Path (Join-Path $claudeSkills $d.Name))) { $missingLinks += $d.Name }
     }
     if ($missingLinks.Count) {
-        Add-Drift 'skills-link' "$($missingLinks.Count) skill(s) in .agents/skills/ have no resolving .claude/skills/ link (rebuild per pair: cmd /c mklink /J .claude\skills\<name> ..\..\.agents\skills\<name>): $($missingLinks -join ', ')"
+        Add-Drift 'skills-link' "$($missingLinks.Count) UNPARKED skill(s) in .agents/skills/ have no resolving .claude/skills/ link (rebuild per pair: cmd /c mklink /J .claude\skills\<name> ..\..\.agents\skills\<name>; parked skills are exempt by design): $($missingLinks -join ', ')"
     }
 }
 
