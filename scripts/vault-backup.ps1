@@ -65,6 +65,14 @@ try {
     Say "ledger: $($lg | Select-Object -First 1)"
 } catch { Say "ledger reconcile failed (non-fatal): $($_.Exception.Message)" }
 
+# 0a. Outputs burst tripwire (S1 Compiled Surfaces P2, 2026-08-16): flag any >50MB/24h outputs/
+#     growth to HQ amber + system/outputs-burst-state.json (the morning brief prints one line).
+#     Detect-only, best-effort: it must NEVER block the backup. Exit 2 = burst (informational here).
+try {
+    $ob = node "scripts\outputs-burst-check.js" 2>&1
+    Say "outputs-burst: $($ob | Select-Object -Last 1)"
+} catch { Say "outputs-burst check failed (non-fatal): $($_.Exception.Message)" }
+
 # 0b. Outcome loop nightly aggregate (2026-07-20, agent-architecture decision run item 6.3):
 #     re-tally the application outcome table -> winners.json + report-section.md + the built-ready
 #     writer block. DETERMINISTIC, zero Claude calls, degrades to "accumulating" on an empty table.

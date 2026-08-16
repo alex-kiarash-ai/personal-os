@@ -55,7 +55,7 @@ const { runAll: validate, SUITE_RANGE } = require('./validate-alex');
 const DRY = process.argv.includes('--dry-run');
 const onlyArg = process.argv.find(a => a.startsWith('--only='));
 const ONLY = onlyArg ? onlyArg.split('=')[1].split(',').map(s => s.trim()) : null;
-const VALID_ONLY = ['docs', 'claude', 'tokens', 'n8n', 'scheduler', 'commands'];
+const VALID_ONLY = ['docs', 'claude', 'tokens', 'n8n', 'scheduler', 'commands', 'soulcore'];
 if (ONLY) for (const o of ONLY) if (!VALID_ONLY.includes(o)) {
   console.error(`generate-alex: unknown --only value '${o}' (valid: ${VALID_ONLY.join(', ')})`);
   process.exit(1);
@@ -150,6 +150,20 @@ const want = name => !ONLY || ONLY.includes(name);
         { cwd: require('path').resolve(__dirname, '..') }).toString().trim();
       for (const line of out.split('\n')) log.step('  stale-status (advisory): ' + line);
     } catch (e) { log.step('  stale-status advisory skipped (non-fatal): ' + e.message); }
+
+    // 3d. soul-core rebuild (S1 Compiled Surfaces, 2026-08-16): the injection card derived from
+    //     soul.md + system/soul-pins.json. Runs INSIDE the same held write-lock; an unchanged
+    //     source pair is a verified no-op; refuse-below-floor leaves the existing card untouched.
+    //     The 21:35 run-vault-index.ps1 chain is the other rebuild path (same lock, CLI mode).
+    if (want('soulcore')) {
+      if (DRY) {
+        log.step('  soul-core: dry-run - skipped (the builder writes via its own atomic swap, not staging)');
+      } else {
+        const soulCore = require('./lib/build-soul-core');
+        const r = soulCore.build({ log: log.step });
+        log.step(`  soul-core: ${r.noop ? 'unchanged (verified no-op)' : `rebuilt (${r.bytes} B, ${r.entries} newest + ${r.pinned} pinned)`}`);
+      }
+    } else log.step('  soul-core: skipped (--only)');
 
     // 4. External integrations. Dry-run reports; full run applies. n8n is idempotent (an unchanged
     //    soul.md is a verified no-op); the scheduler only ever CREATES missing jobs, never touches

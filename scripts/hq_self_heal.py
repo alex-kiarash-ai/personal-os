@@ -364,6 +364,51 @@ def probe_identity_views(summary, entry):
             log("identity-doc-views", "escalated", f"re-link error: {e}", "AUTO_SAFE->escalate")
 
 
+def probe_soul_core_stale(summary, entry):
+    """soul-core.md (the identity injection card, S1 Compiled Surfaces 2026-08-16) must exist and
+    its tail stamp's source-sha256 must equal sha256(soul.md bytes). A stale card means every
+    session is fed yesterday's identity slice; a missing card means sessions run on the truncated
+    full-soul fallback (~2KB reaches the model on harness 2.1.220).
+
+    AUTO_SAFE is justified because the remedy is the builder itself: deterministic, write-locked,
+    atomic-swap, refuse-below-floor (a structurally broken soul.md leaves the old card in place and
+    the rebuild FAILS, which routes to escalate here). One attempt, read-back verified, no retry.
+    Needs no HQ summary (a filesystem invariant - runs on n8n-outage days too).
+    """
+    import hashlib
+    soul = REPO / "soul.md"
+    core = REPO / "soul-core.md"
+    if not soul.exists():
+        escalate("soul-md-missing", "critical",
+                 "soul.md is MISSING - restore from the 21:45 encrypted vault backup before anything else")
+        return log("soul-core-stale", "escalated", "soul.md missing", "HUMAN_ONLY")
+    live_sha = hashlib.sha256(soul.read_bytes()).hexdigest()
+
+    def card_sha():
+        if not core.exists():
+            return None
+        tail = core.read_text(encoding="utf-8", errors="replace")[-400:]
+        m = __import__("re").search(r"source-sha256=([0-9a-f]{64})", tail)
+        return m.group(1) if m else "unparseable"
+
+    current = card_sha()
+    if current == live_sha:
+        return log("soul-core-stale", "ok", f"card fresh (sha {live_sha[:12]}..)")
+
+    # AUTO_SAFE: rebuild once, then read back.
+    why = "card missing" if current is None else ("stamp unparseable" if current == "unparseable"
+          else f"stale (card {current[:12]}.. vs live {live_sha[:12]}..)")
+    r = run(["node", "scripts/lib/build-soul-core.js", "--force"], timeout=60)
+    after = card_sha()
+    if after == live_sha:
+        return log("soul-core-stale", "healed", f"{why} -> rebuilt + stamp verified ({live_sha[:12]}..)", "AUTO_SAFE")
+    detail = (r.stdout or r.stderr or "").strip().splitlines()
+    escalate("soul-core-rebuild-failed", "high",
+             f"soul-core was {why}; rebuild did not verify ({(detail[-1] if detail else 'no output')[:160]}). "
+             f"{entry.get('escalate_fail', '')}")
+    log("soul-core-stale", "escalated", f"{why}; rebuild did not verify", "AUTO_SAFE->escalate")
+
+
 PROBES = {
     "mcp_count": probe_mcp_count,
     "box_fresh": probe_box_fresh,
@@ -372,6 +417,7 @@ PROBES = {
     "health_stalled": probe_health_stalled,
     "stuck_status": probe_stuck_status,
     "identity_views": probe_identity_views,
+    "soul_core_stale": probe_soul_core_stale,
 }
 
 

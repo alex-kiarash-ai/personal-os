@@ -17,6 +17,27 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
+
+/*
+ * Downscale-at-capture (S1 Compiled Surfaces P2, 2026-08-16): full-page PNG shots were landing
+ * 2-5MB each and the dated QA folders were a top disk-growth source (run-44 measurement). Every
+ * shot now converts to a width-capped JPEG (max 1200px, q82) via ImageMagick and the PNG is
+ * removed - these are human-review artifacts, nothing reads the .png path after the run.
+ * Fail-open: no `magick` on PATH = keep the PNG and say so (a QA harness must never die over
+ * an optimizer).
+ */
+function slim(pngPath) {
+  const jpg = pngPath.replace(/\.png$/i, ".jpg");
+  try {
+    execFileSync("magick", [pngPath, "-resize", "1200>", "-strip", "-quality", "82", jpg], { stdio: "pipe" });
+    fs.unlinkSync(pngPath);
+    return jpg;
+  } catch (e) {
+    console.warn(`  (slim skipped for ${path.basename(pngPath)}: ${e.message.split("\n")[0]})`);
+    return pngPath;
+  }
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(HERE, "../app/package.json"));
@@ -79,10 +100,12 @@ async function main() {
         await page.goto(URL, { waitUntil: "networkidle0", timeout: 90000 });
         await page.waitForSelector(".tile", { timeout: 30000 });
         await settleScroll(page);
-        const foldPath = path.join(OUT, `${PREFIX}-${theme}-${vp.name}-fold1.png`);
+        let foldPath = path.join(OUT, `${PREFIX}-${theme}-${vp.name}-fold1.png`);
         await page.screenshot({ path: foldPath });
-        const fullPath = path.join(OUT, `${PREFIX}-${theme}-${vp.name}-full.png`);
+        foldPath = slim(foldPath);
+        let fullPath = path.join(OUT, `${PREFIX}-${theme}-${vp.name}-full.png`);
         await page.screenshot({ path: fullPath, fullPage: true });
+        fullPath = slim(fullPath);
         const metrics = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,
           scrollHeight: document.documentElement.scrollHeight,

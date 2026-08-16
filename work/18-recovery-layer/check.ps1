@@ -562,6 +562,64 @@ if (-not (Test-Path $soulPath)) {
         ConvertTo-Json | Set-Content -Encoding utf8 $soulHwFile
 }
 
+# --- C23 soul-core freshness (S1 Compiled Surfaces, 2026-08-16): soul-core.md is THE identity
+# injection since the @-import swap (harness 2.1.220 truncates hook stdout at ~10KB, so the old
+# `cat soul.md` path delivered ~2KB; the card rides a CLAUDE.md memory import and loads whole).
+# The card's tail stamp carries source-sha256 = sha256(soul.md BYTES) at build time; this check
+# recomputes the live hash (Get-FileHash, same byte primitive the builder uses) and AMBERS on any
+# mismatch - a stale card means every session is fed yesterday's identity slice and the nightly
+# 21:35 rebuild (run-vault-index.ps1) or the generator missed. A MISSING card also ambers: the
+# SessionStart hook falls back to full soul.md (fail-open, by design), but on this harness that
+# fallback delivers only the 2KB preview, so a silently deleted card must not hide behind it.
+# The FIX half is the hq-heal-map `soul-core-stale` AUTO-SAFE row (rebuild --force + read-back,
+# one attempt then escalate). Compute-and-compare; negative-tested at install with a stale stamp.
+$corePath = Join-Path $repo 'soul-core.md'
+if (Test-Path $soulPath) {
+    if (-not (Test-Path $corePath)) {
+        Add-Drift 'soul-core' "soul-core.md MISSING - sessions run on the truncated full-soul fallback (~2KB reaches the model). Rebuild: node scripts/lib/build-soul-core.js --force"
+    } else {
+        $coreText = Get-Content $corePath -Raw
+        $stamp = [regex]::Match($coreText.Substring([math]::Max(0, $coreText.Length - 400)), 'source-sha256=([0-9a-f]{64})')
+        if (-not $stamp.Success) {
+            Add-Drift 'soul-core' "soul-core.md has no parseable SOUL-CORE-STAMP source-sha256 - hand-edited or truncated; rebuild: node scripts/lib/build-soul-core.js --force"
+        } else {
+            $liveSha = (Get-FileHash $soulPath -Algorithm SHA256).Hash.ToLower()
+            if ($liveSha -ne $stamp.Groups[1].Value) {
+                Add-Drift 'soul-core' "soul-core.md STALE: card built from sha $($stamp.Groups[1].Value.Substring(0,12)).. but soul.md is now $($liveSha.Substring(0,12)).. - the nightly rebuild missed; node scripts/lib/build-soul-core.js --force"
+            }
+        }
+    }
+}
+
+# --- C24 status byte budget (S1 Compiled Surfaces P2, 2026-08-16): Tier-1 status.md files are
+# SUMMARIES by contract and had grown to 87-180KB. scripts/status-rotate.js (nightly, before the
+# 21:35 index build) moves whole dated H2 blocks to history/; this check reads LIVE byte counts
+# against manifest meta.vault.status_byte_budget so a dead rotator cannot hide behind a green
+# chain. Fires at budget + 10% (deliberate grace: the keep-the-newest-dated-block rule can land a
+# file a few hundred bytes over, and an amber that cries over 4 bytes teaches amber-blindness,
+# the F-14 lesson). The message distinguishes "movable blocks present = the rotator missed" from
+# "undated standing weight = needs a human restructure / the monthly /lint" - different remedies.
+# Negative-tested at install with a temp-inflated file.
+$sbBudget = 0
+try { $sbBudget = [int]$manifest.meta.vault.status_byte_budget } catch { $sbBudget = 0 }
+if ($sbBudget -gt 0) {
+    $sbRows = @($manifest.projects) + @($manifest.meta.unnumbered)
+    $sbSeen = @{}
+    foreach ($p in $sbRows) {
+        if (-not $p.status_md) { continue }
+        $sp = Join-Path $repo ($p.status_md -replace '/', '\')
+        if ($sbSeen.ContainsKey($sp) -or -not (Test-Path $sp)) { continue }
+        $sbSeen[$sp] = $true
+        $len = (Get-Item $sp).Length
+        if ($len -le [math]::Round($sbBudget * 1.1)) { continue }
+        $txt = Get-Content $sp -Raw
+        $movable = ([regex]::Matches($txt, '(?m)^##\s.*\b20\d{2}-\d{2}-\d{2}\b')).Count
+        $why = if ($movable -gt 1) { "has $movable dated block(s) the rotator should have moved - is the nightly status-rotate step dead? (run: node scripts/status-rotate.js)" }
+               else { "weight is UNDATED standing content - rotation cannot help; needs a human restructure (a /lint-class judgment pass)" }
+        Add-Drift 'status-budget' "$($p.status_md) is $len B against the $sbBudget B Tier-1 budget - $why"
+    }
+}
+
 # ---------------------------------------------------------------- report
 $n = $drift.Count
 $byCat = $drift | Group-Object cat | Sort-Object Count -Descending

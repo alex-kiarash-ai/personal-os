@@ -87,6 +87,16 @@
       "enabled": true
     },
     {
+      "id": "soul-core-stale",
+      "desc": "soul-core.md (the identity injection card since the 2026-08-16 @-import swap) missing, stamp unparseable, or stamp sha != sha256(soul.md) - sessions are fed a stale identity slice or the truncated fallback",
+      "probe": "soul_core_stale",
+      "risk": "AUTO_SAFE",
+      "needs_summary": false,
+      "remedy": "rebuild once via `node scripts/lib/build-soul-core.js --force` (write-locked, atomic, refuse-below-floor), then read-back verify the stamp equals the live soul.md sha; one attempt, escalate on verify-fail, never retry",
+      "escalate_fail": "Likely the builder's floor refused (soul.md structure broke: missing operative heading / canary / too few entries) or the write-lock is wedged - run `node scripts/lib/build-soul-core.js --force` by hand and read its error; check outputs/logs/vault-index.log",
+      "enabled": true
+    },
+    {
       "id": "unknown-red",
       "desc": "CATCH-ALL: any project red that no check above claims - never let a red light be silently ignored",
       "probe": "unknown_red",
