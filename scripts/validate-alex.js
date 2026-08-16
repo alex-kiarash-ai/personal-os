@@ -64,7 +64,7 @@ const REPO = path.join(__dirname, '..');
 // deriving its expectation from prose (the V6 lesson): so V_MAX is declared HERE, once, and
 // generate-alex.js + the recall h-validators harvester + narrative-drift-check.py all read THIS
 // declaration (a structured `const V_MAX = <n>`), never a printed string or a prose claim.
-const V_MAX = 15;
+const V_MAX = 16;
 const SUITE_RANGE = `G1-G4 + V1-V${V_MAX}`;
 
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -1269,6 +1269,29 @@ function v14AlexGenderNeutrality({ stagedDir }, failures, warnings) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// V16 - constitution byte budget (S1 Compiled Surfaces P3, 2026-08-16, the rulebook diet).
+//       CLAUDE.md must stay within manifest meta.constitution.byte_budget (set at the diet's
+//       landing size + ~20%, so it catches REGROWTH, never the split itself). The 2026-08-16
+//       diet moved 40KB of narrative/history into docs/constitution-annex/*; without a hard
+//       ceiling the constitution regrows one well-meant paragraph at a time (it had reached
+//       103KB / ~29k standing tokens). New standing content belongs as an operative sentence
+//       here + history in the annex. ARMED only when the manifest declares the budget; absent
+//       key = silent pass (the V12 declared-contract pattern). ERROR tier: a build that ships
+//       an over-budget constitution is the regrowth this exists to stop.
+// ---------------------------------------------------------------------------------------------
+function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
+  const budget = manifest && manifest.meta && manifest.meta.constitution && manifest.meta.constitution.byte_budget;
+  if (!budget) return; // not armed until the contract exists
+  const claude = effective(stagedDir, 'CLAUDE.md');
+  if (!claude) return; // G2 already fails a missing CLAUDE.md
+  const bytes = Buffer.byteLength(claude.text);
+  if (bytes > budget) {
+    failures.push(`FAILED V16: CLAUDE.md is ${bytes} B against meta.constitution.byte_budget ${budget} B - ` +
+      `the constitution is regrowing. Keep the operative sentence here and move the narrative to ` +
+      `docs/constitution-annex/ (the 2026-08-16 diet pattern); raise the budget only as a deliberate manifest edit.`);
+  }
+}
+
 // runAll - the single entry point (async since Phase 3: V6 talks to the live n8n API).
 // ---------------------------------------------------------------------------------------------
 async function runAll({ stagedDir, context = 'generator', changed = false } = {}) {
@@ -1316,6 +1339,7 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   if (manifest) v13LocalWrapperPins({ stagedDir, manifest }, failures, warnings); // local wrapper model-pin contract (every run)
   v14AlexGenderNeutrality({ stagedDir }, failures, warnings); // Alex has no gender (every run; no manifest needed)
   if (manifest) v15CommandHeaders({ stagedDir, manifest }, failures, warnings); // command-file state/trigger headers (WARN-tier for now)
+  if (manifest) v16ConstitutionBudget({ stagedDir, manifest }, failures); // constitution byte budget (armed by meta.constitution)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);

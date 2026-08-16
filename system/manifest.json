@@ -209,7 +209,15 @@
         "first_fire": "2026-07-24",
         "first_fire_kind": "live"
       }
-    ]
+    ],
+    "vault": {
+      "status_byte_budget": 25600,
+      "note": "S1 Compiled Surfaces P2 (2026-08-16): Tier-1 status.md files are SUMMARIES by contract. scripts/status-rotate.js moves whole dated H2 blocks (oldest first, heading-block-atomic so BM25 chunks keep their inline supersessions) of any over-budget status.md to vault/projects/{name}/history/status-YYYY.md, linked both ways, journaled to system/status-rotate-journal.jsonl before each move. C24 ambers on any status.md over this budget (live byte count, so a dead rotator cannot hide). Nothing is deleted anywhere."
+    },
+    "constitution": {
+      "byte_budget": 76000,
+      "note": "S1 Compiled Surfaces P3 (2026-08-16, Shaheen-approved diff): CLAUDE.md landed at 63,227 B after the rulebook diet; budget = landing +20% so V16 catches REGROWTH, never the split. New standing content = operative sentence in CLAUDE.md + history in docs/constitution-annex/. Raise only as a deliberate manifest edit."
+    }
   },
   "projects": [
     {
@@ -784,7 +792,7 @@
       "title": "Recovery Layer",
       "state": "LIVE",
       "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe",
-      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks (C1-C22, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db).",
+      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 23 checks (C1-C24, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db) + the soul-core injection card + the status/backup rotation caps (S1 Compiled Surfaces).",
       "docs": "18-recovery-layer.md",
       "schedule_jobs": [
         "PersonalOS-recovery-check",
