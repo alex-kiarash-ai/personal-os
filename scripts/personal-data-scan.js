@@ -158,7 +158,17 @@ function gitGrep(re, scopePaths) {
     throw new Error(`git grep failed (exit ${e.status}): ${String(e.stderr || e.message).slice(0, 200)}`);
   }
   const hits = [];
-  for (const line of out.split('\n')) {
+  // CRLF FIX (2026-08-17, found by the Alex Kit relay's Agent 2, master-verified before the fix).
+  // git grep echoes the matched line VERBATIM, so a hit in a CRLF-checked-out file arrives as
+  // "path:12:text\r". After split('\n') the trailing \r survives, and JavaScript's `.` excludes line
+  // terminators - \r IS one - so `(.*)$` could never reach end-of-string and the match FAILED.
+  // Every hit from every CRLF file was silently discarded: measured 5 git-grep hit lines -> 0 kept on
+  // .agents/skills/ab-testing/SKILL.md, and 315 of 400 sampled tracked files in this repo carry CR.
+  // This is the same class as the 2026-07-25 POSIX-bracket bug: the guard reported CLEAN because it
+  // was BLIND, not because the tree was clean, and a vacuous clean on a PUBLIC repo's personal-data
+  // conscience is the worst possible failure mode. Strip the CR before matching, never widen the regex.
+  for (const raw of out.split('\n')) {
+    const line = raw.replace(/\r$/, '');
     const m = line.match(/^([^:]+):(\d+):(.*)$/);
     if (m) hits.push({ file: m[1].replace(/\\/g, '/'), line: +m[2], text: m[3] });
   }
