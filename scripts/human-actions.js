@@ -52,14 +52,23 @@ function load() {
     let row;
     try { row = JSON.parse(t); } catch (_) { continue; }
     if (row.done) { const prev = byId.get(row.id); if (prev) prev.done = row.done_date || true; }
-    else byId.set(row.id, { ...row });
+    else {
+      // Normalize rows written outside the `add` CLI (e.g. a model appending JSONL by hand with a
+      // different field naming) so every downstream consumer sees the one documented row shape.
+      if (row.created === undefined && row.date !== undefined) row.created = row.date;
+      if (row.severity === undefined && row.urgency !== undefined) {
+        row.severity = { high: 'high', medium: 'medium', low: 'low', critical: 'critical' }[row.urgency] ?? 'medium';
+      }
+      byId.set(row.id, { ...row });
+    }
   }
   return [...byId.values()];
 }
 
 function openItems() {
   return load().filter(r => !r.done).sort((a, b) =>
-    (SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9) || a.created.localeCompare(b.created));
+    (SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9) ||
+    (a.created ?? a.date ?? '').localeCompare(b.created ?? b.date ?? ''));
 }
 
 function ageDays(created) {
