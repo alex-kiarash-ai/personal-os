@@ -8,7 +8,6 @@ OnCalendar=Mon..Fri 09:00:00
 # Persistent=true is the StartWhenAvailable equivalent, and better: a job missed because the machine
 # was off fires on the next boot instead of being lost.
 Persistent=true
-WakeSystem=true
 # These jobs are time-anchored (the 07:30 sweep must land before the 08:00 brief reads it), so no
 # randomized spread.
 RandomizedDelaySec=0

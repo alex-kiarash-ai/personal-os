@@ -2,7 +2,7 @@
 # Edit scheduler/schedule.md, then run: node scripts/generate-alex.js
 [Unit]
 Description=Alex: Auth Freshness Probe
-Documentation=file:///Users/eduardomorgado/Edu/personal-os/scheduler/schedule.md
+Documentation=https://github.com/alex-kiarash-ai/personal-os/blob/main/scheduler/schedule.md
 
 [Service]
 Type=oneshot

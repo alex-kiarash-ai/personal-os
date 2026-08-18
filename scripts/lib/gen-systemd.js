@@ -24,6 +24,36 @@ const { execFileSync } = require('child_process');
 const REPO = path.join(__dirname, '..', '..');
 const UNIT_DIR = path.join(REPO, 'systemd');
 
+// --- Documentation= -------------------------------------------------------------------------------
+// A local `file://` absolute path only resolves on the ONE machine that generated it, which is
+// exactly the class of bug the bash migration exists to remove (2026-08-18 follow-up: every
+// checked-in unit carried one developer's home directory). systemd's own convention for
+// Documentation= is a globally-resolvable reference (a manpage, a URL), not a local file - so this
+// derives the project's public GitHub origin instead and points at scheduler/schedule.md there,
+// which works identically on every clone regardless of where it lives on disk.
+//
+// Pinned to `main`, not whatever branch is currently checked out: Documentation= is a stable
+// reference for an admin reading a unit file later, and a link to a feature branch that gets
+// deleted is worse than a link to main that is briefly one commit behind.
+//
+// Falls back to the local file:// absolute path (the pre-2026-08-18 behavior) when there is no
+// `origin` remote or it is not a GitHub URL - never let a documentation pointer crash the generator.
+let _docUrlCache = null;
+function docUrl() {
+  if (_docUrlCache) return _docUrlCache; // one `git remote` shell-out per generator run, not per job
+  const localFallback = `file://${path.join(REPO, 'scheduler', 'schedule.md')}`;
+  let remote;
+  try {
+    remote = execFileSync('git', ['-C', REPO, 'remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
+  } catch {
+    return (_docUrlCache = localFallback);
+  }
+  // Handles both https://github.com/OWNER/REPO(.git) and git@github.com:OWNER/REPO(.git).
+  const m = /github\.com[/:]([^/]+)\/(.+?)(?:\.git)?$/.exec(remote);
+  if (!m) return (_docUrlCache = localFallback);
+  return (_docUrlCache = `https://github.com/${m[1]}/${m[2]}/blob/main/scheduler/schedule.md`);
+}
+
 // --- platform ------------------------------------------------------------------------------------
 function hasSystemd() {
   return process.platform === 'linux' && fs.existsSync('/run/systemd/system');
@@ -186,7 +216,7 @@ function renderService(job, { wrapper, description, runtimeMaxSec }) {
 # Edit scheduler/schedule.md, then run: node scripts/generate-alex.js
 [Unit]
 Description=${description}
-Documentation=file://${path.join(REPO, 'scheduler', 'schedule.md')}
+Documentation=${docUrl()}
 
 [Service]
 Type=oneshot
