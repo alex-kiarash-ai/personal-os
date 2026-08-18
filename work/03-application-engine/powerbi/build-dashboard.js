@@ -1,6 +1,9 @@
 const { createClient } = require('./mcp-client');
+const path = require('path');
 
-const XLSX = 'C:\\Users\\Thinkpad\\Desktop\\personal-os\\work\\03-application-engine\\powerbi\\job-search-pipeline.xlsx';
+// PB_XLSX_PATH overrides; default is this script's own directory (bash migration Phase 9,
+// 2026-08-18: was a hardcoded C:\Users\Thinkpad\Desktop\personal-os literal).
+const XLSX = process.env.PB_XLSX_PATH || path.join(__dirname, 'job-search-pipeline.xlsx');
 
 function mForSheet(sheet, typeTransforms, selectCols) {
   return (

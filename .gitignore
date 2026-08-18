@@ -38,7 +38,7 @@ work/voice/.venv/
 __pycache__/
 *.pyc
 
-# Recovery checker runtime state (regenerable via check.ps1 -Init; machine-local baseline)
+# Recovery checker runtime state (regenerable via `node check.mjs --init`; machine-local baseline)
 work/18-recovery-layer/state/
 
 # Email-triage runtime state (staged-draft ledger, sender tally, job-thread tracker; local-only, holds

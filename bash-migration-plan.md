@@ -3,7 +3,7 @@
 **Date:** 2026-08-05
 **Scope:** move the Personal Ops System off Windows (PowerShell 5.1 + Windows Task Scheduler) onto Linux (bash + systemd), with no loss of behavior in the Close-Out Gate, the recovery checker, the backup layer, or the scheduled job train.
 **Current root (Windows):** `C:\Users\Thinkpad\Desktop\personal-os`
-**Status:** proposal, with all six open decisions RULED 2026-08-05 (§5). Nothing below has been executed.
+**Status:** Phases 0-8 committed (see git log, `migrate/linux-bash`). **Phase 9 (teardown) executed 2026-08-18**, with one deviation from the entry gate below and one item never in scope: the plan's own Phase 9 gate ("a full week of green run_status on the real Linux host") was not literally met - as of 2026-08-17 systemd was never confirmed installed on the Hetzner box (SSH host-key unverified), so every green run to date is macOS smoke-testing, not a proven Linux job train. Proceeded anyway on Shaheen's explicit call 2026-08-18, since no working Windows fallback exists either. systemd deployment verification (Phase 4's own "deploy-only" step) remains open work. Full record: `ALEX-OS-master.md` §11, 2026-08-18 entry.
 
 **The six rulings, in one place (detail and trade-offs in §5):**
 

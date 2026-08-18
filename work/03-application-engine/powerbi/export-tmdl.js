@@ -2,7 +2,14 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const OUT = 'C:\\Users\\Thinkpad\\Desktop\\personal-os\\work\\03-application-engine\\powerbi\\job-pipeline-dashboard\\job-pipeline-dashboard.SemanticModel\\definition';
+// PB_TMDL_OUT overrides; default is this script's own directory (bash migration Phase 9,
+// 2026-08-18: was a hardcoded C:\Users\Thinkpad\Desktop\personal-os literal). The Power BI
+// Modeling MCP server this drives is Windows-only software (Power BI Desktop has no Linux/macOS
+// client), so the `cmd /c npx` spawn and the backslash URI handling below are left as-is: they
+// are inherent to the tool being driven, not a portability bug in this script.
+const OUT =
+  process.env.PB_TMDL_OUT ||
+  path.join(__dirname, 'job-pipeline-dashboard', 'job-pipeline-dashboard.SemanticModel', 'definition');
 
 const proc = spawn('cmd', ['/c', 'npx', '-y', '@microsoft/powerbi-modeling-mcp@latest', '--start'], { stdio: ['pipe', 'pipe', 'pipe'] });
 let buf = '';

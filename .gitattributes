@@ -21,11 +21,11 @@
 *.service text eol=lf
 *.timer   text eol=lf
 
-# PowerShell stays CRLF until the .ps1 files are deleted in Phase 9.
-# Remove this line at that point (it is a Phase 9 checklist item).
+# Phase 9 (2026-08-18) deleted every migrated .ps1/.cmd file. work/voice/talk.ps1 + the 3
+# work/voice/v3/*.cmd files are the deliberate exception: PARKED, not ported (ruling D,
+# 2026-08-05 - Windows SAPI TTS has no Linux equivalent yet), so they still need CRLF handling.
+# Delete these two lines only once voice is fully ported or retired.
 *.ps1     text eol=crlf
-
-# Windows-era batch files, likewise removed in Phase 9.
 *.cmd     text eol=crlf
 *.bat     text eol=crlf
 

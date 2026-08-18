@@ -19,6 +19,18 @@
 //   P3 BASH32    no bash 4+ construct inside a .sh file (declare -A, ${var^^}, mapfile/readarray,
 //                globstar). macOS ships bash 3.2.57, so these are hard failures on the dev machine.
 //
+//   P4 NOPS      no .ps1/.cmd/.bat file exists anywhere in the tree, except the explicit PARKED
+//                allowlist (bash migration Phase 9, 2026-08-18: makes the teardown permanent - a
+//                PowerShell file added back by accident, or a stray one left over from a copy/paste,
+//                fails the build instead of silently re-growing the surface that was just removed).
+//
+//   P5 NOWINPATH no quoted, file-extension-shaped Windows drive-letter path literal (e.g.
+//                'C:\Users\...\file.json') exists in a tracked non-historical file. Catches the
+//                exact bug class that let work/03-application-engine/powerbi/{build-dashboard,
+//                export-tmdl}.js hide from the original migration audit: PROSE mentioning the old
+//                root path is fine (P5 requires a file extension inside the match, which narrative
+//                text naming a bare directory does not have); an actual path VALUE is not.
+//
 // Exit 0 = clean. Exit 1 = findings (prints every one, grouped, with file:line).
 // Run: node scripts/tests/portability-check.mjs   (or: npm run portability)
 
@@ -185,6 +197,58 @@ function checkShell(file, text) {
   }
 }
 
+// ---------------------------------------------------------------- P4: no PowerShell/batch files
+// PARKED, not ported (ruling D, bash-migration-plan.md, 2026-08-05): Windows SAPI TTS has no Linux
+// equivalent yet, so voice stays DORMANT and these four files are the one deliberate exception.
+const P4_ALLOWLIST = new Set([
+  'work/voice/talk.ps1',
+  'work/voice/v3/dictate.cmd',
+  'work/voice/v3/voice-on.cmd',
+  'work/voice/v3/voice-off.cmd',
+]);
+
+function checkNoPs1(file) {
+  const ext = path.extname(file).toLowerCase();
+  if (ext !== '.ps1' && ext !== '.cmd' && ext !== '.bat') return;
+  const rel = path.relative(ROOT, file).split(path.sep).join('/');
+  if (P4_ALLOWLIST.has(rel)) return;
+  add('P4 NOPS', file, 1, `${ext} file exists outside the PARKED voice allowlist. Every migrated .ps1/.cmd/.bat was deleted in bash migration Phase 9 (2026-08-18); this one must be ported, deleted, or (if it is a deliberate new voice-layer file) added to P4_ALLOWLIST in this script.`);
+}
+
+// ---------------------------------------------------------------- P5: no Windows path literals
+// Historical documents are dated records of past decisions (bash-migration-plan.md itself included -
+// it is the migration's own record and legitimately quotes the old root throughout). Do not rewrite
+// them; they are exempt by path, same convention as Appendix B of the migration plan.
+const P5_EXEMPT_FILES = new Set([
+  'bash-migration-plan.md',
+  'ALEX-REFACTOR-SPEC-FOR-CLAUDE-CODE.md',
+  'docs/architecture-analysis-2026-07-08.md',
+  'docs/projects/routing-table-detail-2026-07-06.md',
+  'refactor/reference-map.md',
+  // This checker's own file: the doc comment above and P5_WIN_PATH's pattern legitimately name the
+  // bug class in prose, and self-matching would be a false positive on the tool that catches it.
+  'scripts/tests/portability-check.mjs',
+]);
+
+// Quoted, file-extension-shaped only (mirrors PATH_LITERAL's own reasoning above): this is what
+// separates an actual path VALUE ('C:\Users\...\file.json') from prose naming a bare directory
+// ("hardcoded C:\Users\Thinkpad\Desktop\personal-os in 20 files"), which has no trailing extension
+// inside the match and is deliberately left alone so this check would rather miss than cry wolf.
+const P5_WIN_PATH = /['"`]([A-Za-z]:\\[^'"`]+\.[A-Za-z0-9]{1,6})['"`]/g;
+
+function checkNoWinPath(file, text) {
+  const rel = path.relative(ROOT, file).split(path.sep).join('/');
+  if (P5_EXEMPT_FILES.has(rel)) return;
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    let m;
+    P5_WIN_PATH.lastIndex = 0;
+    while ((m = P5_WIN_PATH.exec(lines[i])) !== null) {
+      add('P5 NOWINPATH', file, i + 1, `Windows absolute path literal '${m[1]}'. Resolve it from an env var (see scripts/lib/paths.mjs / scripts/lib/common.sh for the pattern) with a sane in-repo default.`);
+    }
+  }
+}
+
 // ---------------------------------------------------------------- run
 const files = walk(ROOT);
 let scannedCase = 0;
@@ -192,6 +256,7 @@ let scannedShell = 0;
 
 for (const f of files) {
   const ext = path.extname(f);
+  checkNoPs1(f);
   let text;
   try {
     text = fs.readFileSync(f, 'utf8');
@@ -205,6 +270,9 @@ for (const f of files) {
   if (ext === '.sh') {
     checkShell(f, text);
     scannedShell++;
+  }
+  if (['.js', '.mjs', '.cjs', '.py', '.sh'].includes(ext)) {
+    checkNoWinPath(f, text);
   }
 }
 
