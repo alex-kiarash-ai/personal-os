@@ -129,7 +129,7 @@ To activate these schedules: Open Cowork → Schedule sidebar → Create a local
 
 ### Runway Command Center
 - Command: /runway
-- Frequency: monthly, last day of month, AFTER /expense-wrangler (reads the freshest expense + booking data)
+- Frequency: monthly, last day of month at 21:15, AFTER /expense-wrangler 20:00 (reads the freshest expense + booking data)
 - Description: Build #20. Joins starting savings + burn + the salary/severance/a-kassa timeline + Airbnb income into a month-by-month runway model with a zero date + a new-job scenario. Branded all-formula SEK Excel; reads the Expenses + Bookings DBs, no Notion DB. Spec work/20-runway/CLAUDE.md, command .claude/commands/runway.md.
 - **REGISTERED 2026-07-06:** Task Scheduler job PersonalOS-runway, monthly LASTDAY 21:15 (after expense-wrangler 20:00), wrapper scripts/run-runway.ps1, standard hardening (4x90min, 2h limit, wake, battery-safe).
 - Added: 2026-07-06

@@ -18,7 +18,15 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, date
 from collections import defaultdict
 
-EXPORT = r"C:\Users\Thinkpad\Desktop\Health\apple_health_export\export.xml"
+# The Apple Health export.xml, which lives OUTSIDE the repo (it is ~532MB and personal).
+# Genericized 2026-08-05 (bash migration, W5): this was a hardcoded Windows Desktop path, so the
+# script could only ever run on one machine. Order: explicit env var, then the conventional
+# unzip location under $HOME. Nothing is guessed silently - main() fails loud with both paths
+# named if neither exists.
+EXPORT = os.environ.get(
+    "ALEX_HEALTH_EXPORT",
+    os.path.join(os.path.expanduser("~"), "Health", "apple_health_export", "export.xml"),
+)
 FMT = "%Y-%m-%d %H:%M:%S %z"
 SESSION_GAP = timedelta(minutes=60)     # new sleep session when gap exceeds this
 MIN_MAIN_SLEEP_MIN = 45                 # sessions shorter than this = nap/fragment, not main sleep
@@ -250,7 +258,9 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(EXPORT):
-        print(f"ERROR: export not found at {EXPORT}", file=sys.stderr); sys.exit(1)
+        print(f"ERROR: Apple Health export not found at {EXPORT}\n"
+              f"       Set ALEX_HEALTH_EXPORT to the export.xml path, or unzip the Apple Health\n"
+              f"       export to ~/Health/apple_health_export/.", file=sys.stderr); sys.exit(1)
 
     print(f"Streaming {EXPORT} ({os.path.getsize(EXPORT)/1e6:.0f} MB) ...", flush=True)
     step_minute, sleep_samples, n_step, n_sleep = stream(EXPORT)
