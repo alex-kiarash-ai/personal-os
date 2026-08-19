@@ -23,7 +23,7 @@ session folder; command line: `cd` into it, then run `claude`), type `/status` t
 then type `/setup`. Full walkthrough in section 2 of GETTING-STARTED.md.
 <!-- CUSTOM_END -->
 
-<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-08-17. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
+<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-08-19. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
 
 ## Quick start
 

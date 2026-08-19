@@ -55,6 +55,32 @@ Automation (n8n workflow on the Hetzner box). A faithful CLONE of the BI Applica
 ## Purpose
 Tuesday & Thursday 15:30 Stockholm (was every-72h 07:30 until 2026-07-24): discover LinkedIn AI/automation jobs per location via Bright Data, score fit against the AI CV + AI-centrality with one Claude call, gate deterministically, write a tailored AI CV + cover letter with a second Claude call, QA-gate, render two PDFs via Gotenberg, upload to a per-job folder under the AI Drive folder, log every job + cost to the AI sheet. Review-ready drafts, no auto-submit. Runs ALONGSIDE the BI pipeline (does not replace it).
 
+## HARD RULE: the AI CV master is FROZEN (Shaheen, 2026-08-19, ALWAYS)
+
+Every AI-lane CV comes from ONE file: `vault/me/cv/ai/master-ai-cv.docx`. His order, verbatim: use it
+*"Exact as it is"*, *"Do not change anything (not a word or a color or a font)"*, and *"everytime I will ask you to
+generate a CV for the AI lane, you should go back to this version ONLY and pick up the exact same text, you still
+can adapt it to the job add but using the same words and the same tens."*
+
+- **Never write an AI CV from memory, from an older CV, or from a rendered PDF.** Read the master that session.
+- **Tailoring = SELECT, REORDER, keyword-mirror.** Same words, same tense, same voice. A gap the master does not
+  cover is bridged honestly as "ready to", in his register, never by rewriting his sentences into new prose.
+- **Its punctuation is frozen.** The master carries 4 em-dashes and 3 en-dashes; the no-dash rule does NOT apply to
+  master text, only to prose the writer composes. Known deviation: the Parse Writer sanitizer turns em-dash into
+  comma, so a reused master sentence comes out with a comma in a pipeline draft.
+- **Nobody edits the .docx UNILATERALLY.** Two paths only: a new file from Shaheen, or a surgical correction he
+  explicitly authorises (first one 2026-08-19, TypeScript removed). Back up into `vault/me/cv/ai/_amendments/`,
+  rebuild the mirror with `python scripts/build-cv-master.py`, re-sync, and log it in the amendment log.
+- **Never claim TypeScript or JavaScript.** He writes neither. Both are printable-half NEGATIVE marks in
+  `resync-cv-2026-07-14.js`, so a regression fails the sync instead of reaching a recruiter.
+- **It is 3 pages of raw material and `CV One Page?` still drops anything over one page.** The writer selects; it
+  never dumps. Watch `cv_over_one_page` in `Run Counter` after any master change.
+- **`QA + Fill Templates` is a SECOND source of CV truth.** It bakes Languages and Education into the HTML template
+  independently of `MASTER_CV`, so the resync marks can all pass while the rendered PDF contradicts the master. That
+  bit twice: the 07-29 LinkedIn slug and the 08-19 Languages line. Check the template on every master change.
+- Default output is the plain ATS look (`python scripts/render-cv-ai.py`); the branded photo PDF only when he asks,
+  from the same frozen text. Full map: [[me/cv-sources]] Tier 1 #1.
+
 ## 2026-08-07 REPAIR: live graph is now 36 nodes. A run can no longer report SUCCESS while producing nothing
 
 Overnight relay run 45, `outputs/sessions/2026-08-06-n8n-engine-repair/`. Every value here was measured off the live API, an execution record or the sheet. Live fingerprint after everything: **36 nodes, active:true, `versionId a8606631-f4fb-43fd-853b-18e94de8d9f4`, `updatedAt 2026-08-07T08:48:07.505Z`**, cron `30 15 * * 2,4` intact, `limit_per_input=4`, QA jsCode sha256 `d303fb84be47b64f20630aac96e84625a23c8e9c022f656dfc0477626e5c25b3`.
@@ -98,7 +124,7 @@ Applied in lockstep with #03 via `scripts/simplify-engine.js` (2026-07-28 01:45)
 Applied in lockstep with #03 (both engines 41 -> 49 nodes, active throughout). Everything below that describes the 41-node flow (the "P3 write-first reorder" 37->41 note, the differences list) predates it. The shape changes are identical to #03 - full walkthrough in `work/03-application-engine/CLAUDE.md` §"2026-07-27 Remediation" and the per-finding record `work/03-application-engine/remediation/STATUS.md`. New nodes here too: `Poll Gate`, `All Resolved?`, `Snapshot Ready Item?`, `Format Timeout Row`, `Append Timeout Review`, `CV One Page?`, `Read Sibling Log`, `Read Bank`, `Append Seen Id` (removed: `Snapshot Ready?`). **One #14-only finding: F09 added `consultant` to this engine's match schema** so client-facing automation/AI-consulting postings reach the gate's `['ai','consultant']` allow-list and get the consultant tone instead of the dead-code direct-engineering voice. This engine's `Read Sibling Log` points at #03's `seen_ids`; #03's points here. First live exercise = the first Tue/Thu 15:30 cron after 07-27; no runtime acceptance test has run yet.
 
 ## What differs from the BI pipeline (the only changes; everything else is identical)
-1. **Embedded CV** in `Build Match Request` + `Build Writer Request` code nodes → swapped from the combined master to `master_cv_ai.md` (AI-direction CV).
+1. **Embedded CV** in `Build Match Request` + `Build Writer Request` code nodes -> `vault/me/cv/ai/master-ai-cv.md`, the GENERATED mirror of the FROZEN `master-ai-cv.docx` (Shaheen 2026-08-19). Was `master_cv_ai.md` until that day; that file is deleted. See the HARD RULE below.
 2. **Match system prompt** (`Build Match Request`) → scores fit against AI/automation roles. `target_role` ∈ {"ai", "neither"} (was powerbi/consultant/neither). `interest_score` = how central AI/agents/automation are to the role (now the headline signal).
 3. **Gate** (`Stage 3 Gate`) → allowed `target_role` = ['ai'] (plus 'consultant' back-compat). `INTEREST_WEIGHT` left at 0.4 for launch (tuning knob; AI-centrality may warrant 0.5 later). ~~`FIT_THRESHOLD` 70 unchanged.~~ **Superseded 2026-08-07: `FIT_THRESHOLD` is 50 here, live-verified, and always has been. #03 runs 70. This is a real per-engine difference, not drift to be normalized away.**
 4. **Writer prompt** (`Build Writer Request`) → AI positioning, leads with Building Alex + automation; data/BI is supporting credibility. (Model: **kimi-k3** (Moonshot, `reasoning_effort:'high'`, flipped from `'max'` the same day after a measured comparison) since 2026-07-27, moved from claude-opus-4-8 when all four job lanes went to Kimi K3, Shaheen's call; still mirrors the live BI pipeline. This was a provider swap, NOT a string swap: the `Claude *` HTTP nodes now call `api.moonshot.ai/v1/chat/completions` via the `Kimi K3 (Moonshot header)` cred, OpenAI-format bodies, `max_tokens` raised to 16384. `Compute Costs` repriced to kimi-k3 $3/$0.30/$15. See root CLAUDE.md Model Routing + manifest `meta.model_routing`.)

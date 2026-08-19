@@ -17,7 +17,7 @@ The 36 nodes are near-identical in shape to the BI engine's, and both went throu
 What's **different** inside this copy:
 
 1. **Read Search Config** reads its own sheet ("AI Job Search Pipeline", ID `11lvksV5NmLK7vWvt4oHIPTXZ1pwRVi67UrWVI3lrAHQ`) with AI-role search rows.
-2. **Build Match Request / Build Writer Request** embed the AI CV (`master_cv_ai.md`) and AI-focused instructions: the writer leads with Building Alex and automation work; BI becomes supporting credibility.
+2. **Build Match Request / Build Writer Request** embed the AI CV (`vault/me/cv/ai/master-ai-cv.md`, the generated mirror of the FROZEN `master-ai-cv.docx`; replaced `master_cv_ai.md` on 2026-08-19) and AI-focused instructions: the writer leads with Building Alex and automation work; BI becomes supporting credibility.
 3. **Claude Match+Research** scores `target_role` as "ai", **"consultant"** (added in the remediation, F09, and it survives the simplify since it lives in the match schema, not the deleted ledger nodes), or "neither"; its interest score measures AI-centrality.
 4. **Stage 3 Gate** lets `ai` and `consultant` roles through. **Fit threshold is 50 here, not 70** (measured live 2026-08-07 and every earlier read; the "70, same as BI" line this doc used to carry was copied from the twin and was never true of this workflow). The lower bar is deliberate for a career-changer lane.
 5. **Create Drive Folder / uploads** file into the AI Drive folder (`18HUzkLQtKCBd_VGMjBxS94jy8UAJIP4Z`).
