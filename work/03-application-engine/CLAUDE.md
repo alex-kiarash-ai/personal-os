@@ -212,3 +212,16 @@ After #14 died at `Upload CV PDF` on a transient `read ECONNRESET` (exec 1208, 0
 
 ## Trifecta
 Gate: **draft-only**. Legs: private_data=true, untrusted_content=true, external_comm=true (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). All three legs true: private CV + untrusted job postings + outbound-destined drafts. Alex drafts + stages, Shaheen submits. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.
+
+## Filename law (STANDING ORDER, Shaheen 2026-08-20, every lane, every producer)
+
+His words: *"NEVER AGAIN when you prduce a new CV for any compay, mention the company name in the
+file name itself. Nver again. fix this! Only my name and CV or a cover letter."*
+
+Only two filenames may ship: **`Shaheen_Kiarash_CV.{pdf,docx}`** and
+**`Shaheen_Kiarash_Cover_Letter.{pdf,docx}`** (the live engines' `Shaheen_Kiarash_CoverLetter.pdf`
+also passes). No company, no role, no lane, no date, no version. Those belong in the FOLDER name and
+the ledger row, which never leave this machine. The filename travels with the attachment: a
+per-company name tells the recruiter this is one of many tailored versions and, on a forward, names
+the target. Enforced by `node scripts/outputs-ledger.js validate` (exit 2), which the Monday recovery
+sweep C12 calls; files dated before 2026-08-20 are grandfathered as already-sent history.

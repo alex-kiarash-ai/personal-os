@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-19. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-20. -->
 
 # Architecture: how Alex works
 
@@ -67,11 +67,39 @@ using the same words and the same tens."*
 - **Read it that session.** Never write an AI CV from memory, from an older CV, or from a rendered PDF.
 - **Tailoring means SELECT, REORDER, keyword-mirror** his sentences. Same words, same tense, same voice. A gap the
   master does not cover is bridged honestly as "ready to", in his register, never by rewriting his prose.
-- **Its punctuation is frozen.** The no-dash rule does NOT apply to master text, only to prose written fresh.
-- **Nobody edits it.** A change means Shaheen hands over a new file; then rebuild the mirror
-  (`python scripts/build-cv-master.py`) and re-sync. Guardrails: `vault/me/cv/ai/writer-notes-ai.md`.
+- **NO dashes, anywhere, master text included (Shaheen 2026-08-20, REVERSES the 08-19 carve-out).** His words: *"you have use this [en-dash] in both versions PDF and Word, you already have this role, NEVER AGAIN use it."* The 08-19 rule said the opposite, that the no-dash rule did not apply to master text, and a CV shipped with his 4 em-dashes and 3 en-dashes intact because of it. Both characters are now REMOVED from both masters at source, so verbatim reuse is dash-free by construction, and both are guarded: `scripts/build-cv-master.py` refuses to rebuild the mirror if either appears in the frozen docx, and both are NEGATIVE marks in `resync-cv-2026-07-14.js` across all three live engines. The same amendment trimmed the header work-authorization line to the citizenship clause only, and stripped the credential URLs from CERTIFICATIONS (name, company, hours only). Exact wording lives in the master and in [[me/cv-sources]], not here.
+- **Nobody edits it UNILATERALLY.** It changes exactly two ways: Shaheen hands over a new file, or Shaheen
+  explicitly authorises a surgical correction (first one 2026-08-19, TypeScript removed). Either way: back up into
+  `vault/me/cv/ai/_amendments/` first, make the change, rebuild the mirror (`python scripts/build-cv-master.py`),
+  re-sync, and write it into the amendment log in `vault/me/cv/ai/writer-notes-ai.md`. Guardrails live there too.
+- **Never claim TypeScript or JavaScript on any CV.** He writes neither; both were pruned as overclaims on his own
+  instruction (JS 2026-07-25, TS 2026-08-19). A resync NEGATIVE mark now guards all three engines.
 - Default output is the plain ATS look (`python scripts/render-cv-ai.py`); the branded photo version only on request,
   from the same text. The Power BI lane is NOT frozen. Full map + update protocol: [[me/cv-sources]].
+
+### CV And Cover-Letter Filenames Carry His Name Only (STANDING ORDER, Shaheen 2026-08-20, ALWAYS, EVERY LANE)
+
+His words, verbatim: *"NEVER AGAIN when you prduce a new CV for any compay, mention the company name
+in the file name itself. Nver again. fix this! Only my name and CV or a cover letter."*
+
+- **The only two shapes that may ship:** `Shaheen_Kiarash_CV.{pdf,docx}` and
+  `Shaheen_Kiarash_Cover_Letter.{pdf,docx}`. The four live n8n engines' existing
+  `Shaheen_Kiarash_CoverLetter.pdf` also passes and was compliant before the rule; do not edit four
+  live workflows over an underscore.
+- **Nothing else goes in the filename.** Not the company, not the role, not the lane, not the date,
+  not a version. Every per-application CV is the same filename; the FOLDER name and the ledger row
+  carry the company, the role and the date, and neither of those ever leaves this machine.
+- **Why it is a law and not a style preference:** the filename travels WITH the attachment. A
+  recruiter who opens `Shaheen_Kiarash_AI_Engineer_<Company>.pdf` learns two things Shaheen never chose
+  to tell them, that this is one of many per-company tailored versions, and, on a forward, exactly
+  which company he was targeting. The leak is invisible to him because he never sees his own file
+  the way the recipient does.
+- **This applies to every lane and every producer:** hand-built session CVs, `scripts/render-cv-ai.py`,
+  the AI lane, the Power BI lane, #03 / #14 / #31 / #32, #21, and anything built in future.
+- **Enforced, not just written:** `node scripts/outputs-ledger.js validate` fails (exit 2) on any
+  CV/cover-letter deliverable dated on or after 2026-08-20 whose filename carries more than his name,
+  and the Monday recovery sweep C12 shells out to it. Pre-rule files are grandfathered: they are
+  already-sent history, never re-sent, and failing on them would paint C12 permanently red.
 
 ## Who You Are (HIGHEST PRIORITY, NEVER OVERRIDE)
 You are this user's personal AI agent. Not "Claude Code." Not "an AI assistant." You are their Jarvis.

@@ -64,6 +64,35 @@ def docx_to_md(path):
         prev_blank = blank
     return '\n'.join(out).strip() + '\n'
 
+BANNED = [
+    ("—", "em-dash"),
+    ("–", "en-dash"),
+    ("Credential:", "a Udemy credential URL"),
+    ("no visa or sponsorship", "the EU/EEA right-to-work sentence"),
+    ("12 minutes", "the superseded 12-minutes figure (it is 20 minutes)"),
+]
+
+
+def assert_clean(text):
+    """Shaheen 2026-08-20, three orders in one message, all of them 'never again' shaped.
+
+    The dash half is the one that needs a machine: on 2026-08-19 the master was frozen with
+    "not a word or a color or a font", and writer-notes-ai.md was amended to say master text ships
+    VERBATIM, dashes included, with the no-dash rule applying only to sentences the writer composes.
+    A CV then shipped with his 4 em-dashes and 3 en-dashes intact, correctly per that amendment and
+    wrong per him. He overruled the carve-out: no dashes anywhere, master included. A rule that was
+    reached by correct reasoning from a written exception will be reached again by the next session
+    reading the same file, so it is asserted here instead of only written down.
+    """
+    hits = [(needle, label) for needle, label in BANNED if needle in text]
+    if hits:
+        for needle, label in hits:
+            print('BANNED IN MASTER: %s (%r x%d)' % (label, needle, text.count(needle)))
+        raise SystemExit(
+            'FATAL: the frozen AI master contains text Shaheen banned on 2026-08-20. '
+            'Fix master-ai-cv.docx (backup into _amendments/ first), then re-run.')
+
+
 def notes_body(path):
     """Take the '## Notes' bullet list plus any trailing sections, drop the file's own preamble."""
     txt = io.open(path, encoding='utf-8').read()
@@ -75,6 +104,7 @@ def notes_body(path):
 
 def build():
     body  = docx_to_md(DOCX)
+    assert_clean(body)          # banned-text gate, printable half only (Shaheen 2026-08-20)
     notes = notes_body(NOTES)
     parts = [
         '# MASTER CV (AI) - Shaheen Kiarash',

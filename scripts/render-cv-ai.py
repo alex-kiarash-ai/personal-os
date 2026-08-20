@@ -20,7 +20,10 @@ import os, shutil, subprocess, sys, datetime, tempfile
 
 ROOT    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MASTER  = os.path.join(ROOT, 'vault', 'me', 'cv', 'ai', 'master-ai-cv.docx')
-NAME    = 'Shaheen_Kiarash_AI_Automation_Engineer'
+# Filename law (Shaheen, 2026-08-20): the file a recruiter receives carries his NAME and nothing
+# else. No company, no role, no date. Those live in the folder name and the ledger row, which
+# never leave this machine. Guarded by scripts/outputs-ledger.js validate (recovery C12).
+NAME    = 'Shaheen_Kiarash_CV'
 SOFFICE = r'C:\Program Files\LibreOffice\program\soffice.exe'
 
 def main():

@@ -13,8 +13,11 @@
 //   node scripts/outputs-ledger.js reconcile          self-heal: append skeleton rows for any
 //                                                     unledgered deliverable on disk, then render.
 //                                                     Idempotent. Runs nightly via vault-backup.ps1.
-//   node scripts/outputs-ledger.js validate           naming check: outputs/ top-level dirs must be
-//                                                     manifest keys or declared exemptions.
+//   node scripts/outputs-ledger.js validate           naming check, two legs: (1) outputs/ top-level dirs
+//                                                     must be manifest keys or declared exemptions;
+//                                                     (2) CV/cover-letter files carry his NAME ONLY, never a
+//                                                     company or role (Shaheen 2026-08-20, grandfathered
+//                                                     to files dated on/after that day).
 //                                                     Exit 0 ok / 2 violation (check.ps1 C12 calls this).
 //   node scripts/outputs-ledger.js render             regenerate both INDEX files from the ledger.
 //
@@ -188,7 +191,27 @@ function reconcile() {
   if (rows.length > 20) console.log(`  ... and ${rows.length - 20} more`);
 }
 
+// --- CV / cover-letter filename law (Shaheen, 2026-08-20, verbatim: "NEVER AGAIN when you
+// produce a new CV for any compay, mention the company name in the file name itself. Nver again.
+// fix this! Only my name and CV or a cover letter").
+// WHY it is a rule and not a preference: the filename travels WITH the attachment. A recruiter who
+// receives Shaheen_Kiarash_AI_Engineer_<Company>.pdf learns two things he never chose to tell them,
+// that this is one of many per-company tailored versions, and (on a forward) which company he was
+// targeting. The company, the role and the date belong in the FOLDER name and the ledger row, which
+// are his and never leave the machine.
+// Both CoverLetter spellings pass: the four live n8n engines already emit Shaheen_Kiarash_CoverLetter.pdf
+// and were compliant before the rule existed, so an underscore is not worth editing four live workflows.
+// GRANDFATHERED: only deliverables dated on/after the rule date are enforced. Pre-rule files are
+// already-sent history that is never re-sent (the point-in-time convention in vault/me/cv-sources.md),
+// and failing on them would paint C12 permanently red, which is how a real check gets ignored.
+const CV_RULE_FROM = '2026-08-20';
+const CV_FAMILY  = /^shaheen[_-]kiarash/i;
+const CV_ALLOWED = /^Shaheen_Kiarash_(CV|Cover_?Letter)\.(pdf|docx)$/;
+
 function validate() {
+  let failed = false;
+
+  // leg 1: outputs/ top-level dirs must be manifest keys or declared exemptions
   const names = manifestNames();
   const bad = [];
   for (const e of fs.readdirSync(OUT, { withFileTypes: true })) {
@@ -197,11 +220,30 @@ function validate() {
     bad.push(e.name);
   }
   if (bad.length) {
+    failed = true;
     console.log(`VALIDATE FAIL: outputs/ top-level dir(s) not a manifest key or declared exemption: ${bad.join(', ')}`);
     console.log('Fix: rename to the registry name, or (one-offs) move under outputs/sessions/, or add a justified exemption in scripts/outputs-ledger.js.');
-    process.exit(2);
+  } else {
+    console.log('validate: outputs/ top-level naming clean.');
   }
-  console.log('validate: outputs/ top-level naming clean.');
+
+  // leg 2: CV / cover-letter filenames carry his name and nothing else
+  const badName = [];
+  for (const f of deliverablesOnDisk()) {
+    const base = path.basename(f);
+    if (!CV_FAMILY.test(base) || CV_ALLOWED.test(base)) continue;
+    if (dateFor(f) < CV_RULE_FROM) continue;
+    badName.push(rel(f));
+  }
+  if (badName.length) {
+    failed = true;
+    console.log(`VALIDATE FAIL: CV/cover-letter filename carries more than his name: ${badName.join(', ')}`);
+    console.log('Fix: rename to Shaheen_Kiarash_CV.<ext> or Shaheen_Kiarash_Cover_Letter.<ext>. The company, the role and the date live in the FOLDER name and the ledger row, never in the file a recruiter receives (Shaheen, 2026-08-20).');
+  } else {
+    console.log('validate: CV/cover-letter filenames clean (name only).');
+  }
+
+  if (failed) process.exit(2);
 }
 
 // links: comma-separated, from --link (upgrade P11, e2). vault/*.md paths become [[wiki links]]

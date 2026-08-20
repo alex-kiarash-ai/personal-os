@@ -131,3 +131,16 @@ V12 fails the build if this section stops naming the declared gate.
 Beyond the universal list: the drain's run_log row exists for the run; pass rate recorded against #31's
 banked count (the lane's kill criterion); any model/cron change verified by a GET read-back in the same
 run and reflected in manifest `meta.model_routing` / `n8n_cron`.
+
+## Filename law (STANDING ORDER, Shaheen 2026-08-20, every lane, every producer)
+
+His words: *"NEVER AGAIN when you prduce a new CV for any compay, mention the company name in the
+file name itself. Nver again. fix this! Only my name and CV or a cover letter."*
+
+Only two filenames may ship: **`Shaheen_Kiarash_CV.{pdf,docx}`** and
+**`Shaheen_Kiarash_Cover_Letter.{pdf,docx}`** (the live engines' `Shaheen_Kiarash_CoverLetter.pdf`
+also passes). No company, no role, no lane, no date, no version. Those belong in the FOLDER name and
+the ledger row, which never leave this machine. The filename travels with the attachment: a
+per-company name tells the recruiter this is one of many tailored versions and, on a forward, names
+the target. Enforced by `node scripts/outputs-ledger.js validate` (exit 2), which the Monday recovery
+sweep C12 calls; files dated before 2026-08-20 are grandfathered as already-sent history.
