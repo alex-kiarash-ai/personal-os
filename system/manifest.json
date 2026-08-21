@@ -129,7 +129,8 @@
       "lint",
       "new",
       "cron-setup",
-      "brand"
+      "brand",
+      "port-to-kit"
     ],
     "known_work_folders": [
       "voice",
@@ -1263,6 +1264,37 @@
       "first_fire_kind": "live",
       "n8n": "sxEYRyeHH7i1mHzb",
       "n8n_cron": "43 15 * * 2,4",
+      "claude_md_sha": null
+    },
+    {
+      "num": 33,
+      "name": "revit-architect",
+      "title": "Revit Architect",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand (any Revit job) + the five-file protocol gate before execution",
+      "one_liner": "Runs any Revit job under Shaheen's five-file architect protocol: load File 01 then File 02 always, route to 03/04/05 by task scale, then resolve every HARD GATE question in order from the live model, the supplied source, session state, and only then ASK. Never infers, never defaults, and only an explicit skip bypasses a gate, which forces a stated assumption, a log line, a provisional label and a downgrade to the most conservative action. No compliance verdict without jurisdiction and code edition. Drives the live Revit MCP bridge proven 2026-08-20.",
+      "docs": "33-revit-architect.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/33-revit-architect",
+      "commands": [
+        "revit"
+      ],
+      "status_md": "vault/projects/revit-architect/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "queue-only"
+      },
+      "first_fire": "2026-08-20",
+      "first_fire_kind": "drill",
+      "n8n": null,
       "claude_md_sha": null
     }
   ]

@@ -23,7 +23,7 @@ session folder; command line: `cd` into it, then run `claude`), type `/status` t
 then type `/setup`. Full walkthrough in section 2 of GETTING-STARTED.md.
 <!-- CUSTOM_END -->
 
-<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-08-20. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
+<!-- GENERATED below this line - do not hand-edit. Source: templates/readme.template.md + system/manifest.json. Regenerate: node scripts/generate-alex.js. Generated 2026-08-21. The welcome block above (between CUSTOM_START/CUSTOM_END) is the ONE hand-written zone and is preserved verbatim on every regeneration. -->
 
 ## Quick start
 
@@ -32,7 +32,7 @@ then type `/setup`. Full walkthrough in section 2 of GETTING-STARTED.md.
 - **The projects, in plain language:** [projects/README.md](projects/README.md) - one page per automation.
 - **The live n8n workflows:** [n8n/](n8n/) - node-by-node explanations of what runs on the server.
 
-Right now the registry holds **31 non-retired automations** (18 LIVE). The source of truth is `system/manifest.json`; every table and count in these docs is generated from it by `scripts/generate-alex.js`, then validated. Edit sources, not views.
+Right now the registry holds **32 non-retired automations** (18 LIVE). The source of truth is `system/manifest.json`; every table and count in these docs is generated from it by `scripts/generate-alex.js`, then validated. Edit sources, not views.
 
 ## License
 
