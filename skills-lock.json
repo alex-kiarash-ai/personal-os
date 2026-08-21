@@ -359,6 +359,14 @@
       "skillPath": "skills/n8n-workflow-patterns/SKILL.md",
       "computedHash": "85dee5bf1dc32c6fd3d65faac433714dd0b9919ec0d36c0359c2716b709a22d2"
     },
+    "no-ai-slop": {
+      "source": "petergyang/no-ai-slop",
+      "sourceType": "github",
+      "sourceCommit": "d30eddb9e04562234f2070b5ee63ca4649d9a05e",
+      "skillPath": "skills/no-ai-slop/SKILL.md",
+      "computedHash": "615e340ce2dd58641454c321d06ca22873e2771a547a6694c4c81df0bef2afbf",
+      "note": "DATA-only install of SKILL.md + eval.md (both plain markdown, banned-pattern gate clean: zero scripts, hooks, remote fetches, exfil). MIT. SKILL.md carries a locally-added ALEX SCOPE GUARD and a rewritten frontmatter description, so computedHash intentionally differs from upstream. soul.md outranks this file on every voice conflict."
+    },
     "obsidian-bases": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
