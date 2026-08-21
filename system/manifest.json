@@ -1292,8 +1292,8 @@
         "external_comm": false,
         "gate": "queue-only"
       },
-      "first_fire": "2026-08-20",
-      "first_fire_kind": "drill",
+      "first_fire": "2026-08-21",
+      "first_fire_kind": "live",
       "n8n": null,
       "claude_md_sha": null
     }

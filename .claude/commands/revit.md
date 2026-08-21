@@ -1,6 +1,6 @@
 # /revit - Run a Revit Job Under the Five-File Protocol
 
-Spec: `work/33-revit-architect/CLAUDE.md` (read it first). Gate contract: `work/33-revit-architect/gates.json`. Protocol files (the source of truth, never restated): `C:\Users\Thinkpad\Desktop\Architecht test`.
+Spec: `work/33-revit-architect/CLAUDE.md` (read it first). Gate contract: `work/33-revit-architect/gates.json`. Protocol files (the source of truth, never restated): `C:\Users\Thinkpad\Desktop\01 Projects\Revit Bridge\Architect Test Prompts`.
 
 Usage: `/revit` (optionally with the job inline, or with a brief / standards doc / project path attached).
 

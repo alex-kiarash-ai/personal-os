@@ -266,3 +266,9 @@ work/*/secrets/
 
 # --- 8. Extension-shaped rules widened where the sibling extension was open ---
 work/03-application-engine/powerbi/*.csv
+
+# Revit Architect (#33) - derived from Shaheen's five protocol files, which he chose to keep
+# OFF the public repo until the function proves itself (2026-08-20). gates.json and the spec
+# restate the substance of those files, so publishing them would defeat that decision.
+# Un-ignore this line the day he rules that it publishes.
+work/33-revit-architect/
