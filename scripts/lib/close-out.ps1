@@ -48,6 +48,65 @@ if (-not $env:ALEX_RUN_ID) {
 }
 function Get-AlexRunId { return $env:ALEX_RUN_ID }
 
+# --- P3.8 STALL WATCHDOG (run-47 merged plan, 2026-08-23) ----------------------------------------
+# VERIFIED BEFORE BUILDING (the plan's own verify-first condition): today the ONLY backstop against a
+# hung `claude -p` is the Task Scheduler job's `ExecutionTimeLimit`, measured at PT2H. Two problems
+# with that as the sole guard. It burns up to two hours of the usage window on a run that is already
+# dead; and when Task Scheduler kills the process the wrapper never reaches Invoke-CloseOutCheck, so
+# there is no RED push and no log line - the run simply vanishes, which is the "job cannot announce
+# its own failure" class this whole layer exists to kill.
+#
+# This runs the command with a wall-clock cap well under PT2H, kills the process TREE on breach, and
+# returns a distinct 'stalled' reason so the caller can push RED with a diagnosable state rather than
+# a generic failure. Stall and failure are different diagnoses and must not share a word.
+#
+# NOT WIRED INTO ANY WRAPPER IN THIS RUN, deliberately: changing how 17 live scheduled jobs invoke
+# claude is the highest-blast-radius edit in the whole plan, and it belongs in its own session with
+# per-wrapper verification. The function ships proven so adoption is a one-line change per wrapper.
+# $Arguments is a single pre-quoted STRING, not an array, deliberately: the intended payload is
+# `claude -p "<a long prompt>"`, and array-joining would mangle its quoting in a way that only shows
+# up at 05:00 on a live lane.
+function Invoke-AlexWithWatchdog {
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [string]$Arguments = '',
+        [int]$TimeoutMinutes = 25,                    # generous: a real brief/triage run is minutes
+        [Parameter(Mandatory)][string]$Log
+    )
+    # .NET Process, NOT Start-Process. PS 5.1 trap caught by the fixture: `Start-Process -PassThru`
+    # WITH -RedirectStandardOutput returns an object whose ExitCode is permanently EMPTY (verified
+    # empty after a timed wait, a full wait and a Refresh). A caller testing `$r.Code -ne 0` would
+    # read $null on a genuinely failed run and call it clean - a silent wrong verdict, which is the
+    # one failure mode this function exists to prevent.
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $FilePath
+    $psi.Arguments = $Arguments
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    # Read both streams ASYNCHRONOUSLY before waiting: a child that fills the ~4KB pipe buffer while
+    # the parent blocks in WaitForExit deadlocks forever, which would turn this watchdog into the
+    # very hang it was built to catch.
+    $outTask = $proc.StandardOutput.ReadToEndAsync()
+    $errTask = $proc.StandardError.ReadToEndAsync()
+    if (-not $proc.WaitForExit([int]($TimeoutMinutes * 60 * 1000))) {
+        # Kill the TREE: `claude` spawns children, and killing only the parent leaves them holding the
+        # quota. taskkill /T is the only reliable tree kill on PS 5.1.
+        try { & taskkill /PID $proc.Id /T /F 2>&1 | Out-File -Append -Encoding utf8 $Log } catch {}
+        "STALLED: no exit after $TimeoutMinutes min - process tree killed (run=$($env:ALEX_RUN_ID))" | Out-File -Append -Encoding utf8 $Log
+        $partial = ''
+        try { $partial = $outTask.Result } catch {}
+        return @{ Out = $partial; Code = 124; Stalled = $true }
+    }
+    $proc.WaitForExit()
+    $so = ''; $se = ''
+    try { $so = $outTask.Result } catch {}
+    try { $se = $errTask.Result } catch {}
+    return @{ Out = ("$so`n$se").Trim(); Code = [int]$proc.ExitCode; Stalled = $false }
+}
+
 # --- P3 quota-state writer (upgrade 2026-07-12, design 1.7.1) -----------------------------------
 # One shared code path for flagging a detected cap. Kind 'plan' = the Claude subscription limit
 # (auto-resets in hours; the gate's 6h TTL handles recovery). Kind 'api' = the Anthropic Console

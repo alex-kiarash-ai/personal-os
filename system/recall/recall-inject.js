@@ -28,6 +28,17 @@ const path = require('path');
 const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
 
+/*
+ * P3.3 kill-switch (run-47 merged plan, 2026-08-23). One env var disables a misbehaving hook for a
+ * whole session without editing .claude/settings.json mid-flight, which is the only lever available
+ * today and means restarting to change it. ECC's runner gives every hook this for free
+ * (ECC_DISABLED_HOOKS); Alex takes the idea and none of the code.
+ *   set ALEX_DISABLED_HOOKS=recall-inject   ->  this hook becomes a silent no-op
+ */
+if (String(process.env.ALEX_DISABLED_HOOKS || '').split(',').map((s) => s.trim()).includes('recall-inject')) {
+  process.exit(0);
+}
+
 const BUDGET_MS = 150;
 const MAX_FACTS = 5;
 const MAX_SNIPPETS = 3;

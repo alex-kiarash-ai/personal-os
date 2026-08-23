@@ -665,6 +665,34 @@ try {
 } catch { Add-Drift 'mail-channels' "mail-channel-check could not run: $($_.Exception.Message)" }
 
 # ---------------------------------------------------------------- report
+# --- C29 hook liveness (P3.7, run-47 merged plan, 2026-08-23): every wired hook leaves a breadcrumb,
+# and until now NOTHING asserted that the breadcrumbs keep arriving. A hook that silently stops
+# firing is invisible for weeks: the voice hook already died quietly once (its own header records
+# it), and the recall/capture hooks would fail exactly as quietly because both are fail-OPEN by
+# design - which is correct for a prompt path and is precisely why their silence needs a separate
+# watcher. Asserts each hook produced evidence inside its own window, sized to how often that hook
+# can legitimately fire. NEVER-FIRED is reported in different words from WENT-QUIET (the C20/F-14
+# rule): a hook wired today has no history yet, and saying "stale" would be a lie.
+$hookProbes = @(
+    @{ name = 'UserPromptSubmit/recall-inject';   path = 'system\recall\recall-metrics.jsonl';        days = 3 },
+    @{ name = 'UserPromptSubmit/capture-typed';   path = "outputs\typed\transcripts\$(Get-Date -Format 'yyyy-MM-dd').md"; days = 3; todayOnly = $true },
+    @{ name = 'PreCompact|SessionEnd|ToolFail';   path = 'system\lifecycle.jsonl';                    days = 14 }
+)
+foreach ($hp in $hookProbes) {
+    $hpFull = Join-Path $repo $hp.path
+    if (-not (Test-Path $hpFull)) {
+        # Never-fired: state it as such. For the per-day transcript this is normal on a quiet day.
+        if (-not $hp.todayOnly) {
+            Add-Drift 'hook-liveness' "$($hp.name): no evidence file yet at $($hp.path) - NEVER FIRED (not stale). Expected once the hook runs for the first time; if it stays empty past a few sessions the wiring in .claude/settings.json is dead."
+        }
+        continue
+    }
+    $ageDays = ((Get-Date) - (Get-Item $hpFull).LastWriteTime).TotalDays
+    if ($ageDays -gt $hp.days) {
+        Add-Drift 'hook-liveness' "$($hp.name): last evidence $([math]::Round($ageDays,1))d ago in $($hp.path), window is $($hp.days)d - the hook went QUIET. Check .claude/settings.json wiring and the script's own log."
+    }
+}
+
 # --- C28 user-scope skill inventory (P2.1, run-47 merged plan, 2026-08-23): `~/.claude/skills/` is
 # entirely OUTSIDE skills-lock.json, the S7 hash sweep and every audit gate this repo owns. Those
 # guard `.agents/skills/` (project scope) only. The run-47 assessment found the consequence live:
