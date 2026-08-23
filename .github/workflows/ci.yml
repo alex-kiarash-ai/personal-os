@@ -35,6 +35,10 @@ jobs:
         run: node scripts/tests/test-protected-guard.js
       - name: Untrusted-lane egress guard (injection wall)
         run: node scripts/tests/test-untrusted-guard.js
+      - name: Lessons compounding + quarantine (run-47 P1.7*/P1.8*)
+        run: node scripts/tests/test-lessons-p1.js
+      - name: Guards are alive (verify the verifiers, run-47 P4.6)
+        run: node scripts/tests/test-guards-alive.js
       - name: Vault-search freshness gate (sandboxed index)
         run: python scripts/tests/test_vault_search_freshness.py
       - name: Soul-canary verdict function (fails closed)

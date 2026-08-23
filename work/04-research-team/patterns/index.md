@@ -32,6 +32,36 @@ Reusable team architectures from past research runs. Check here BEFORE designing
 | [decision-brief-diagnose-solve-rank](decision-brief-diagnose-solve-rank.md) | decision-brief | 1 | "Diagnose this systemic problem in my own system, design N solutions, stress + rank them." Owner-dictated 3-agent relay, master corrects between EVERY handoff via written scratchpad artifacts (corrections block + full corrected text, F/C/R ids). Measurement replaces citation (every number carries its command; master re-derives). Run 44 (file bloat): all three review passes overturned something real - a 40% token-ratio error, a 2.4x disk undercount, a definition self-reference, and the stress agent's arithmetic kill of a solution's steady-state claim. |
 | [other-medical-document-translate-qualify-debate](other-medical-document-translate-qualify-debate.md) | other | 2 | "Read this foreign-language medical document and tell my family what it means." Fixed document, no external research, lay audience in a second language, high harm from a confident wrong answer. 3 SEQUENTIAL master-gated agents: translator+validator (independent flag per row, absences verified by search) -> senior physician (severity, together-not-separately, ranked differential, management) -> adversarial (rules on the master's BINDING challenges, audits point by point, hunts what both missed, resolves into the lay-language final). Master extracts the source ITSELF before agent 1 so the agent becomes a second independent read, recomputes every arithmetic claim, and hands the adversary a specific asymmetry rather than "go attack this". Retro-fitted after run 43; run 23 was the unwritten first. Key lessons: a printed lab flag is not automatically a patient finding (an IMG# "L" was a range-config defect provable from inside the document); the adversarial seat pays off in the DIFFERENTIAL (run 23 added celiac, run 43 caught an alpha-thal diagnosis prescribed a beta-thal test); a conditional does not survive translation; RTL means wrap in logical order and shape per line at draw time. |
 
+## Findings vocabulary + convergence law (P4.1/P4.2/P4.5, run-47 merged plan, 2026-08-23)
+
+Adopted after run 47 measured the cost of NOT having them: every relay invented its own verdict
+words (MUST/SHOULD/NICE, BLOCKER/MINOR/NIT, SHIP/FIX/REJECT, FIT/MISFIT), each fine locally and none
+comparable across runs or mergeable by a machine.
+
+**Severity, one scale, all lanes:** `CRITICAL` / `HIGH` / `MEDIUM` / `LOW`. Existing pattern files
+keep their local words; the mapping is BLOCKER=CRITICAL, MUST=HIGH, SHOULD=MEDIUM, NIT/NICE=LOW.
+**CRITICAL and HIGH require PROOF** - a quoted evidence span plus a `file:line` or URL anchor, which
+is the lane evidence law now tied to severity. **Severity inflation is a lane defect**, named as such:
+a missing doc line is never HIGH, and a lane that inflates trains the master to discount it.
+
+**Convergence law.** When merging multi-lane findings: dedup by NORMALIZED EVIDENCE ANCHOR, keep the
+STRICTEST severity, and label a finding reached independently by two or more lanes as the TOP
+confidence tier. Independent convergence is the strongest internal signal this pipeline produces -
+both run 46 and run 47 produced one (the shared run_id; the lessons-integrity family) and both were
+the most trustworthy items in their runs. Tiering: three-source > two-source > single-lane.
+
+**Fail-closed aggregation.** `node scripts/findings-gate.js <findings.jsonl>` implements the above
+plus the rules ported from ECC's orch-review: a CRITICAL/HIGH finding is cleared ONLY by an
+adversarial verifier that refutes it at confidence >= 0.8; a weak refutation, an errored verifier, a
+missing verdict or a failed lane all leave it BLOCKING; malformed input is rejected, never approved.
+ADVISORY by default (`--strict` to make it exit nonzero), matching the close-out grader's stance: a
+gate that blocks before it has earned trust gets worked around.
+
+**Per-seat tool grants.** Each pattern's seat list should carry a `tools:` line, added on the
+pattern's next reuse. QC and verifier seats are READ-ONLY (Read/Grep/Glob/WebFetch); only builder
+seats get Write. A QC seat that cannot write cannot "fix" the artifact it is judging, which is the
+whole point.
+
 Rules:
 - A pattern earns its file by being used, not imagined. No speculative patterns.
 - Update `last_used` and `times_used` on every reuse; append to Lessons when something changed.
