@@ -140,9 +140,17 @@ try {
     # only these named folders ride along.
     # weekly-exec-report added 2026-07-11: #10 writes there going forward (reports/ frozen as legacy).
     # ledger.jsonl added same day: hand-written desc rows are not regenerable (skeleton rows are).
-    $keepOutputs = @('outputs/alex-costs','outputs/reports','outputs/runway','outputs/expense-wrangler',
-                     'outputs/weekly-exec-report','outputs/ledger.jsonl') |
-                   Where-Object { Test-Path $_ }
+    # transcripts added 2026-08-23 (P0.2, run-47 merged plan; run-46 finding N2): outputs/typed/transcripts
+    # and outputs/voice/transcripts are the SOUL CORPUS SOURCE that soul.md calls primary, and they were
+    # in neither git (outputs/ is gitignored) nor this tar (outputs/ is excluded as a class), so the
+    # corpus every voice-matched draft is built from existed on exactly one disk.
+    $keepOutputsWanted = @('outputs/alex-costs','outputs/reports','outputs/runway','outputs/expense-wrangler',
+                     'outputs/weekly-exec-report','outputs/ledger.jsonl',
+                     'outputs/typed/transcripts','outputs/voice/transcripts')
+    $keepOutputs = @($keepOutputsWanted | Where-Object { Test-Path $_ })
+    # P0.3: a re-include named in the list but absent on disk is AMBER, never silent.
+    $keepMissing = @($keepOutputsWanted | Where-Object { -not (Test-Path $_) })
+    if ($keepMissing.Count) { Say "AMBER keepOutputs: named but absent on disk: $($keepMissing -join ', ')" }
     $list = @($list) + @($keepOutputs)
     $n = ($list | Measure-Object).Count
     if ($n -lt 5) { throw "include list too small ($n paths) - refusing to ship a thin backup" }
@@ -161,11 +169,36 @@ try {
     #     (bsdtar strips drive prefixes and would flatten the layout). Only the REAL folder is taken:
     #     $identityLeaf holds the actual files, and the other location is a junction into it (F-09 fix),
     #     so taking just this one path stores each document exactly once and never traverses the link.
-    $identityRoot = Join-Path $env:USERPROFILE 'Desktop\Alex Project'
-    $identityLeaf = 'Story & Guides'
-    $identityPath = Join-Path $identityRoot $identityLeaf
-    $identityOk = Test-Path $identityPath
-    if (-not $identityOk) { Say "WARNING identity docs: '$identityPath' not found - the master reference + plain-English guide are NOT in this backup" }
+    #     PATH SOURCE (P0.1, run-47 merged plan, 2026-08-23): the directory is READ FROM THE MANIFEST
+    #     (`meta.paths.identity_doc_real_dir`), never hardcoded here. Root cause it kills: this script
+    #     held a FOURTH hand-written copy of that path; the 2026-08-21 Desktop move killed three copies,
+    #     the 08-23 pointer-fix session found two of them, and this one survived unnoticed while the
+    #     nightly run logged a WARNING and still reported OK (run-46 finding N1, two nights green with
+    #     zero off-machine copy of the two standing-order documents). One source of truth; a future move
+    #     updates the manifest and every consumer follows.
+    $identityReal = $null
+    try {
+        $maniPaths = (Get-Content (Join-Path $repo 'system\manifest.json') -Raw | ConvertFrom-Json).meta.paths
+        if ($maniPaths.identity_doc_real_dir) {
+            $identityReal = [Environment]::ExpandEnvironmentVariables($maniPaths.identity_doc_real_dir)
+        }
+    } catch { Say "identity docs: manifest read failed: $($_.Exception.Message)" }
+
+    if ($identityReal) {
+        $identityRoot = Split-Path $identityReal -Parent
+        $identityLeaf = Split-Path $identityReal -Leaf
+        $identityPath = $identityReal
+        $identityOk   = Test-Path $identityPath
+        if (-not $identityOk) { Say "WARNING identity docs: manifest path '$identityPath' not found on disk - the master reference + plain-English guide are NOT in this backup" }
+    } else {
+        $identityRoot = $null; $identityLeaf = $null; $identityPath = '(manifest key meta.paths.identity_doc_real_dir missing)'
+        $identityOk = $false
+        Say "WARNING identity docs: manifest key meta.paths.identity_doc_real_dir is missing - refusing to guess a path"
+    }
+    # P0.3: absence is a VERDICT, not a log line. The run still ships the vault (refusing to back up
+    # everything because two documents moved would be the worse failure), then reports RED and exits
+    # nonzero so the regression can never read as a green night again.
+    $identityMissing = -not $identityOk
 
     if ($DryRun) {
         Say "DRYRUN: would tar $n paths + the identity docs ('$identityLeaf' present: $identityOk) -> gpg -> scp $remoteName to n8n:/opt/alex-backups (keep $KEEP)"
@@ -270,12 +303,22 @@ if ((Test-Path $tokenFile) -and -not $DryRun) {
     $token = (Get-Content $tokenFile -Raw).Trim()
     if ($null -eq $reason) {
         # F1: the primary succeeded. A CONFIGURED B2 leg that FAILED its verify => amber (the 2nd copy
-        # is missing). B2 not configured yet ($b2ok null) stays green - the persistent SPOF is surfaced
-        # by C20, not by a nightly amber. B2 verified => green with a +B2 ok note.
+        # is missing). B2 verified => green with a +B2 ok note.
+        # P0.3 (2026-08-23): the verdict ladder is now explicit and a previously-verified component
+        # going ABSENT is never green. identity docs missing => RED. B2 skipped (not provisioned) or
+        # a keepOutputs path named-but-absent => AMBER: both are real coverage gaps, and the old
+        # "green with a pending note" is exactly how N1 stayed invisible for two nights.
         $b2note = switch ($b2ok) { $true { ' +B2 ok' } $false { ' +B2 FAILED' } default { ' +B2 pending' } }
-        $st = if ($b2ok -eq $false) { 'amber' } else { 'green' }
-        $body = @{ project='recovery'; metric_key='vault_backup'; value_num=1
-                   headline="vault encrypted -> Hetzner ($sizeMB MB)$b2note"; status=$st } | ConvertTo-Json
+        $st = if ($identityMissing) { 'red' } elseif ($b2ok -ne $true) { 'amber' } else { 'green' }
+        $head = if ($identityMissing) {
+            "vault shipped ($sizeMB MB) but IDENTITY DOCS MISSING from the blob: $identityPath"
+        } elseif ($keepMissing.Count) {
+            "vault encrypted -> Hetzner ($sizeMB MB)$b2note; keepOutputs absent: $($keepMissing -join ', ')"
+        } else {
+            "vault encrypted -> Hetzner ($sizeMB MB)$b2note"
+        }
+        $body = @{ project='recovery'; metric_key='vault_backup'; value_num=$(if ($identityMissing) {0} else {1})
+                   headline=$head; status=$st } | ConvertTo-Json
     } else {
         $body = @{ project='recovery'; metric_key='vault_backup'; value_num=0
                    headline="vault backup FAILED: $reason"; status='red' } | ConvertTo-Json
@@ -287,5 +330,17 @@ if ((Test-Path $tokenFile) -and -not $DryRun) {
     } catch { Say "HQ push failed: $($_.Exception.Message)" }
 }
 
-if ($null -eq $reason) { Say "OK ($sizeMB MB)"; exit 0 }
+# P0.3 verdict ladder (2026-08-23): a run that shipped but LOST a previously-verified component exits
+# nonzero. "It ran" was never the question; "is everything that used to be covered still covered" is.
+if ($null -eq $reason -and $identityMissing -and -not $DryRun) {
+    Say "RED ($sizeMB MB shipped, but the identity docs are NOT in the blob: $identityPath)"
+    exit 1
+}
+if ($null -eq $reason) {
+    $amber = @()
+    if ($b2ok -ne $true)   { $amber += 'B2 leg not verified' }
+    if ($keepMissing.Count){ $amber += "keepOutputs absent: $($keepMissing -join ', ')" }
+    if ($amber.Count) { Say "OK-AMBER ($sizeMB MB): $($amber -join '; ')" } else { Say "OK ($sizeMB MB)" }
+    exit 0
+}
 Say "FAILED: $reason"; exit 1
