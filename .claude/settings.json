@@ -21,6 +21,19 @@
       "Bash(git log*)",
       "Bash(git diff*)",
       "Bash(source *)"
+    ],
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/credentials-ledger.json)",
+      "Read(**/*.tar.gpg)",
+      "Bash(curl * | bash)",
+      "Bash(curl * | sh)",
+      "Bash(wget * | bash)",
+      "Bash(wget * | sh)",
+      "Bash(nc *)"
     ]
   },
   "hooks": {

@@ -75,7 +75,16 @@ if ($Init) {
     $logLines = (Get-Content "vault\log.md").Count   # true line count; Measure-Object -Line drops blank lines
     @{ lines = $logLines; updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
         ConvertTo-Json | Set-Content -Encoding utf8 $hwFile
-    Write-Output "Baselined: $($manifest.projects.Count) CLAUDE.md hashes + log high-water $logLines lines -> $stateDir"
+    # C28 (2026-08-23): record the ACCEPTED user-scope skill set. Deliberately a name inventory, not
+    # hashes: the point is "what is installed outside every gate", and a name arriving or vanishing is
+    # the signal. Hashing user-scope content would imply this repo governs it, which it does not.
+    $usDir = Join-Path $env:USERPROFILE '.claude\skills'
+    $usList = @()
+    if (Test-Path $usDir) { $usList = @(Get-ChildItem $usDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name } | Sort-Object) }
+    @{ skills = $usList; updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
+        ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $stateDir 'user-skills-baseline.json')
+
+    Write-Output "Baselined: $($manifest.projects.Count) CLAUDE.md hashes + log high-water $logLines lines + $($usList.Count) user-scope skill(s) -> $stateDir"
     exit 0
 }
 
@@ -656,6 +665,34 @@ try {
 } catch { Add-Drift 'mail-channels' "mail-channel-check could not run: $($_.Exception.Message)" }
 
 # ---------------------------------------------------------------- report
+# --- C28 user-scope skill inventory (P2.1, run-47 merged plan, 2026-08-23): `~/.claude/skills/` is
+# entirely OUTSIDE skills-lock.json, the S7 hash sweep and every audit gate this repo owns. Those
+# guard `.agents/skills/` (project scope) only. The run-47 assessment found the consequence live:
+# graphify has sat at user scope since 2026-06-09, unpinned, unaudited, 113 releases stale, wired
+# into every session by the global CLAUDE.md, self-installing a PyPI package from prose - and it was
+# found by a human reading it in August, not by any mechanism. This inventory is the mechanism that
+# would have surfaced it in June. AMBER + names the skill: appearing here is not an accusation, it
+# is "this exists outside every baseline you have, decide about it".
+$c28Baseline = Join-Path $stateDir 'user-skills-baseline.json'
+$userSkillsDir = Join-Path $env:USERPROFILE '.claude\skills'
+if (Test-Path $userSkillsDir) {
+    $liveUser = @(Get-ChildItem $userSkillsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name } | Sort-Object)
+    if (Test-Path $c28Baseline) {
+        $known = @()
+        try { $known = @((Get-Content $c28Baseline -Raw | ConvertFrom-Json).skills) } catch { $known = @() }
+        $newOnes = @($liveUser | Where-Object { $known -notcontains $_ })
+        $goneOnes = @($known | Where-Object { $liveUser -notcontains $_ })
+        if ($newOnes.Count) {
+            Add-Drift 'user-skills' "user-scope skill(s) present but NOT baselined: $($newOnes -join ', ') - these live outside skills-lock.json, the S7 hash sweep and every audit gate; review, then re-run check.ps1 -Init to accept"
+        }
+        if ($goneOnes.Count) {
+            Add-Drift 'user-skills' "baselined user-scope skill(s) now MISSING: $($goneOnes -join ', ') - a skill disappearing is as much a change as one arriving; re-run check.ps1 -Init if the removal was deliberate"
+        }
+    } else {
+        Add-Drift 'user-skills' "no user-scope skill baseline yet ($($liveUser.Count) skill(s) in $userSkillsDir) - run check.ps1 -Init to record the accepted set"
+    }
+}
+
 # --- C27 soul-core byte budget (P1.6, run-47 merged plan, 2026-08-23): the identity card is the one
 # surface EVERY session and every scheduled run pays for, and its size was guarded by a builder WARN
 # that shipped the oversized card anyway - the same dead-check-green shape as the backup's identity

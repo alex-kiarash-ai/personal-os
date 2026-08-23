@@ -45,6 +45,9 @@
   ],
   "_keywords_note": "Derived from the manifest project portfolio + their domains. Keep the list <= 45 so a single daily run stays under skillsmp.com's 50-req/day anon cap. The eval judges fit against the real projects; these just cast the net.",
   "revoked": [],
+  "watch": ["graphify", "graphifyy"],
+  "_watch_note": "P2.3 (run-47 merged plan, 2026-08-23). NOT a revocation - a name the weekly digest must surface with its caveat before anyone installs anything matching it. graphify: the real PyPI package is `graphifyy` with TWO y's, and the one-y `graphify` is UNCLAIMED as of 2026-08-23 (pypi.org/pypi/graphify/json returns 404, master-verified), while the CLI it installs is named `graphify` and the skill's own prose invites a hand-run pip. So the natural typo is an open namespace anyone can register for arbitrary code execution. Registering it defensively is explicitly NOT this system's job (it is an external namespace); immunising our own future sessions costs one line. Also relevant: the PyPI publisher identity has no verified link to the GitHub org, so the chain `repo you audited = wheel you installed` is unproven either way.",
+
   "_revoked_note": "Skill names or whole owner/repo sources (case-insensitive) the installer must refuse, added 2026-08-05 (enterprise-assessment idea 4). A revoked candidate is flagged, never installed; an ALREADY-installed revoked skill is reported for manual removal every weekly run but never auto-removed (auto-install was approved 2026-07-11, auto-REMOVE never was).",
   "trust_allowlist": [
     "anthropics",

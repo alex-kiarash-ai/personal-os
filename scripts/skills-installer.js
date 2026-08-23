@@ -145,6 +145,42 @@ async function auditRepo(owner, repo, skillName, cfg) {
     }
   }
 
+  /*
+   * 4) Scan the skill's own MARKDOWN for hidden-unicode payloads and install-by-instruction.
+   *    (P2.5 + the graphify class, run-47 merged plan, 2026-08-23.)
+   *
+   *    Step 3 above only reads .js/.sh/.py/.ps1, and that is exactly the blind spot: an agent skill's
+   *    SKILL.md IS the payload, because an agent reading it executes what it says, and no script file
+   *    has to exist at all. Two live proofs from the run-47 assessment. (a) graphify ships ZERO script
+   *    files and self-installs a PyPI package from prose - it passed every script-scoped gate here and
+   *    was only caught by a human reading it (2026-08-17), and at upstream HEAD it has since become
+   *    MORE aggressive (`pip install --break-system-packages`). (b) Snyk's ToxicSkills work found
+   *    prompt injection in 36% of scanned public skills, and the standard concealment is zero-width or
+   *    bidi-override characters that are invisible in every editor and diff.
+   *
+   *    Persian carve-out: U+200C ZWNJ and U+200D ZWJ are legitimate joiners in Shaheen's languages and
+   *    are NOT blocked; the pure concealment characters are.
+   */
+  const HIDDEN_UNICODE = /[​⁠﻿‪-‮⁦-⁩]/;
+  const INSTALL_BY_INSTRUCTION = [
+    /\bpip3?\s+install\b/i, /\buv\s+tool\s+install\b/i, /\buvx\s+/i,
+    /\bnpm\s+(?:i|install)\s+(?:-g|--global)\b/i, /\bpipx\s+install\b/i,
+    /--break-system-packages/i,
+  ];
+  const docs = paths.filter(p => inScope(p) && /\.(md|markdown)$/i.test(p));
+  for (const dp of docs.slice(0, 20)) {
+    let body = '';
+    try { body = await ghText(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${dp}`); }
+    catch { continue; }
+    if (HIDDEN_UNICODE.test(body)) {
+      return { ok: false, reason: `doc ${dp} contains hidden-unicode characters (zero-width or bidi override) - the standard prompt-injection concealment` };
+    }
+    const hitInstall = INSTALL_BY_INSTRUCTION.find(re => re.test(body));
+    if (hitInstall) {
+      return { ok: false, reason: `doc ${dp} instructs a package install in prose (${hitInstall.source}) - install-by-instruction is invisible to the script-scoped audit and is how a skill self-installs code (the graphify class)` };
+    }
+  }
+
   // Blob list of the skill's own dir at the audited SHA - the exact content set the post-install
   // verify holds the installed copy to.
   const dirFiles = (tree.tree || [])
@@ -321,6 +357,9 @@ if (require.main === module) (async () => {
   // was, so removal stays Shaheen's call.
   const revoked = new Set((cfg.revoked || []).map(s => String(s).toLowerCase()));
   const isRevoked = (name, repo) => revoked.has(name.toLowerCase()) || revoked.has(repo.toLowerCase());
+  const watch = new Set((cfg.watch || []).map(s => String(s).toLowerCase()));
+  const isWatched = (name, repo) => watch.has(name.toLowerCase()) ||
+    watch.has(repo.toLowerCase()) || watch.has(repo.split('/').pop().toLowerCase());
 
   const candidates = loadCandidates();
   const report = { installed: [], flagged: [], skipped: [], revokedInstalled: [] };
@@ -332,6 +371,13 @@ if (require.main === module) (async () => {
     const label = name || repo || '(unnamed)';
     if (!name || !/^[\w.-]+\/[\w.-]+$/.test(repo)) { report.flagged.push({ label, reason: 'missing name or valid owner/repo' }); continue; }
     if (isRevoked(name, repo)) { report.flagged.push({ label, reason: 'revoked by policy (system/skills-sources.json `revoked`)' }); continue; }
+    // Watch list (P2.3, 2026-08-23): NOT a refusal. A name whose caveat must be READ before install,
+    // so a known-ambiguous package name can never be adopted on autopilot. Routes to manual review
+    // with the note attached, which is the whole point: the digest carries the reason, not just a flag.
+    if (isWatched(name, repo)) {
+      report.flagged.push({ label, reason: `on the WATCH list (system/skills-sources.json \`watch\`) - read _watch_note before any install: ${String(cfg._watch_note || '').slice(0, 180)}` });
+      continue;
+    }
     const [owner] = repo.split('/');
     if (installed.has(name.toLowerCase())) { report.skipped.push({ label, reason: 'already installed' }); continue; }
     if (!allow.has(owner.toLowerCase())) { report.flagged.push({ label, reason: `author '${owner}' not on trust allowlist` }); continue; }
