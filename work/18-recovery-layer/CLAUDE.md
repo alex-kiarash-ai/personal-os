@@ -78,6 +78,27 @@ PowerShell 5.1 (Get-ChildItem/Get-FileHash/Get-ScheduledTask/Invoke-RestMethod),
 
 **Not this sweep's job:** semantic/content drift (stale prose, superseded claims, duplicate topics). That is the **monthly gated /lint** (Phase 3): the checker nominates a shortlist, the LLM judges only that, Shaheen decides. Deterministic checks are ~10,000x cheaper than LLM judgment, so the script gates the judge.
 
+## Restore doctor (P6.4, run-47 merged plan, 2026-08-23)
+
+`powershell -File work/18-recovery-layer/restore-doctor.ps1` (add `-Json` for machine output).
+The RESTORE-side sibling of `check.ps1`: the checker asks "is the running system consistent", this
+asks "**could this tree become a running system**". Born from run 46's fresh-clone verdict of
+FRACTURE - a clone gets the functional system and none of the identity, the skill junctions are
+machine-local and silently absent, and `vault/identity.md` (the compendium a restore is supposed to
+read FIRST) arrives only inside the encrypted tar. All of that is deliberate on a PUBLIC repo, and
+all of it was written down as prose in a runbook, which is the one form a checker cannot read and a
+panicking human is least likely to follow correctly.
+
+Checks: soul.md and soul-core.md · vault/identity.md · skill junctions resolving (parked skills
+excluded, so a deliberate unlink is never a defect) · `core.longpaths` · the five re-included
+tracked system files · the regenerable local databases, reported as INFO so their absence is never
+mistaken for damage · and the out-of-repo identity docs, whose path is read FROM THE MANIFEST
+because a fourth hardcoded copy of that path is exactly what caused run-46's N1. Every non-OK
+finding carries its own fix command. Exit 0 ready / 2 blockers / 1 doctor error. Read-only.
+
+Negative-tested at install per the P4.4 rule this same run added: hiding `soul-core.md` produced the
+warning with the rebuild command, and restoring it returned the tree to READY with zero warnings.
+
 ## Security Sweep (P5, three-plan validation, 2026-07-17 - BUILT, activation queued)
 A monthly, zero-token, detect-never-repair SECURITY conscience beside the integrity sweep: `security-sweep.ps1` (own script, so check.ps1's "no network except HQ push" contract is intact). Exit 0/2/1 like check.ps1. Nine assertions S1-S9: S1 gitleaks-over-history, S2 no gitignored path tracked (the V11 assertion, monthly backstop), S3 credential-age ledger (`system/credentials-ledger.json`, gitignored; the gpg passphrase POINTS at C14, no second date - G4), S4 n8n version from the b30 deployed probe NEVER prose (+ staleness) (G6), S5 Hetzner `ss -tlnp` port baseline, S6 instance-MCP connected clients (activates after P2), S7 installed-skills hash vs skills-lock.json + skills-sources.json integrity, S8 repo visibility live-vs-`meta.repo_visibility`, **S9 personal-data scan** (`scripts/personal-data-scan.js`, added 2026-07-20: git greps the git-TRACKED tree for real NAMES [derived from vault/people/ basenames at runtime, so the script itself holds no personal data], FINANCIAL kr/SEK amounts, HEALTH data values, SE phone, and **INFRA-SECRET-PATHs** (added 2026-07-21 audit F-04: a local secret-file location like the vault-backup passphrase path in a tracked/public file - the passphrase path now lives ONLY in the gitignored credentials ledger, read at runtime; the scanner terminates the class) - the PUBLIC-repo privacy conscience that gitleaks/S1 never covers, since gitleaks looks for SECRETS not personal data; reviewed exceptions in `system/personal-data-allowlist.json` [gitignored, mirrors the .gitleaks.toml model]; born from the 2026-07-20 scan that found a cached HQ metrics dump + a runway builder hardcoding real salary/burn sat public). **Network stance: LOUDER than the daily watcher** - a CONFIGURED live source unreachable = exit 1 (never silent green); a NOT-YET-CONFIGURED assertion (no baseline, tool absent) = SETUP-NEEDED finding (exit 2). Report: `vault/projects/recovery/last-security-sweep.md`. Companion: `SECURITY-PLAYBOOK.md` (per-credential rotation, "on a public repo ROTATE do not rewrite"). **Status: the pure assertions (S2/S7/S8/S9) run live and pass (S9 clean at build 2026-07-20, 47 names watched); S3 now runs too (the PS 5.1 `TryParseExact` `[ref]` overload trap - a `$null`-init ref fails "no overload for arg count 5" - fixed 2026-07-20 with a `[datetime]::MinValue` pre-type, matching the C14 fix; it reports undated credentials as SETUP, not a throw); S1/S4/S5/S6 need setup (see the playbook's activation checklist). The scheduled job IS registered (`PersonalOS-security-sweep`, monthly 1st Monday 07:20, next 2026-08-03) since the 2026-07-18 activation, so S9 runs automatically every month (the earlier "not registered yet" line was stale)** (deliberate: keeps C7/V2 green until baselines exist); registration + manifest/schedule wiring is the queued activation step.
 
