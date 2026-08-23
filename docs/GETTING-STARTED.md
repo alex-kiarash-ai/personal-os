@@ -78,7 +78,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **33 Revit Architect** (ON-DEMAND; trigger: on-demand (any Revit job) + the five-file protocol gate before execution) - Runs any Revit job under Shaheen's five-file architect protocol: load File 01 then File 02 always, route to 03/04/05 by task scale, then resolve every HARD GATE question in order from the live model, the supplied source, session state, and only then ASK. Never infers, never defaults, and only an explicit skip bypasses a gate, which forces a stated assumption, a log line, a provisional label and a downgrade to the most conservative action. No compliance verdict without jurisdiction and code edition. Drives the live Revit MCP bridge proven 2026-08-20.
 - **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 
-**Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand, /port-to-kit (plus the global `/graphify`).
+**Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand, /port-to-kit.
 
 ## 5. The tools Alex reaches (MCP)
 

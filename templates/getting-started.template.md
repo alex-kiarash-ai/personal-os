@@ -46,7 +46,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 
 {{AUTOMATION_LIST}}
 
-**Utility commands:** {{UTILITY_COMMANDS}} (plus the global `/graphify`).
+**Utility commands:** {{UTILITY_COMMANDS}}.
 
 ## 5. The tools Alex reaches (MCP)
 

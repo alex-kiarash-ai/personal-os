@@ -386,8 +386,9 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 - /new - Create a new automation or project
 - /cron-setup - Manage system schedules (on/off/specific)
 - /brand - Set up or refresh brand config
-- /graphify - Turn any input into a knowledge graph (global skill)
 - /port-to-kit - Carry an Alex improvement into the Alex Kit (the family installs), adapted not copied
+
+(`/graphify` was removed 2026-08-23 on Shaheen's decision, run-47 P2.2: the skill installed a PyPI package by instructing the agent to, in prose with no script file, so it passed every audit gate this system owns. Backup + full reasoning in `~/.claude/CLAUDE.md`; the capability worth keeping is planned as an in-repo AST index, P7.1.)
 
 ## Skill Bindings (the routing contract; provenance + advisory map in the annex)
 
