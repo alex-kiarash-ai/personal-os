@@ -71,6 +71,39 @@ Claude for the clustering and the reasoning. **claude-sonnet-4-6 fed from soul.m
 - **Fed by:** #22 Teach-Alex (corrections-log), error-log, close-out-log, soul.md My Words, decisions.
 - **Feeds into:** soul.md, CLAUDE.md (root + work), taste-profile, decisions.md, the Monday brief ("what Alex learned this week"), a Building Alex episode.
 
+## Portfolio + compliance passes (P5.2/P5.3/P5.4, run-47 merged plan, 2026-08-23)
+
+**Quarterly skill stocktake (P5.2).** `node scripts/skills-stocktake.js` assembles every fact about
+the 85 installed skills (binding, parked state, provenance anchor, size, and real usage from the P5.1
+telemetry) into one table, then ONE model pass judges it: `Keep / Improve / Retire / Merge into [X]`.
+Two rules govern the judging, both taken from ECC's stocktake and both worth more than its verdict
+list. **The reason-quality rule:** a bare label is not a verdict, and every verdict restates the
+evidence it rests on ("Superseded" alone is banned). **The measurement rule, enforced in the script
+itself:** while the usage telemetry is younger than 30 days it prints that "never used" means "never
+MEASURED" and refuses to let the number carry a retire decision, because parking 45 skills on an
+unmeasured set is exactly what happened on 2026-08-16 and the whole point of P5.1 is to stop doing
+that. `--since` re-evaluates only what changed. Removal stays manual forever: auto-install was
+approved 2026-07-11, auto-REMOVE never was.
+
+**MANDATORY-binding compliance probe (P5.3), monthly, ADVISORY.** The Skill Bindings table is
+untested law: nothing has ever measured whether a MANDATORY binding is actually consulted before the
+work starts. ECC built a whole harness for this because skills "fire 50-80% of the time"; that number
+applies to Alex's bindings too and today nobody would know. The cut-down version: one canned scenario
+per MANDATORY family (start with n8n), run through `claude -p` with stream-json, and a deterministic
+check of the trace for a Skill call on the bound skill BEFORE the first mutating call. **AMBER, never
+RED** - it measures a probabilistic system, so it advises, matching the close-out grader's precedent.
+The P5.1 usage log is the cheap standing signal underneath it: a MANDATORY skill with zero uses after
+a real window is either a dead binding or a task type that never came up, and the probe is what tells
+those apart. **Token cost is real**, so it rides an existing scheduled slot rather than adding one.
+
+**Lesson-to-skill drafts (P5.4).** Alex's learning loop ended in a proposal to edit prose; ECC's ends
+in new capability. Now, when the weekly clustering (or a P1.7* promotion candidate) surfaces a
+repeated lesson, /self-review may propose a SKILL DRAFT built with the installed `skill-creator`,
+written to `outputs/self-review/skill-candidates/` and **never** into `.agents/skills/`. Adoption
+stays Shaheen's call and then flows through the normal wiring: bindings row, lock entry, git commit.
+Sequenced AFTER P1.7*, which is what makes candidates exist at all - before the fuzzy key, 91 of 92
+lessons sat at one sighting and the promotion gate had never fired.
+
 ## Close-Out Extras
 - Every review cites its sources; proposals cite their origin correction/error.
 - Nothing applied without approval; applied changes go through full Change Propagation + log.

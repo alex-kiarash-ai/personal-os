@@ -126,6 +126,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/skill-usage.js\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }
