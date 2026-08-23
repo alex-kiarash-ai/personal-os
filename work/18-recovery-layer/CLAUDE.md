@@ -78,6 +78,31 @@ PowerShell 5.1 (Get-ChildItem/Get-FileHash/Get-ScheduledTask/Invoke-RestMethod),
 
 **Not this sweep's job:** semantic/content drift (stale prose, superseded claims, duplicate topics). That is the **monthly gated /lint** (Phase 3): the checker nominates a shortlist, the LLM judges only that, Shaheen decides. Deterministic checks are ~10,000x cheaper than LLM judgment, so the script gates the judge.
 
+## Stall watchdog (P3.8, run-47 merged plan; BUILT + PROVEN 2026-08-23, ROLLOUT DEFERRED)
+
+`Invoke-AlexWithWatchdog` in `scripts/lib/close-out.ps1` runs a command with a wall-clock cap, kills
+the process TREE on breach, and returns a distinct `Stalled` flag so a hang is diagnosable rather
+than mute. **Why it exists, verified before it was built:** a hung `claude -p` has exactly ONE
+backstop today, the Task Scheduler job's `ExecutionTimeLimit` (measured `PT2H`), and when that fires
+the wrapper never reaches `Invoke-CloseOutCheck` - so there is no RED push and no log line. The run
+does not fail, it VANISHES. That is the "a job cannot announce its own failure" class, sitting inside
+this layer's own wrappers.
+
+Fixture-proven on four cases (clean, real failure, stall killed at the timeout, 708KB of output
+without deadlocking). Two PS 5.1 traps it already handles: `Start-Process -PassThru` with redirected
+output returns a permanently EMPTY ExitCode (a caller testing `-ne 0` reads a failed run as clean),
+and a synchronous stream read after `WaitForExit` deadlocks on a full pipe buffer, which would turn
+the watchdog into the hang it catches.
+
+**Wired into ZERO of the 17 wrappers, deliberately.** Changing how every scheduled job invokes claude
+is the highest-blast-radius edit in the run-47 plan, and a subtle quoting error surfaces days later
+as a missing morning brief. Shaheen approved the rollout on 2026-08-23 and deferred it to its own
+session (his choice: all 17, one at a time, with per-wrapper verification).
+
+**Runbook: `work/18-recovery-layer/watchdog-rollout-runbook.md`** - self-contained, executable by a
+cold session with no re-briefing. **Recall phrase: "wire the watchdog".** Queue row:
+`watchdog-wrapper-rollout`.
+
 ## Restore doctor (P6.4, run-47 merged plan, 2026-08-23)
 
 `powershell -File work/18-recovery-layer/restore-doctor.ps1` (add `-Json` for machine output).
