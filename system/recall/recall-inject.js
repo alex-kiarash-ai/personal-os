@@ -185,7 +185,10 @@ function main() {
 function logMetrics(prompt, nFacts, nSnips, nLessons) {
   try {
     const rec = {
-      ts: new Date().toISOString().slice(0, 19),
+      // P1.2 (2026-08-23): UTC-Z, not a naive local stamp. This writer looked UTC but had its Z
+      // sliced off, so its rows read as local time to anything joining them against heal-log's
+      // real UTC-Z. Old rows keep their shape; the convention applies from here forward.
+      ts: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
       prompt_hash: crypto.createHash('sha256').update(prompt).digest('hex').slice(0, 16),
       facts: nFacts, snippets: nSnips, lessons: nLessons,
       latency_ms: Date.now() - t0,

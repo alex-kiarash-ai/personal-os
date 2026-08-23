@@ -52,6 +52,21 @@ PROJECT.md specified self-hosting on the Hetzner VPS behind a reverse proxy. **R
 7. **Deploys are verified, never assumed.** "It uploaded" is not done. Post-deploy CI asserts: fetch + hash-compare against the built file, new assets 200, guarded/private paths 404, og-card present. This is the Verify-after-write standing order applied to the web, mechanised instead of remembered.
 8. **The Worker name is load-bearing.** The custom-domain binding is attached to the NAME `plain-block-545a`. Every deploy targets that exact name. A rename is a deliberate re-binding step, never a side effect.
 9. **The Cloudflare zone is never touched casually.** Email Routing on this zone carries `shaheen@shaheenkiarash.com`. No DNS or MX change is part of this project.
+   **MONITORED SINCE 2026-08-23, and here is why it had to be.** That address is the site's ONLY contact method (the
+   `mailto:` on the live page) and it was reported DEAD on 2026-08-23, last delivery 2026-06-08, with nothing red
+   anywhere. **That diagnosis was then CORRECTED the same day and the rule was healthy all along:** a live external
+   test delivered in 3 seconds, and the rule carries a Cloudflare creation label of 2026-05-14 proving it was never
+   deleted. On a channel that takes 3 messages in 3 months, 2.5 months of silence proved nothing. One real message
+   from a real sender WAS dropped on 2026-08-21 though, cause still unknown, so the risk this clause guards is real
+   even though the outage was not.
+   If this address ever loses its routing rule, what happens depends on the catch-all. On this zone the catch-all
+   is currently DISABLED (verified 2026-08-23), so mail would be REJECTED at SMTP and the sender would get a bounce.
+   **That does not help Shaheen: he still hears nothing, and the person who bounced is a would-be client who now
+   thinks he has no working address.** If the catch-all is ever switched ON with a drop action, the failure becomes
+   silent to the sender too. Either way a broken contact route looks EXACTLY like a quiet week. Recovery **C25** +
+   `system/mail-channels.json` now assert the rule exists, is enabled, and points at the verified destination.
+   **Before and after ANY zone work, run `node scripts/mail-channel-check.js` and read it.** Losing this address means
+   losing client enquiries you never learn existed, which is the one failure this project cannot detect from its own logs.
 10. **Identity-carrying copy is written in an Alex session.** A session opened in the sibling repo is plain Claude - no soul.md, no constitution, no gates. Code work there is fine. About-page prose, portfolio captions, anything a human reads as Shaheen's words gets drafted at the personal-os root under the Brand + Soul Pre-Flight Gate, then carried across as files.
 
 ## Phases (the runbook; each phase is its own session, entry and exit gated)

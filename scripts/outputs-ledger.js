@@ -66,6 +66,27 @@ function manifestNames() {
 
 function rel(p) { return path.relative(REPO, p).split(path.sep).join('/'); }
 
+/*
+ * P1.1 + P1.2 (run-47 merged plan, 2026-08-23): every new row carries the run's shared join key and
+ * a UTC-Z timestamp.
+ *
+ * run_id comes from the ALEX_RUN_ID the scheduled wrappers export (scripts/lib/close-out.ps1). An
+ * interactive session has none, and the field is simply omitted - absence means "a human was
+ * driving", which is information rather than a gap. This is the D1 fix: the same id also lands in
+ * heal-log rows and the close-out line, so one grep joins three surfaces that previously shared
+ * nothing at all.
+ *
+ * ts is UTC ISO-8601 with Z. The existing `date` field stays exactly as it is (every consumer and
+ * the whole render path key off it); ts is additive, and old rows simply lack it. Root cause it
+ * closes: four substrates each stamped a different way (UTC-Z, naive local, date-only, prose), so
+ * even a TEMPORAL join across them was unreliable (run-46 N9).
+ */
+function runStamp() {
+  const s = { ts: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') };
+  if (process.env.ALEX_RUN_ID) s.run_id = process.env.ALEX_RUN_ID;
+  return s;
+}
+
 function readLedger() {
   if (!fs.existsSync(LEDGER)) return [];
   return fs.readFileSync(LEDGER, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
@@ -261,12 +282,12 @@ function add(args) {
   if (!fs.existsSync(full)) { console.error(`add: file not found: ${p}`); process.exit(1); }
   const relP = rel(full);
   if (readLedger().some(r => r.path === relP)) { console.log(`add: already ledgered: ${relP} (use update-desc to revise)`); render(); return; }
-  const row = { ...skeletonRow(full, 'manual'), project, desc };
+  const row = { ...skeletonRow(full, 'manual'), project, desc, ...runStamp() };
   const links = parseLinks(get);
   if (links.length) row.links = links;
   appendRows([row]);
   render();
-  console.log(`add: ${row.date} ${row.project} ${relP}${links.length ? ' +' + links.length + ' link(s)' : ''}`);
+  console.log(`add: ${row.date} ${row.project} ${relP}${row.run_id ? ' run=' + row.run_id : ''}${links.length ? ' +' + links.length + ' link(s)' : ''}`);
 }
 
 // update-desc (upgrade P11, e1/e2): append a SUPERSEDING row for an existing path with a better

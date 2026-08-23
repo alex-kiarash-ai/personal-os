@@ -28,7 +28,20 @@ Every email body Alex reads is UNTRUSTED (an attacker can write anything into it
 - The funnel address + the two forward-only Gmail filters + the Cloudflare `alex@` routing rule are **Shaheen's live setup** (Cloudflare + Gmail UIs; native Gmail filter creation may not be exposed by the MCP - on that wall, append a human-actions row instead of stalling). Document the exact filters here verbatim the day they exist (invisible-infrastructure rule).
 
 **Execution-ready setup (P6, 2026-07-18 - the MCP cannot create Gmail filters or Cloudflare rules, so these three steps are Shaheen's, copy-paste-ready). Queue item `p6-email-funnel`.** Confirmed MCP-blocked: the Gmail tools expose labels/drafts/read only, no Settings/filters API; Cloudflare Email Routing has no MCP at all.
-1. **Cloudflare -> Email Routing -> Custom addresses.** Add `alex@shaheenkiarash.com`, action = **Send to** `shaheen.kiarash@gmail.com`. (Requires the MX records Email Routing auto-adds; verify the address shows "Active".)
+
+> **STATUS 2026-08-23: step 1 is DONE, steps 2 and 3 are NOT. Read this before acting on the three steps below.**
+> The parenthetical above is now half wrong: Cloudflare shipped an official MCP server, so step 1 was executed by Alex
+> (rule tag `8e5b2b87f11249d0bf68418b8bed4cee`, enabled, forwarding to `shaheen.kiarash@gmail.com`, read-back verified
+> twice - once through the MCP and once independently through the scoped token that recovery C25 uses). **The Gmail half
+> of the claim still holds:** no Settings/filters API on any surface Alex can reach, re-confirmed 2026-08-23, so steps 2
+> and 3 stay Shaheen's and are queued as `p6-gmail-filters` (the old `p6-email-funnel` row was split, not marked done).
+> **Live consequence while this is half-built, stated plainly because it is a real change to his mail:** `alex@` now
+> DELIVERS into the main Gmail inbox, unfiltered and unlabelled. Before today it was rejected at SMTP by the disabled
+> catch-all. Filter B is the control that deletes everything not forwarded by Shaheen, and it does not exist yet, so
+> the security model described above is currently running on address secrecy plus Gmail's own SPF/DKIM/DMARC alone.
+> Undo is one DELETE on the rule tag above. The `alex@` channel is now watched by C25 (`config_probe: true`).
+
+1. **Cloudflare -> Email Routing -> Custom addresses.** Add `alex@shaheenkiarash.com`, action = **Send to** `shaheen.kiarash@gmail.com`. (Requires the MX records Email Routing auto-adds; verify the address shows "Active".) **DONE 2026-08-23 by Alex via the Cloudflare MCP; nothing to do here.**
 2. **Gmail filter A (keep + route the real mail).** Search box -> `to:alex@shaheenkiarash.com from:(shaheen.kiarash@gmail.com)` -> Create filter -> tick: **Skip the Inbox (Archive it)**, **Apply the label** `alex-inbox` (create it if missing), **Never send it to Spam**. Add any other address you forward from into the `from:(... OR ...)` list.
 3. **Gmail filter B (drop everything else to alex@).** Search box -> `to:alex@shaheenkiarash.com -from:shaheen.kiarash@gmail.com` -> Create filter -> tick: **Delete it**. (A -from exclusion, so a message you forward matches A only and B never fires; anything else to alex@ matches B only and is deleted. From is spoofable, so B + Gmail's SPF/DKIM/DMARC is the real wall, per the security model above.)
 - Order note: Gmail runs all matching filters; A and B are mutually exclusive by the `-from:` guard, so order is irrelevant. After creating them, replace the `from:(...)` address list here verbatim so this stays the source of truth.
@@ -53,7 +66,9 @@ Added 2026-07-10: 🎯 Job Applications `Label_6` · 🤖 AI & Learning `Label_7
 Control label (hidden, dedup): `alex/triaged` `Label_11`. (Ids live in `config/sender-rules.json`; re-verify with `list_labels` if labels are ever deleted/recreated.)
 
 **Per-run flow:**
-1. **Dedup pull:** new mail = `search_threads("in:inbox -label:alex/triaged -label:modeling/castings")`. That's the only "new" query - no timestamp boundary. (The `modeling/castings` exclusion, added 2026-07-18 at #30 registration: casting-platform alert mail belongs to the Modeling radar lane, work/30-modeling/mailbox.md. Its filter archives on arrival so it normally never hits the inbox; the exclusion covers the pre-filter window and any leak so the two lanes never double-touch a mail.)
+1. **Dedup pull:** new mail = `search_threads("in:inbox -label:alex/triaged")` **plus** `search_threads("label:modeling/castings -label:alex/triaged")`. No timestamp boundary on either.
+   **The castings leg (CHANGED 2026-08-23 - this label was previously EXCLUDED).** Casting mail arrives at a forwarded alias (address in the gitignored `system/mail-channels.json`, never in this public repo) and a Gmail filter archives it on arrival under `modeling/castings`, so it never reaches the inbox. That was correct while the Modeling radar (#30) consumed the label. #30 was wiped on 2026-08-03 and its Task Scheduler job unregistered, but the Cloudflare rule and the Gmail filters were never deleted, so mail kept arriving, kept getting labelled, and was read by NOTHING for three weeks (56 messages, 46 unread when found). The tombstone had reasoned the exclusion "is inert once no new mail gets the label" - the word *once* was load-bearing, and it never happened, so the exclusion was actively hiding live mail.
+   **Keep the filter, restore the reader.** The filter is right: Acasting sends near-daily marketing Shaheen does not want in his inbox. So triage the label instead. A thread that is a REAL casting brief or a matched-job alert gets its topic label, `alex/triaged`, and is promoted into the inbox (`label_thread(id, ["INBOX"])`) so he actually sees it. Platform MARKETING (subscription pushes, "premium" upsells, digests with no named role) is labelled `alex/triaged` + `Promotions` and left archived - counted in the brief, never listed. When in doubt, promote: a missed casting costs more than one extra inbox line.
 2. **Deterministic gate first:** apply `config/sender-rules.json` (first match wins). A matched thread gets its topic label with **zero LLM reasoning**.
 3. **LLM only for the rest:** threads no rule matched go to the classifier for topic + Act Now/Read Later/Archive. New high-frequency senders that always land the same way are candidates to add to sender-rules.json.
 4. **Stamp + keep in inbox:** every processed thread gets its topic label **and** `alex/triaged`. Leave `INBOX` on (stays in inbox while unread).

@@ -206,10 +206,39 @@ function build({ log = () => {}, outPath = OUT, soulPath = SOUL, pinsPath = PINS
   const parsed = parseSoul(soulText);
   log(`  soul.md: ${soulText.length} B, ${parsed.entries.length} dated entries, canary ${parsed.token.slice(0, 6)}..`);
   const sel = selectEntries(parsed.entries, pinsCfg, log);
-  const card = assemble(parsed, sel, soulSha, pinsSha);
+  let card = assemble(parsed, sel, soulSha, pinsSha); // `let`: the P1.6 budget trim re-assembles below
 
   assertIgnored(outPath, log);
-  if (card.length > WARN_BYTES) log(`  WARN: card is ${card.length} B (> ${WARN_BYTES}) - consider lowering NEWEST_N`);
+
+  /*
+   * P1.6 BYTE BUDGET (run-47 merged plan, 2026-08-23). Until today this line WARNED and shipped the
+   * oversized card anyway, which is the same dead-check-green shape as the backup's identity WARNING
+   * (run-46 N1): a threshold nobody enforces is a threshold that does not exist. The card had doubled
+   * from ~36 KB to 85 KB in a week because the recency slice is entry-COUNTED, not byte-counted, and
+   * his recent My Words entries are long. The S1 diet was quietly un-happening on an axis no check
+   * watched (run-46 N7).
+   *
+   * The pressure valve is the RECENCY SLICE ONLY, dropped oldest-first. The operative layer, both
+   * canaries and the pinned registers are never trimmed: they are the parts that make the card an
+   * identity rather than a digest, and the refuse-below-floor rule (MIN_ENTRIES) still binds, so the
+   * card can shrink toward the floor but never through it. Budget lives in the manifest so tuning it
+   * is a data edit, not a code edit.
+   */
+  let budget = 0;
+  try { budget = Number(JSON.parse(fs.readFileSync(path.join(REPO, 'system', 'manifest.json'), 'utf8')).meta.vault.soul_core_byte_budget) || 0; } catch (_) { budget = 0; }
+  if (budget > 0 && card.length > budget) {
+    const before = card.length; const beforeN = sel.newest.length;
+    while (card.length > budget && sel.newest.length > MIN_ENTRIES) {
+      sel.newest = sel.newest.slice(0, sel.newest.length - 1); // oldest-first: the slice is newest-first
+      card = assemble(parsed, sel, soulSha, pinsSha);
+    }
+    if (card.length > budget) {
+      log(`  soul-core: OVER BUDGET at the floor - ${card.length} B > ${budget} B with the minimum ${sel.newest.length} entries. Shipping honestly; C27 will amber.`);
+    } else {
+      log(`  soul-core: trimmed to budget - ${before} B (${beforeN} entries) -> ${card.length} B (${sel.newest.length} entries), budget ${budget} B`);
+    }
+  }
+  if (card.length > WARN_BYTES) log(`  WARN: card is ${card.length} B (> ${WARN_BYTES})`);
 
   // Atomic: staging sibling + rename over the real path.
   const staging = outPath + '.staging';

@@ -272,3 +272,10 @@ work/03-application-engine/powerbi/*.csv
 # restate the substance of those files, so publishing them would defeat that decision.
 # Un-ignore this line the day he rules that it publishes.
 work/33-revit-architect/
+
+# inbound mail-channel registry (recovery C25, 2026-08-23): lists every custom address on the
+# zone and the Gmail they forward to. shaheen@ is already public (it is on the website), but
+# castings@ and alex@ are NOT, and pairing all of them with the destination inbox is a spam and
+# correlation gift on a public repo. Same call as credentials-ledger.json: the MAP is sensitive.
+# Local-only, covered by the 21:45 encrypted vault backup (which tars everything git ignores).
+system/mail-channels.json

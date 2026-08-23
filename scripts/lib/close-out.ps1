@@ -21,6 +21,33 @@
 # Defined here (dot-sourced into every wrapper before the spawn), so a future format change is ONE edit.
 $AlexVerdictInstruction = "End your final message with the Close-Out Report line, ending in 'Verdict: COMPLETE' or 'Verdict: INCOMPLETE(<missed>)'."
 
+# --- P1.1 RUN ID (run-47 merged plan, 2026-08-23): the shared join key ---------------------------
+# Three write-paths record the same run - vault/log.md prose, outputs/ledger.jsonl rows, and
+# system/heal-log.jsonl - and NONE of them shared a key, so "what else happened in that run?" was a
+# manual excavation across three formats and three different clock conventions (run-46 defect D1).
+# Both run-47 research lanes proposed this identical fix independently without seeing each other,
+# which is the strongest internal signal that pipeline produces.
+#
+# Defined HERE because every scheduled wrapper dot-sources this file before it does anything: one
+# definition, 17 wrappers, no per-wrapper drift. Interactive sessions simply have no ALEX_RUN_ID,
+# and that absence is itself information (it means "a human was driving").
+#
+# Shape: <job>-<yyyyMMddHHmm> in UTC. UTC because P1.2 makes every machine-written stamp UTC-Z, and
+# a join key that shifts twice a year is not a key.
+if (-not $env:ALEX_RUN_ID) {
+    $jobName = 'session'
+    try {
+        $inv = $MyInvocation.PSCommandPath
+        if (-not $inv) { $inv = $MyInvocation.ScriptName }
+        # PSCommandPath here is close-out.ps1 itself; the CALLER is what we want.
+        $caller = (Get-PSCallStack | Where-Object { $_.ScriptName -and $_.ScriptName -notmatch 'close-out\.ps1$' } |
+                   Select-Object -First 1).ScriptName
+        if ($caller) { $jobName = [IO.Path]::GetFileNameWithoutExtension($caller) -replace '^run-', '' }
+    } catch {}
+    $env:ALEX_RUN_ID = "$jobName-$((Get-Date).ToUniversalTime().ToString('yyyyMMddHHmm'))"
+}
+function Get-AlexRunId { return $env:ALEX_RUN_ID }
+
 # --- P3 quota-state writer (upgrade 2026-07-12, design 1.7.1) -----------------------------------
 # One shared code path for flagging a detected cap. Kind 'plan' = the Claude subscription limit
 # (auto-resets in hours; the gate's 6h TTL handles recovery). Kind 'api' = the Anthropic Console
@@ -261,12 +288,15 @@ function Invoke-CloseOutCheck {
         "caller-reported degradation: $reason" | Out-File -Append -Encoding utf8 $Log
     }
 
+    # P1.1: stamp the run id into the log on BOTH paths. This is the third leg of the D1 join - the
+    # ledger rows and heal-log rows for this run carry the same id, so one grep across three files
+    # reconstructs a run instead of three manual excavations across three timestamp conventions.
     if ($null -eq $reason) {
-        "OK (exit $Code)" | Out-File -Append -Encoding utf8 $Log
+        "OK (exit $Code) run=$($env:ALEX_RUN_ID)" | Out-File -Append -Encoding utf8 $Log
         return
     }
 
-    "FAILED: $reason" | Out-File -Append -Encoding utf8 $Log
+    "FAILED: $reason run=$($env:ALEX_RUN_ID)" | Out-File -Append -Encoding utf8 $Log
 
     # --- A4: RED run_status push to Alex HQ. Never log the token; never let the push crash the wrapper. ---
     if ($Project -ne '') {

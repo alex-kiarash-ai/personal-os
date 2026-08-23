@@ -632,7 +632,78 @@ if ($sbBudget -gt 0) {
     }
 }
 
+# --- C25 inbound mail channels (2026-08-23): every custom address on the zone that forwards into
+# Gmail is asserted to still have an enabled Cloudflare routing rule, and to have actually received
+# mail inside its declared window. Born from a real 2.5-month silent outage: shaheen@shaheenkiarash.com,
+# the ONLY contact address on the live portfolio site, stopped delivering around 2026-06-08 and
+# nothing anywhere went red. What a MISSING rule does depends on the catch-all: enabled+drop means
+# accepted-then-binned with nobody told; DISABLED means REJECTED at SMTP and the SENDER gets a bounce.
+# CORRECTED 2026-08-23 from a live API read: this zone has it DISABLED, so the first version of this
+# comment had the mechanism backwards, and its evidence was misread (two probe mails produced no bounce
+# because they were DELIVERED and Gmail deduped Shaheen's own copies). Either way HE hears nothing, and
+# he is the only observer the system can act for. Every component was green
+# because the system only ever checked that its own JOBS ran, never that expected mail ARRIVED.
+# Shelled out C12-style because the probe needs the network, and check.ps1's "no network except the
+# one HQ push" contract must hold. Registry: system/mail-channels.json (add a channel = one row).
+try {
+    $mc = node "scripts\mail-channel-check.js" --dry 2>&1
+    if ($LASTEXITCODE -eq 2) {
+        foreach ($line in @($mc | Where-Object { $_ -match '^DRIFT: ' })) {
+            Add-Drift 'mail-channels' ($line -replace '^DRIFT: ', '')
+        }
+    }
+    elseif ($LASTEXITCODE -ne 0) { Add-Drift 'mail-channels' "mail-channel-check errored (exit $LASTEXITCODE): $(($mc | Select-Object -First 1) -join '')" }
+} catch { Add-Drift 'mail-channels' "mail-channel-check could not run: $($_.Exception.Message)" }
+
 # ---------------------------------------------------------------- report
+# --- C27 soul-core byte budget (P1.6, run-47 merged plan, 2026-08-23): the identity card is the one
+# surface EVERY session and every scheduled run pays for, and its size was guarded by a builder WARN
+# that shipped the oversized card anyway - the same dead-check-green shape as the backup's identity
+# warning. The builder now trims the recency slice to manifest meta.vault.soul_core_byte_budget;
+# this is the level-triggered proof that it worked. Over budget here means the trim hit the
+# MIN_ENTRIES floor and could not get under, which is a real signal (his recent entries are long)
+# and wants a human decision: raise the budget deliberately, or prune the corpus.
+$scBudget = 0
+try { $scBudget = [int]$manifest.meta.vault.soul_core_byte_budget } catch { $scBudget = 0 }
+if ($scBudget -gt 0) {
+    $scPath = Join-Path $repo 'soul-core.md'
+    if (Test-Path $scPath) {
+        $scLen = (Get-Item $scPath).Length
+        if ($scLen -gt $scBudget) {
+            Add-Drift 'soul-core-budget' "soul-core.md is $scLen B against the $scBudget B budget - the builder's trim hit its MIN_ENTRIES floor, so this needs a human call: raise meta.vault.soul_core_byte_budget deliberately, or prune the My Words corpus"
+        }
+    }
+}
+
+# --- C26 vault/log.md tail ordering (P1.5, run-47 merged plan, 2026-08-23): the activity log is
+# described everywhere as append-only and time-ordered, and measured on 2026-08-23 it was neither -
+# 276 of 1,107 adjacent heading pairs ran BACKWARDS, one entry was stamped in the future, and no
+# script owned the file (run-46 finding N3). scripts/log-append.js is now the mechanical writer and
+# refuses an out-of-order stamp; this check is the level-triggered backstop for anything written by
+# hand or by a model. HISTORY IS BASELINED, NOT REPAIRED: the 276 existing inversions are what
+# actually happened and rewriting them would be a lie, so only entries at or after the baseline date
+# are asserted. AMBER, never RED: an ordering wobble is a hygiene problem, not a data-loss one.
+$c26Baseline = ''
+try { $c26Baseline = [string]$manifest.meta.vault.log_order_baseline } catch { $c26Baseline = '' }
+if ($c26Baseline) {
+    $logPath = Join-Path $repo 'vault\log.md'
+    if (Test-Path $logPath) {
+        $stamps = @([regex]::Matches((Get-Content $logPath -Raw), '(?m)^## \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]') |
+                    ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -ge $c26Baseline })
+        $inversions = 0
+        for ($i = 1; $i -lt $stamps.Count; $i++) { if ($stamps[$i] -lt $stamps[$i - 1]) { $inversions++ } }
+        if ($inversions -gt 0) {
+            Add-Drift 'log-order' "vault/log.md has $inversions out-of-order entry pair(s) at or after the $c26Baseline baseline - append through scripts/log-append.js (it refuses an older-than-tail stamp) instead of writing the file by hand"
+        }
+        # A stamp in the FUTURE is its own defect: it makes every later entry look out of order and
+        # poisons any temporal join. Checked against local now + 5 min of clock slack.
+        $future = @($stamps | Where-Object { $_ -gt (Get-Date).AddMinutes(5).ToString('yyyy-MM-dd HH:mm') })
+        if ($future.Count) {
+            Add-Drift 'log-order' "vault/log.md carries $($future.Count) future-stamped entr(ies) (newest: $($future[-1])) - a timestamp ahead of now cannot be trusted for ordering"
+        }
+    }
+}
+
 $n = $drift.Count
 $byCat = $drift | Group-Object cat | Sort-Object Count -Descending
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'

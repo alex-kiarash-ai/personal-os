@@ -459,9 +459,16 @@ def main():
 
     # persist + summarize
     ts = NOW.isoformat().replace("+00:00", "Z")
+    # P1.1 (run-47 merged plan, 2026-08-23): carry the run's shared join key when a scheduled wrapper
+    # set one. heal-log already stamped UTC-Z correctly, so it needs no P1.2 change; this closes the
+    # third leg of run-46's D1 (prose log / ledger / heal-log recording the same run with no key).
+    run_id = os.environ.get("ALEX_RUN_ID")
     with HEAL_LOG.open("a", encoding="utf-8") as f:
         for a in actions:
-            f.write(json.dumps({"ts": ts, **a}) + "\n")
+            row = {"ts": ts, **a}
+            if run_id:
+                row["run_id"] = run_id
+            f.write(json.dumps(row) + "\n")
     healed = [a for a in actions if a["state"] == "healed"]
     proposed = [a for a in actions if a["state"] == "proposed"]
     esc = [a for a in actions if a["state"] == "escalated"]
