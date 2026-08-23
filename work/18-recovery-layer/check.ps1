@@ -665,6 +665,21 @@ try {
 } catch { Add-Drift 'mail-channels' "mail-channel-check could not run: $($_.Exception.Message)" }
 
 # ---------------------------------------------------------------- report
+# --- C30 code-map freshness (P7.1, run-47 merged plan, 2026-08-23): `scripts/code-index.js` builds a
+# deterministic map of this repo's own code (what requires/dot-sources/invokes what) that /deep-audit
+# and #27 migrations read instead of fanning out agents to re-read everything. A map is only useful
+# while it is true, and a STALE map is worse than none: it answers confidently about code that has
+# since moved, which is precisely the failure mode that disqualified graphify's query-first design.
+# N/A when the map has never been built (an absent optional index is not drift); AMBER when it exists
+# and the newest source file is more than 7 days newer than it. Shells out C12-style so this file's
+# "no network except the one HQ push" contract holds and the freshness logic has ONE home.
+if (Test-Path (Join-Path $repo 'system\code-graph.json')) {
+    $cg = & node "scripts\code-index.js" --stale 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 2) {
+        Add-Drift 'code-map' ("code-graph.json is stale - " + ($cg.Trim() -replace '\s+', ' ') + ". Rebuild: node scripts/code-index.js")
+    }
+}
+
 # --- C29 hook liveness (P3.7, run-47 merged plan, 2026-08-23): every wired hook leaves a breadcrumb,
 # and until now NOTHING asserted that the breadcrumbs keep arriving. A hook that silently stops
 # firing is invisible for weeks: the voice hook already died quietly once (its own header records
