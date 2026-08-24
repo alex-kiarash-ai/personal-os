@@ -22,7 +22,7 @@ Carries the two job engines (#03 BI, #14 AI) past "draft sent" to the finish. Wh
 - Skills (advisory, 2026-07-11): interview-prep (interviewer-side knowledge used INVERTED: anticipate their questions, drill vs the answer bank); power-bi-dax-optimization / -model-design-review / -performance-troubleshooting (technical drill, Power BI track); resume-tailor + resume-ats-optimizer (role-specific CV tweaks).
 
 ## The answer bank (the seeded core, Phase 1)
-`vault/me/interview-answers.md` - Shaheen's real, reusable answers in his voice: positioning, Power BI depth, AI automation, the layoff story, the AI differentiator, ownership/behavioral, smart questions + the diplomatic summer-remote probe, honest gap-handling, salary/availability, negotiation stances. Seeded 2026-07-06 from the master CV (`vault/sources/CV- Shaheen Kiarash.md`) + soul.md My Words. **It grows after every interview.**
+`vault/me/interview-answers.md` - Shaheen's real, reusable answers in his voice: positioning, Power BI depth, AI automation, the layoff story, the AI differentiator, ownership/behavioral, smart questions + the diplomatic summer-remote probe, honest gap-handling, salary/availability, negotiation stances. Seeded 2026-07-06 from the master CV (`vault/sources/CV- Shaheen Kiarash.md` - a 2026-06-08 snapshot that predates the AI/BI CV split entirely, so treat it as history. For AI-lane answers work from the FROZEN master `vault/me/cv/ai/master-ai-cv.docx`, for Power BI from `master_cv_powerbi.md` (map: [[me/cv-sources]])) + soul.md My Words. **It grows after every interview.**
 
 ## Interview Brief (application-anchored, added 2026-07-15, /prompting item 5)
 When `/interview "Company [role]"` runs (or on a booked-interview flag) and that company/role has a DRAFTED application in the #03/#14 pipeline, the dossier gains the one thing only Alex can produce: the delta between what was SENT and what the CV backs. Read-only over Shaheen's own records. Anything can generate "likely BI interview questions"; only Alex knows what went out in his voice.
@@ -92,3 +92,16 @@ Claude: dossier, question prep, fit reasoning, note extraction. claude-sonnet-4-
 
 ## Trifecta
 Gate: **draft-only**. Legs: private_data=true, untrusted_content=true, external_comm=true (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). All three legs true: private financials/answer bank + untrusted company research + negotiation drafts. Never sends, Shaheen sends. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.
+
+## Filename law (STANDING ORDER, Shaheen 2026-08-20, every lane, every producer)
+
+His words: *"NEVER AGAIN when you prduce a new CV for any compay, mention the company name in the
+file name itself. Nver again. fix this! Only my name and CV or a cover letter."*
+
+Only two filenames may ship: **`Shaheen_Kiarash_CV.{pdf,docx}`** and
+**`Shaheen_Kiarash_Cover_Letter.{pdf,docx}`** (the live engines' `Shaheen_Kiarash_CoverLetter.pdf`
+also passes). No company, no role, no lane, no date, no version. Those belong in the FOLDER name and
+the ledger row, which never leave this machine. The filename travels with the attachment: a
+per-company name tells the recruiter this is one of many tailored versions and, on a forward, names
+the target. Enforced by `node scripts/outputs-ledger.js validate` (exit 2), which the Monday recovery
+sweep C12 calls; files dated before 2026-08-20 are grandfathered as already-sent history.

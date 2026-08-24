@@ -16,8 +16,40 @@ $log = "outputs\logs\git-backup.log"
 $reason = $null
 $changed = 0
 try {
+    # --- P2.6 GUARDED STAGING (run-47 merged plan, 2026-08-23; closes run-46 finding N10) ----------
+    # The default-deny .gitignore covers system/, work/*/state/, .bak, soul-*, vault/ and outputs/,
+    # but a personal file dropped at a work/NN ROOT or into scripts/ falls in the residual positive
+    # space, and an unattended `git add -A` at 21:30 sweeps it onto a PUBLIC repo. That is exactly the
+    # class that burned on 2026-07-20 (four personal files public), and the barrier is one .gitignore
+    # miss thick. So: before staging, every NEW untracked file in those two shapes is scanned; a hit
+    # means NOTHING from that path is staged and the run reports AMBER naming it. A false positive
+    # costs one file one day of backup, loudly. The alternative costs a permanently cacheable leak.
+    # Reuses the SAME scanner and the SAME --staged mode the pre-commit hook runs, deliberately: a
+    # second scanning path would be a second thing to keep correct. Stage, scan, then unstage only
+    # the residual-risk shapes that were flagged.
     git add -A 2>&1 | Out-File -Append -Encoding utf8 $log
     if ($LASTEXITCODE -ne 0) { $reason = "git add failed (exit $LASTEXITCODE)" }
+
+    $blockedPaths = @()
+    if ($null -eq $reason) {
+        $scanRaw = & node "scripts\personal-data-scan.js" --staged --json 2>&1 | Out-String
+        try {
+            $scan = $scanRaw | ConvertFrom-Json
+            if (-not $scan.clean) {
+                # Only the residual positive space is held back here. A hit anywhere ELSE is the
+                # pre-commit hook's business (it fails closed on the whole staged set); this guard
+                # exists for the two shapes no deny class covers.
+                $blockedPaths = @($scan.hits | ForEach-Object { $_.file } | Sort-Object -Unique |
+                                  Where-Object { $_ -match '^(work/[^/]+/[^/]+$|scripts/)' })
+            }
+        } catch { "personal-data guard: scan output unparseable, staging left as-is: $($scanRaw.Trim())" | Out-File -Append -Encoding utf8 $log }
+    }
+    if ($blockedPaths.Count) {
+        # A blocked file must not hold the whole backup hostage: the rest of the day's work still
+        # needs its off-machine copy tonight, so unstage only the flagged paths and say so loudly.
+        foreach ($b in $blockedPaths) { git reset -q -- $b 2>&1 | Out-File -Append -Encoding utf8 $log }
+        "AMBER personal-data guard: held back $($blockedPaths.Count) path(s): $($blockedPaths -join ', ') - review, then either gitignore them or move them out of the repo" | Out-File -Append -Encoding utf8 $log
+    }
 
     if ($null -eq $reason) {
         $staged = git diff --cached --name-only

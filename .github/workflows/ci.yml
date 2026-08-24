@@ -1,0 +1,49 @@
+# Public-repo CI (2026-08-05, enterprise-assessment idea 2, vault/research/enterprise-assessment-ideas.md).
+# Runs every test that passes on the tracked (vault-less) tree alone: no secrets, no private files -
+# tests that want soul.md or the live vault self-skip in a public checkout. Runner is windows-latest
+# on purpose: production is one Windows machine, and the two PowerShell tests exercise the same
+# Windows PowerShell 5.1 the scheduled wrappers run under.
+#
+# The full validator (scripts/validate-alex.js) stays local-only BY DESIGN: it asserts Windows Task
+# Scheduler jobs, live n8n workflow state and gitignored identity files that cannot exist here.
+# Its testable core IS covered: test-protected-guard.js imports evaluateProtectedChangeset from it.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-tests:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lesson parser (Recall Spine)
+        run: node scripts/tests/test-lesson-parse.js
+      - name: Protected-file guard (validate-alex V10 core)
+        run: node scripts/tests/test-protected-guard.js
+      - name: Untrusted-lane egress guard (injection wall)
+        run: node scripts/tests/test-untrusted-guard.js
+      - name: Lessons compounding + quarantine (run-47 P1.7*/P1.8*)
+        run: node scripts/tests/test-lessons-p1.js
+      - name: Guards are alive (verify the verifiers, run-47 P4.6)
+        run: node scripts/tests/test-guards-alive.js
+      - name: Vault-search freshness gate (sandboxed index)
+        run: python scripts/tests/test_vault_search_freshness.py
+      - name: Soul-canary verdict function (fails closed)
+        shell: powershell
+        run: .\scripts\tests\test-soul-canary.ps1
+      - name: Completion sentinel (close-out lib, Stage 2 enforcing)
+        shell: powershell
+        run: .\scripts\tests\test-completion-sentinel.ps1

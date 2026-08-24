@@ -20,6 +20,42 @@ This file seeds the new repo's `deploy/README.md` at B2.
 - **`.assetsignore`** inside the build folder excludes `.wrangler`, itself, `*.csv`, `.DS_Store`, `Thumbs.db`. It is what stops a stray file going public. Its lesson carries into the new repo as a day-one `.gitignore` plus the license split.
 - `Desktop\Claude\Modeling\Website\` is the pre-upgrade content, kept as a local rollback copy.
 
+## The CI deploy contract (BUILT 2026-08-05, `deploy/README.md` in the site repo is its public twin)
+
+**A footgun was found and closed here.** The B2 decision "deploys to staging, not production" was
+recorded in three places and implemented in none: `deploy.yml` ran a bare
+`wrangler deploy --config deploy/wrangler.jsonc`, and that config names `plain-block-545a`, the worker
+the live domain is bound to. Setting `DEPLOY_ENABLED=true` for the first time would therefore have
+published the noindex placeholder over the live portfolio. Same class as the CI file and the font
+comment the same day: a decision written down, never mechanised.
+
+**LIVE since 2026-08-05.** Staging worker `shaheenkiarash-staging` at
+`https://shaheenkiarash-staging.shaheen-kiarash.workers.dev`, first version `6131b6d4-f3b1-4834-ae43-fc6e7e0b4b03`.
+The `--name` override was PROVEN, not assumed: the deploy log reads `Uploaded shaheenkiarash-staging`,
+and the production homepage hashed **identically** before and after (`5d465eaf...fed0`, 58,680 bytes),
+so `plain-block-545a` was never touched. Secrets `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` and
+variables `DEPLOY_ENABLED=true` + `STAGING_URL` are all set; `DEPLOY_TARGET` is deliberately absent.
+
+**Token scope actually created (trimmed from Cloudflare's template, which ships 10 account permissions):**
+Workers Scripts:Edit + Account Settings:Read on the account, Workers Routes:Edit on this zone only, plus
+the two auto-added user reads. Removed: KV, R2, Pages, Containers, Observability, Builds Configuration,
+Agents Configuration, and **Workers Tail** (that last one separately - it streams live request logs, so it
+reads visitor IPs and URLs, and a token in a PUBLIC repo's CI should not be able to watch traffic).
+No DNS, no Email Routing, so hard rule 9 holds by construction.
+
+| Repo variable | Effect |
+|---|---|
+| `DEPLOY_ENABLED` | Master switch. Not `true` -> the deploy job skips, build still runs green. |
+| `DEPLOY_TARGET` | `production` publishes live. **Anything else, including unset, is STAGING.** |
+| `STAGING_WORKER_NAME` | defaults to `shaheenkiarash-staging` (overrides the name on the CLI, never edits wrangler.jsonc, so hard rule 8 holds) |
+| `STAGING_URL` | post-deploy check target on staging. **Unset -> checks SKIPPED with a loud `::warning::`**, never a silent pass |
+| `SITE_URL` | production check target, defaults to the apex |
+
+Two variables must BOTH be right before the live site can move, and a guard additionally fails any
+production deploy whose `dist/index.html` still carries `noindex` - so the placeholder cannot reach the
+apex even if both are set by mistake. That guard is what makes `DEPLOY_TARGET=production` safe to set
+at B3 cutover.
+
 ## After the B3 cutover
 Source of truth becomes the public repo at `Desktop\shaheenkiarash.com`. `dist/` is built by GitHub Actions and deployed with `wrangler deploy` to the **same worker name**, using a scoped Cloudflare API token held in Actions secrets. The `Website-v2-build` folder becomes a private archive, not a deploy source.
 

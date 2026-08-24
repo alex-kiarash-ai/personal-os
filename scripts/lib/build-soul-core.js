@@ -1,0 +1,275 @@
+'use strict';
+/*
+ * scripts/lib/build-soul-core.js - compile soul-core.md (the injection card) from soul.md.
+ *
+ * S1 Compiled Surfaces, Session 1 (build plan: outputs/research-team/2026-08-16/s1-build-steps.md).
+ * soul.md NEVER shrinks and is NEVER edited here; this derives a small card from it nightly:
+ *
+ *   [stable prefix - changes only when the operative rules change]
+ *     preamble comment (fixed text, no timestamp)
+ *     OPERATIVE LAYER verbatim: soul.md line 1 through the My Words rules block
+ *       (= everything before the first DATED entry; includes the TOP canary block)
+ *     END canary block verbatim (both canaries must ride the card - the headless gate reads it)
+ *     PINNED register entries (system/soul-pins.json - the relevance leg; newest entry per pin)
+ *   [volatile tail - changes nightly as the corpus grows]
+ *     the ~N newest My Words entries selected by PARSED HEADING DATES (never file position:
+ *       the corpus insertion order is mixed - run-44 Agent 3 condition 3)
+ *     stamp comment: sha256(soul.md) + generated-at + counts (TAIL, not header, on purpose:
+ *       a nightly timestamp at the top would invalidate the prompt-cache prefix that the
+ *       stable-first ordering exists to protect; C23 reads the stamp from the tail)
+ *
+ * Refuse-below-floor (emit NOTHING and exit non-zero rather than a thin card):
+ *   - every required operative heading present, in the operative slice
+ *   - the canary token appears EXACTLY twice in the card and matches soul.md's top token
+ *   - at least MIN_ENTRIES dated entries selected
+ *   - the output path must be gitignored (`git check-ignore`) - privacy fail-closed
+ * On refusal an existing soul-core.md is left untouched (yesterday's card beats no card).
+ *
+ * Delivery (why this file exists at all, measured 2026-08-16): harness 2.1.220 truncates hook
+ * stdout over ~10KB to a persisted-file notice + 2KB preview, so the old `cat soul.md` hook has
+ * been delivering ~2.3KB of a 172KB identity file. The card rides a CLAUDE.md `@soul-core.md`
+ * import (memory files load whole - 36KB proven) with the hook cat-ing full soul.md ONLY when
+ * the card is missing (fail-open, proven: a missing import target is silently skipped).
+ *
+ * Modes:
+ *   require('./build-soul-core').build({log})  - NO lock taken; caller (generate-alex.js) holds it
+ *   node scripts/lib/build-soul-core.js        - CLI: takes the shared write-lock, DEFERS if busy
+ *                                                (nightly chain semantics; next night retries, C23
+ *                                                ambers if the card actually goes stale)
+ */
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { execFileSync } = require('child_process');
+
+const REPO = path.join(__dirname, '..', '..');
+const SOUL = path.join(REPO, 'soul.md');
+const PINS = path.join(REPO, 'system', 'soul-pins.json');
+const OUT = path.join(REPO, 'soul-core.md');
+
+const NEWEST_N = 20;        // the recency slice
+const MIN_ENTRIES = 12;     // refuse-below-floor: fewer selected entries than this = no emit
+const WARN_BYTES = 60 * 1024; // honesty rail: warn (never refuse) if the card outgrows this
+
+// Required operative headings (prefix match; suffixes like "(most to least)" vary).
+const REQUIRED_HEADINGS = [
+  '# Soul - Who I Am',
+  '## Headless injection check',
+  '## My Role',
+  '## My Company/Business',
+  '## Writing Style',
+  '## How I Communicate',
+  '## My Priorities',
+  '## Agent Personality - Alex',
+  '## Voice Rules',
+  '## Things I Never Want',
+  '## My Words',
+];
+
+const DATED_RE = /^###\s+(?:Harvested\s+)?(\d{4})-(\d{2})-(\d{2})/;
+
+function parseSoul(soulText) {
+  const lines = soulText.split(/\r?\n/);
+
+  // Canary token from the top block.
+  const tokenLine = lines.find(l => l.startsWith('SOUL-CANARY-TOKEN:'));
+  if (!tokenLine) throw new Error('floor: no SOUL-CANARY-TOKEN line in soul.md');
+  const token = tokenLine.split(':')[1].trim();
+
+  // Every dated entry: heading line index + parsed date; body runs to the next ###/## heading.
+  const entries = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(DATED_RE);
+    if (!m) continue;
+    let end = lines.length;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (/^###?#?\s/.test(lines[j]) && (lines[j].startsWith('## ') || lines[j].startsWith('### '))) { end = j; break; }
+    }
+    entries.push({
+      heading: lines[i],
+      date: `${m[1]}-${m[2]}-${m[3]}`,
+      startLine: i,
+      text: lines.slice(i, end).join('\n').trimEnd(),
+    });
+  }
+  if (entries.length === 0) throw new Error('floor: no dated My Words entries found');
+
+  // Operative layer = line 0 through the line before the FIRST dated entry in file order.
+  const firstEntryLine = Math.min(...entries.map(e => e.startLine));
+  const operative = lines.slice(0, firstEntryLine).join('\n').trimEnd();
+
+  // End canary block: the SECOND "## Headless injection check" heading + lines to next heading.
+  let endCanary = null;
+  const canaryHeads = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('## Headless injection check')) canaryHeads.push(i);
+  }
+  if (canaryHeads.length >= 2) {
+    const s = canaryHeads[canaryHeads.length - 1];
+    let e = lines.length;
+    for (let j = s + 1; j < lines.length; j++) {
+      if (lines[j].startsWith('## ') || lines[j].startsWith('### ')) { e = j; break; }
+    }
+    endCanary = lines.slice(s, e).join('\n').trimEnd();
+  }
+  if (!endCanary) throw new Error('floor: end canary block (second "## Headless injection check") not found');
+  if (!endCanary.includes(token)) throw new Error('floor: end canary block does not carry the same token');
+
+  return { operative, endCanary, entries, token };
+}
+
+function selectEntries(entries, pinsCfg, log) {
+  // Newest-first by PARSED DATE; same-date ties keep file order (newest-at-top rule).
+  const sorted = entries.slice().sort((a, b) =>
+    a.date === b.date ? a.startLine - b.startLine : (a.date < b.date ? 1 : -1));
+  const newest = sorted.slice(0, NEWEST_N);
+  const chosen = new Set(newest.map(e => e.startLine));
+
+  const pinned = [];
+  for (const pin of (pinsCfg.pins || [])) {
+    let re;
+    try { re = new RegExp(pin.match, 'i'); }
+    catch (e) { log(`  pin '${pin.register}': BAD REGEX (${e.message}) - skipped`); continue; }
+    const hit = sorted.find(en => re.test(en.heading)); // sorted = newest first
+    if (!hit) { log(`  pin '${pin.register}': no matching entry - skipped`); continue; }
+    if (chosen.has(hit.startLine)) { log(`  pin '${pin.register}': already in the newest slice (${hit.date})`); continue; }
+    chosen.add(hit.startLine);
+    pinned.push({ pin, entry: hit });
+    log(`  pin '${pin.register}': + ${hit.date} "${hit.heading.slice(4, 80)}"`);
+  }
+  return { newest, pinned };
+}
+
+function assemble({ operative, endCanary, token }, { newest, pinned }, soulSha, pinsSha = '00000000') {
+  // Plain-text framing lines, NOT HTML comments: memory-file injection strips <!-- --> comments
+  // (measured 2026-08-16 - the model could see the card but not a commented stamp), and the stamp
+  // must be model-visible so an injection proof can ask for it. Same class as SOUL-CANARY-TOKEN.
+  const parts = [];
+  parts.push(
+    'SOUL-CORE NOTE: this file is GENERATED nightly from soul.md (scripts/lib/build-soul-core.js).',
+    'Never hand-edit; edits die on the next rebuild. soul.md is the source of truth and the FULL',
+    'corpus - gate-mandated re-reads still read soul.md itself. This card = operative layer +',
+    'both canaries + pinned registers + the newest entries, stable-first for prompt-cache economy.',
+    '');
+  parts.push(operative, '');
+  parts.push(endCanary, '');
+  if (pinned.length) {
+    parts.push('PINNED REGISTERS (system/soul-pins.json, the relevance leg - these never age out of the card):', '');
+    for (const { entry } of pinned) parts.push(entry.text, '');
+  }
+  parts.push(`NEWEST ${newest.length} ENTRIES by parsed heading date (recency slice, rebuilt nightly, newest first):`, '');
+  for (const e of newest) parts.push(e.text, '');
+  parts.push(`SOUL-CORE-STAMP: source-sha256=${soulSha} pins-sha256=${pinsSha} generated-at=${new Date().toISOString()} entries=${newest.length} pinned=${pinned.length} token-count=2`);
+  const card = parts.join('\n');
+
+  // Floor checks on the ASSEMBLED card.
+  for (const h of REQUIRED_HEADINGS) {
+    if (!card.split('\n').some(l => l.startsWith(h))) throw new Error(`floor: required heading missing from card: "${h}"`);
+  }
+  const tokenCount = card.split(`SOUL-CANARY-TOKEN: ${token}`).length - 1;
+  if (tokenCount !== 2) throw new Error(`floor: canary token appears ${tokenCount}x in card, need exactly 2`);
+  if (newest.length < MIN_ENTRIES) throw new Error(`floor: only ${newest.length} entries selected, need >= ${MIN_ENTRIES}`);
+  return card;
+}
+
+function assertIgnored(p, log) {
+  const rel = path.relative(REPO, p).replace(/\\/g, '/');
+  try {
+    execFileSync('git', ['check-ignore', '-q', rel], { cwd: REPO });
+  } catch (e) {
+    throw new Error(`privacy fail-closed: output path '${rel}' is NOT gitignored - refusing to write identity content to a trackable path`);
+  }
+  log(`  privacy: '${rel}' verified gitignored`);
+}
+
+function build({ log = () => {}, outPath = OUT, soulPath = SOUL, pinsPath = PINS, force = false } = {}) {
+  const soulText = fs.readFileSync(soulPath, 'utf8');
+  // Hash the RAW BYTES (not the decoded string): C23 recomputes with PowerShell Get-FileHash,
+  // which hashes file bytes - both sides must use the same primitive.
+  const soulSha = crypto.createHash('sha256').update(fs.readFileSync(soulPath)).digest('hex');
+  const pinsText = fs.existsSync(pinsPath) ? fs.readFileSync(pinsPath, 'utf8') : '';
+  const pinsSha = crypto.createHash('sha256').update(pinsText).digest('hex').slice(0, 8);
+
+  // No-op guard (the voice-sync convention: an unchanged source is a VERIFIED no-op, not a rewrite).
+  // Nightly runs with nothing new leave the card byte-identical, so the prompt-cache prefix and the
+  // file mtime only move when the corpus or the pin list actually moved.
+  if (!force && fs.existsSync(outPath)) {
+    const tail = fs.readFileSync(outPath, 'utf8').slice(-400);
+    const m = tail.match(/source-sha256=([0-9a-f]{64}) pins-sha256=([0-9a-f]{8})/);
+    if (m && m[1] === soulSha && m[2] === pinsSha) {
+      log(`  soul-core: unchanged (soul.md sha ${soulSha.slice(0, 12)}.., pins ${pinsSha}) - verified no-op`);
+      return { noop: true, bytes: fs.statSync(outPath).size, sha: soulSha };
+    }
+  }
+  const pinsCfg = pinsText ? JSON.parse(pinsText) : { pins: [] };
+
+  const parsed = parseSoul(soulText);
+  log(`  soul.md: ${soulText.length} B, ${parsed.entries.length} dated entries, canary ${parsed.token.slice(0, 6)}..`);
+  const sel = selectEntries(parsed.entries, pinsCfg, log);
+  let card = assemble(parsed, sel, soulSha, pinsSha); // `let`: the P1.6 budget trim re-assembles below
+
+  assertIgnored(outPath, log);
+
+  /*
+   * P1.6 BYTE BUDGET (run-47 merged plan, 2026-08-23). Until today this line WARNED and shipped the
+   * oversized card anyway, which is the same dead-check-green shape as the backup's identity WARNING
+   * (run-46 N1): a threshold nobody enforces is a threshold that does not exist. The card had doubled
+   * from ~36 KB to 85 KB in a week because the recency slice is entry-COUNTED, not byte-counted, and
+   * his recent My Words entries are long. The S1 diet was quietly un-happening on an axis no check
+   * watched (run-46 N7).
+   *
+   * The pressure valve is the RECENCY SLICE ONLY, dropped oldest-first. The operative layer, both
+   * canaries and the pinned registers are never trimmed: they are the parts that make the card an
+   * identity rather than a digest, and the refuse-below-floor rule (MIN_ENTRIES) still binds, so the
+   * card can shrink toward the floor but never through it. Budget lives in the manifest so tuning it
+   * is a data edit, not a code edit.
+   */
+  let budget = 0;
+  try { budget = Number(JSON.parse(fs.readFileSync(path.join(REPO, 'system', 'manifest.json'), 'utf8')).meta.vault.soul_core_byte_budget) || 0; } catch (_) { budget = 0; }
+  if (budget > 0 && card.length > budget) {
+    const before = card.length; const beforeN = sel.newest.length;
+    while (card.length > budget && sel.newest.length > MIN_ENTRIES) {
+      sel.newest = sel.newest.slice(0, sel.newest.length - 1); // oldest-first: the slice is newest-first
+      card = assemble(parsed, sel, soulSha, pinsSha);
+    }
+    if (card.length > budget) {
+      log(`  soul-core: OVER BUDGET at the floor - ${card.length} B > ${budget} B with the minimum ${sel.newest.length} entries. Shipping honestly; C27 will amber.`);
+    } else {
+      log(`  soul-core: trimmed to budget - ${before} B (${beforeN} entries) -> ${card.length} B (${sel.newest.length} entries), budget ${budget} B`);
+    }
+  }
+  if (card.length > WARN_BYTES) log(`  WARN: card is ${card.length} B (> ${WARN_BYTES})`);
+
+  // Atomic: staging sibling + rename over the real path.
+  const staging = outPath + '.staging';
+  fs.writeFileSync(staging, card, 'utf8');
+  fs.renameSync(staging, outPath);
+  const readBack = fs.readFileSync(outPath, 'utf8');
+  if (readBack !== card) throw new Error('read-back verify failed after swap');
+  log(`  soul-core.md written: ${card.length} B (~${Math.round(card.length / 2.93 / 100) / 10}k tok est), ` +
+    `${sel.newest.length} newest + ${sel.pinned.length} pinned, sha ${soulSha.slice(0, 12)}..`);
+  return { bytes: card.length, entries: sel.newest.length, pinned: sel.pinned.length, sha: soulSha };
+}
+
+module.exports = { build, parseSoul, selectEntries, assemble, assertIgnored, NEWEST_N, MIN_ENTRIES, OUT };
+
+if (require.main === module) {
+  const log = m => console.log(m);
+  const writeLock = require('./write-lock');
+  const held = writeLock.acquire({ label: 'build-soul-core (nightly)' , log });
+  if (!held.ok) {
+    // DEFER (nightly semantics): a busy lock means another mutator is mid-run; yesterday's card
+    // stays, the next night (or the generator run holding the lock) rebuilds. C23 catches real staleness.
+    console.log(`build-soul-core: deferred - ${held.reason}`);
+    process.exit(2);
+  }
+  try {
+    build({ log, force: process.argv.includes('--force') });
+    process.exitCode = 0; // NOT process.exit(): that would skip the finally and leak the lock
+  } catch (e) {
+    console.error(`build-soul-core FAILED (no emit, existing card untouched): ${e.message}`);
+    process.exitCode = 1;
+  } finally {
+    held.release();
+  }
+}

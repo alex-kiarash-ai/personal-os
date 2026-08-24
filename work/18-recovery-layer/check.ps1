@@ -75,7 +75,16 @@ if ($Init) {
     $logLines = (Get-Content "vault\log.md").Count   # true line count; Measure-Object -Line drops blank lines
     @{ lines = $logLines; updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
         ConvertTo-Json | Set-Content -Encoding utf8 $hwFile
-    Write-Output "Baselined: $($manifest.projects.Count) CLAUDE.md hashes + log high-water $logLines lines -> $stateDir"
+    # C28 (2026-08-23): record the ACCEPTED user-scope skill set. Deliberately a name inventory, not
+    # hashes: the point is "what is installed outside every gate", and a name arriving or vanishing is
+    # the signal. Hashing user-scope content would imply this repo governs it, which it does not.
+    $usDir = Join-Path $env:USERPROFILE '.claude\skills'
+    $usList = @()
+    if (Test-Path $usDir) { $usList = @(Get-ChildItem $usDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name } | Sort-Object) }
+    @{ skills = $usList; updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') } |
+        ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $stateDir 'user-skills-baseline.json')
+
+    Write-Output "Baselined: $($manifest.projects.Count) CLAUDE.md hashes + log high-water $logLines lines + $($usList.Count) user-scope skill(s) -> $stateDir"
     exit 0
 }
 
@@ -433,12 +442,24 @@ if ($patDaysLeft -le 60) {
 $agentsSkills = Join-Path $repo '.agents\skills'
 $claudeSkills = Join-Path $repo '.claude\skills'
 if (Test-Path $agentsSkills) {
+    # PARKED skills (S1 Compiled Surfaces P4, 2026-08-16) are DELIBERATELY link-less: the docket
+    # Shaheen approved parks a skill by removing its junction and flagging `parked: true` in
+    # skills-lock.json (content stays; wake = node scripts/skills-park.js --wake <name>). A parked
+    # row is exempt here; an UNPARKED row with no link is still the restore-gap this check exists for.
+    $parkedSet = @{}
+    try {
+        $lk = Get-Content (Join-Path $repo 'skills-lock.json') -Raw | ConvertFrom-Json
+        foreach ($n in ($lk.skills | Get-Member -MemberType NoteProperty).Name) {
+            if ($lk.skills.$n.parked) { $parkedSet[$n] = $true }
+        }
+    } catch {}
     $missingLinks = @()
     foreach ($d in (Get-ChildItem $agentsSkills -Directory -ErrorAction SilentlyContinue)) {
+        if ($parkedSet.ContainsKey($d.Name)) { continue }
         if (-not (Test-Path (Join-Path $claudeSkills $d.Name))) { $missingLinks += $d.Name }
     }
     if ($missingLinks.Count) {
-        Add-Drift 'skills-link' "$($missingLinks.Count) skill(s) in .agents/skills/ have no resolving .claude/skills/ link (rebuild per pair: cmd /c mklink /J .claude\skills\<name> ..\..\.agents\skills\<name>): $($missingLinks -join ', ')"
+        Add-Drift 'skills-link' "$($missingLinks.Count) UNPARKED skill(s) in .agents/skills/ have no resolving .claude/skills/ link (rebuild per pair: cmd /c mklink /J .claude\skills\<name> ..\..\.agents\skills\<name>; parked skills are exempt by design): $($missingLinks -join ', ')"
     }
 }
 
@@ -562,7 +583,207 @@ if (-not (Test-Path $soulPath)) {
         ConvertTo-Json | Set-Content -Encoding utf8 $soulHwFile
 }
 
+# --- C23 soul-core freshness (S1 Compiled Surfaces, 2026-08-16): soul-core.md is THE identity
+# injection since the @-import swap (harness 2.1.220 truncates hook stdout at ~10KB, so the old
+# `cat soul.md` path delivered ~2KB; the card rides a CLAUDE.md memory import and loads whole).
+# The card's tail stamp carries source-sha256 = sha256(soul.md BYTES) at build time; this check
+# recomputes the live hash (Get-FileHash, same byte primitive the builder uses) and AMBERS on any
+# mismatch - a stale card means every session is fed yesterday's identity slice and the nightly
+# 21:35 rebuild (run-vault-index.ps1) or the generator missed. A MISSING card also ambers: the
+# SessionStart hook falls back to full soul.md (fail-open, by design), but on this harness that
+# fallback delivers only the 2KB preview, so a silently deleted card must not hide behind it.
+# The FIX half is the hq-heal-map `soul-core-stale` AUTO-SAFE row (rebuild --force + read-back,
+# one attempt then escalate). Compute-and-compare; negative-tested at install with a stale stamp.
+$corePath = Join-Path $repo 'soul-core.md'
+if (Test-Path $soulPath) {
+    if (-not (Test-Path $corePath)) {
+        Add-Drift 'soul-core' "soul-core.md MISSING - sessions run on the truncated full-soul fallback (~2KB reaches the model). Rebuild: node scripts/lib/build-soul-core.js --force"
+    } else {
+        $coreText = Get-Content $corePath -Raw
+        $stamp = [regex]::Match($coreText.Substring([math]::Max(0, $coreText.Length - 400)), 'source-sha256=([0-9a-f]{64})')
+        if (-not $stamp.Success) {
+            Add-Drift 'soul-core' "soul-core.md has no parseable SOUL-CORE-STAMP source-sha256 - hand-edited or truncated; rebuild: node scripts/lib/build-soul-core.js --force"
+        } else {
+            $liveSha = (Get-FileHash $soulPath -Algorithm SHA256).Hash.ToLower()
+            if ($liveSha -ne $stamp.Groups[1].Value) {
+                Add-Drift 'soul-core' "soul-core.md STALE: card built from sha $($stamp.Groups[1].Value.Substring(0,12)).. but soul.md is now $($liveSha.Substring(0,12)).. - the nightly rebuild missed; node scripts/lib/build-soul-core.js --force"
+            }
+        }
+    }
+}
+
+# --- C24 status byte budget (S1 Compiled Surfaces P2, 2026-08-16): Tier-1 status.md files are
+# SUMMARIES by contract and had grown to 87-180KB. scripts/status-rotate.js (nightly, before the
+# 21:35 index build) moves whole dated H2 blocks to history/; this check reads LIVE byte counts
+# against manifest meta.vault.status_byte_budget so a dead rotator cannot hide behind a green
+# chain. Fires at budget + 10% (deliberate grace: the keep-the-newest-dated-block rule can land a
+# file a few hundred bytes over, and an amber that cries over 4 bytes teaches amber-blindness,
+# the F-14 lesson). The message distinguishes "movable blocks present = the rotator missed" from
+# "undated standing weight = needs a human restructure / the monthly /lint" - different remedies.
+# Negative-tested at install with a temp-inflated file.
+$sbBudget = 0
+try { $sbBudget = [int]$manifest.meta.vault.status_byte_budget } catch { $sbBudget = 0 }
+if ($sbBudget -gt 0) {
+    $sbRows = @($manifest.projects) + @($manifest.meta.unnumbered)
+    $sbSeen = @{}
+    foreach ($p in $sbRows) {
+        if (-not $p.status_md) { continue }
+        $sp = Join-Path $repo ($p.status_md -replace '/', '\')
+        if ($sbSeen.ContainsKey($sp) -or -not (Test-Path $sp)) { continue }
+        $sbSeen[$sp] = $true
+        $len = (Get-Item $sp).Length
+        if ($len -le [math]::Round($sbBudget * 1.1)) { continue }
+        $txt = Get-Content $sp -Raw
+        $movable = ([regex]::Matches($txt, '(?m)^##\s.*\b20\d{2}-\d{2}-\d{2}\b')).Count
+        $why = if ($movable -gt 1) { "has $movable dated block(s) the rotator should have moved - is the nightly status-rotate step dead? (run: node scripts/status-rotate.js)" }
+               else { "weight is UNDATED standing content - rotation cannot help; needs a human restructure (a /lint-class judgment pass)" }
+        Add-Drift 'status-budget' "$($p.status_md) is $len B against the $sbBudget B Tier-1 budget - $why"
+    }
+}
+
+# --- C25 inbound mail channels (2026-08-23): every custom address on the zone that forwards into
+# Gmail is asserted to still have an enabled Cloudflare routing rule, and to have actually received
+# mail inside its declared window. Born from a real 2.5-month silent outage: shaheen@shaheenkiarash.com,
+# the ONLY contact address on the live portfolio site, stopped delivering around 2026-06-08 and
+# nothing anywhere went red. What a MISSING rule does depends on the catch-all: enabled+drop means
+# accepted-then-binned with nobody told; DISABLED means REJECTED at SMTP and the SENDER gets a bounce.
+# CORRECTED 2026-08-23 from a live API read: this zone has it DISABLED, so the first version of this
+# comment had the mechanism backwards, and its evidence was misread (two probe mails produced no bounce
+# because they were DELIVERED and Gmail deduped Shaheen's own copies). Either way HE hears nothing, and
+# he is the only observer the system can act for. Every component was green
+# because the system only ever checked that its own JOBS ran, never that expected mail ARRIVED.
+# Shelled out C12-style because the probe needs the network, and check.ps1's "no network except the
+# one HQ push" contract must hold. Registry: system/mail-channels.json (add a channel = one row).
+try {
+    $mc = node "scripts\mail-channel-check.js" --dry 2>&1
+    if ($LASTEXITCODE -eq 2) {
+        foreach ($line in @($mc | Where-Object { $_ -match '^DRIFT: ' })) {
+            Add-Drift 'mail-channels' ($line -replace '^DRIFT: ', '')
+        }
+    }
+    elseif ($LASTEXITCODE -ne 0) { Add-Drift 'mail-channels' "mail-channel-check errored (exit $LASTEXITCODE): $(($mc | Select-Object -First 1) -join '')" }
+} catch { Add-Drift 'mail-channels' "mail-channel-check could not run: $($_.Exception.Message)" }
+
 # ---------------------------------------------------------------- report
+# --- C30 code-map freshness (P7.1, run-47 merged plan, 2026-08-23): `scripts/code-index.js` builds a
+# deterministic map of this repo's own code (what requires/dot-sources/invokes what) that /deep-audit
+# and #27 migrations read instead of fanning out agents to re-read everything. A map is only useful
+# while it is true, and a STALE map is worse than none: it answers confidently about code that has
+# since moved, which is precisely the failure mode that disqualified graphify's query-first design.
+# N/A when the map has never been built (an absent optional index is not drift); AMBER when it exists
+# and the newest source file is more than 7 days newer than it. Shells out C12-style so this file's
+# "no network except the one HQ push" contract holds and the freshness logic has ONE home.
+if (Test-Path (Join-Path $repo 'system\code-graph.json')) {
+    $cg = & node "scripts\code-index.js" --stale 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 2) {
+        Add-Drift 'code-map' ("code-graph.json is stale - " + ($cg.Trim() -replace '\s+', ' ') + ". Rebuild: node scripts/code-index.js")
+    }
+}
+
+# --- C29 hook liveness (P3.7, run-47 merged plan, 2026-08-23): every wired hook leaves a breadcrumb,
+# and until now NOTHING asserted that the breadcrumbs keep arriving. A hook that silently stops
+# firing is invisible for weeks: the voice hook already died quietly once (its own header records
+# it), and the recall/capture hooks would fail exactly as quietly because both are fail-OPEN by
+# design - which is correct for a prompt path and is precisely why their silence needs a separate
+# watcher. Asserts each hook produced evidence inside its own window, sized to how often that hook
+# can legitimately fire. NEVER-FIRED is reported in different words from WENT-QUIET (the C20/F-14
+# rule): a hook wired today has no history yet, and saying "stale" would be a lie.
+$hookProbes = @(
+    @{ name = 'UserPromptSubmit/recall-inject';   path = 'system\recall\recall-metrics.jsonl';        days = 3 },
+    @{ name = 'UserPromptSubmit/capture-typed';   path = "outputs\typed\transcripts\$(Get-Date -Format 'yyyy-MM-dd').md"; days = 3; todayOnly = $true },
+    @{ name = 'PreCompact|SessionEnd|ToolFail';   path = 'system\lifecycle.jsonl';                    days = 14 }
+)
+foreach ($hp in $hookProbes) {
+    $hpFull = Join-Path $repo $hp.path
+    if (-not (Test-Path $hpFull)) {
+        # Never-fired: state it as such. For the per-day transcript this is normal on a quiet day.
+        if (-not $hp.todayOnly) {
+            Add-Drift 'hook-liveness' "$($hp.name): no evidence file yet at $($hp.path) - NEVER FIRED (not stale). Expected once the hook runs for the first time; if it stays empty past a few sessions the wiring in .claude/settings.json is dead."
+        }
+        continue
+    }
+    $ageDays = ((Get-Date) - (Get-Item $hpFull).LastWriteTime).TotalDays
+    if ($ageDays -gt $hp.days) {
+        Add-Drift 'hook-liveness' "$($hp.name): last evidence $([math]::Round($ageDays,1))d ago in $($hp.path), window is $($hp.days)d - the hook went QUIET. Check .claude/settings.json wiring and the script's own log."
+    }
+}
+
+# --- C28 user-scope skill inventory (P2.1, run-47 merged plan, 2026-08-23): `~/.claude/skills/` is
+# entirely OUTSIDE skills-lock.json, the S7 hash sweep and every audit gate this repo owns. Those
+# guard `.agents/skills/` (project scope) only. The run-47 assessment found the consequence live:
+# graphify has sat at user scope since 2026-06-09, unpinned, unaudited, 113 releases stale, wired
+# into every session by the global CLAUDE.md, self-installing a PyPI package from prose - and it was
+# found by a human reading it in August, not by any mechanism. This inventory is the mechanism that
+# would have surfaced it in June. AMBER + names the skill: appearing here is not an accusation, it
+# is "this exists outside every baseline you have, decide about it".
+$c28Baseline = Join-Path $stateDir 'user-skills-baseline.json'
+$userSkillsDir = Join-Path $env:USERPROFILE '.claude\skills'
+if (Test-Path $userSkillsDir) {
+    $liveUser = @(Get-ChildItem $userSkillsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name } | Sort-Object)
+    if (Test-Path $c28Baseline) {
+        $known = @()
+        try { $known = @((Get-Content $c28Baseline -Raw | ConvertFrom-Json).skills) } catch { $known = @() }
+        $newOnes = @($liveUser | Where-Object { $known -notcontains $_ })
+        $goneOnes = @($known | Where-Object { $liveUser -notcontains $_ })
+        if ($newOnes.Count) {
+            Add-Drift 'user-skills' "user-scope skill(s) present but NOT baselined: $($newOnes -join ', ') - these live outside skills-lock.json, the S7 hash sweep and every audit gate; review, then re-run check.ps1 -Init to accept"
+        }
+        if ($goneOnes.Count) {
+            Add-Drift 'user-skills' "baselined user-scope skill(s) now MISSING: $($goneOnes -join ', ') - a skill disappearing is as much a change as one arriving; re-run check.ps1 -Init if the removal was deliberate"
+        }
+    } else {
+        Add-Drift 'user-skills' "no user-scope skill baseline yet ($($liveUser.Count) skill(s) in $userSkillsDir) - run check.ps1 -Init to record the accepted set"
+    }
+}
+
+# --- C27 soul-core byte budget (P1.6, run-47 merged plan, 2026-08-23): the identity card is the one
+# surface EVERY session and every scheduled run pays for, and its size was guarded by a builder WARN
+# that shipped the oversized card anyway - the same dead-check-green shape as the backup's identity
+# warning. The builder now trims the recency slice to manifest meta.vault.soul_core_byte_budget;
+# this is the level-triggered proof that it worked. Over budget here means the trim hit the
+# MIN_ENTRIES floor and could not get under, which is a real signal (his recent entries are long)
+# and wants a human decision: raise the budget deliberately, or prune the corpus.
+$scBudget = 0
+try { $scBudget = [int]$manifest.meta.vault.soul_core_byte_budget } catch { $scBudget = 0 }
+if ($scBudget -gt 0) {
+    $scPath = Join-Path $repo 'soul-core.md'
+    if (Test-Path $scPath) {
+        $scLen = (Get-Item $scPath).Length
+        if ($scLen -gt $scBudget) {
+            Add-Drift 'soul-core-budget' "soul-core.md is $scLen B against the $scBudget B budget - the builder's trim hit its MIN_ENTRIES floor, so this needs a human call: raise meta.vault.soul_core_byte_budget deliberately, or prune the My Words corpus"
+        }
+    }
+}
+
+# --- C26 vault/log.md tail ordering (P1.5, run-47 merged plan, 2026-08-23): the activity log is
+# described everywhere as append-only and time-ordered, and measured on 2026-08-23 it was neither -
+# 276 of 1,107 adjacent heading pairs ran BACKWARDS, one entry was stamped in the future, and no
+# script owned the file (run-46 finding N3). scripts/log-append.js is now the mechanical writer and
+# refuses an out-of-order stamp; this check is the level-triggered backstop for anything written by
+# hand or by a model. HISTORY IS BASELINED, NOT REPAIRED: the 276 existing inversions are what
+# actually happened and rewriting them would be a lie, so only entries at or after the baseline date
+# are asserted. AMBER, never RED: an ordering wobble is a hygiene problem, not a data-loss one.
+$c26Baseline = ''
+try { $c26Baseline = [string]$manifest.meta.vault.log_order_baseline } catch { $c26Baseline = '' }
+if ($c26Baseline) {
+    $logPath = Join-Path $repo 'vault\log.md'
+    if (Test-Path $logPath) {
+        $stamps = @([regex]::Matches((Get-Content $logPath -Raw), '(?m)^## \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]') |
+                    ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -ge $c26Baseline })
+        $inversions = 0
+        for ($i = 1; $i -lt $stamps.Count; $i++) { if ($stamps[$i] -lt $stamps[$i - 1]) { $inversions++ } }
+        if ($inversions -gt 0) {
+            Add-Drift 'log-order' "vault/log.md has $inversions out-of-order entry pair(s) at or after the $c26Baseline baseline - append through scripts/log-append.js (it refuses an older-than-tail stamp) instead of writing the file by hand"
+        }
+        # A stamp in the FUTURE is its own defect: it makes every later entry look out of order and
+        # poisons any temporal join. Checked against local now + 5 min of clock slack.
+        $future = @($stamps | Where-Object { $_ -gt (Get-Date).AddMinutes(5).ToString('yyyy-MM-dd HH:mm') })
+        if ($future.Count) {
+            Add-Drift 'log-order' "vault/log.md carries $($future.Count) future-stamped entr(ies) (newest: $($future[-1])) - a timestamp ahead of now cannot be trusted for ordering"
+        }
+    }
+}
+
 $n = $drift.Count
 $byCat = $drift | Group-Object cat | Sort-Object Count -Descending
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'

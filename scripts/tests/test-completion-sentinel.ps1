@@ -1,13 +1,11 @@
-# Unit test for item 1 (completion sentinel) in scripts/lib/close-out.ps1.
-# Verifies the positive-completion detection: a >500-char run with no verdict line in its tail
-# FAILS the sentinel (ENFORCING since 2026-07-21, audit O-01), while a run carrying the verdict
-# line does not, and a limit mention that is NOT in the tail does not false-flag. Deterministic,
-# zero-token. Run from repo root.
-# Corrected 2026-08-18 (found stale during the bash-migration Phase 2 port, migrate/linux-bash
-# commit ec2437a): this test still asserted the STAGE 1 warn-only behavior (OBSERVE, still OK)
-# that close-out.ps1 itself moved off of on 2026-07-21. It had been failing against its own
-# library ever since. See scripts/tests/close-out.test.mjs for the equivalent Node coverage.
-Set-Location "C:\Users\Thinkpad\Desktop\personal-os"
+# Unit test for the completion sentinel in scripts/lib/close-out.ps1.
+# UPDATED 2026-08-05 to the Stage-2 ENFORCING semantics (flipped 2026-07-21, audit O-01): a >500-char
+# run with no verdict line in its tail is now FAILED (RED + retry ladder), not merely observed. The
+# original warn-only expectations sat broken-and-silent for two weeks because nothing ran this file -
+# the enforcing path ends in `exit 1`, which killed the test process before its first assertion could
+# print. Cases run with -DryRun (no HQ push, no task registration) + -NoExit (survive the failure
+# path in-process). Deterministic, zero-token, runs from any checkout (public-repo CI runs it too).
+Set-Location (Join-Path $PSScriptRoot '..\..')
 . "scripts\lib\close-out.ps1"
 
 $pass = 0; $fail = 0
@@ -17,32 +15,33 @@ function Check($name, $cond) {
 }
 function RunCase($out) {
     $log = [IO.Path]::GetTempFileName()
-    Invoke-CloseOutCheck -Out $out -Code 0 -Log $log -Project '' -DryRun | Out-Null
+    Invoke-CloseOutCheck -Out $out -Code 0 -Log $log -Project '' -DryRun -NoExit | Out-Null
     $txt = Get-Content $log -Raw; Remove-Item $log -Force
     return $txt
 }
 
 $pad = ("The run did real work. " * 40)   # ~920 chars, no verdict, no limit signature
 
-# (a) >500 chars, no verdict, exit 0 -> sentinel ENFORCING logs and FAILS the run (truncation / dark stop)
+# (a) >500 chars, no verdict, exit 0 -> sentinel ENFORCING: FAILED, never OK
 $a = RunCase $pad
-Check "a: no-verdict long run logs sentinel ENFORCING" ($a -match 'sentinel ENFORCING:')
-Check "a: no-verdict long run is marked FAILED" ($a -match 'FAILED: no Close-Out verdict line')
-Check "a: no-verdict long run is NOT reported OK" ($a -notmatch 'OK \(exit 0\)')
+Check "a: no-verdict long run is FAILED (Stage 2 enforcing)" ($a -match 'FAILED: no Close-Out verdict line')
+Check "a: enforcing line logged" ($a -match 'sentinel ENFORCING')
+Check "a: no-verdict long run is NOT scored OK" ($a -notmatch 'OK \(exit 0\)')
+Check "a: dry-run failure path pushes nothing (no run_status tile)" ($a -match 'HQ push skipped: no run_status tile')
 
-# (b) >500 chars ending with the verdict line -> sentinel does not fire
+# (b) >500 chars ending with the verdict line -> OK, sentinel silent
 $b = RunCase ($pad + "`nClose-Out [session]: A1..A6 ok. Verdict: COMPLETE")
-Check "b: verdict-present run does not trip the sentinel" ($b -notmatch 'sentinel ENFORCING')
 Check "b: verdict-present run is OK" ($b -match 'OK \(exit 0\)')
+Check "b: verdict-present run is not flagged" ($b -notmatch 'sentinel ENFORCING|FAILED')
 
-# (c) 'session limit' mentioned EARLY (not in tail 400) but ends with the verdict -> no sentinel, no false FAIL
+# (c) 'session limit' mentioned EARLY (not in tail 400) but ends with the verdict -> no false FAIL
 $c = RunCase ("Earlier the previous session limit was discussed. " + $pad + "`nVerdict: INCOMPLETE(nothing)")
-Check "c: INCOMPLETE verdict counts as finished (sentinel does not fire)" ($c -notmatch 'sentinel ENFORCING')
+Check "c: INCOMPLETE verdict counts as finished (not flagged)" ($c -notmatch 'sentinel ENFORCING')
 Check "c: early limit mention does not false-flag FAILED" ($c -notmatch 'FAILED')
 
-# (d) SHORT run (<500 chars) with no verdict -> short-gated, sentinel does not fire
+# (d) SHORT run (<500 chars) with no verdict -> short-gated, still OK
 $d = RunCase "tiny run, no verdict here"
-Check "d: short run does not trip the sentinel (short-gated)" ($d -notmatch 'sentinel ENFORCING')
+Check "d: short run is not flagged (short-gated)" ($d -notmatch 'sentinel ENFORCING')
 Check "d: short clean run is OK" ($d -match 'OK \(exit 0\)')
 
 Write-Output ""

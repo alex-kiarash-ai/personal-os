@@ -118,12 +118,24 @@ The weekly eval also evaluates AGENT SKILLS and auto-installs the good ones. Thr
    block. It proposes; it never installs.
 3. **Install + wire (deterministic, zero-token):** scripts/skills-installer.js reads that json block and
    per candidate runs the validation gate that stands in for the removed human gate: resolve GitHub source
-   -> trust_allowlist -> source audit (no install-hooks / process-spawning / exfil scripts, SCOPED to the
-   skill's own dir since `skills add` copies only that) -> dedup vs skills-lock -> weekly_install_cap.
-   Survivors: `npx -y skills add`, verify/recreate the .claude symlink, upsert skills-lock.json, WIRE into
+   -> `revoked` list (skills-sources.json, added 2026-08-05: a revoked name or owner/repo is refused
+   outright) -> trust_allowlist -> SHA-PINNED source audit (no install-hooks / process-spawning / exfil
+   scripts, SCOPED to the skill's own dir since `skills add` copies only that; since 2026-08-05 the branch
+   ref is resolved to ONE commit SHA first and every tree/raw read happens at that SHA) -> dedup vs
+   skills-lock -> weekly_install_cap.
+   Survivors: `npx -y skills add`, then POST-INSTALL BYTE-VERIFY (2026-08-05, enterprise-assessment idea 4,
+   [[research/enterprise-assessment-ideas]]): every file of the installed copy is compared (CRLF-normalized
+   sha256) against the audited SHA's raw content - `skills add` fetches upstream HEAD, so a repo that moved
+   between audit and install FAILS here, the install is rolled back (dir + junction) and the skill is
+   flagged; this closes the audit-vs-install TOCTOU gap. On verify PASS: verify/recreate the .claude
+   symlink, upsert skills-lock.json (now with `sourceCommit` = the audited SHA + `installedAt`), WIRE into
    the recall architecture (root CLAUDE.md auto-region row + the target work/NN/CLAUDE.md `## Skills` line),
    run generate-alex.js, git-commit per install (git revert <sha> = undo). Off-allowlist authors, audit
    failures, cap overflow, and un-targeted skills are reported as "Flagged, manual review", never installed.
+   A skill in `revoked` that is ALREADY installed is listed in every weekly report under "REVOKED but still
+   installed" for Shaheen to remove by hand - auto-install was approved, auto-REMOVE never was. The
+   testable core (auditRepo / verifyInstalledAgainstSha / rollbackInstall) is exported module-style
+   (require.main guard, the validate-alex pattern).
 - skill-creator + skill-development stay MANDATORY when an approved item lands as a NEW/changed skill of
   our own; agent-development advisory for subagent designs.
 - Only the skills lane auto-installs. Everything else keeps the human gate. See vault/research/skills-sh-sweep.md.

@@ -59,3 +59,4 @@ Follow `color-system.md` §4.5 (series order, reds for data alarms only, gridlin
 
 ## Tone
 - Match soul.md voice rules (Alex). Calm, technical, deep water. Orange is the single spark. Red means "pay attention now."
+- **Running prose in research output has its own standard: `brand/config/writing-style.md`** (added 2026-08-06). This file covers how the brand LOOKS; that one covers how the analytical third person READS (banned constructions, sentence rhythm, claim sourcing, no em-dashes). soul.md still governs prose written in Shaheen's own voice. Where an external standard governs a document (APA7, MLA, a journal template), the standard wins over both and the conflict gets flagged: [[research/apa7-brand-conflicts]].

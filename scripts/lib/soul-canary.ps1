@@ -35,14 +35,39 @@ function Get-SoulToken {
 function Get-SoulCanaryInstruction {
     # Appended to the headless prompt. The token is deliberately NOT included here; the model must
     # supply it from soul.md, which is the whole proof.
+    #
+    # REWRITTEN 2026-08-05 after the pen-test suite measured a ~40% flake rate since 2026-07-20
+    # (morning-brief 18 pass / 12 fail, email-triage 11 pass / 14 fail). Three design faults, all
+    # in the ASK rather than in the injection, and the log proves it:
+    #   (a) COLLIDING FINAL-LINE ORDERS. This block said "the very last line must be SOUL-OK"; the
+    #       wrappers then append $AlexVerdictInstruction ("end your final message with ... Verdict:").
+    #       Two instructions cannot both own the last line, so the model resolved it differently on
+    #       different runs. Fixed by SEQUENCING both explicitly instead of each claiming primacy.
+    #   (b) CONFABULATION. The model invented plausible tokens rather than looking one up
+    #       ("SOUL-OK eyJ-kiarash <nonce>", "SOUL-OK brkb-canary-2026 <nonce>" - real log lines).
+    #       An opaque 16-hex value buried in a 143KB file is a retrieval task, and an un-anchored
+    #       retrieval task is where a model guesses. Fixed by naming the exact anchor line to copy
+    #       from and forbidding a guess outright.
+    #   (c) DROPPED NONCE. "SOUL-OK <the-real-token>" with the nonce omitted (real log line). Fixed
+    #       by showing the shape as two required fields with the nonce pre-filled and marked verbatim.
+    # The gate still cannot be faked: the token is still never in the prompt, and the nonce is still
+    # per-run. This only makes the honest answer easy to give and the guess explicitly disallowed.
     param([Parameter(Mandatory)][string]$Nonce)
     return @"
 
 
-Close-out requirement (do not skip): the very last line of your response must be exactly:
-SOUL-OK <token> $Nonce
-where <token> is the SOUL-CANARY-TOKEN value from soul.md. If that token is not present in your
-context, print instead: SOUL-MISSING $Nonce
+Close-out requirement (do not skip, and do not summarise it away):
+End your response with these two lines, in this exact order, nothing after them:
+
+  1. the Close-Out Report line, ending in 'Verdict: COMPLETE' or 'Verdict: INCOMPLETE(<missed>)'
+  2. SOUL-OK <token> $Nonce
+
+For line 2: <token> is copied VERBATIM from the line beginning 'SOUL-CANARY-TOKEN:' in soul.md
+(near the top of the file, and again in its own block lower down). Copy the value character for
+character. NEVER guess, abbreviate, or invent it, and never substitute a placeholder. Reproduce
+the nonce '$Nonce' exactly as given; both fields are required.
+If soul.md is genuinely not in your context and you cannot find that line, print instead:
+SOUL-MISSING $Nonce
 "@
 }
 
@@ -68,6 +93,15 @@ function Test-SoulCanary {
     }
     if ($Out -match "SOUL-OK\s+\S+\s+$n(\s|$)") {
         return @{ Pass = $false; Reason = 'wrong token for this nonce (soul.md not injected or altered)'; Token = $token }
+    }
+    # Correct token, nonce omitted entirely (real 2026-08-05 log line: "SOUL-OK <the-real-token>").
+    # Still a FAIL - without the nonce there is no freshness proof, so the gate stays closed. But the
+    # DIAGNOSIS matters: the token is unguessable, so its presence proves soul.md DID reach the model
+    # and only the line shape was wrong. Before this case existed the run fell through to the catch-all
+    # and reported "soul canary absent", which is the opposite of what happened; that false reading is
+    # what made a formatting flake look like an identity outage for two weeks. (Added 2026-08-05.)
+    if ($Out -match "SOUL-OK\s+$t\s*(\r?\n|$)") {
+        return @{ Pass = $false; Reason = 'token correct but nonce omitted (soul DID reach the model; canary line malformed, no freshness proof)'; Token = $token }
     }
     if ($Out -match "SOUL-OK\s+$t\s+\S+") {
         return @{ Pass = $false; Reason = 'token matched but nonce stale (possible replay/cache)'; Token = $token }

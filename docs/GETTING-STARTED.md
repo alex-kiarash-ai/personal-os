@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-03. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-23. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -40,7 +40,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 - **Then hand-refine `soul.md`** (the biggest lever, that is your identity and voice).
 - Start building automations with `/new` and the per-project `work/{n}/CLAUDE.md` specs. `/new` writes the registry entry in `system/manifest.json` FIRST, then scaffolds.
 
-## 4. The automations (31 registered, non-retired)
+## 4. The automations (32 registered, non-retired)
 
 The registry `system/manifest.json` is the source of truth; this list is generated from it.
 
@@ -60,7 +60,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
 - **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.
-- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks (C1-C22, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db).
+- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 24 checks (C1-C25, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db) + the soul-core injection card + the status/backup rotation caps (S1 Compiled Surfaces).
 - **19 Venture Sync** (DORMANT, revisit 2026-10-01; trigger: -) - Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine.
 - **20 Runway** (LIVE; trigger: monthly last day 21:15) - The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel.
 - **21 Interview Copilot** (EVENT; trigger: brief flag + on-demand) - Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends.
@@ -75,15 +75,17 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **30 Portfolio Website** (ON-DEMAND; trigger: on-demand build sessions; GitHub Actions deploys on push to main (repo-side CI, no local cron in v1)) - shaheenkiarash.com rebuilt as a public-repo Astro static site (took number 30 from the retired modeling lane 2026-08-03; that lane was wiped whole with no successor, tombstone in meta.unnumbered). Images-as-content portfolio + the In Motion film section, docs-as-interview-artifact, zero secrets by construction. Serves from the existing Cloudflare Worker plain-block-545a, deployed by hardened GitHub Actions + wrangler with a scoped API token (amendment A1: VPS self-hosting evaluated and DEFERRED, to keep a public surface off the production n8n box whose Caddy container owns ports 80/443; the rejection is itself the interview artifact). The website repo lives at Desktop/shaheenkiarash.com, a SIBLING of personal-os, never nested. Build runs in phases B0-B5 with hard entry gates; no code before the content and design phase closes.
 - **31 Portal Scanner** (LIVE; trigger: n8n Tue & Thu 15:13 (scan + bank)) - Standalone company-portal job lane, STAGE 1 of 2: detect each company ATS once, hit its free public JSON, prefilter, and BANK matching jobs to the queue that #32 drains. Split from the engine 2026-07-28 so both workflows carry their own n8n id + cron and come under V6 leg (c) and the daily active-flag watcher.
 - **32 Portal Application Engine** (LIVE; trigger: n8n Tue & Thu 15:43 (drain + draft)) - Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28.
+- **33 Revit Architect** (ON-DEMAND; trigger: on-demand (any Revit job) + the five-file protocol gate before execution) - Runs any Revit job under Shaheen's five-file architect protocol: load File 01 then File 02 always, route to 03/04/05 by task scale, then resolve every HARD GATE question in order from the live model, the supplied source, session state, and only then ASK. Never infers, never defaults, and only an explicit skip bypasses a gate, which forces a stated assumption, a log line, a provisional label and a downgrade to the most conservative action. No compliance verdict without jurisdiction and code edition. Drives the live Revit MCP bridge proven 2026-08-20.
 - **Voice** (EVENT; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 
-**Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand (plus the global `/graphify`).
+**Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand, /port-to-kit.
 
 ## 5. The tools Alex reaches (MCP)
 
 MCP tools are deferred: load them with `ToolSearch("select:<tool>")` before calling. Prefer an MCP tool when one exists; use Chrome only for sites with no connector; never Chrome for Gmail, Calendar, or Notion. Connected surfaces named in the MCP Reference of `CLAUDE.md`:
 
 - n8n (Hetzner box)
+- Cloudflare
 - Claude Design (DesignSync)
 - Google Calendar
 - Gmail

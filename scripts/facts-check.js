@@ -86,6 +86,32 @@ const ASSERTIONS = [
     subject: 'escrow', predicate: 'attested', mode: 'equals',
     why: 'recoverability is the one claim that must never be optimistic: the date here must equal the attestation file',
   },
+
+  // --- the constitution annex, added 2026-08-16 (S1 Compiled Surfaces P3, the rulebook diet) ------
+  // The diet turned CLAUDE.md sections into pointers over docs/constitution-annex/ pages. The
+  // sharpest failure mode of a pointer architecture (the ExoCortex lesson, run 44): the pointer
+  // stays valid while the content behind it rots, and a stale page loads as quiet misdirection
+  // with no error anywhere. These rows make annex-rot Monday-loud for the machine-checkable claims.
+  {
+    name: 'root-skills-count',
+    doc: 'CLAUDE.md',
+    regex: /\*\*(\d+) third-party skills\*\*/,
+    subject: 'skills', predicate: 'count', mode: 'equals',
+    why: 'the dieted Skill Bindings section states the installed count; the auto-install lane moves it, so the prose must track skills-lock.json',
+  },
+  {
+    name: 'annex-skills-count',
+    doc: 'docs/constitution-annex/skills-provenance.md',
+    regex: /(\d+) third-party skills/,
+    subject: 'skills', predicate: 'count', mode: 'equals',
+    why: 'the annex carries the full skills provenance; a stale count there is exactly the pointer-rot class the annex rows exist for',
+  },
+  {
+    name: 'annex-model-default',
+    doc: 'docs/constitution-annex/model-routing-history.md',
+    subject: 'model-routing', predicate: 'default', mode: 'contains',
+    why: 'the model-routing annex must name the CURRENT manifest default; history pages may narrate old models but the standing intro line must not lie',
+  },
 ];
 
 function readDoc(p) {

@@ -14,26 +14,41 @@
         {
           "workflow": "9XuIEfxS71DEetVR",
           "name": "Application Engine (BI)",
-          "model": "kimi-k3",
-          "reason": "Shaheen 2026-07-27: all four job lanes moved from Opus 4.8 to Moonshot kimi-k3 (his call, 'best results instead of Opus'). Bodies rewritten to OpenAI/Moonshot format; voice + no-dash re-proven on the Writer Voice Eval before rollout. reasoning_effort=high (rolled out at max, flipped to high the same day: a measured max-vs-high comparison on the real writer prompt showed near-identical draft quality - both pass voice + 0 dashes - at ~1/3 the latency (79s vs 231s) and ~half the cost ($0.05 vs $0.12/call); max's only edge was a slightly sharper opening line). max_tokens 16384 + 10-min HTTP node timeout kept as headroom."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js",
+          "models": {
+            "Build Match Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5"
+          }
         },
         {
           "workflow": "9x9M3EnEEeX3O8dy",
           "name": "AI Application Engine",
-          "model": "kimi-k3",
-          "reason": "Shaheen 2026-07-27: all four job lanes moved from Opus 4.8 to Moonshot kimi-k3 at reasoning_effort=high (rolled out at max, flipped to high the same day, see the #03 override reason). OpenAI/Moonshot body format; Kimi K3 (Moonshot header) credential."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js",
+          "models": {
+            "Build Match Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5"
+          }
         },
         {
           "workflow": "grMqmGzzbTXTEdKr",
           "name": "Writer Voice Eval (regression)",
-          "model": "kimi-k3",
-          "reason": "regression harness mirrors the live writers; moved to kimi-k3 in lockstep 2026-07-27 so it grades the same model that ships. Warn-only (not a registered production engine)."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js The eval has no Match call (its Build Match Request is a case seeder), so only the writer is pinned. Warn-only: not a registered production engine.",
+          "models": {
+            "Build Writer Request": "claude-sonnet-5"
+          }
         },
         {
           "workflow": "sxEYRyeHH7i1mHzb",
           "name": "Portal Application Engine",
-          "model": "kimi-k3",
-          "reason": "Shaheen 2026-07-27: all four job lanes run the same model. Clone of #03, moved from Opus 4.8 to kimi-k3 (reasoning_effort=high, flipped from max the same day) with the other three."
+          "model": "claude-sonnet-5",
+          "reason": "Shaheen 2026-08-07: all four job lanes moved OFF Moonshot kimi-k3 back to Anthropic, with a SPLIT assignment - claude-opus-5 on the Match/fit-scoring call (judgment) and claude-sonnet-5 on the Writer (the soul.md voice block carries the prose). Forced by the Moonshot org going to a negative balance (cash -4.37, available 0): every kimi-k3 call returned HTTP 429 'account is suspended due to insufficient balance', 60/60 at one call per 3s, which no retry or backoff can touch. Same account had been recharged 8.34 USD on 08-05 and drained inside a day. Provider migration, not a string swap: bodies rewritten to Anthropic /v1/messages (system BLOCK with a cache_control breakpoint, adaptive thinking, output_config.effort), parse moved to the text blocks of content[] (content[0] is a THINKING block on these models) and Anthropic usage fields. Prompt caching is restored, which Moonshot had no write tier for. Script: work/03-application-engine/config/apply-anthropic-migration-2026-08-07.js",
+          "models": {
+            "Build Match Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5"
+          }
         }
       ],
       "local_wrappers": {
@@ -60,7 +75,8 @@
           "run-vault-index.ps1",
           "run-landscape-monitor.ps1"
         ]
-      }
+      },
+      "models_doc": "`models` (added 2026-08-07) pins EXTRA nodes by name, because a lane can now run two different models. `model` stays the contract for `checked_node` (Build Writer Request); without `models` the second model - the Match/scoring call - would be invisible to V6, since leg (a) only inspects checked_node and leg (b) skips voice-sync targets. That is exactly the unenforced-drift class this contract exists to prevent."
     },
     "cost_budgets": {
       "doc": "Per-project monthly NOTIONAL-USD token budgets (alex-costs upgrade, 2026-07-25). Units match scripts/alex-cost-attribution.js's notional cost (a flat-Max quota-consumption proxy, NOT a cash bill; the numbers are large because they price the full token volume on a flat plan). The collector computes month-to-date cost per project and, when a project crosses warn_pct of its budget mid-month, writes a tripwire to system/cost-tripwires.json + a loud line (HQ push on the nightly path) - LEVEL-triggered, replacing the reactive 'the $40 bill crossed' discovery that forced the 07-16 cut. default_monthly_usd applies to any project without an override. Also fires a PACE tripwire when the month-to-date run rate projects to exceed 100% by month-end. CALIBRATION: values are set with ~20-40% headroom above the 2026-07 baseline (day-25 snapshot: interactive ~$27k/mo projected, prompting/email-triage ~$2k, morning-brief ~$0.6k, app-engine ~$0.6k, rest < $0.4k) so normal operation is QUIET and only a genuine spike trips it - NOT cry-wolf. Retune monthly against the real attribution table. The collector validates every override key against real project/utility/unnumbered names at read time and fails loud on a typo (a formal V14 can graduate that later without churning the V-count contract).",
@@ -77,16 +93,11 @@
     },
     "paths": {
       "doc": "Machine-checkable filesystem pointers that must survive file moves without silently rotting (added 2026-07-25, stress-test fixes F1+F2). SSOT so a validator/check reads the path from here, never a hardcoded literal. %USERPROFILE% is expanded at read time so a restore to a different Windows user does not perma-fail.",
-      "master_reference_md": "%USERPROFILE%\\Desktop\\Alex Project\\Alex Presentation\\files\\ALEX-OS-master.md",
+      "master_reference_md": "%USERPROFILE%\\Desktop\\01 Projects\\Alex\\Story & Guides\\ALEX-OS-master.md",
       "identity_doc_note": "THE IDENTITY-DOC LAYOUT (rebuilt 2026-07-25, Shaheen's call, after the byte-equality check proved to be a monitor and not a fix). History: he keeps both identity docs reachable from two folders so either location shows the current version (his words 2026-07-24: 'all display the same/most updated version'). That was done by HAND on 07-24 and had re-drifted within a day; re-unified by hand again on 07-25 and re-drifted again within 85 minutes, live, while the fix was being designed (a parallel session correctly appended a running-changes entry to the canonical and the duplicate silently fell behind). A weekly report that ends in a human re-copy cannot clear the permanence bar. THE FIX IS STRUCTURAL, NOT A CHECK: there is now exactly ONE file object per document. The real files live in `identity_doc_real_dir`; `identity_doc_views[]` are NTFS directory junctions into it, so every legacy path still resolves unchanged and byte-divergence is not detected, it is impossible. WHY A JUNCTION AND NOT A HARDLINK: measured on this machine - a replace-style save (write a temp file, rename over the target; what Word, python-docx and most editors do) SILENTLY breaks a hardlink, leaving two files that look fine to anything not checking the file id. A junction links the DIRECTORY, so NTFS resolves the path before the file is created or renamed and there is no per-file link to break; the same test through a junction kept both paths as one file. WHY THE REAL FILES SIT IN 'Story & Guides': that is the folder Shaheen actually opens (his answer, 2026-07-25), and putting the real files where the human works means the junction absorbs the extra path segment instead of him. NOTE FOR ANY FUTURE SESSION: do NOT 're-copy the canonical over the duplicate' - that step is now meaningless (a self-copy) and the instruction that used to say so has been deleted. Just edit the document once.",
-      "identity_doc_real_dir": "%USERPROFILE%\\Desktop\\Alex Project\\Story & Guides",
-      "identity_doc_views": [
-        {
-          "path": "%USERPROFILE%\\Desktop\\Alex Project\\Alex Presentation\\files",
-          "kind": "junction",
-          "why": "keeps every pre-existing path (manifest master_reference_md, root CLAUDE.md Change-Propagation items 7+8, and every prose pointer) resolving unchanged after the real files moved to Story & Guides"
-        }
-      ],
+      "identity_doc_real_dir": "%USERPROFILE%\\Desktop\\01 Projects\\Alex\\Story & Guides",
+      "identity_doc_views_note": "EMPTIED 2026-08-23. The single junction view lived at Desktop\\Alex Project\\Alex Presentation\\files and existed only to keep pre-2026-07-25 paths resolving. The 2026-08-21 Desktop reorganisation deleted that entire parent tree, and both remaining consumers (root CLAUDE.md Change-Propagation items 7+8, and meta.paths.master_reference_md) now name the new Story & Guides location directly, so re-creating the junction would resurrect a path with no readers. The structural rule is UNCHANGED and still binding: one file object per document. If a document ever needs to be visible from a second folder again, add a junction view here - never a copy.",
+      "identity_doc_views": [],
       "identity_doc_byte_pairs_note": "EMPTY BY DESIGN since 2026-07-28, and it should stay that way. This list held document copies that were genuinely separate files and so could drift; the last one (the master reference's outer copy at Alex Presentation\\ALEX-OS-master.md) was DELETED on Shaheen's call 2026-07-28, closing the final drift pair. Every identity document is now exactly one file object reachable from every historical path through the junction in identity_doc_views, so byte-divergence is impossible rather than merely monitored - the same structural principle as the 2026-07-25 junction rebuild. Do NOT re-introduce a copy here to 'make a document visible in another folder': add a junction view instead. C19 still walks this list, so a future genuine pair would be caught, but an empty list is the healthy state.",
       "identity_doc_byte_pairs": [],
       "backup_destinations": [
@@ -113,7 +124,8 @@
       "lint",
       "new",
       "cron-setup",
-      "brand"
+      "brand",
+      "port-to-kit"
     ],
     "known_work_folders": [
       "voice",
@@ -193,7 +205,19 @@
         "first_fire": "2026-07-24",
         "first_fire_kind": "live"
       }
-    ]
+    ],
+    "vault": {
+      "soul_core_byte_budget": 92160,
+      "soul_core_budget_note": "P1.6 (run-47 merged plan, 2026-08-23). Hard cap on the nightly soul-core.md card, enforced by scripts/lib/build-soul-core.js and asserted weekly by recovery check C27. Before this the builder WARNED at 60KB and shipped anyway, and the card had doubled to 85KB in a week because the recency slice is entry-counted, not byte-counted (run-46 finding N7). The trim drops the OLDEST entries of the recency slice only; the operative layer, both canaries and the pinned registers are never trimmed, and MIN_ENTRIES still refuses to go below the floor. ARMING VALUE 2026-08-23 is 92160 (90KB), set just above the measured 88112 B card so unbounded growth is CAPPED without silently cutting his recency slice: at 60KB the trim hit the MIN_ENTRIES floor and dropped the newest slice from 20 entries to 12, which is a voice-quality decision Shaheen makes, not a side effect of a plumbing fix. Lowering this number trades recency depth for standing tokens and is his call. Raise it deliberately if his register needs more room; never raise it merely to silence C27.",
+      "log_order_baseline": "2026-08-23 17:00",
+      "log_order_baseline_note": "P1.5 (run-47 merged plan, 2026-08-23). C26 asserts vault/log.md tail ordering only from this stamp forward. The 276 pre-existing out-of-order pairs measured on 2026-08-23 are HISTORY: they record what actually happened and rewriting them to satisfy a checker would be a lie, so they are baselined rather than repaired. scripts/log-append.js is the mechanical writer that keeps new entries ordered; C26 catches anything written around it.",
+      "status_byte_budget": 25600,
+      "note": "S1 Compiled Surfaces P2 (2026-08-16): Tier-1 status.md files are SUMMARIES by contract. scripts/status-rotate.js moves whole dated H2 blocks (oldest first, heading-block-atomic so BM25 chunks keep their inline supersessions) of any over-budget status.md to vault/projects/{name}/history/status-YYYY.md, linked both ways, journaled to system/status-rotate-journal.jsonl before each move. C24 ambers on any status.md over this budget (live byte count, so a dead rotator cannot hide). Nothing is deleted anywhere."
+    },
+    "constitution": {
+      "byte_budget": 76000,
+      "note": "S1 Compiled Surfaces P3 (2026-08-16, Shaheen-approved diff): CLAUDE.md landed at 63,227 B after the rulebook diet; budget = landing +20% so V16 catches REGROWTH, never the split. New standing content = operative sentence in CLAUDE.md + history in docs/constitution-annex/. Raise only as a deliberate manifest edit."
+    }
   },
   "projects": [
     {
@@ -768,7 +792,7 @@
       "title": "Recovery Layer",
       "state": "LIVE",
       "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe",
-      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 21 checks (C1-C22, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db).",
+      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 24 checks (C1-C25, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db) + the soul-core injection card + the status/backup rotation caps (S1 Compiled Surfaces).",
       "docs": "18-recovery-layer.md",
       "schedule_jobs": [
         "PersonalOS-recovery-check",
@@ -1239,6 +1263,37 @@
       "first_fire_kind": "live",
       "n8n": "sxEYRyeHH7i1mHzb",
       "n8n_cron": "43 15 * * 2,4",
+      "claude_md_sha": null
+    },
+    {
+      "num": 33,
+      "name": "revit-architect",
+      "title": "Revit Architect",
+      "state": "ON-DEMAND",
+      "trigger": "on-demand (any Revit job) + the five-file protocol gate before execution",
+      "one_liner": "Runs any Revit job under Shaheen's five-file architect protocol: load File 01 then File 02 always, route to 03/04/05 by task scale, then resolve every HARD GATE question in order from the live model, the supplied source, session state, and only then ASK. Never infers, never defaults, and only an explicit skip bypasses a gate, which forces a stated assumption, a log line, a provisional label and a downgrade to the most conservative action. No compliance verdict without jurisdiction and code edition. Drives the live Revit MCP bridge proven 2026-08-20.",
+      "docs": "33-revit-architect.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/33-revit-architect",
+      "commands": [
+        "revit"
+      ],
+      "status_md": "vault/projects/revit-architect/status.md",
+      "cadence": {
+        "expected_hours": null,
+        "label": "on-demand"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "queue-only"
+      },
+      "first_fire": "2026-08-21",
+      "first_fire_kind": "live",
+      "n8n": null,
       "claude_md_sha": null
     }
   ]

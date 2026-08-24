@@ -13,6 +13,28 @@
 # Exit 0 = all expected-active workflows are active (or API unreachable, treated as transient).
 # Exit 1 = at least one expected-active workflow is OFF (real drift).
 #
+# --- LEG 2 added 2026-08-05 (pen-test finding P-02) -------------------------------------------
+# The flag leg above answers "is it switched on". It does NOT answer "did it work", and those are
+# different invariants. Proven on 2026-08-04/05: #03 and #14 both ERRORED on the live box while this
+# watcher, validator V6 and the weekly sweep all read green, because every one of them inspects
+# CONFIGURATION. Three greens on the same layer are not independent evidence.
+#
+# Leg 2 reads /executions and asserts, per governed workflow:
+#   (a) the LAST execution did not error   -> a run that failed is a red, immediately; and
+#   (b) a SUCCESS happened within the window its declared `n8n_cron` implies (x2 for slack)
+#       -> catches the silent case: a trigger that stopped firing at all, which (a) cannot see
+#          because there is no failed execution to find.
+# Only projects carrying an `n8n_cron` get leg (b); webhook-driven lanes (#16, #17) have no
+# expected cadence in the registry, so asserting one would invent a contract that does not exist.
+# Their silence is owned by the HQ self-heal `health-source-stalled` probe instead.
+#
+# Deliberately NOT retried or auto-fixed here: this is the DETECT half, same as the flag leg. The
+# remedy for a failed run is a person reading the error, because the causes are not interchangeable
+# (2026-08-04 alone produced a Google Sheets 503, a Bright Data "Customer is not active", and an
+# unparseable Sheets range - three different remedies, none of them a rerun).
+#
+# Exit 1 now also means: a governed workflow's last run errored, or it has gone quiet past its cadence.
+#
 #   n8n-active-check.ps1            run the check (scheduled daily 08:10 as PersonalOS-n8n-active-check)
 #   n8n-active-check.ps1 -DryRun    run + log, but do NOT push to Alex HQ (testing)
 param([switch]$DryRun)
@@ -27,6 +49,8 @@ Say "=== run $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')$(if($DryRun){' (DRYRUN)'}
 
 $reason = $null
 $inactive = @()
+$failed = @()        # leg 2a: governed workflows whose LAST execution errored
+$stale = @()         # leg 2b: governed workflows with no success inside their declared cadence
 $unreachable = @()
 $checked = 0
 try {
@@ -35,7 +59,8 @@ try {
     $expected = @()
     foreach ($p in @($manifest.projects) + @($manifest.meta.unnumbered)) {
         if ($p.state -eq 'LIVE' -and ($p.n8n -is [string]) -and $p.n8n.Length -ge 15 -and $p.n8n.Length -le 20) {
-            $expected += [pscustomobject]@{ label = $(if ($p.num) { "#$($p.num) $($p.name)" } else { $p.name }); id = $p.n8n }
+            $expected += [pscustomobject]@{ label = $(if ($p.num) { "#$($p.num) $($p.name)" } else { $p.name }); id = $p.n8n
+                                            cron  = $(if ($p.n8n_cron -is [string]) { $p.n8n_cron } else { $null }) }
         }
     }
     if ($expected.Count -eq 0) { throw "no LIVE project carries an n8n workflow id - manifest schema drift?" }
@@ -58,8 +83,57 @@ try {
         }
     }
 
+    # --- LEG 2: execution health (P-02). Config-green is not run-green. -------------------------
+    # One /executions read for the whole set, then per-workflow verdicts. Kept to a single call so a
+    # daily zero-token watcher stays cheap; 250 rows covers every governed lane's recent history.
+    if ($checked -gt 0) {
+        try {
+            $ex = Invoke-RestMethod -Uri "$base/executions?limit=250&includeData=false" -Headers $H -Method Get -TimeoutSec 30
+            $rows = @($ex.data)
+            Say "executions read: $($rows.Count)"
+            foreach ($w in $expected) {
+                $mine = @($rows | Where-Object { $_.workflowId -eq $w.id } |
+                          Sort-Object { [datetime]$_.startedAt } -Descending)
+                if ($mine.Count -eq 0) { Say "exec: $($w.label) - no executions in the window (not asserted)"; continue }
+
+                # (a) last run errored -> red now. n8n uses 'error' and 'crashed' for real failures.
+                $last = $mine[0]
+                if ($last.status -in @('error', 'crashed')) {
+                    $failed += "$($w.label) last run $($last.status) $(([string]$last.startedAt).Substring(0,16))"
+                    Say "FAILED: $($w.label) last execution id=$($last.id) status=$($last.status) at $($last.startedAt)"
+                    continue    # already red; the staleness leg would just restate it
+                }
+
+                # (b) gone quiet past its declared cadence. Only for lanes that DECLARE one.
+                if (-not $w.cron) { Say "ok: $($w.label) last run $($last.status) (no n8n_cron declared, cadence not asserted)"; continue }
+                $succ = @($mine | Where-Object { $_.status -eq 'success' })
+                if ($succ.Count -eq 0) { $stale += "$($w.label) no success in window"; Say "STALE: $($w.label) no success in the execution window"; continue }
+                $lastOk = [datetime]$succ[0].startedAt
+                # Expected gap from the cron's day-of-week field: a 2-days-a-week lane may legitimately
+                # be quiet for 5 days. Weekly-ish = 8d, daily = 2d, then doubled for slack. Deliberately
+                # coarse: this leg exists to catch "stopped firing entirely", not to police punctuality.
+                $dow  = ($w.cron -split '\s+')[4]
+                $days = if ($dow -eq '*') { 2 } else { 8 }
+                $ageD = [math]::Round(((Get-Date) - $lastOk).TotalDays, 1)
+                if ($ageD -gt ($days * 2)) {
+                    $stale += "$($w.label) last success ${ageD}d ago (cron '$($w.cron)')"
+                    Say "STALE: $($w.label) last success ${ageD}d ago, window $($days*2)d, cron '$($w.cron)'"
+                } else {
+                    Say "ok: $($w.label) last run success, ${ageD}d ago (window $($days*2)d)"
+                }
+            }
+        } catch {
+            # Executions unreadable is NOT drift - same posture as the flag leg's API-outage case.
+            Say "executions unreadable this run (leg 2 skipped): $($_.Exception.Message)"
+        }
+    }
+
     if ($inactive.Count -gt 0) {
         $reason = "OFF: " + ($inactive -join '; ')
+    } elseif ($failed.Count -gt 0) {
+        $reason = "FAILED RUN: " + ($failed -join '; ')
+    } elseif ($stale.Count -gt 0) {
+        $reason = "NO RECENT SUCCESS: " + ($stale -join '; ')
     } elseif ($checked -eq 0) {
         $reason = 'TRANSIENT-API-UNREACHABLE'   # nothing reachable = network/API blip, not config drift
     }
@@ -72,15 +146,18 @@ $tokenFile = "work\16-alex-hq\config\alex-hq-token.txt"
 if ((Test-Path $tokenFile) -and -not $DryRun) {
     $token = (Get-Content $tokenFile -Raw).Trim()
     if ($null -eq $reason) {
-        $head = "all $checked LIVE n8n workflows active"
+        # Green now means BOTH legs passed: switched on AND last run healthy. Say so, because the
+        # old headline ("all N active") is exactly the reassurance that hid P-02 for two days.
+        $head = "all $checked LIVE n8n workflows active + last runs healthy"
         if ($unreachable.Count -gt 0) { $head += " ($($unreachable.Count) unreachable this run)" }
         $body = @{ project='recovery'; metric_key='n8n_active'; value_num=0; headline=$head; status='green' } | ConvertTo-Json -Compress
     } elseif ($reason -eq 'TRANSIENT-API-UNREACHABLE') {
         $body = @{ project='recovery'; metric_key='n8n_active'; value_num=0
                    headline="n8n API unreachable this run (transient, not drift)"; status='amber' } | ConvertTo-Json -Compress
     } else {
-        $body = @{ project='recovery'; metric_key='n8n_active'; value_num=$inactive.Count
-                   headline="n8n workflow(s) OFF: $reason"; status='red' } | ConvertTo-Json -Compress
+        # value_num carries the total count of unhealthy lanes across both legs, not just OFF ones.
+        $body = @{ project='recovery'; metric_key='n8n_active'; value_num=($inactive.Count + $failed.Count + $stale.Count)
+                   headline="n8n unhealthy: $reason"; status='red' } | ConvertTo-Json -Compress
     }
     try {
         Invoke-RestMethod -Method Post -Uri 'https://n8n.shaheenkiarash.com/webhook/alex-push' `
