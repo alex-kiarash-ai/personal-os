@@ -16,6 +16,7 @@
 
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { paths, ROOT } from './paths.mjs';
 
 const CRITICAL_MCP = ['Notion', 'Gmail', 'Google Calendar', 'Google Drive'];
@@ -170,7 +171,10 @@ async function main() {
   return 1;
 }
 
-if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(new URL(import.meta.url).pathname)) {
+// fileURLToPath, not URL.pathname: pathname on Windows yields '/C:/...' which realpathSync
+// mangles into 'C:\C:' and throws at import time (found 2026-08-25 during the powershell-branch
+// reconciliation; same platform-agnostic class as the 86ff0f7 backports).
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
   main().then(
     (c) => process.exit(c),
     (e) => {

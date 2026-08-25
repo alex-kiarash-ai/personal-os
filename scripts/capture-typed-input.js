@@ -19,6 +19,12 @@
  * signal the corpus wants, per soul.md's voice-transcription rule.
  */
 
+// P3.3 kill-switch (run-47 merged plan, 2026-08-23): `set ALEX_DISABLED_HOOKS=capture-typed-input`
+// makes this hook a silent no-op for the session, without editing .claude/settings.json mid-flight.
+if (String(process.env.ALEX_DISABLED_HOOKS || '').split(',').map((s) => s.trim()).includes('capture-typed-input')) {
+  process.exit(0);
+}
+
 const fs = require('fs');
 const path = require('path');
 

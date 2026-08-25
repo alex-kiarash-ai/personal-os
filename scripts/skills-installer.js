@@ -3,7 +3,12 @@
 // ZERO model tokens. It reads the weekly eval's machine-readable install block (the fenced ```json in
 // outputs/evolution/<date>/digest.md, or a --manifest file) and, for each proposed skill, runs the
 // automated VALIDATION that stands in for the removed human gate:
-//   resolve GitHub source -> trust allowlist -> source audit (hooks/scripts/network) -> dedup -> cap.
+//   resolve GitHub source -> revocation list -> trust allowlist -> SHA-pinned source audit
+//   (hooks/scripts/network, every read at ONE resolved commit) -> dedup -> cap -> install ->
+//   post-install byte-verify against the audited SHA (mismatch = rollback + flag).
+// The SHA-pin + verify + `revoked` list landed 2026-08-05 (enterprise-assessment idea 4,
+// vault/research/enterprise-assessment-ideas.md): before it, audit reads and the `npx skills add`
+// fetch hit a MOVING branch ref at different moments, so audited and installed content could differ.
 // A survivor is installed live (`npx skills add`), then WIRED into the recall architecture (root
 // CLAUDE.md Skill Bindings row + the target project's work/NN/CLAUDE.md ## Skills line), the docs are
 // regenerated, and each install is its own git commit so `git revert <sha>` is the always-available
@@ -83,8 +88,18 @@ async function auditRepo(owner, repo, skillName, cfg) {
   catch (e) { return { ok: false, reason: `repo not reachable (${e.message})` }; }
   const branch = meta.default_branch || 'main';
 
+  // SHA-pin (2026-08-05, enterprise-assessment idea 4): resolve the moving branch ref to ONE commit
+  // SHA and do EVERY read below at that SHA. Before this, the tree and each raw fetch hit the branch
+  // ref independently, and `npx skills add` fetched the repo AGAIN at install time - so the content
+  // audited and the content installed could differ (upstream can rewrite a skill between the two).
+  // The SHA travels into the lock (sourceCommit) and the post-install verify re-checks installed
+  // bytes against it, which terminates the audit-vs-install TOCTOU class.
+  let sha;
+  try { sha = (await ghJSON(`https://api.github.com/repos/${owner}/${repo}/commits/${branch}`)).sha; }
+  catch (e) { return { ok: false, reason: `head commit not resolvable (${e.message})` }; }
+
   let tree;
-  try { tree = await ghJSON(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`); }
+  try { tree = await ghJSON(`https://api.github.com/repos/${owner}/${repo}/git/trees/${sha}?recursive=1`); }
   catch (e) { return { ok: false, reason: `tree not reachable (${e.message})` }; }
   const paths = (tree.tree || []).map(t => t.path);
 
@@ -129,7 +144,91 @@ async function auditRepo(owner, repo, skillName, cfg) {
       }
     }
   }
-  return { ok: true, branch, skillPath: skillDir || null };
+
+  /*
+   * 4) Scan the skill's own MARKDOWN for hidden-unicode payloads and install-by-instruction.
+   *    (P2.5 + the graphify class, run-47 merged plan, 2026-08-23.)
+   *
+   *    Step 3 above only reads .js/.sh/.py/.ps1, and that is exactly the blind spot: an agent skill's
+   *    SKILL.md IS the payload, because an agent reading it executes what it says, and no script file
+   *    has to exist at all. Two live proofs from the run-47 assessment. (a) graphify ships ZERO script
+   *    files and self-installs a PyPI package from prose - it passed every script-scoped gate here and
+   *    was only caught by a human reading it (2026-08-17), and at upstream HEAD it has since become
+   *    MORE aggressive (`pip install --break-system-packages`). (b) Snyk's ToxicSkills work found
+   *    prompt injection in 36% of scanned public skills, and the standard concealment is zero-width or
+   *    bidi-override characters that are invisible in every editor and diff.
+   *
+   *    Persian carve-out: U+200C ZWNJ and U+200D ZWJ are legitimate joiners in Shaheen's languages and
+   *    are NOT blocked; the pure concealment characters are.
+   */
+  const HIDDEN_UNICODE = /[​⁠﻿‪-‮⁦-⁩]/;
+  const INSTALL_BY_INSTRUCTION = [
+    /\bpip3?\s+install\b/i, /\buv\s+tool\s+install\b/i, /\buvx\s+/i,
+    /\bnpm\s+(?:i|install)\s+(?:-g|--global)\b/i, /\bpipx\s+install\b/i,
+    /--break-system-packages/i,
+  ];
+  const docs = paths.filter(p => inScope(p) && /\.(md|markdown)$/i.test(p));
+  for (const dp of docs.slice(0, 20)) {
+    let body = '';
+    try { body = await ghText(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${dp}`); }
+    catch { continue; }
+    if (HIDDEN_UNICODE.test(body)) {
+      return { ok: false, reason: `doc ${dp} contains hidden-unicode characters (zero-width or bidi override) - the standard prompt-injection concealment` };
+    }
+    const hitInstall = INSTALL_BY_INSTRUCTION.find(re => re.test(body));
+    if (hitInstall) {
+      return { ok: false, reason: `doc ${dp} instructs a package install in prose (${hitInstall.source}) - install-by-instruction is invisible to the script-scoped audit and is how a skill self-installs code (the graphify class)` };
+    }
+  }
+
+  // Blob list of the skill's own dir at the audited SHA - the exact content set the post-install
+  // verify holds the installed copy to.
+  const dirFiles = (tree.tree || [])
+    .filter(t => t.type === 'blob' && dirPrefix && t.path.startsWith(dirPrefix))
+    .map(t => t.path);
+  return { ok: true, branch, sha, skillPath: skillDir || null, dirPrefix, dirFiles };
+}
+
+// ---- post-install verify against the audited SHA (2026-08-05, idea 4) --------------------------
+// `npx skills add` fetches upstream HEAD at install time, NOT the audited commit. This re-reads every
+// file of the skill dir AT THE AUDITED SHA and byte-compares (CRLF-normalized) against what actually
+// landed in .agents/skills/<name>/. Any mismatch, missing file, or extra local file means the install
+// does not equal the audit -> the caller rolls the install back and flags it. Verify-after-write.
+const norm = b => crypto.createHash('sha256').update(String(b).replace(/\r\n/g, '\n')).digest('hex');
+async function verifyInstalledAgainstSha(owner, repo, audit, name) {
+  if (!audit.dirPrefix || !audit.dirFiles || !audit.dirFiles.length) {
+    return { ok: false, reason: 'audit carried no skill-dir file list to verify against' };
+  }
+  if (audit.dirFiles.length > 100) {
+    return { ok: false, reason: `skill dir too large to verify (${audit.dirFiles.length} files > 100)` };
+  }
+  const local = path.join(REPO, '.agents', 'skills', name);
+  const rel = p => p.slice(audit.dirPrefix.length);
+  for (const p of audit.dirFiles) {
+    const lp = path.join(local, rel(p));
+    if (!fs.existsSync(lp)) return { ok: false, reason: `installed copy missing ${rel(p)}` };
+    let remote;
+    try { remote = await ghText(`https://raw.githubusercontent.com/${owner}/${repo}/${audit.sha}/${p}`); }
+    catch (e) { return { ok: false, reason: `cannot re-read ${p} at audited SHA (${e.message})` }; }
+    if (norm(remote) !== norm(fs.readFileSync(lp, 'utf8'))) {
+      return { ok: false, reason: `content mismatch vs audited SHA: ${rel(p)} (upstream moved between audit and install)` };
+    }
+  }
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e =>
+    e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+  const expected = new Set(audit.dirFiles.map(p => path.normalize(rel(p))));
+  const extras = walk(local).map(f => path.relative(local, f)).filter(f => !expected.has(path.normalize(f)));
+  if (extras.length) return { ok: false, reason: `installed copy has file(s) absent at audited SHA: ${extras.slice(0, 5).join(', ')}` };
+  return { ok: true };
+}
+
+// Rollback a just-installed skill dir + its .claude junction (only ever called on a verify failure,
+// same run that created both - never touches a pre-existing install).
+function rollbackInstall(name) {
+  const link = path.join(REPO, '.claude', 'skills', name);
+  const universal = path.join(REPO, '.agents', 'skills', name);
+  try { if (fs.existsSync(link)) fs.rmdirSync(link); } catch { /* junction removal best-effort */ }
+  try { fs.rmSync(universal, { recursive: true, force: true }); } catch { /* best-effort */ }
 }
 
 // ---- recall-architecture wiring (step 4b) ------------------------------------------------------
@@ -170,13 +269,18 @@ function addLocalSkillsLine(workDir, name, trigger) {
   return true;
 }
 
-function upsertLock(name, repo, skillPath) {
+function upsertLock(name, repo, skillPath, sourceCommit) {
   const lock = readJSON(LOCK, { version: 1, skills: {} });
   let hash = null;
   const local = path.join(REPO, '.agents', 'skills', name, 'SKILL.md');
   if (fs.existsSync(local)) hash = crypto.createHash('sha256').update(fs.readFileSync(local)).digest('hex');
   lock.skills = lock.skills || {};
-  lock.skills[name] = { source: repo, sourceType: 'github', skillPath: skillPath || null, computedHash: hash };
+  // sourceCommit (2026-08-05, idea 4): the exact upstream commit the audit ran against and the
+  // post-install verify held the installed bytes to. Provenance is now a pinned commit, not a branch.
+  lock.skills[name] = {
+    source: repo, sourceType: 'github', skillPath: skillPath || null, computedHash: hash,
+    sourceCommit: sourceCommit || null, installedAt: today(),
+  };
   fs.writeFileSync(LOCK, JSON.stringify(lock, null, 2) + '\n', 'utf8');
 }
 
@@ -227,8 +331,12 @@ function installSkill(repo, name) {
   return 'installed';
 }
 
+// Testable core exported when required as a module (the validate-alex pattern): the SHA-pinned audit,
+// the post-install verify and the rollback are pure-ish and provable without a live install.
+module.exports = { auditRepo, verifyInstalledAgainstSha, rollbackInstall };
+
 // ---- main --------------------------------------------------------------------------------------
-(async () => {
+if (require.main === module) (async () => {
   if (!acquireLock()) {
     console.log('skills-installer: another repo-surface mutator holds the shared write lock - deferring this run (Class E concurrency guard, 2026-07-21; shared lock since 2026-07-25 F-08).');
     process.exitCode = 0; return;
@@ -243,8 +351,18 @@ function installSkill(repo, name) {
   for (const v of Object.values(lock.skills || {})) if (v.source) allow.add(String(v.source).split('/')[0].toLowerCase());
   const cap = cfg.weekly_install_cap || 3;
 
+  // Revocation list (2026-08-05, idea 4): system/skills-sources.json `revoked` names a skill or a
+  // whole owner/repo that must never (re-)install. Refusal is deterministic; an ALREADY-installed
+  // revoked skill is only REPORTED for manual removal - auto-install was approved, auto-REMOVE never
+  // was, so removal stays Shaheen's call.
+  const revoked = new Set((cfg.revoked || []).map(s => String(s).toLowerCase()));
+  const isRevoked = (name, repo) => revoked.has(name.toLowerCase()) || revoked.has(repo.toLowerCase());
+  const watch = new Set((cfg.watch || []).map(s => String(s).toLowerCase()));
+  const isWatched = (name, repo) => watch.has(name.toLowerCase()) ||
+    watch.has(repo.toLowerCase()) || watch.has(repo.split('/').pop().toLowerCase());
+
   const candidates = loadCandidates();
-  const report = { installed: [], flagged: [], skipped: [] };
+  const report = { installed: [], flagged: [], skipped: [], revokedInstalled: [] };
 
   let count = 0;
   for (const c of candidates) {
@@ -252,6 +370,14 @@ function installSkill(repo, name) {
     const repo = (c.source_repo || '').trim();
     const label = name || repo || '(unnamed)';
     if (!name || !/^[\w.-]+\/[\w.-]+$/.test(repo)) { report.flagged.push({ label, reason: 'missing name or valid owner/repo' }); continue; }
+    if (isRevoked(name, repo)) { report.flagged.push({ label, reason: 'revoked by policy (system/skills-sources.json `revoked`)' }); continue; }
+    // Watch list (P2.3, 2026-08-23): NOT a refusal. A name whose caveat must be READ before install,
+    // so a known-ambiguous package name can never be adopted on autopilot. Routes to manual review
+    // with the note attached, which is the whole point: the digest carries the reason, not just a flag.
+    if (isWatched(name, repo)) {
+      report.flagged.push({ label, reason: `on the WATCH list (system/skills-sources.json \`watch\`) - read _watch_note before any install: ${String(cfg._watch_note || '').slice(0, 180)}` });
+      continue;
+    }
     const [owner] = repo.split('/');
     if (installed.has(name.toLowerCase())) { report.skipped.push({ label, reason: 'already installed' }); continue; }
     if (!allow.has(owner.toLowerCase())) { report.flagged.push({ label, reason: `author '${owner}' not on trust allowlist` }); continue; }
@@ -275,7 +401,15 @@ function installSkill(repo, name) {
 
     try {
       const note = installSkill(repo, name);
-      upsertLock(name, repo, audit.skillPath || c.skill_path || null);
+      // TOCTOU close (idea 4): what `skills add` fetched (upstream HEAD now) must equal what the
+      // audit read (the pinned SHA). A moved upstream fails here, is rolled back, and is flagged.
+      const verify = await verifyInstalledAgainstSha(owner, repo.split('/')[1], audit, name);
+      if (!verify.ok) {
+        rollbackInstall(name);
+        report.flagged.push({ label, reason: `post-install verify vs audited SHA ${String(audit.sha).slice(0, 7)} FAILED - rolled back: ${verify.reason}` });
+        continue;
+      }
+      upsertLock(name, repo, audit.skillPath || c.skill_path || null, audit.sha);
       const wiredRoot = addBindingRow(trigger, name, repo, strength);
       const wiredLocal = proj && proj.work_dir ? addLocalSkillsLine(proj.work_dir, name, trigger) : false;
       try { sh('node scripts/generate-alex.js --only=claude,docs'); } catch (e) { /* report but keep the install */ }
@@ -296,10 +430,22 @@ function installSkill(repo, name) {
     }
   }
 
+  // Revoked-but-installed sweep (idea 4): a revocation added AFTER a skill installed surfaces here
+  // every run until Shaheen removes the skill by hand. Reported, never auto-removed.
+  for (const [n, v] of Object.entries(lock.skills || {})) {
+    if (revoked.has(n.toLowerCase()) || (v.source && revoked.has(String(v.source).toLowerCase()))) {
+      report.revokedInstalled.push({ label: n, source: v.source || '?' });
+    }
+  }
+
   // Human-readable report the wrapper folds into the digest + log.
   const lines = [];
   lines.push(`## Skills auto-install report (${today()})${DRY ? ' [DRY-RUN]' : ''}`);
   lines.push(`Installed ${report.installed.length} / flagged ${report.flagged.length} / skipped ${report.skipped.length}. Cap ${cap}.`);
+  if (report.revokedInstalled.length) {
+    lines.push('\n**REVOKED but still installed (manual removal is yours - never auto-removed):**');
+    for (const r of report.revokedInstalled) lines.push(`- ${r.label} (${r.source}) - remove from .agents/skills/ + .claude/skills/ + skills-lock.json, or un-revoke`);
+  }
   if (report.installed.length) {
     lines.push('\n**Installed + wired:**');
     for (const r of report.installed) lines.push(`- ${r.label} (${r.repo}) -> ${r.target} | ${r.sha || r.note} | ${r.wiring || r.note}`);

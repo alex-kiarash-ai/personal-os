@@ -6,23 +6,6 @@ file: edit `scheduler/schedule.md` and run `node scripts/generate-alex.js`.
 **These files are inert on macOS.** The dev machine has no systemd (ruling C of the bash migration
 plan: dev on macOS, run on Linux). Seeing them here on a Mac does not mean anything is broken.
 
-**On absolute paths (2026-08-18 follow-up to the PowerShell teardown).** Every unit here carries
-two kinds of path, and only one of them is a portability bug:
-
-- `WorkingDirectory=` and `ExecStart=` are genuinely absolute, and systemd requires that - a
-  relative path is invalid there. They are derived from wherever the repo actually lives on the
-  machine that ran the generator (`__dirname`-relative, never a literal), which means a checked-in
-  unit reflects the LAST machine to regenerate it. That is expected, not a bug: **run
-  `node scripts/generate-alex.js` on the actual deploy host before linking these units**, so the
-  path matches where the repo is really cloned there. Regenerating is one command; the file
-  committed here is a reviewable snapshot, not the source of truth.
-- `Documentation=` used to be a `file://` path built the same way, which meant every checked-in
-  unit pointed at one developer's home directory and would 404 for anyone else. It now resolves the
-  project's `git remote origin` and points at `scheduler/schedule.md` on GitHub instead (pinned to
-  `main`, not whatever branch generated it, so the link outlives a feature branch). That is
-  genuinely portable: it resolves identically regardless of who clones the repo or where. Falls
-  back to the old local `file://` path only if there is no GitHub `origin` remote.
-
 ## Installing on the Linux host
 
 ```sh

@@ -22,6 +22,52 @@ changed=0
 
 git add -A >> "$LOG" 2>&1 || reason="git add failed (exit $?)"
 
+# --- P2.6 GUARDED STAGING (run-47 merged plan, 2026-08-23; closes run-46 finding N10) ----------
+# The default-deny .gitignore covers system/, work/*/state/, .bak, soul-*, vault/ and outputs/,
+# but a personal file dropped at a work/NN ROOT or into scripts/ falls in the residual positive
+# space, and an unattended `git add -A` at 21:30 sweeps it onto a PUBLIC repo. That is exactly the
+# class that burned on 2026-07-20 (four personal files public), and the barrier is one .gitignore
+# miss thick. So: before committing, every staged path in those two shapes is scanned; a hit
+# means that path is unstaged and the run logs AMBER naming it. A false positive costs one file
+# one day of backup, loudly. The alternative costs a permanently cacheable leak.
+# Reuses the SAME scanner and the SAME --staged mode the pre-commit hook runs, deliberately: a
+# second scanning path would be a second thing to keep correct. Stage, scan, then unstage only
+# the residual-risk shapes that were flagged.
+blocked=""
+if [ -z "$reason" ]; then
+    scan_raw="$(node scripts/personal-data-scan.js --staged --json 2>&1)" || true
+    blocked="$(printf '%s' "$scan_raw" | node -e '
+        let s = "";
+        process.stdin.on("data", d => s += d).on("end", () => {
+          try {
+            const j = JSON.parse(s);
+            if (j.clean) return;
+            const seen = {};
+            for (const h of (j.hits || [])) {
+              const f = h && h.file;
+              if (f && !seen[f] && /^(work\/[^\/]+\/[^\/]+$|scripts\/)/.test(f)) { seen[f] = 1; console.log(f); }
+            }
+          } catch (e) { process.exit(3); }
+        });' 2>/dev/null)" || {
+        echo "personal-data guard: scan output unparseable, staging left as-is: $scan_raw" >> "$LOG"
+        blocked=""
+    }
+fi
+if [ -n "$blocked" ]; then
+    # A blocked file must not hold the whole backup hostage: the rest of the day's work still
+    # needs its off-machine copy tonight, so unstage only the flagged paths and say so loudly.
+    held=0; held_list=""
+    while IFS= read -r b; do
+        [ -n "$b" ] || continue
+        git reset -q -- "$b" >> "$LOG" 2>&1
+        held=$((held + 1))
+        held_list="${held_list:+$held_list, }$b"
+    done <<EOF
+$blocked
+EOF
+    echo "AMBER personal-data guard: held back $held path(s): $held_list - review, then either gitignore them or move them out of the repo" >> "$LOG"
+fi
+
 if [ -z "$reason" ]; then
     changed="$(git diff --cached --name-only | wc -l | tr -d ' ')"
     if [ "$changed" -gt 0 ]; then

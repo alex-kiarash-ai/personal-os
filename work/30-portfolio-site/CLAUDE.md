@@ -52,6 +52,21 @@ PROJECT.md specified self-hosting on the Hetzner VPS behind a reverse proxy. **R
 7. **Deploys are verified, never assumed.** "It uploaded" is not done. Post-deploy CI asserts: fetch + hash-compare against the built file, new assets 200, guarded/private paths 404, og-card present. This is the Verify-after-write standing order applied to the web, mechanised instead of remembered.
 8. **The Worker name is load-bearing.** The custom-domain binding is attached to the NAME `plain-block-545a`. Every deploy targets that exact name. A rename is a deliberate re-binding step, never a side effect.
 9. **The Cloudflare zone is never touched casually.** Email Routing on this zone carries `shaheen@shaheenkiarash.com`. No DNS or MX change is part of this project.
+   **MONITORED SINCE 2026-08-23, and here is why it had to be.** That address is the site's ONLY contact method (the
+   `mailto:` on the live page) and it was reported DEAD on 2026-08-23, last delivery 2026-06-08, with nothing red
+   anywhere. **That diagnosis was then CORRECTED the same day and the rule was healthy all along:** a live external
+   test delivered in 3 seconds, and the rule carries a Cloudflare creation label of 2026-05-14 proving it was never
+   deleted. On a channel that takes 3 messages in 3 months, 2.5 months of silence proved nothing. One real message
+   from a real sender WAS dropped on 2026-08-21 though, cause still unknown, so the risk this clause guards is real
+   even though the outage was not.
+   If this address ever loses its routing rule, what happens depends on the catch-all. On this zone the catch-all
+   is currently DISABLED (verified 2026-08-23), so mail would be REJECTED at SMTP and the sender would get a bounce.
+   **That does not help Shaheen: he still hears nothing, and the person who bounced is a would-be client who now
+   thinks he has no working address.** If the catch-all is ever switched ON with a drop action, the failure becomes
+   silent to the sender too. Either way a broken contact route looks EXACTLY like a quiet week. Recovery **C25** +
+   `system/mail-channels.json` now assert the rule exists, is enabled, and points at the verified destination.
+   **Before and after ANY zone work, run `node scripts/mail-channel-check.js` and read it.** Losing this address means
+   losing client enquiries you never learn existed, which is the one failure this project cannot detect from its own logs.
 10. **Identity-carrying copy is written in an Alex session.** A session opened in the sibling repo is plain Claude - no soul.md, no constitution, no gates. Code work there is fine. About-page prose, portfolio captions, anything a human reads as Shaheen's words gets drafted at the personal-os root under the Brand + Soul Pre-Flight Gate, then carried across as files.
 
 ## Phases (the runbook; each phase is its own session, entry and exit gated)
@@ -68,6 +83,27 @@ PROJECT.md specified self-hosting on the Hetzner VPS behind a reverse proxy. **R
 **B2 does NOT deploy to production.** PROJECT.md says "hello world live on day one of Phase 2", which was written for a parallel VPS host; under A1 the first CI deploy would land on the Worker serving the live portfolio. Staging worker first; production sees CI at B3 exit, content-complete and rollback-armed.
 
 **If a local Phase-4 monitor is ever built**, its `scripts/run-*.sh` wrapper, its `scheduler/schedule.md` entry, its `meta.model_routing.local_wrappers` pin and an `hq_project` slug all arrive in the SAME change. Not before.
+
+## Design system (locked at B1, 2026-08-04)
+
+Inherited from the current site, because the 2026-07-18 review judged its taste layer a strength to protect. This is a refinement, not a reinvention. Wireframes + the measured evidence: `outputs/portfolio-site/2026-08-04/wireframes.html`.
+
+**Palette (near-black, warm on both ends).** `--bg #0b0b0c` · `--bg-deep #070708` · `--bg-elevated #111113` · `--frame #1a1a1c` · `--ink #f3f2ef` · `--ink-soft #c7c6c1` · `--muted #8d8c87` · **`--faint #83827d`**.
+
+**The one change, and it fixes a real defect.** `--faint` was `#7a7974`, carrying a CSS comment saying it had been raised "to clear WCAG AA (~4.5:1 on --bg)". It does, at **4.51:1, by one hundredth** - but that was measured against the canvas only, and the token is also used on `--bg-elevated` and `--frame`, where it falls to **4.32 and 3.98** and stops passing. `#83827d` clears 4.5:1 on all four surfaces (5.11 / 4.90 / 4.51) and keeps the warm hue relationship. **Carry this into the Astro build; do not re-inherit the old value.** Everything else in the palette passes comfortably, `--ink` at 17.57:1 down to `--muted` at 5.16:1 on the worst surface.
+
+**Type - BOTH FACES LOCKED (Shaheen, 2026-08-04).** Display: **Cormorant Garamond**, it carries the entire editorial character and is the reason the site does not read as a template. Body/UI: **Inter**, kept on his explicit call.
+
+*Recorded so a later session does not re-open it with the same argument:* Alex proposed replacing Inter on the grounds that it is the most common sans on the web and elegant-serif-plus-Inter is the most common pairing, so it was the one place the design went quiet. Shaheen said keep it. That holds up on this site specifically, because the sans does almost no display work here - nav, small tracked-out labels, captions, stats - which is the job Inter is genuinely good at, and all the character lives in Cormorant and in the photographs. **Do not re-litigate.**
+
+**What still changes at B2:** the spec requires self-hosted fonts and no third-party font calls, and the site currently pulls both faces from the Google Fonts CDN. Both get self-hosted and subset to the weights actually used (Cormorant 300/400/500/600 + italic, Inter 300/400/500), `font-display:swap`, preloaded. That is a loading change, not a face change.
+
+**Layout rules that came out of the wireframes:**
+- **Contact appears twice**, in the nav and as a full block on every page. This is the deliberate inversion of pietroboselli.com, whose hidden booking route was the review's sharpest single finding.
+- **Season-stamped captions** on portfolio frames (Cusack). A dated caption is the cheapest credibility signal available.
+- **Interleave rule, load-bearing:** never place two shirtless frames adjacent while a clothed A-frame is unplaced. The A-tier is ~64% shirtless and only 5 of 14 frames are fully clothed, so the interleave runs out about two thirds down. That constraint is the real argument for a shoot.
+- **No form anywhere.** v1 is email + Instagram links only, so nothing can silently fail and lose an enquiry.
+- **Any wide element scrolls inside its own container.** Found the hard way in the wireframe itself: a six-column table cannot shrink below its content and dragged the whole document wider than the viewport. The old site's worst mobile finding was the same class.
 
 ## Notion Integration
 None in v1. Nothing here is row-shaped; `vault/projects/portfolio-site/status.md` is the record. (The Progress Tracker board row is a separate, owner-side thing.)

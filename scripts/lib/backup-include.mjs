@@ -51,6 +51,12 @@ const KEEP_OUTPUTS = [
   'outputs/expense-wrangler',
   'outputs/weekly-exec-report',
   'outputs/ledger.jsonl',
+  // transcripts added 2026-08-23 (P0.2, run-47 merged plan; run-46 finding N2): outputs/typed/transcripts
+  // and outputs/voice/transcripts are the SOUL CORPUS SOURCE that soul.md calls primary, and they were
+  // in neither git (outputs/ is gitignored) nor this tar (outputs/ was excluded as a class), so the
+  // corpus every voice-matched draft is built from existed on exactly one disk.
+  'outputs/typed/transcripts',
+  'outputs/voice/transcripts',
 ];
 
 // The four declared credentials. Named here so the archive assertion can be POSITIVE (assert these
@@ -80,6 +86,9 @@ function buildPlan() {
     .filter((p) => fs.existsSync(path.join(ROOT, p)));
 
   for (const k of KEEP_OUTPUTS) if (fs.existsSync(path.join(ROOT, k))) list.push(k);
+
+  // P0.3 (2026-08-23): a re-include named in the list but absent on disk is AMBER, never silent.
+  const keepMissing = KEEP_OUTPUTS.filter((k) => !fs.existsSync(path.join(ROOT, k)));
 
   // REFUSAL GUARD, kept verbatim in spirit: a thin include set means something upstream broke
   // (a bad .gitignore, a wrong cwd, a failed git). Shipping it would overwrite a good backup on the
@@ -143,6 +152,7 @@ function buildPlan() {
   return {
     repoPaths: list,
     count: list.length,
+    keepMissing,
     identity: { ok: identityOk, root: identityRoot, leaf: identityLeaf, path: identityReal },
     secrets: {
       ok: secretsOk, root: secRoot, leaf: secLeaf, path: secDir,

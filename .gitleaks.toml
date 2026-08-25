@@ -1,25 +1,60 @@
-# gitleaks config for the Alex repo - P5 security sweep S1, tuned 2026-07-18.
-# Extends the default gitleaks ruleset and allowlists KNOWN false positives that are NOT
-# secrets. Each was content-reviewed on 2026-07-18 (activating the monthly security sweep):
+# gitleaks config for the Alex repo - P5 security sweep S1, tuned 2026-07-18, hardened 2026-08-05.
+# Extends the default gitleaks ruleset and allowlists KNOWN false positives that are NOT secrets.
+# Each was content-reviewed:
 #   - m6VkVeG9bym6OFID : the n8n "Alex HQ Token" CREDENTIAL ID (a reference used in docs +
 #                        health-tracker/HQ scripts). It names which credential to use; it is
-#                        NOT the token value. Knowing it grants nothing.
+#                        NOT the token value. Knowing it grants nothing. (2026-07-18)
 #   - a1b2c3d4e5f6a7b8 : a fake token fixture inside scripts/tests/soul-canary.test.mjs (ported
-#                        from test-soul-canary.ps1, deleted in the bash migration Phase 9,
-#                        2026-08-18; the path entry below moved with it).
-# A REAL secret in any other file is still caught (the allowlist keys on these exact values +
-# the one canary path, not on whole directories). Re-review this file whenever S1 goes amber.
+#                        from test-soul-canary.ps1 in the bash migration). (2026-07-18)
+#   - deadbeefdeadbeef : the "wrong token" fixture in the same test. (2026-08-05)
+#
+# CHANGED 2026-08-05 (pen-test P-05): the previous config allowlisted the whole PATH
+# of the canary test file. That file is TRACKED and PUBLIC, so it was the one
+# gitleaks-blind file in the repo - invisible to BOTH the pre-commit staged scan and the monthly
+# full-history S1 sweep, which share this config. Any real secret pasted there would have shipped
+# silently. The path allowlist is removed; the two fixtures it existed to silence are allowlisted
+# by VALUE instead, so the file is now scanned like every other file and only those exact literals
+# are exempt.
 title = "Alex gitleaks config"
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Known non-secret false positives (reviewed 2026-07-18)"
+description = "Known non-secret false positives (values, never whole paths)"
 regexes = [
   '''m6VkVeG9bym6OFID''',
   '''a1b2c3d4e5f6a7b8''',
+  '''deadbeefdeadbeef''',
 ]
-paths = [
-  '''scripts/tests/soul-canary\.test\.mjs''',
-]
+
+# --- Alex-specific rule, added 2026-08-05 after a real self-inflicted leak -------------------
+# The soul.md canary token's ENTIRE premise (scripts/lib/soul-canary.mjs, header) is that it
+# "lives ONLY in soul.md prose". soul.md is gitignored, so the token is never supposed to be in
+# the tracked tree at all. On 2026-08-05 it was pasted into three tracked files as an illustrative
+# comment while documenting the P-01 fix, and one of them reached the PUBLIC repo in commit
+# d723c47 before the mistake was caught. The value was rotated and redacted, but nothing would
+# have caught it - gitleaks' default rules do not know a bare 16-hex string is meaningful here.
+# This rule makes the recurrence impossible to commit quietly. It matches the token only in the
+# shapes that carry it (the soul.md anchor line, or an emitted canary line), so ordinary hex in
+# code is unaffected.
+[[rules]]
+id = "alex-soul-canary-token"
+description = "soul.md canary token outside soul.md (it must live ONLY there; soul.md is gitignored)"
+# The capture group makes the SECRET just the hex value, not the whole "SOUL-OK <hex>" match.
+# That matters: gitleaks allowlists match against the secret by default, so without the group the
+# fixture allowlist below silently fails to suppress and the rule blocks legitimate test files.
+# Verified both ways in a sandbox before shipping (see the negative test in the 2026-08-05 log).
+regex = '''(?i)(?:SOUL-CANARY-TOKEN:|SOUL-OK)[ \t]+([0-9a-f]{12,})'''
+secretGroup = 1
+keywords = ["soul-canary-token", "soul-ok"]
+
+  # gitleaks 8.19+ syntax: an ARRAY of allowlists under the rule. The singular [rules.allowlist]
+  # form parses but did not suppress here on 8.30.1.
+  [[rules.allowlists]]
+  description = "Test fixtures: deliberately fake tokens used to prove the gate fails closed."
+  regexTarget = "match"
+  regexes = [
+    '''a1b2c3d4e5f6a7b8''',
+    '''deadbeefdeadbeef''',
+  ]

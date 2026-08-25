@@ -32,6 +32,19 @@ else
     PY=""
 fi
 
+# ---- 0. S1 Compiled Surfaces P2 (2026-08-16): rotate over-budget status.md files BEFORE the index
+# build, so tonight's index already reflects the moves (a block searched right after rotation must
+# resolve to its history/ home, not a stale chunk). Best-effort + write-locked (defer = exit 2);
+# an unchanged estate is a fast no-op; C24 (Monday) ambers on any file still over budget.
+if [ -z "${ALEX_DRY_RUN:-}" ]; then
+    set +e
+    rot_out="$(node "$ALEX_ROOT/scripts/status-rotate.js" 2>&1)"
+    rot_code=$?
+    set -e
+    printf '%s\n' "$rot_out" | grep 'status-rotate:' | tail -n 1 >> "$LOG" || true
+    [ "$rot_code" -ne 1 ] || echo "status-rotate FAILED (exit 1) - see log above" >> "$LOG"
+fi
+
 # ---- 1. The FTS5 index -------------------------------------------------------------------------
 reason=""
 chunks=0
@@ -92,6 +105,33 @@ if [ -z "${ALEX_DRY_RUN:-}" ]; then
     set -e
     printf '%s' "$les_out" | grep 'processed=' | tail -n 1 | sed 's/^/lesson harvest: /' >> "$LOG" || true
     [ "$les_code" -eq 0 ] || echo "lesson harvest exit $les_code" >> "$LOG"
+fi
+
+# ---- 3b. S1 Compiled Surfaces (2026-08-16): nightly soul-core.md rebuild beside the index, so a
+# harvest-day corpus change reaches the injection card the same night (run-44 condition 1: without
+# this the freshness story erases the win on harvest days). Best-effort: a builder failure or a
+# busy write-lock (exit 2 = deferred) never fails the index job; an unchanged soul.md is a verified
+# no-op; C23 (Monday sweep) + the hq-heal-map row guard real staleness.
+if [ -z "${ALEX_DRY_RUN:-}" ]; then
+    set +e
+    sc_out="$(node "$ALEX_ROOT/scripts/lib/build-soul-core.js" 2>&1)"
+    sc_code=$?
+    set -e
+    printf '%s\n' "$sc_out" | grep -E 'soul-core|deferred|FAILED' | tail -n 1 | sed 's/^/soul-core: /' >> "$LOG" || true
+    [ "$sc_code" -ne 1 ] || echo "soul-core rebuild FAILED (exit 1) - existing card untouched" >> "$LOG"
+fi
+
+# ---- 3c. S1 Compiled Surfaces P2 (2026-08-16): monthly n8n-backup pack (self-gates to one run per
+# calendar month via system/n8n-backup-rotate-state.json, so the daily call is a no-op the rest
+# of the time). Keeps newest 5 per workflow + everything <30d loose; older into verified tar.gz
+# packs with MANIFEST + archive-ledger rows. Best-effort; a pack failure never fails the job.
+if [ -z "${ALEX_DRY_RUN:-}" ]; then
+    set +e
+    nbr_out="$(node "$ALEX_ROOT/scripts/n8n-backup-rotate.js" 2>&1)"
+    nbr_code=$?
+    set -e
+    printf '%s\n' "$nbr_out" | grep 'n8n-backup-rotate' | tail -n 1 >> "$LOG" || true
+    [ "$nbr_code" -eq 0 ] || echo "n8n-backup-rotate exit $nbr_code (non-fatal)" >> "$LOG"
 fi
 
 # ---- 4. Alex HQ pushes (best-effort; the token never leaves Node) -------------------------------

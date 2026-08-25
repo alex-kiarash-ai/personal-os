@@ -34,16 +34,33 @@ fi
 # token. Inert when soul.md carries no token, so it can never manufacture a daily false red.
 soul_arm
 
+# Untrusted-lane egress guard (2026-08-05, enterprise-assessment idea 5): the brief reads inbox
+# content + HQ notes, so the PreToolUse hook (scripts/untrusted-lane-guard.js) allowlists network
+# egress to the n8n box for this run; any block = DEGRADED (RED). Same mechanism as email-triage.
+export ALEX_UNTRUSTED_LANE='morning-brief'
+blocks_file="outputs/logs/untrusted-lane-blocks.jsonl"
+blocks_pre=0
+if [ -f "$blocks_file" ]; then blocks_pre="$(wc -c < "$blocks_file" | tr -d ' ')"; fi
+
 # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
 alex_claude --model claude-sonnet-4-6 \
     -p "Run /morning-brief${SOUL_INSTRUCTION} $(alex_verdict_instruction)" \
     --dangerously-skip-permissions
+unset ALEX_UNTRUSTED_LANE
+
+blocks_post=0
+if [ -f "$blocks_file" ]; then blocks_post="$(wc -c < "$blocks_file" | tr -d ' ')"; fi
+egress_reason=""
+if [ "$blocks_post" -gt "$blocks_pre" ]; then
+    egress_reason='untrusted-lane guard BLOCKED egress attempt(s) this run (injection attempt or new legitimate need) - see outputs/logs/untrusted-lane-blocks.jsonl'
+    echo "egress guard: blocks file grew $blocks_pre -> $blocks_post bytes this run" >> "$LOG"
+fi
 
 # Gate: did soul.md actually reach the model this run? Flag + RED on a miss, but keep the brief -
 # a soft fail here, because an off-voice brief is still a brief worth having.
 soul_check 'morning-brief' || true
 
-close_out 'morning-brief' "$CODE"
+close_out 'morning-brief' "$CODE" "$egress_reason"
 
 # Edit 3 (FIX-01 class, 2026-07-15 /prompting item 6): morning-brief is the day's first token job
 # and is budget_priority 1, so it always runs a real `claude -p`. Reaching this line means that run
