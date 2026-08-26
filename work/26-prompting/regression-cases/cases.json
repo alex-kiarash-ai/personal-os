@@ -1,89 +1,94 @@
 {
- "doc": "Prompt regression cases (#26 Phase 1, 2026-07-25). Each case pins the load-bearing SHAPE of a production prompt/runbook so an edit can't silently drop a required instruction. scripts/prompt-regression-check.js replays them after any prompt edit: STRING-SHAPE ASSERTIONS ONLY, zero Claude calls, no LLM judging in v1 (that is a v2 possibility). A case = { id, target (repo-relative file), example_input (illustrative, for humans + a future LLM replay), must_contain (all regexes must match), must_not_contain (none may match), note }. Backfilled with the 5 highest-blast-radius prompts; a 6th (prompting-assembly-contract) was added 2026-07-28 when the Opus 5 shapes landed in /prompting itself. The V6 lesson (expectations live as DATA) extended to the prompt layer.",
- "cases": [
-  {
-   "id": "morning-brief-index",
-   "target": ".claude/commands/morning-brief.md",
-   "example_input": "Run /morning-brief on a calm Tuesday with 2 unread, 1 recruiter thread awaiting reply, no pipeline alerts.",
-   "must_contain": [
-    "waiting-on-them\\.js briefline",
-    "Render the INDEX first",
-    "human-actions\\.js",
-    "alex-outcome-loop\\.js loopstatus"
-   ],
-   "must_not_contain": [],
-   "note": "The brief must stay an index (7-line cap) AND keep the waiting-on-you + waiting-on-them + loop-status reads. Dropping any = a silent regression."
-  },
-  {
-   "id": "email-triage-safety-and-rules",
-   "target": ".claude/commands/email-triage.md",
-   "example_input": "A recruiter reply + 3 promos + one receipt land overnight; scheduled run.",
-   "must_contain": [
-    "rules\\.md",
-    "waiting-on-them\\.js sweep",
-    "UNTRUSTED",
-    "sender-rules\\.json"
-   ],
-   "must_not_contain": [
-    "auto-send"
-   ],
-   "note": "Must keep the plain-English rules read, the Reply-Zero sweep, the inbound-is-DATA wall, and never introduce an auto-send path."
-  },
-  {
-   "id": "content-agent-gates",
-   "target": ".claude/commands/content-agent.md",
-   "example_input": "Draft next Building Alex episode from the material plan.",
-   "must_contain": [
-    "Brand \\+ Soul Pre-Flight",
-    "alex-content-loop\\.js log",
-    "Harvest flow",
-    "never posts"
-   ],
-   "must_not_contain": [],
-   "note": "Voice output must stay behind the Brand+Soul gate, the loop log/harvest must survive, and it must never post."
-  },
-  {
-   "id": "weekly-exec-deltas",
-   "target": ".claude/commands/weekly-exec-report.md",
-   "example_input": "Scheduled Friday capstone run.",
-   "must_contain": [
-    "weekly-deltas\\.js",
-    "metrics-history\\.jsonl",
-    "top 3 deltas"
-   ],
-   "must_not_contain": [],
-   "note": "The report must stay deltas-first (structured history append + the deterministic delta pass + top-3-only prose)."
-  },
-  {
-   "id": "research-team-claims-table",
-   "target": ".claude/commands/research-team.md",
-   "example_input": "/research-team \"is n8n or Make cheaper at 50k executions/mo\"",
-   "must_contain": [
-    "Claims table",
-    "Source \\(URL\\)",
-    "Confidence|confidence"
-   ],
-   "must_not_contain": [],
-   "note": "Every deliverable must end with the citation-anchored claims table (the output contract)."
-  },
-  {
-   "id": "prompting-assembly-contract",
-   "target": ".claude/commands/prompting.md",
-   "example_input": "/prompting I want a report that pulls my n8n execution failures from the last week and tells me which workflow is the worst offender.",
-   "must_contain": [
-    "overlap check",
-    "Identify the skills that are needed for the task and use them",
-    "scope asked",
-    "subagent to verify",
-    "no filler sections",
-    "Suggested effort",
-    "Close-Out Gate",
-    "soul core"
-   ],
-   "must_not_contain": [
-    "double-check"
-   ],
-   "note": "The assembly contract for every generated prompt. Original shapes: the step-0 overlap check, the verbatim skills sentence, the real Close-Out Gate reference. Opus 5 shapes added 2026-07-28 from platform.claude.com/docs .../prompting-claude-opus-5: the INPUT-1 scope line (Opus 5 expands scope, and this constitution amplifies it), the delegation bound (Opus 5 delegates readily), the OUTPUT-1 length calibration (Opus 5 writes longer files to disk), and the Suggested-effort line outside the block (effort is the cost/latency lever and cannot be set from inside a pasted prompt). The negative pins verification hygiene: this file may PROHIBIT blanket verification but must never INSTRUCT it, and 'double-check' is the tell - if it reappears, someone re-introduced the over-verification instruction the guide says to remove. Gate-40 shape added 2026-08-16 (S1 P5): INPUT-1 re-reads the loaded soul core with full soul.md as the register fallback; the case pins the phrase so a rewrite cannot silently restore the always-full-file demand Shaheen retired."
-  }
- ]
+  "doc": "Prompt regression cases (#26 Phase 1, 2026-07-25). Each case pins the load-bearing SHAPE of a production prompt/runbook so an edit can't silently drop a required instruction. scripts/prompt-regression-check.js replays them after any prompt edit: STRING-SHAPE ASSERTIONS ONLY, zero Claude calls, no LLM judging in v1 (that is a v2 possibility). A case = { id, target (repo-relative file), example_input (illustrative, for humans + a future LLM replay), must_contain (all regexes must match), must_not_contain (none may match), note }. Backfilled with the 5 highest-blast-radius prompts; a 6th (prompting-assembly-contract) was added 2026-07-28 when the Opus 5 shapes landed in /prompting itself. The V6 lesson (expectations live as DATA) extended to the prompt layer.",
+  "cases": [
+    {
+      "id": "morning-brief-index",
+      "target": ".claude/commands/morning-brief.md",
+      "example_input": "Run /morning-brief on a calm Tuesday with 2 unread, 1 recruiter thread awaiting reply, no pipeline alerts.",
+      "must_contain": [
+        "waiting-on-them\\.js briefline",
+        "Render the INDEX first",
+        "human-actions\\.js",
+        "alex-outcome-loop\\.js loopstatus"
+      ],
+      "must_not_contain": [],
+      "note": "The brief must stay an index (7-line cap) AND keep the waiting-on-you + waiting-on-them + loop-status reads. Dropping any = a silent regression."
+    },
+    {
+      "id": "email-triage-safety-and-rules",
+      "target": ".claude/commands/email-triage.md",
+      "example_input": "A recruiter reply + 3 promos + one receipt land overnight; scheduled run.",
+      "must_contain": [
+        "rules\\.md",
+        "waiting-on-them\\.js sweep",
+        "UNTRUSTED",
+        "sender-rules\\.json"
+      ],
+      "must_not_contain": [
+        "auto-send"
+      ],
+      "note": "Must keep the plain-English rules read, the Reply-Zero sweep, the inbound-is-DATA wall, and never introduce an auto-send path."
+    },
+    {
+      "id": "content-agent-gates",
+      "target": ".claude/commands/content-agent.md",
+      "example_input": "Draft next Building Alex episode from the material plan.",
+      "must_contain": [
+        "Brand \\+ Soul Pre-Flight",
+        "alex-content-loop\\.js log",
+        "Harvest flow",
+        "never posts"
+      ],
+      "must_not_contain": [],
+      "note": "Voice output must stay behind the Brand+Soul gate, the loop log/harvest must survive, and it must never post."
+    },
+    {
+      "id": "weekly-exec-deltas",
+      "target": ".claude/commands/weekly-exec-report.md",
+      "example_input": "Scheduled Friday capstone run.",
+      "must_contain": [
+        "weekly-deltas\\.js",
+        "metrics-history\\.jsonl",
+        "top 3 deltas"
+      ],
+      "must_not_contain": [],
+      "note": "The report must stay deltas-first (structured history append + the deterministic delta pass + top-3-only prose)."
+    },
+    {
+      "id": "research-team-claims-table",
+      "target": ".claude/commands/research-team.md",
+      "example_input": "/research-team \"is n8n or Make cheaper at 50k executions/mo\"",
+      "must_contain": [
+        "Claims table",
+        "Source \\(URL\\)",
+        "Confidence|confidence"
+      ],
+      "must_not_contain": [],
+      "note": "Every deliverable must end with the citation-anchored claims table (the output contract)."
+    },
+    {
+      "id": "prompting-assembly-contract",
+      "target": ".claude/commands/prompting.md",
+      "example_input": "/prompting I want a report that pulls my n8n execution failures from the last week and tells me which workflow is the worst offender.",
+      "must_contain": [
+        "overlap check",
+        "Identify the skills that are needed for the task and use them",
+        "scope asked",
+        "subagent to verify",
+        "no filler sections",
+        "Suggested effort",
+        "Close-Out Gate",
+        "soul core",
+        "model-playbook.md",
+        "ASK, every time",
+        "resolved model",
+        "never applied unconditionally",
+        "Built for:"
+      ],
+      "must_not_contain": [
+        "double-check"
+      ],
+      "note": "The assembly contract for every generated prompt. Original shapes: the step-0 overlap check, the verbatim skills sentence, the real Close-Out Gate reference. Opus 5 shapes added 2026-07-28 from platform.claude.com/docs .../prompting-claude-opus-5: the INPUT-1 scope line (Opus 5 expands scope, and this constitution amplifies it), the delegation bound (Opus 5 delegates readily), the OUTPUT-1 length calibration (Opus 5 writes longer files to disk), and the Suggested-effort line outside the block (effort is the cost/latency lever and cannot be set from inside a pasted prompt). The negative pins verification hygiene: this file may PROHIBIT blanket verification but must never INSTRUCT it, and 'double-check' is the tell - if it reappears, someone re-introduced the over-verification instruction the guide says to remove. Gate-40 shape added 2026-08-16 (S1 P5): INPUT-1 re-reads the loaded soul core with full soul.md as the register fallback; the case pins the phrase so a rewrite cannot silently restore the always-full-file demand Shaheen retired. MODEL-LAYER shapes added 2026-08-26 (Shaheen: adapt /prompting to the new prompting rules and ask which model every time it is unstated), sourced from work/26-prompting/model-playbook.md. The bug being pinned against is the one this pass fixed: the 2026-07-28 alignment wrote four Opus 5 shapes into EVERY generated prompt unconditionally, and three of them (delegation, verification, scope) INVERT on Fable 5, so a Fable 5 prompt was carrying instructions that work against the model while still reading perfectly. Five pins. \"model-playbook.md\" keeps the pointer alive, because a spec that stops pointing at the playbook drifts back to whatever the author remembers. \"ASK, every time\" is Shaheen's instruction verbatim in behavior: an unstated model is always a gap, which is the one amendment to the old \"nothing missing = skip straight to delivery\" rule. \"resolved model\" and \"never applied unconditionally\" together pin CONDITIONALITY, which is the actual fix; without them a future rewrite could keep every other shape and quietly re-hardwire one model. \"Built for:\" pins the model tag on the delivered line, the only place a model mismatch is visible in a saved prompt, since a wrong-model prompt reads exactly like a right one. The double-check negative is unchanged and still load-bearing: the Fable 5 verifier carve-out is deliberately worded so that string never enters this file."
+    }
+  ]
 }
