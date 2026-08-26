@@ -45,8 +45,11 @@ into the machine block above.
    from a known vendor gets the Finance label, is copied to the Receipts Drive folder (Phase 3), and does
    NOT appear in the morning brief. Money DEADLINES (a "your account closes" notice) are the exception:
    those are Act Now.
-3. **Building Alex / modeling casting mail stays in its own lane.** Casting-platform alerts belong to #30
-   (`modeling/castings`), never the general inbox (already handled by the dedup exclusion).
+3. **Casting mail is triaged from its label, not excluded (rewritten 2026-08-23).** #30 Modeling was wiped
+   2026-08-03 and was the only consumer of `modeling/castings`, so the old exclusion left three weeks of mail
+   unread by anyone. Now: read the label, promote REAL casting briefs and matched-job alerts into the inbox,
+   leave platform marketing archived and merely counted. The Gmail filter stays - it is what keeps the
+   near-daily Acasting marketing out of the inbox in the first place.
 4. **No-reply marketing over the suppress threshold becomes an unsubscribe candidate.** Never auto-
    unsubscribe; surface it for one-tap approval (idea 4).
 5. **Anything naming a person in vault/people/ gets their context attached** and, if they're a warm CRM

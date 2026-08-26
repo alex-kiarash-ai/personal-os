@@ -48,6 +48,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { paths, manifest, secret, HQ_TOKEN_ID, HQ_PUSH_URL, hasSystemd, ROOT } from './paths.mjs';
 
 // --- Item 1 completion sentinel: the ONE home for the verdict-line instruction (2026-07-20) -------
@@ -569,12 +570,19 @@ export async function closeOutCheck({
   if (sentinelLog) logLine(log, sentinelLog);
   if (degradedLog) logLine(log, degradedLog);
 
+  // P1.1: stamp the run id into the log on BOTH paths. This is the third leg of the D1 join - the
+  // ledger rows and heal-log rows for this run carry the same id, so one grep across three files
+  // reconstructs a run instead of three manual excavations across three timestamp conventions.
+  // ALEX_RUN_ID is set by log_init in common.sh (one definition, 17 wrappers, no per-wrapper
+  // drift); an interactive session has none, and that absence is itself information.
+  const runId = process.env.ALEX_RUN_ID || '';
+
   if (reason === null) {
-    logLine(log, `OK (exit ${code})`);
+    logLine(log, `OK (exit ${code}) run=${runId}`);
     return 0;
   }
 
-  logLine(log, `FAILED: ${reason}`);
+  logLine(log, `FAILED: ${reason} run=${runId}`);
 
   // --- A4: RED run_status push to Alex HQ. Never log the token; never let the push crash the wrapper.
   if (project !== '') {
@@ -759,7 +767,10 @@ async function main() {
 }
 
 // Run only when invoked directly, so the test suite can import the functions above.
-if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(new URL(import.meta.url).pathname)) {
+// fileURLToPath, not URL.pathname: pathname on Windows yields '/C:/...' which realpathSync
+// mangles into 'C:\C:' and throws at import time (found 2026-08-25 during the powershell-branch
+// reconciliation; same platform-agnostic class as the 86ff0f7 backports).
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
   main().then(
     (c) => process.exit(c),
     (e) => {

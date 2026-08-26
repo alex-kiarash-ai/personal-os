@@ -53,11 +53,16 @@ trap 'cleanup' EXIT INT TERM HUP
 # All four are BEST-EFFORT and must NEVER block the backup: each output is regenerable, the backup is
 # not. They run here because this is the last job of the night.
 #   0.  outputs-ledger reconcile   - skeleton rows for deliverables that missed their Close-Out A6
+#   0a. outputs burst tripwire     - flag any >50MB/24h outputs/ growth to HQ amber +
+#                                    system/outputs-burst-state.json (the morning brief prints one
+#                                    line). Detect-only; exit 2 = burst (informational here).
+#                                    (S1 Compiled Surfaces P2, 2026-08-16)
 #   0b. application outcome loop   - re-tally the outcome table -> winners + the writer block
 #   0c. content outcome loop       - the Building Alex twin of 0b
 #   0d. cost budget tripwires      - level-triggered per-project monthly budget check
 for step in \
     "ledger|scripts/outputs-ledger.js reconcile" \
+    "outputs-burst|scripts/outputs-burst-check.js" \
     "outcome-loop|scripts/alex-outcome-loop.js" \
     "content-loop|scripts/alex-content-loop.js" \
     "cost-tripwires|scripts/alex-cost-attribution.js --budget-check"
@@ -143,6 +148,10 @@ if [ -z "$reason" ]; then
     sec_else="$(printf '%s' "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).secrets.elsewhere.join(", ")))')"
     [ -z "$sec_unres" ] || echo "NOTE secrets: declared credential(s) resolve NOWHERE on this machine, so they have no backup coverage: $sec_unres" >> "$LOG"
     [ -z "$sec_else" ] || echo "NOTE secrets: declared credential(s) still at a PRE-MIGRATION in-repo path (covered by leg 1, but move them per ruling A): $sec_else" >> "$LOG"
+    # P0.3 (run-47 merged plan, 2026-08-23): a re-include named in the keep-list but absent on disk
+    # is AMBER, never silent.
+    keep_missing="$(printf '%s' "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write((JSON.parse(s).keepMissing||[]).join(", ")))')"
+    [ -z "$keep_missing" ] || echo "AMBER keepOutputs: named but absent on disk: $keep_missing" >> "$LOG"
 fi
 
 if [ -n "${ALEX_DRY_RUN:-}" ] && [ -z "$reason" ]; then
@@ -282,21 +291,46 @@ fi
 
 # --- Alex HQ push. Distinct metric_key from git-backup's run_status. ------------------------------
 if [ -z "$reason" ]; then
-    # A CONFIGURED B2 leg that FAILED its verify => amber (the 2nd copy is missing). B2 not configured
-    # yet stays GREEN - the persistent SPOF is surfaced by C20, not by a nightly amber that would
-    # train everyone to ignore the tile.
+    # P0.3 (run-47 merged plan, 2026-08-23): the verdict ladder is now explicit and a
+    # previously-verified component going ABSENT is never green. Identity docs missing => RED
+    # (the run still ships the vault - refusing to back up everything because two documents moved
+    # would be the worse failure - then reports RED). B2 skipped (not provisioned) or a keepOutputs
+    # path named-but-absent => AMBER: both are real coverage gaps, and the old "green with a
+    # pending note" is exactly how run-46 finding N1 stayed invisible for two nights.
     case "$b2ok" in
-        ok)      b2note=' +B2 ok';      st='green' ;;
-        failed)  b2note=' +B2 FAILED';  st='amber' ;;
-        *)       b2note=' +B2 pending'; st='green' ;;
+        ok)      b2note=' +B2 ok' ;;
+        failed)  b2note=' +B2 FAILED' ;;
+        *)       b2note=' +B2 pending' ;;
     esac
-    hq_push 'recovery' "$st" "vault encrypted -> Hetzner (${size_mb} MB)${b2note}" 'vault_backup' 1
+    if [ -z "${identity_ok:-}" ]; then
+        hq_push 'recovery' 'red' "vault shipped (${size_mb} MB) but IDENTITY DOCS MISSING from the blob: ${identity_root:-?}/${identity_leaf:-?}" 'vault_backup' 0
+    elif [ "$b2ok" != "ok" ] || [ -n "${keep_missing:-}" ]; then
+        amber_head="vault encrypted -> Hetzner (${size_mb} MB)${b2note}"
+        [ -z "${keep_missing:-}" ] || amber_head="$amber_head; keepOutputs absent: $keep_missing"
+        hq_push 'recovery' 'amber' "$amber_head" 'vault_backup' 1
+    else
+        hq_push 'recovery' 'green' "vault encrypted -> Hetzner (${size_mb} MB)${b2note}" 'vault_backup' 1
+    fi
 else
     hq_push 'recovery' 'red' "vault backup FAILED: $reason" 'vault_backup' 0
 fi
 
+# P0.3 verdict ladder (2026-08-23): a run that shipped but LOST a previously-verified component
+# exits nonzero. "It ran" was never the question; "is everything that used to be covered still
+# covered" is.
+if [ -z "$reason" ] && [ -z "${identity_ok:-}" ] && [ -z "${ALEX_DRY_RUN:-}" ]; then
+    echo "RED ($size_mb MB shipped, but the identity docs are NOT in the blob: ${identity_root:-?}/${identity_leaf:-?})" >> "$LOG"
+    exit 1
+fi
 if [ -z "$reason" ]; then
-    echo "OK ($size_mb MB)" >> "$LOG"
+    amber=""
+    [ "$b2ok" = "ok" ] || amber="B2 leg not verified"
+    if [ -n "${keep_missing:-}" ]; then amber="${amber:+$amber; }keepOutputs absent: $keep_missing"; fi
+    if [ -n "$amber" ]; then
+        echo "OK-AMBER ($size_mb MB): $amber" >> "$LOG"
+    else
+        echo "OK ($size_mb MB)" >> "$LOG"
+    fi
     exit 0
 fi
 echo "FAILED: $reason" >> "$LOG"

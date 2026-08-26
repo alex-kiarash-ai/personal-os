@@ -6,8 +6,8 @@ Documentation=https://github.com/alex-kiarash-ai/personal-os/blob/main/scheduler
 
 [Service]
 Type=oneshot
-WorkingDirectory=/Users/eduardomorgado/Edu/personal-os
-ExecStart=/opt/homebrew/Cellar/node/24.4.0/bin/node /Users/eduardomorgado/Edu/personal-os/work/18-recovery-layer/check.mjs
+WorkingDirectory=C:\Users\Thinkpad\Desktop\personal-os
+ExecStart=C:\Program Files\nodejs\node.exe C:\Users\Thinkpad\Desktop\personal-os\work\18-recovery-layer\check.mjs
 RuntimeMaxSec=900
 # The job train's failure handling lives in scripts/lib/close-out.mjs (RED push + a self-scheduled
 # retry ladder), NOT here. Restart= is deliberately unset: see the migration plan §2.2 on why the

@@ -6,8 +6,8 @@ Documentation=https://github.com/alex-kiarash-ai/personal-os/blob/main/scheduler
 
 [Service]
 Type=oneshot
-WorkingDirectory=/Users/eduardomorgado/Edu/personal-os
-ExecStart=/Users/eduardomorgado/Edu/personal-os/scripts/run-runway.sh
+WorkingDirectory=C:\Users\Thinkpad\Desktop\personal-os
+ExecStart=C:\Users\Thinkpad\Desktop\personal-os\scripts\run-runway.sh
 RuntimeMaxSec=7200
 # The job train's failure handling lives in scripts/lib/close-out.mjs (RED push + a self-scheduled
 # retry ladder), NOT here. Restart= is deliberately unset: see the migration plan §2.2 on why the

@@ -1,0 +1,50 @@
+# Public-repo CI (2026-08-05, enterprise-assessment idea 2, vault/research/enterprise-assessment-ideas.md).
+# Runs every test that passes on the tracked (vault-less) tree alone: no secrets, no private files -
+# tests that want soul.md or the live vault self-skip in a public checkout. Runner retargeted to
+# ubuntu-latest in the 2026-08-25 reconciliation: the bash/Node migration made Linux the production
+# platform and retired the two PowerShell tests this workflow originally carried (their Node ports,
+# soul-canary.test.mjs + close-out.test.mjs, run here instead).
+#
+# The full validator (scripts/validate-alex.js) stays local-only BY DESIGN: it asserts live
+# scheduler state, live n8n workflow state and gitignored identity files that cannot exist here.
+# Its testable core IS covered: test-protected-guard.js imports evaluateProtectedChangeset from it.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lesson parser (Recall Spine)
+        run: node scripts/tests/test-lesson-parse.js
+      - name: Protected-file guard (validate-alex V10 core)
+        run: node scripts/tests/test-protected-guard.js
+      - name: Untrusted-lane egress guard (injection wall)
+        run: node scripts/tests/test-untrusted-guard.js
+      - name: Lessons compounding + quarantine (run-47 P1.7*/P1.8*)
+        run: node scripts/tests/test-lessons-p1.js
+      - name: Guards are alive (verify the verifiers, run-47 P4.6)
+        run: node scripts/tests/test-guards-alive.js
+      - name: Vault-search freshness gate (sandboxed index)
+        run: python scripts/tests/test_vault_search_freshness.py
+      - name: Soul-canary verdict function (fails closed)
+        run: node --test scripts/tests/soul-canary.test.mjs
+      - name: Close-Out gate + completion sentinel (Stage 2 enforcing)
+        run: node --test scripts/tests/close-out.test.mjs
+      - name: Portability check (no Windows absolutes, LF discipline)
+        run: node scripts/tests/portability-check.mjs

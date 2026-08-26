@@ -138,3 +138,16 @@ Per the root Change-Propagation standing order: manifest.json + generator (once 
 routing table, docs/n8n/portal-scanner export, docs/projects, the plain-English guide (13.7 + T07), the
 ALEX-OS-master doc, status.md + vault/log.md + vault/index.md. Nothing propagates during the offline
 Phase 0/1 build except the status page + log.
+
+## Filename law (STANDING ORDER, Shaheen 2026-08-20, every lane, every producer)
+
+His words: *"NEVER AGAIN when you prduce a new CV for any compay, mention the company name in the
+file name itself. Nver again. fix this! Only my name and CV or a cover letter."*
+
+Only two filenames may ship: **`Shaheen_Kiarash_CV.{pdf,docx}`** and
+**`Shaheen_Kiarash_Cover_Letter.{pdf,docx}`** (the live engines' `Shaheen_Kiarash_CoverLetter.pdf`
+also passes). No company, no role, no lane, no date, no version. Those belong in the FOLDER name and
+the ledger row, which never leave this machine. The filename travels with the attachment: a
+per-company name tells the recruiter this is one of many tailored versions and, on a forward, names
+the target. Enforced by `node scripts/outputs-ledger.js validate` (exit 2), which the Monday recovery
+sweep C12 calls; files dated before 2026-08-20 are grandfathered as already-sent history.

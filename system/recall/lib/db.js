@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS lessons (
   t_invalid     TEXT,
   superseded_by INTEGER REFERENCES lessons(id)
 );
+-- P1.8* provenance + quarantine columns (2026-08-23, run-47 merged plan) are added by MIGRATIONS
+-- below, not here: this CREATE runs only on a fresh DB, and the live table predates them.
 CREATE UNIQUE INDEX IF NOT EXISTS lesson_norm_current ON lessons(norm) WHERE t_invalid IS NULL;
 
 -- Subject alias table (Phase 2 retrieval): maps a lowercase token that may appear in a prompt to a
@@ -63,17 +65,58 @@ CREATE TABLE IF NOT EXISTS subject_alias (
 );
 `;
 
+/*
+ * MIGRATIONS (additive only, idempotent). node:sqlite has no ALTER-IF-NOT-EXISTS, and
+ * `CREATE TABLE IF NOT EXISTS` is a no-op on an existing table, so new columns land here.
+ * Additive columns are supersession-safe: existing rows keep their history and read NULL/0.
+ */
+const MIGRATIONS = [
+  // P1.8* (2026-08-23, run-47 merged plan): lesson provenance + quarantine. Closes run-46 N6, the
+  // persistent prompt-injection vector - inbound email text sits verbatim in harvested logs, so an
+  // L-shaped string in any log line became a trusted lessons row that recall-inject later injected
+  // into future prompts. Provenance makes an audit O(1); quarantine makes the untrusted class inert
+  // without DELETING anything (nothing in this ledger is ever deleted).
+  { table: 'lessons', column: 'quarantined',  ddl: 'ALTER TABLE lessons ADD COLUMN quarantined INTEGER NOT NULL DEFAULT 0' },
+  { table: 'lessons', column: 'source_file',  ddl: 'ALTER TABLE lessons ADD COLUMN source_file TEXT' },
+  { table: 'lessons', column: 'source_line',  ddl: 'ALTER TABLE lessons ADD COLUMN source_line INTEGER' },
+  { table: 'lessons', column: 'harvested_at', ddl: 'ALTER TABLE lessons ADD COLUMN harvested_at TEXT' },
+  { table: 'lessons', column: 'origin',       ddl: "ALTER TABLE lessons ADD COLUMN origin TEXT" },
+  // P1.7* exactly-once promotion. The old trigger was `hits === 3`, which fires only on the exact
+  // crossing, so when the threshold moved to 2 the one live row ALREADY at 2 would have sailed past
+  // to 3 and never queued: a lesson stranded by the very change meant to free it. Stamping the queue
+  // time makes promotion idempotent and threshold-change-proof forever.
+  { table: 'lessons', column: 'promoted_at',  ddl: 'ALTER TABLE lessons ADD COLUMN promoted_at TEXT' },
+];
+
+function migrate(db) {
+  for (const m of MIGRATIONS) {
+    let cols;
+    try { cols = db.prepare(`PRAGMA table_info(${m.table})`).all().map((r) => r.name); }
+    catch (_) { continue; } // table not created yet on this handle; SCHEMA above owns that
+    if (!cols.length || cols.includes(m.column)) continue;
+    try { db.exec(m.ddl); } catch (e) { /* additive-only: a failed add must never block a run */ }
+  }
+}
+
 /**
  * Open facts.db (creating + migrating the schema if needed) and return the handle.
  * WAL keeps the per-prompt reader (recall-inject) from blocking the nightly writer.
+ *
+ * busy_timeout (P1.3, 2026-08-23): measured before the fix, a second writer arriving during a
+ * BEGIN IMMEDIATE threw `database is locked` INSTANTLY with no wait, so an interactive session
+ * overlapping the 21:35 nightly chain lost its write. Five seconds is the correct behavior for a
+ * chain that shares one small DB with an occasional interactive writer. Set on readers too: a
+ * reader can hit the lock during a writer's commit, and recall-inject fails open on error anyway.
  */
 function openDb(readonly = false) {
   const db = new DatabaseSync(DB_PATH, { readOnly: readonly && require('fs').existsSync(DB_PATH) });
+  try { db.exec('PRAGMA busy_timeout = 5000;'); } catch (_) {}
   if (!readonly) {
     db.exec('PRAGMA journal_mode = WAL;');
     db.exec(SCHEMA);
+    migrate(db);
   }
   return db;
 }
 
-module.exports = { openDb, DB_PATH, REPO, SCHEMA };
+module.exports = { openDb, DB_PATH, REPO, SCHEMA, migrate };

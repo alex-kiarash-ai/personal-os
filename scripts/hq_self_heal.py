@@ -240,6 +240,52 @@ def probe_unknown_red(summary, entry, claimed):
         log("unknown-red", "ok", "no unclaimed FAULT reds")
 
 
+def probe_soul_canary(summary, entry, claimed):
+    """A soul-canary failure is an IDENTITY failure, so it escalates on the FIRST occurrence.
+
+    Added 2026-08-05 (pen-test finding P-01). The gate itself worked: it detected, pushed RED, and
+    refused a silent green, every time. What failed was the ROUTE. A canary miss matched nothing
+    specific, so it fell to the `unknown-red` catch-all, which is PROPOSE class and files a
+    medium-severity "needs diagnosis" row like any other red. The result: morning-brief and
+    email-triage failed the gate on and off from 2026-07-20 to 2026-08-05 and nobody was told,
+    because a HARD-gated voice lane drafting in Shaheen's name produced the same low-priority
+    queue line as a stale tile.
+
+    Two deliberate differences from every other probe here:
+      - NO age threshold. `stuck-red-status` waits 3 days on purpose; this waits zero. One run
+        writing in his name without a verified soul.md is already the thing worth interrupting for.
+      - HUMAN_ONLY, not PROPOSE. There is nothing safe to auto-fix: a canary miss means either the
+        injection path broke or the model would not reproduce the token, and both need a person to
+        look. Escalating is the whole remedy.
+
+    Claims its projects so the catch-all does not double-file the same red underneath it.
+    """
+    hits = []
+    for name, p in summary.get("projects", {}).items():
+        if name in ("infra", "health"):
+            continue
+        rs = p.get("metrics", {}).get("run_status", {})
+        if rs.get("status") != "red":
+            continue
+        headline = str(rs.get("headline", ""))
+        # The wrapper writes "soul canary failed: <reason>" (scripts/lib/soul-canary.ps1) and the
+        # voice lanes prefix it with "scheduled run failed: ". Match the stable middle, case-loose.
+        if "soul canary" not in headline.lower() and "soul-canary" not in headline.lower():
+            continue
+        hits.append((name, headline))
+        claimed.add(name)
+    if not hits:
+        return log("soul-canary-failed", "ok", "no soul-canary reds")
+    for name, headline in hits:
+        escalate(
+            f"soul-canary-{name}",
+            "high",
+            f"soul.md did not verifiably reach the model on '{name}': {headline}. "
+            f"Identity lane - check the injection path and scripts/lib/soul-canary.ps1 before the next run.",
+        )
+        log("soul-canary-failed", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
+
+
 def probe_identity_views(summary, entry):
     """The identity docs must stay ONE file object each, reached through a directory junction.
 
@@ -324,6 +370,51 @@ def probe_identity_views(summary, entry):
             log("identity-doc-views", "escalated", f"re-link error: {e}", "AUTO_SAFE->escalate")
 
 
+def probe_soul_core_stale(summary, entry):
+    """soul-core.md (the identity injection card, S1 Compiled Surfaces 2026-08-16) must exist and
+    its tail stamp's source-sha256 must equal sha256(soul.md bytes). A stale card means every
+    session is fed yesterday's identity slice; a missing card means sessions run on the truncated
+    full-soul fallback (~2KB reaches the model on harness 2.1.220).
+
+    AUTO_SAFE is justified because the remedy is the builder itself: deterministic, write-locked,
+    atomic-swap, refuse-below-floor (a structurally broken soul.md leaves the old card in place and
+    the rebuild FAILS, which routes to escalate here). One attempt, read-back verified, no retry.
+    Needs no HQ summary (a filesystem invariant - runs on n8n-outage days too).
+    """
+    import hashlib
+    soul = REPO / "soul.md"
+    core = REPO / "soul-core.md"
+    if not soul.exists():
+        escalate("soul-md-missing", "critical",
+                 "soul.md is MISSING - restore from the 21:45 encrypted vault backup before anything else")
+        return log("soul-core-stale", "escalated", "soul.md missing", "HUMAN_ONLY")
+    live_sha = hashlib.sha256(soul.read_bytes()).hexdigest()
+
+    def card_sha():
+        if not core.exists():
+            return None
+        tail = core.read_text(encoding="utf-8", errors="replace")[-400:]
+        m = __import__("re").search(r"source-sha256=([0-9a-f]{64})", tail)
+        return m.group(1) if m else "unparseable"
+
+    current = card_sha()
+    if current == live_sha:
+        return log("soul-core-stale", "ok", f"card fresh (sha {live_sha[:12]}..)")
+
+    # AUTO_SAFE: rebuild once, then read back.
+    why = "card missing" if current is None else ("stamp unparseable" if current == "unparseable"
+          else f"stale (card {current[:12]}.. vs live {live_sha[:12]}..)")
+    r = run(["node", "scripts/lib/build-soul-core.js", "--force"], timeout=60)
+    after = card_sha()
+    if after == live_sha:
+        return log("soul-core-stale", "healed", f"{why} -> rebuilt + stamp verified ({live_sha[:12]}..)", "AUTO_SAFE")
+    detail = (r.stdout or r.stderr or "").strip().splitlines()
+    escalate("soul-core-rebuild-failed", "high",
+             f"soul-core was {why}; rebuild did not verify ({(detail[-1] if detail else 'no output')[:160]}). "
+             f"{entry.get('escalate_fail', '')}")
+    log("soul-core-stale", "escalated", f"{why}; rebuild did not verify", "AUTO_SAFE->escalate")
+
+
 PROBES = {
     "mcp_count": probe_mcp_count,
     "box_fresh": probe_box_fresh,
@@ -332,6 +423,7 @@ PROBES = {
     "health_stalled": probe_health_stalled,
     "stuck_status": probe_stuck_status,
     "identity_views": probe_identity_views,
+    "soul_core_stale": probe_soul_core_stale,
 }
 
 
@@ -358,6 +450,13 @@ def main():
             continue
         if pid == "unknown_red":
             probe_unknown_red(summary, entry, claimed)
+        elif pid == "soul_canary":
+            # Takes `claimed` so the catch-all below does not re-file the same red at lower severity.
+            # The heal map orders this BEFORE unknown-red for exactly that reason.
+            try:
+                probe_soul_canary(summary, entry, claimed)
+            except Exception as e:
+                log(entry["id"], "error", f"probe crashed: {e}")
         elif pid in PROBES:
             try:
                 PROBES[pid](summary, entry)
@@ -366,9 +465,16 @@ def main():
 
     # persist + summarize
     ts = NOW.isoformat().replace("+00:00", "Z")
+    # P1.1 (run-47 merged plan, 2026-08-23): carry the run's shared join key when a scheduled wrapper
+    # set one. heal-log already stamped UTC-Z correctly, so it needs no P1.2 change; this closes the
+    # third leg of run-46's D1 (prose log / ledger / heal-log recording the same run with no key).
+    run_id = os.environ.get("ALEX_RUN_ID")
     with HEAL_LOG.open("a", encoding="utf-8") as f:
         for a in actions:
-            f.write(json.dumps({"ts": ts, **a}) + "\n")
+            row = {"ts": ts, **a}
+            if run_id:
+                row["run_id"] = run_id
+            f.write(json.dumps(row) + "\n")
     healed = [a for a in actions if a["state"] == "healed"]
     proposed = [a for a in actions if a["state"] == "proposed"]
     esc = [a for a in actions if a["state"] == "escalated"]

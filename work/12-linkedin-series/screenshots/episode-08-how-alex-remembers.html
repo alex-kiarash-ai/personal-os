@@ -1,0 +1,165 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+:root{
+  --ink:#001219; --elev:#00232e; --teal:#005f73; --cyan:#0a9396;
+  --aqua:#94d2bd; --custard:#e9d8a6; --orange:#ee9b00; --caramel:#ca6702;
+  --font:"Segoe UI",system-ui,-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1200px;height:1500px;background:var(--ink);font-family:var(--font);
+  position:relative;overflow:hidden;-webkit-font-smoothing:antialiased}
+
+.mesh{position:absolute;inset:0;
+  background:
+    radial-gradient(760px 560px at 20% 18%, rgba(0,95,115,.48) 0%, rgba(0,95,115,0) 68%),
+    radial-gradient(820px 700px at 50% 56%, rgba(10,147,150,.30) 0%, rgba(10,147,150,0) 70%),
+    radial-gradient(900px 700px at 50% 98%, rgba(0,95,115,.20) 0%, rgba(0,18,25,0) 70%),
+    var(--ink);}
+.vig{position:absolute;inset:0;background:radial-gradient(118% 86% at 50% 48%, rgba(0,0,0,0) 44%, rgba(0,0,0,.62) 100%)}
+.grain{position:absolute;inset:0;opacity:.055;mix-blend-mode:soft-light;pointer-events:none}
+.logo{position:absolute;left:56px;top:44px;height:34px;width:auto;opacity:.95}
+
+.title{position:absolute;top:100px;left:0;width:1200px;text-align:center;
+  font-size:30px;font-weight:700;letter-spacing:14px;text-indent:14px;color:var(--aqua)}
+.sub{position:absolute;top:158px;left:0;width:1200px;text-align:center;
+  font-size:17px;font-weight:400;color:var(--aqua);opacity:.78;letter-spacing:.3px}
+
+/* one section now, so the label centres instead of anchoring left */
+.sec{position:absolute;left:0;width:1200px;text-align:center;font-size:12.5px;font-weight:700;
+  letter-spacing:3.6px;color:var(--aqua);opacity:.58;text-transform:uppercase}
+.secrule{position:absolute;left:360px;width:480px;height:1px;
+  background:linear-gradient(90deg,rgba(10,147,150,0),rgba(10,147,150,.55),rgba(10,147,150,0))}
+
+.card{position:absolute;border-radius:14px;
+  background:linear-gradient(180deg,rgba(0,35,46,.94),rgba(0,26,35,.90)) padding-box,
+             linear-gradient(140deg,rgba(10,147,150,.80),rgba(0,95,115,.28)) border-box;
+  border:1.3px solid transparent;backdrop-filter:blur(9px);
+  box-shadow:0 16px 38px rgba(0,0,0,.50), inset 0 1px 0 rgba(148,210,189,.15)}
+.pad{padding:0 20px;display:flex;align-items:center;gap:14px;height:100%}
+.badge{width:38px;height:38px;flex:0 0 38px;border-radius:11px;
+  background:linear-gradient(145deg,rgba(10,147,150,.55),rgba(0,95,115,.28));
+  border:1px solid rgba(148,210,189,.30);
+  box-shadow:0 0 15px rgba(10,147,150,.40), inset 0 1px 0 rgba(255,255,255,.12);
+  display:flex;align-items:center;justify-content:center}
+.ct{font-size:20px;font-weight:600;color:#fff;line-height:1.15;white-space:nowrap}
+.cs{font-size:17.5px;color:var(--aqua);opacity:.84;margin-top:4px;line-height:1.45}
+
+/* the accent means exactly one thing on this canvas: the card */
+.acc{background:linear-gradient(180deg,rgba(0,35,46,.94),rgba(0,26,35,.90)) padding-box,
+     linear-gradient(140deg,var(--orange),var(--caramel)) border-box;
+     border:1.6px solid transparent;
+     box-shadow:0 0 42px rgba(238,155,0,.28), 0 16px 38px rgba(0,0,0,.52), inset 0 1px 0 rgba(233,216,166,.22)}
+
+.chip{position:absolute;right:18px;top:16px;font-size:11.5px;font-weight:700;letter-spacing:1.7px;
+  color:var(--cyan);text-transform:uppercase}
+.stack{padding:22px 22px 0}
+.stack .ct{white-space:normal}
+.note{position:absolute;width:1200px;left:0;text-align:center;font-size:15px;
+  color:var(--aqua);letter-spacing:.2px}
+.note span{display:inline-block;background:rgba(0,18,25,.94);
+  border:1px solid rgba(148,210,189,.16);border-radius:999px;padding:8px 22px}
+.foot{position:absolute;top:1360px;left:0;width:1200px;text-align:center;
+  font-size:15.5px;color:var(--aqua);opacity:.58;letter-spacing:.3px}
+.foot b{color:#fff;font-weight:600;opacity:1}
+</style></head>
+<body>
+<div class="mesh"></div>
+<img class="logo" src="../../../brand/images/alex-logo-transparent.png" alt="ALEX">
+
+<div class="title">HOW ALEX REMEMBERS</div>
+<div class="sub">what happens between my question and the answer.</div>
+
+<div class="sec" style="top:214px">every question &nbsp;/&nbsp; the read path</div>
+<div class="secrule" style="top:242px"></div>
+
+<svg width="1200" height="1500" style="position:absolute;inset:0">
+  <defs>
+    <linearGradient id="fd" gradientUnits="userSpaceOnUse" x1="600" y1="382" x2="600" y2="1180">
+      <stop offset="0" stop-color="#005f73" stop-opacity=".60"/><stop offset="1" stop-color="#94d2bd" stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="fo" gradientUnits="userSpaceOnUse" x1="692" y1="1020" x2="816" y2="1020">
+      <stop offset="0" stop-color="#ee9b00" stop-opacity=".55"/><stop offset="1" stop-color="#ca6702" stop-opacity="1"/>
+    </linearGradient>
+    <radialGradient id="bl" cx="50%" cy="50%">
+      <stop offset="0" stop-color="#0a9396" stop-opacity=".52"/>
+      <stop offset="60%" stop-color="#005f73" stop-opacity=".18"/>
+      <stop offset="100%" stop-color="#001219" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb" cx="42%" cy="30%">
+      <stop offset="0" stop-color="#0a9396"/><stop offset="46%" stop-color="#005f73"/><stop offset="100%" stop-color="#001219"/>
+    </radialGradient>
+    <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="2.9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- question -> the three lookups -->
+  <g filter="url(#glow)" fill="none" stroke="url(#fd)" stroke-width="2.5" stroke-linecap="round">
+    <path d="M600,384 C600,426 236,430 236,472"/>
+    <path d="M600,384 L600,472"/>
+    <path d="M600,384 C600,426 964,430 964,472"/>
+    <path d="M236,658 C236,702 600,704 600,742"/>
+    <path d="M600,658 L600,742"/>
+    <path d="M964,658 C964,702 600,704 600,742"/>
+    <path d="M600,844 L600,922"/>
+    <path d="M600,1114 L600,1172"/>
+  </g>
+  <g fill="#94d2bd">
+    <path d="M236,478 l-6.5,-13 l6.5,2.2 l6.5,-2.2 z"/>
+    <path d="M600,478 l-6.5,-13 l6.5,2.2 l6.5,-2.2 z"/>
+    <path d="M964,478 l-6.5,-13 l6.5,2.2 l6.5,-2.2 z"/>
+    <path d="M600,748 l-6.5,-13 l6.5,2.2 l6.5,-2.2 z"/>
+    <path d="M600,928 l-6.5,-13 l6.5,2.2 l6.5,-2.2 z"/>
+    <path d="M600,1178 l-6.5,-13 l6.5,2.2 l6.5,-2.2 z"/>
+  </g>
+
+  <!-- alex core -->
+  <circle cx="600" cy="1020" r="185" fill="url(#bl)"/>
+  <circle cx="600" cy="1020" r="120" fill="none" stroke="rgba(148,210,189,.12)" stroke-width="1"/>
+  <circle cx="600" cy="1020" r="142" fill="none" stroke="rgba(148,210,189,.07)" stroke-width="1" stroke-dasharray="3 9"/>
+  <circle cx="600" cy="1020" r="92" fill="url(#orb)" stroke="rgba(148,210,189,.24)" stroke-width="1.2"/>
+  <circle cx="600" cy="1020" r="92" fill="none" stroke="rgba(10,147,150,.42)" stroke-width="5" filter="url(#glow)" opacity=".5"/>
+  <path d="M694,1020 C736,1012 774,1028 810,1020" fill="none" stroke="url(#fo)" stroke-width="2.6"
+        stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M812,1020 l-11,-5.4 l1.6,5.4 l-1.6,5.4 z" fill="#ee9b00"/>
+  <circle cx="694" cy="1020" r="3.8" fill="#ee9b00" filter="url(#glow)"/>
+</svg>
+
+<div class="card" style="left:380px;top:290px;width:440px;height:92px"><div class="pad">
+  <div class="badge"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#94d2bd" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+  <div><div class="ct">I ask a question</div><div class="cs">typed or spoken, any session</div></div></div></div>
+
+<div class="note" style="top:402px"><span>the lookup runs before the question ever reaches Alex</span></div>
+
+<div class="card" style="left:72px;top:480px;width:328px;height:176px"><div class="stack">
+  <div class="chip">up to 5</div>
+  <div class="ct">Fact ledger</div>
+  <div class="cs" style="margin-top:10px">current facts only, each carrying the date it became true. a changed fact supersedes, it is never deleted.</div></div></div>
+<div class="card" style="left:436px;top:480px;width:328px;height:176px"><div class="stack">
+  <div class="chip">up to 3</div>
+  <div class="ct">Vault index</div>
+  <div class="cs" style="margin-top:10px">every page I ever wrote, searched and ranked by relevance to what I just asked.</div></div></div>
+<div class="card" style="left:800px;top:480px;width:328px;height:176px"><div class="stack">
+  <div class="chip">up to 2</div>
+  <div class="ct">Past lessons</div>
+  <div class="cs" style="margin-top:10px">what earlier mistakes already taught, pulled forward before the same one repeats.</div></div></div>
+
+<div class="card" style="left:320px;top:750px;width:560px;height:92px"><div class="pad" style="justify-content:center;text-align:center">
+  <div><div class="ct">retrieved reference data</div><div class="cs">handed over as data, never as instructions</div></div></div></div>
+
+<div style="position:absolute;left:520px;top:988px;width:160px;text-align:center">
+  <div style="font-size:28px;font-weight:700;color:#fff">Alex</div>
+  <div style="font-size:11px;font-weight:700;letter-spacing:3.2px;color:var(--aqua);opacity:.82;margin-top:6px">ANSWERS</div>
+</div>
+<div class="card acc" style="left:812px;top:983px;width:316px;height:74px"><div class="pad" style="padding:0 18px">
+  <div><div class="ct" style="font-size:18px">the card, already loaded</div></div></div></div>
+
+<div class="card" style="left:380px;top:1180px;width:440px;height:92px"><div class="pad">
+  <div class="badge"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#94d2bd" stroke-width="1.8" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+  <div><div class="ct">the answer</div><div class="cs">built on what I actually wrote down</div></div></div></div>
+
+<div class="foot">the whole lookup gets <b>150 milliseconds</b>. if it fails, it fails open and the question goes through untouched.</div>
+
+<div class="vig"></div>
+</body></html>

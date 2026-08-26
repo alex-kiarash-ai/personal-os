@@ -26,9 +26,10 @@
 // Design: vault/research/alex-recovery-layer.md (pieces 1-2). Runbook: vault/projects/recovery/recovery-layer-plan.md.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Derive the repo root from the script's own location. A RECOVERY tool must survive a restore to
@@ -36,9 +37,13 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
 process.chdir(REPO);
 
-const { paths, manifest: loadManifest } = await import(`${REPO}/scripts/lib/paths.mjs`);
-const { sha, sameHash } = (await import(`${REPO}/scripts/lib/repo-hash.js`)).default;
-const { liveJobs: systemdJobs, hasSystemd } = await import(`${REPO}/scripts/lib/gen-systemd.js`).then((m) => m.default || m);
+// pathToFileURL, not a bare template string: an absolute Windows path ('C:\...') is rejected by the
+// ESM loader ("protocol 'c:'"), so the checker could not even start there (found 2026-08-25 during
+// the powershell-branch reconciliation; same platform-agnostic class as the 86ff0f7 backports).
+const libUrl = (rel) => pathToFileURL(path.join(REPO, rel)).href;
+const { paths, manifest: loadManifest } = await import(libUrl('scripts/lib/paths.mjs'));
+const { sha, sameHash } = (await import(libUrl('scripts/lib/repo-hash.js'))).default;
+const { liveJobs: systemdJobs, hasSystemd } = await import(libUrl('scripts/lib/gen-systemd.js')).then((m) => m.default || m);
 
 const INIT = process.argv.includes('--init');
 const DRY = process.argv.includes('--dry-run');
@@ -180,8 +185,17 @@ if (INIT) {
   );
   const logLines = lineCount(paths.vaultLog());
   fs.writeFileSync(HW_FILE, JSON.stringify({ lines: logLines, updated: fmt(now()) }, null, 2) + '\n');
+  // C28 (2026-08-23): record the ACCEPTED user-scope skill set. Deliberately a name inventory, not
+  // hashes: the point is "what is installed outside every gate", and a name arriving or vanishing is
+  // the signal. Hashing user-scope content would imply this repo governs it, which it does not.
+  const usDir = path.join(os.homedir(), '.claude', 'skills');
+  const usList = listDirs(usDir).sort();
+  fs.writeFileSync(
+    path.join(STATE_DIR, 'user-skills-baseline.json'),
+    JSON.stringify({ skills: usList, updated: fmt(now()) }, null, 2) + '\n'
+  );
   console.log(
-    `Baselined: ${manifest.projects.length} CLAUDE.md hashes + log high-water ${logLines} lines -> ${STATE_DIR}`
+    `Baselined: ${manifest.projects.length} CLAUDE.md hashes + log high-water ${logLines} lines + ${usList.length} user-scope skill(s) -> ${STATE_DIR}`
   );
   process.exit(0);
 }
@@ -573,9 +587,19 @@ try {
     const agentsSkills = path.join(REPO, '.agents', 'skills');
     const claudeSkills = path.join(REPO, '.claude', 'skills');
     if (exists(agentsSkills)) {
+      // PARKED skills (S1 Compiled Surfaces P4, 2026-08-16) are DELIBERATELY link-less: the docket
+      // Shaheen approved parks a skill by removing its link and flagging `parked: true` in
+      // skills-lock.json (content stays; wake = node scripts/skills-park.js --wake <name>). A parked
+      // row is exempt here; an UNPARKED row with no link is still the restore-gap this check exists for.
+      const parkedSet = new Set();
+      {
+        const lk = readJson(path.join(REPO, 'skills-lock.json'));
+        if (lk && lk.skills) for (const [n, row] of Object.entries(lk.skills)) if (row && row.parked) parkedSet.add(n);
+      }
       const missingLinks = [];
       const brokenLinks = [];
       for (const name of listDirs(agentsSkills)) {
+        if (parkedSet.has(name)) continue;
         const link = path.join(claudeSkills, name);
         let st = null;
         try {
@@ -588,7 +612,7 @@ try {
         if (st.isSymbolicLink() && !exists(link)) brokenLinks.push(name);
       }
       if (missingLinks.length) {
-        addDrift('skills-link', `${missingLinks.length} skill(s) in .agents/skills/ have no .claude/skills/ link (rebuild per pair: ln -s ../../.agents/skills/<name> .claude/skills/<name>): ${missingLinks.join(', ')}`);
+        addDrift('skills-link', `${missingLinks.length} UNPARKED skill(s) in .agents/skills/ have no .claude/skills/ link (rebuild per pair: ln -s ../../.agents/skills/<name> .claude/skills/<name>; parked skills are exempt by design): ${missingLinks.join(', ')}`);
       }
       if (brokenLinks.length) {
         addDrift('skills-link', `${brokenLinks.length} .claude/skills/ symlink(s) are BROKEN (they point at nothing, so the skill silently does not load): ${brokenLinks.join(', ')}`);
@@ -729,6 +753,219 @@ try {
         SOUL_HW_FILE,
         JSON.stringify({ entries: Math.max(soulEntries, prevEntries), lines: Math.max(soulLines, prevSoulLn), updated: fmt(now()) }, null, 2) + '\n'
       );
+    }
+  }
+
+  // --- C23 soul-core freshness (S1 Compiled Surfaces, 2026-08-16): soul-core.md is THE identity
+  // injection since the @-import swap (harness 2.1.220 truncates hook stdout at ~10KB, so the old
+  // `cat soul.md` path delivered ~2KB; the card rides a CLAUDE.md memory import and loads whole).
+  // The card's tail stamp carries source-sha256 = sha256(soul.md BYTES) at build time; this check
+  // recomputes the live hash (same byte primitive the builder uses) and AMBERS on any mismatch -
+  // a stale card means every session is fed yesterday's identity slice and the nightly 21:35
+  // rebuild (run-vault-index.sh) or the generator missed. A MISSING card also ambers: the
+  // SessionStart hook falls back to full soul.md (fail-open, by design), but on this harness that
+  // fallback delivers only the 2KB preview, so a silently deleted card must not hide behind it.
+  // The FIX half is the hq-heal-map `soul-core-stale` AUTO-SAFE row (rebuild --force + read-back,
+  // one attempt then escalate). Compute-and-compare; negative-tested at install with a stale stamp.
+  {
+    const soulP = paths.soulMd();
+    const corePath = path.join(REPO, 'soul-core.md');
+    if (exists(soulP)) {
+      if (!exists(corePath)) {
+        addDrift('soul-core', 'soul-core.md MISSING - sessions run on the truncated full-soul fallback (~2KB reaches the model). Rebuild: node scripts/lib/build-soul-core.js --force');
+      } else {
+        const coreText = readText(corePath) || '';
+        const stampM = /source-sha256=([0-9a-f]{64})/.exec(coreText.slice(Math.max(0, coreText.length - 400)));
+        if (!stampM) {
+          addDrift('soul-core', 'soul-core.md has no parseable SOUL-CORE-STAMP source-sha256 - hand-edited or truncated; rebuild: node scripts/lib/build-soul-core.js --force');
+        } else {
+          const liveSha = String(sha(soulP) || '').toLowerCase();
+          if (liveSha !== stampM[1]) {
+            addDrift('soul-core', `soul-core.md STALE: card built from sha ${stampM[1].slice(0, 12)}.. but soul.md is now ${liveSha.slice(0, 12)}.. - the nightly rebuild missed; node scripts/lib/build-soul-core.js --force`);
+          }
+        }
+      }
+    }
+  }
+
+  // --- C24 status byte budget (S1 Compiled Surfaces P2, 2026-08-16): Tier-1 status.md files are
+  // SUMMARIES by contract and had grown to 87-180KB. scripts/status-rotate.js (nightly, before the
+  // 21:35 index build) moves whole dated H2 blocks to history/; this check reads LIVE byte counts
+  // against manifest meta.vault.status_byte_budget so a dead rotator cannot hide behind a green
+  // chain. Fires at budget + 10% (deliberate grace: the keep-the-newest-dated-block rule can land a
+  // file a few hundred bytes over, and an amber that cries over 4 bytes teaches amber-blindness,
+  // the F-14 lesson). The message distinguishes "movable blocks present = the rotator missed" from
+  // "undated standing weight = needs a human restructure / the monthly /lint" - different remedies.
+  // Negative-tested at install with a temp-inflated file.
+  {
+    const sbBudget = Number(manifest.meta?.vault?.status_byte_budget) || 0;
+    if (sbBudget > 0) {
+      const sbRows = [...(manifest.projects || []), ...((manifest.meta && manifest.meta.unnumbered) || [])];
+      const sbSeen = new Set();
+      for (const p of sbRows) {
+        if (!p.status_md) continue;
+        const sp = path.join(REPO, p.status_md);
+        if (sbSeen.has(sp) || !exists(sp)) continue;
+        sbSeen.add(sp);
+        const len = fs.statSync(sp).size;
+        if (len <= Math.round(sbBudget * 1.1)) continue;
+        const txt = readText(sp) || '';
+        const movable = (txt.match(/^##\s.*\b20\d{2}-\d{2}-\d{2}\b/gm) || []).length;
+        const why =
+          movable > 1
+            ? `has ${movable} dated block(s) the rotator should have moved - is the nightly status-rotate step dead? (run: node scripts/status-rotate.js)`
+            : 'weight is UNDATED standing content - rotation cannot help; needs a human restructure (a /lint-class judgment pass)';
+        addDrift('status-budget', `${p.status_md} is ${len} B against the ${sbBudget} B Tier-1 budget - ${why}`);
+      }
+    }
+  }
+
+  // --- C25 inbound mail channels (2026-08-23): every custom address on the zone that forwards into
+  // Gmail is asserted to still have an enabled Cloudflare routing rule, and to have actually received
+  // mail inside its declared window. Born from a real 2.5-month silent outage: shaheen@shaheenkiarash.com,
+  // the ONLY contact address on the live portfolio site, stopped delivering around 2026-06-08 and
+  // nothing anywhere went red. What a MISSING rule does depends on the catch-all: enabled+drop means
+  // accepted-then-binned with nobody told; DISABLED means REJECTED at SMTP and the SENDER gets a bounce.
+  // CORRECTED 2026-08-23 from a live API read: this zone has it DISABLED, so the first version of this
+  // comment had the mechanism backwards, and its evidence was misread (two probe mails produced no bounce
+  // because they were DELIVERED and Gmail deduped Shaheen's own copies). Either way HE hears nothing, and
+  // he is the only observer the system can act for. Every component was green
+  // because the system only ever checked that its own JOBS ran, never that expected mail ARRIVED.
+  // Shelled out C12-style because the probe needs the network, and check.mjs's "no network except the
+  // one HQ push" contract must hold. Registry: system/mail-channels.json (add a channel = one row).
+  {
+    const mc = spawnSync(process.execPath, [path.join('scripts', 'mail-channel-check.js'), '--dry'], { encoding: 'utf8', cwd: REPO });
+    const mcOut = `${mc.stdout || ''}${mc.stderr || ''}`;
+    if (mc.status === 2) {
+      for (const line of mcOut.split(/\r?\n/)) {
+        if (/^DRIFT: /.test(line)) addDrift('mail-channels', line.replace(/^DRIFT: /, ''));
+      }
+    } else if (mc.status !== 0) {
+      addDrift('mail-channels', `mail-channel-check errored (exit ${mc.status}): ${mcOut.split(/\r?\n/)[0] || ''}`);
+    }
+  }
+
+  // --- C30 code-map freshness (P7.1, run-47 merged plan, 2026-08-23): `scripts/code-index.js` builds a
+  // deterministic map of this repo's own code (what requires/sources/invokes what) that /deep-audit
+  // and #27 migrations read instead of fanning out agents to re-read everything. A map is only useful
+  // while it is true, and a STALE map is worse than none: it answers confidently about code that has
+  // since moved, which is precisely the failure mode that disqualified graphify's query-first design.
+  // N/A when the map has never been built (an absent optional index is not drift); AMBER when it exists
+  // and the newest source file is more than 7 days newer than it. Shells out C12-style so this file's
+  // "no network except the one HQ push" contract holds and the freshness logic has ONE home.
+  if (exists(path.join(REPO, 'system', 'code-graph.json'))) {
+    const cg = spawnSync(process.execPath, [path.join('scripts', 'code-index.js'), '--stale'], { encoding: 'utf8', cwd: REPO });
+    if (cg.status === 2) {
+      const cgOut = `${cg.stdout || ''}${cg.stderr || ''}`.trim().replace(/\s+/g, ' ');
+      addDrift('code-map', `code-graph.json is stale - ${cgOut}. Rebuild: node scripts/code-index.js`);
+    }
+  }
+
+  // --- C29 hook liveness (P3.7, run-47 merged plan, 2026-08-23): every wired hook leaves a breadcrumb,
+  // and until now NOTHING asserted that the breadcrumbs keep arriving. A hook that silently stops
+  // firing is invisible for weeks: the voice hook already died quietly once (its own header records
+  // it), and the recall/capture hooks would fail exactly as quietly because both are fail-OPEN by
+  // design - which is correct for a prompt path and is precisely why their silence needs a separate
+  // watcher. Asserts each hook produced evidence inside its own window, sized to how often that hook
+  // can legitimately fire. NEVER-FIRED is reported in different words from WENT-QUIET (the C20/F-14
+  // rule): a hook wired today has no history yet, and saying "stale" would be a lie.
+  {
+    const today = fmt(now()).slice(0, 10);
+    const hookProbes = [
+      { name: 'UserPromptSubmit/recall-inject', p: path.join('system', 'recall', 'recall-metrics.jsonl'), days: 3 },
+      { name: 'UserPromptSubmit/capture-typed', p: path.join('outputs', 'typed', 'transcripts', `${today}.md`), days: 3, todayOnly: true },
+      { name: 'PreCompact|SessionEnd|ToolFail', p: path.join('system', 'lifecycle.jsonl'), days: 14 },
+    ];
+    for (const hp of hookProbes) {
+      const hpFull = path.join(REPO, hp.p);
+      if (!exists(hpFull)) {
+        // Never-fired: state it as such. For the per-day transcript this is normal on a quiet day.
+        if (!hp.todayOnly) {
+          addDrift('hook-liveness', `${hp.name}: no evidence file yet at ${hp.p} - NEVER FIRED (not stale). Expected once the hook runs for the first time; if it stays empty past a few sessions the wiring in .claude/settings.json is dead.`);
+        }
+        continue;
+      }
+      const ageDays = days(now() - fs.statSync(hpFull).mtime);
+      if (ageDays > hp.days) {
+        addDrift('hook-liveness', `${hp.name}: last evidence ${Math.round(ageDays * 10) / 10}d ago in ${hp.p}, window is ${hp.days}d - the hook went QUIET. Check .claude/settings.json wiring and the script's own log.`);
+      }
+    }
+  }
+
+  // --- C28 user-scope skill inventory (P2.1, run-47 merged plan, 2026-08-23): `~/.claude/skills/` is
+  // entirely OUTSIDE skills-lock.json, the S7 hash sweep and every audit gate this repo owns. Those
+  // guard `.agents/skills/` (project scope) only. The run-47 assessment found the consequence live:
+  // graphify has sat at user scope since 2026-06-09, unpinned, unaudited, 113 releases stale, wired
+  // into every session by the global CLAUDE.md, self-installing a PyPI package from prose - and it was
+  // found by a human reading it in August, not by any mechanism. This inventory is the mechanism that
+  // would have surfaced it in June. AMBER + names the skill: appearing here is not an accusation, it
+  // is "this exists outside every baseline you have, decide about it".
+  {
+    const c28Baseline = path.join(STATE_DIR, 'user-skills-baseline.json');
+    const userSkillsDir = path.join(os.homedir(), '.claude', 'skills');
+    if (exists(userSkillsDir)) {
+      const liveUser = listDirs(userSkillsDir).sort();
+      if (exists(c28Baseline)) {
+        const known = (readJson(c28Baseline) || {}).skills || [];
+        const newOnes = liveUser.filter((s) => !known.includes(s));
+        const goneOnes = known.filter((s) => !liveUser.includes(s));
+        if (newOnes.length) {
+          addDrift('user-skills', `user-scope skill(s) present but NOT baselined: ${newOnes.join(', ')} - these live outside skills-lock.json, the S7 hash sweep and every audit gate; review, then re-run check.mjs --init to accept`);
+        }
+        if (goneOnes.length) {
+          addDrift('user-skills', `baselined user-scope skill(s) now MISSING: ${goneOnes.join(', ')} - a skill disappearing is as much a change as one arriving; re-run check.mjs --init if the removal was deliberate`);
+        }
+      } else {
+        addDrift('user-skills', `no user-scope skill baseline yet (${liveUser.length} skill(s) in ${userSkillsDir}) - run check.mjs --init to record the accepted set`);
+      }
+    }
+  }
+
+  // --- C27 soul-core byte budget (P1.6, run-47 merged plan, 2026-08-23): the identity card is the one
+  // surface EVERY session and every scheduled run pays for, and its size was guarded by a builder WARN
+  // that shipped the oversized card anyway - the same dead-check-green shape as the backup's identity
+  // warning. The builder now trims the recency slice to manifest meta.vault.soul_core_byte_budget;
+  // this is the level-triggered proof that it worked. Over budget here means the trim hit the
+  // MIN_ENTRIES floor and could not get under, which is a real signal (his recent entries are long)
+  // and wants a human decision: raise the budget deliberately, or prune the corpus.
+  {
+    const scBudget = Number(manifest.meta?.vault?.soul_core_byte_budget) || 0;
+    const scPath = path.join(REPO, 'soul-core.md');
+    if (scBudget > 0 && exists(scPath)) {
+      const scLen = fs.statSync(scPath).size;
+      if (scLen > scBudget) {
+        addDrift('soul-core-budget', `soul-core.md is ${scLen} B against the ${scBudget} B budget - the builder's trim hit its MIN_ENTRIES floor, so this needs a human call: raise meta.vault.soul_core_byte_budget deliberately, or prune the My Words corpus`);
+      }
+    }
+  }
+
+  // --- C26 vault/log.md tail ordering (P1.5, run-47 merged plan, 2026-08-23): the activity log is
+  // described everywhere as append-only and time-ordered, and measured on 2026-08-23 it was neither -
+  // 276 of 1,107 adjacent heading pairs ran BACKWARDS, one entry was stamped in the future, and no
+  // script owned the file (run-46 finding N3). scripts/log-append.js is now the mechanical writer and
+  // refuses an out-of-order stamp; this check is the level-triggered backstop for anything written by
+  // hand or by a model. HISTORY IS BASELINED, NOT REPAIRED: the 276 existing inversions are what
+  // actually happened and rewriting them would be a lie, so only entries at or after the baseline date
+  // are asserted. AMBER, never RED: an ordering wobble is a hygiene problem, not a data-loss one.
+  {
+    const c26Baseline = String(manifest.meta?.vault?.log_order_baseline || '');
+    const logPath = paths.vaultLog();
+    if (c26Baseline && exists(logPath)) {
+      const stamps = [...(readText(logPath) || '').matchAll(/^## \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]/gm)]
+        .map((m) => m[1])
+        .filter((s) => s >= c26Baseline);
+      let inversions = 0;
+      for (let i = 1; i < stamps.length; i++) if (stamps[i] < stamps[i - 1]) inversions++;
+      if (inversions > 0) {
+        addDrift('log-order', `vault/log.md has ${inversions} out-of-order entry pair(s) at or after the ${c26Baseline} baseline - append through scripts/log-append.js (it refuses an older-than-tail stamp) instead of writing the file by hand`);
+      }
+      // A stamp in the FUTURE is its own defect: it makes every later entry look out of order and
+      // poisons any temporal join. Checked against local now + 5 min of clock slack.
+      const slack = fmtMin(new Date(Date.now() + 5 * 60000));
+      const future = stamps.filter((s) => s > slack);
+      if (future.length) {
+        addDrift('log-order', `vault/log.md carries ${future.length} future-stamped entr(ies) (newest: ${future[future.length - 1]}) - a timestamp ahead of now cannot be trusted for ordering`);
+      }
     }
   }
 

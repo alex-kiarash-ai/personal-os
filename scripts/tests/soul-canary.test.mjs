@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   newSoulNonce,
@@ -183,4 +184,74 @@ test('the instruction never leaks the token (that leak would void the whole proo
   } finally {
     s.cleanup();
   }
+});
+
+// --- Added 2026-08-05 (pen-test P-01 fix). Regression cases for the three measured flake modes.
+// Each one reproduces a REAL line from outputs/logs/morning-brief.log, so a future refactor that
+// reintroduces the fault fails here instead of in production two weeks later.
+
+test('token correct + nonce omitted -> FAIL closed, diagnosed as malformed NOT absent', () => {
+  // Real line: "SOUL-OK <the-real-token>". Must still fail (no freshness proof), but must NOT be
+  // diagnosed as "canary absent" - the token is unguessable, so soul.md arrived.
+  const s = sandbox();
+  try {
+    const nonce = newSoulNonce();
+    const r = testSoulCanary(`the brief...\nSOUL-OK ${TOKEN}`, nonce, s.armed);
+    assert.equal(r.pass, false, r.reason);
+    assert.match(r.reason, /nonce omitted/);
+    assert.doesNotMatch(r.reason, /absent/);
+  } finally {
+    s.cleanup();
+  }
+});
+
+test('confabulated tokens never pass, however plausible they look', () => {
+  // Real lines: "SOUL-OK eyJ-kiarash <nonce>", "SOUL-OK brkb-canary-2026 <nonce>".
+  const s = sandbox();
+  try {
+    const nonce = newSoulNonce();
+    for (const fake of ['eyJ-kiarash', 'brkb-canary-2026', '<token>']) {
+      const r = testSoulCanary(`SOUL-OK ${fake} ${nonce}`, nonce, s.armed);
+      assert.equal(r.pass, false, `'${fake}' must fail`);
+      assert.match(r.reason, /wrong token/, `'${fake}': ${r.reason}`);
+    }
+  } finally {
+    s.cleanup();
+  }
+});
+
+test('the instruction SEQUENCES the verdict line and the canary line (root cause (a) of the flake)', () => {
+  // The collision with the verdict instruction ("end your final message with ... Verdict:") was
+  // root cause (a): two instructions cannot both own the last line.
+  const s = sandbox();
+  try {
+    const nonce = newSoulNonce();
+    const instr = soulCanaryInstruction(nonce);
+    assert.doesNotMatch(instr, /very last line/, 'no longer claims "the very last line"');
+    assert.match(instr, /Verdict:\s*COMPLETE/, 'names the verdict line it sequences after');
+    assert.match(instr, /in this exact order/, 'sequences explicitly');
+    assert.match(instr, /SOUL-CANARY-TOKEN:/, 'names the anchor line to copy from');
+    assert.match(instr, /NEVER guess/, 'forbids guessing the token');
+    assert.ok(!instr.includes(TOKEN), 'still withholds the real token');
+    assert.ok(instr.includes(nonce), 'carries this run nonce');
+  } finally {
+    s.cleanup();
+  }
+});
+
+test('live soul.md: all SOUL-CANARY-TOKEN blocks agree (two-block invariant)', (t) => {
+  // New 2026-08-05: soul.md now carries the token TWICE (top anchor + the explanatory block).
+  // getSoulToken takes the FIRST match, so a rotation that updates one block and not the other
+  // would leave the file disagreeing with itself, silently.
+  const realSoul = fileURLToPath(new URL('../../soul.md', import.meta.url));
+  if (!fs.existsSync(realSoul)) {
+    t.skip('live soul.md not present (gitignored clone) - two-block invariant unchecked');
+    return;
+  }
+  const hits = [
+    ...new Set(
+      [...fs.readFileSync(realSoul, 'utf8').matchAll(/SOUL-CANARY-TOKEN:\s*([0-9a-f]{12,})/g)].map((m) => m[1])
+    ),
+  ];
+  assert.equal(hits.length, 1, `distinct values: ${hits.join(', ')}`);
 });

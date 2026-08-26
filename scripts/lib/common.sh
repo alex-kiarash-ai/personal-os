@@ -116,6 +116,21 @@ log_init() {
     # from Get-PSCallStack; bash has no equivalent, so it is captured here once and passed on.
     ALEX_WRAPPER="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
     export ALEX_WRAPPER
+    # --- P1.1 RUN ID (run-47 merged plan, 2026-08-23): the shared join key ------------------------
+    # Three write-paths record the same run - vault/log.md prose, outputs/ledger.jsonl rows, and
+    # system/heal-log.jsonl - and NONE of them shared a key, so "what else happened in that run?"
+    # was a manual excavation across three formats and three clock conventions (run-46 defect D1).
+    # Both run-47 research lanes proposed this identical fix independently without seeing each
+    # other, which is the strongest internal signal that pipeline produces.
+    # Defined HERE because every scheduled wrapper calls log_init before it does anything: one
+    # definition, 17 wrappers, no per-wrapper drift. Interactive sessions simply have no
+    # ALEX_RUN_ID, and that absence is itself information (it means "a human was driving").
+    # Shape: <job>-<yyyyMMddHHmm> in UTC. UTC because P1.2 makes every machine-written stamp UTC-Z,
+    # and a join key that shifts twice a year is not a key.
+    if [ -z "${ALEX_RUN_ID:-}" ]; then
+        ALEX_RUN_ID="${_alex_job}-$(date -u '+%Y%m%d%H%M')"
+        export ALEX_RUN_ID
+    fi
     echo "=== run $(date '+%Y-%m-%d %H:%M:%S') ===" >> "$LOG"
     unset _alex_job
 }
@@ -160,6 +175,52 @@ alex_claude() {
     CODE=$?
     set -e
     printf '%s\n' "$OUT" >> "$LOG"
+}
+
+# --- P3.8 STALL WATCHDOG (run-47 merged plan, 2026-08-23; ported from close-out.ps1) -------------
+# The only backstop against a hung `claude -p` used to be the scheduler's own job time limit
+# (PT2H under Task Scheduler; the systemd units carry no RuntimeMaxSec at all). Two problems with
+# that as the sole guard: it burns up to two hours of the usage window on a run that is already
+# dead; and when the scheduler kills the process the wrapper never reaches close_out, so there is
+# no RED push and no log line - the run simply vanishes, which is the "job cannot announce its own
+# failure" class this whole layer exists to kill.
+#
+# run_with_watchdog <timeout-minutes> <cmd...> runs the command with a wall-clock cap well under
+# any scheduler limit, kills the process GROUP on breach (GNU timeout signals the group when run
+# non-foreground; a child that setsids away escapes, accepted), and sets a distinct STALLED flag
+# with CODE=124 so the caller can push RED with a diagnosable state rather than a generic failure.
+# Stall and failure are different diagnoses and must not share a word.
+#
+# NOT WIRED INTO ANY WRAPPER, deliberately: changing how 17 live scheduled jobs invoke claude is
+# the highest-blast-radius edit in the whole plan, and it belongs in its own session with
+# per-wrapper verification. The function ships proven so adoption is a one-line change per wrapper
+# (alex_claude ... -> run_with_watchdog 25 "$CLAUDE" ...). Sets $OUT/$CODE/$STALLED like
+# alex_claude sets $OUT/$CODE.
+run_with_watchdog() {
+    _wd_min="${1:-25}"   # generous: a real brief/triage run is minutes
+    shift
+    STALLED=""
+    if command -v timeout >/dev/null 2>&1; then
+        set +e
+        OUT="$(timeout --signal=TERM --kill-after=30 "$((_wd_min * 60))" "$@" 2>&1)"
+        CODE=$?
+        set -e
+        if [ "$CODE" -eq 124 ] || [ "$CODE" -eq 137 ]; then
+            STALLED=1
+            CODE=124
+            echo "STALLED: no exit after ${_wd_min} min - process group killed (run=${ALEX_RUN_ID:-})" >> "$LOG"
+        fi
+    else
+        # No coreutils timeout on this box (macOS ships without it): run uncapped and say so,
+        # loudly, so the absence of the guard is a logged fact rather than a silent downgrade.
+        echo "watchdog: 'timeout' not found - running UNCAPPED" >> "$LOG"
+        set +e
+        OUT="$("$@" 2>&1)"
+        CODE=$?
+        set -e
+    fi
+    printf '%s\n' "$OUT" >> "$LOG"
+    unset _wd_min
 }
 
 # close_out <project> <exit-code> [degraded-reason] -> the A1/A4 gate. Exits 1 on a detected

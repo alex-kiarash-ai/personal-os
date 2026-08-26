@@ -93,7 +93,31 @@ No new database. One page per research run under the Personal Ops System parent 
 - Fed by: Market Pulse (vault/business/competitors/) once built; Notion internal docs.
 - Feeds into: vault/research/ (consumed by everything), Alex-product decisions, job-hunt targeting.
 
+## House Writing Style (BLOCKING for prose deliverables, added 2026-08-06)
+
+Every running-prose deliverable this project writes (papers, reports, plans, scans, decision
+briefs, speaker scripts, the prose body of any PDF or .docx) is edited against
+**`brand/config/writing-style.md`** before it ships. Generate the argument first, then run the
+guide as a separate editing pass; do not try to write and police at the same time.
+
+The six rules: banned constructions (hedging, connective filler, makeweight tricolons,
+restatement, nominalisation, summarising conclusions), sentence rhythm (no three consecutive
+sentences within 5 words of each other), claims (citation or marked inference, never a
+confident unsourced middle), structure (paragraphs argue, they do not enumerate), punctuation
+(no em-dashes), register (sparse and factual, state the point).
+
+Two things the pass must NOT do: it must not touch citations, reference entries or quoted
+source titles, and it must not paper over vagueness that comes from thin research. The latter
+gets flagged **CONTENT GAP** and left for Shaheen. Log every edit as original / replacement /
+rule triggered.
+
+Baseline measured at adoption across 5 recent outputs: hedging 0, connective filler 0
+(soul.md's Detection-proofing already holds those at zero), tricolons up to 14.4 per 100
+sentences, uniform-rhythm runs up to 7.7 per 100, and 70 em-dashes in a single 1,850-word plan.
+The dash rule is old; the compliance was not.
+
 ## Post-Run (mandatory)
+0. Prose deliverable? Edited against `brand/config/writing-style.md`, edit log produced, CONTENT GAPs surfaced
 1. vault/people/ pages for new people
 2. vault/business/ pages for new companies
 3. [[wiki links]] across research, people, business pages

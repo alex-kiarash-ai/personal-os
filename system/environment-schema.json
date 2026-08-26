@@ -1,0 +1,58 @@
+{
+  "_readme": "Machine-rebuild environment schema (2026-08-05, enterprise-assessment idea 6, vault/research/enterprise-assessment-ideas.md). Declares every OUTSIDE-REPO dependency Alex needs on a machine, so scripts/bootstrap.mjs can prove a fresh restore complete instead of archaeology. TRACKED + public, so it carries NO secret paths: secret-file expectations are read at runtime from system/credentials-ledger.json (gitignored, existence-checked only, values never read). Probes are COMMAND NAMES (resolved from PATH), never arbitrary strings, so this file cannot inject shell. Rules that would drift if restated (scheduler jobs, skill junctions) point at their source of truth instead of copying it.",
+
+  "tools": [
+    { "id": "git",      "required": true,  "version_args": "--version", "restore": "winget install Git.Git; then `git config --global core.longpaths true` (restore doc: clone with -c core.longpaths=true)" },
+    { "id": "node",     "required": true,  "version_args": "--version", "min_major": 22, "restore": "winget install OpenJS.NodeJS.LTS - must be >= 22: the Recall Spine uses node:sqlite" },
+    { "id": "python",   "required": true,  "version_args": "--version", "restore": "winget install Python.Python.3.12 (vault_search FTS5 index, guide edits, hq_self_heal)" },
+    { "id": "claude",   "required": true,  "version_args": "--version", "restore": "npm install -g @anthropic-ai/claude-code, then /login interactively; CLI is PINNED (DISABLE_AUTOUPDATER=1), update by hand" },
+    { "id": "gh",       "required": true,  "version_args": "--version", "restore": "winget install GitHub.cli; then `gh auth login` device flow (Shaheen authenticates; account alex-kiarash-ai)" },
+    { "id": "gitleaks", "required": true,  "version_args": "version",   "restore": "winget install Gitleaks.Gitleaks - the pre-commit secret scan FAIL-OPENS without it, so a machine without gitleaks silently loses the commit-time secret wall" },
+    { "id": "gpg",      "required": true,  "version_args": "--version", "fallback_paths": ["C:\\Program Files\\Git\\usr\\bin\\gpg.exe", "C:\\Program Files (x86)\\GnuPG\\bin\\gpg.exe"], "restore": "Git-bundled gpg.exe is what production uses (the vault backup resolves these same fallback paths, in this order, when the PATH probe misses; they are Windows fallbacks, inert elsewhere); winget install GnuPG.GnuPG only if Git's copy is gone" },
+    { "id": "magick",   "required": false, "version_args": "--version", "restore": "winget install ImageMagick.ImageMagick (image-manipulation skill; Inno flags /VERYSILENT /TASKS=modifypath)" },
+    { "id": "rclone",   "required": false, "version_args": "version",   "restore": "winget install Rclone.Rclone (vault-backup B2 second leg; INERT until Shaheen provisions B2, human-actions f1-b2-backup)" },
+    { "id": "whisper",  "required": false, "version_args": null,        "restore": "pip install openai-whisper (HQ voice-note transcription in the 05:00/08:00 lanes; lanes degrade gracefully without it)" },
+    { "id": "diagrammer", "required": false, "version_args": null,      "restore": "uv tool install diagrammer (diagrammer skill; ~/.local/bin on PATH)" }
+  ],
+
+  "npm_globals": [
+    { "id": "@n8n/cli", "required": false, "note": "n8n-cli skill backend; env N8N_URL + N8N_API_KEY at runtime. NOT the unscoped npm package n8n-cli." }
+  ],
+
+  "python_packages": [
+    { "id": "docx", "pip_name": "python-docx", "required": true, "note": "the plain-English guide (identity doc) is edited via python-docx; Change-Propagation item 7 dies without it" }
+  ],
+
+  "junction_rule": {
+    "target_dir": ".agents/skills",
+    "link_dir": ".claude/skills",
+    "note": "Every subdir of target_dir must have a junction in link_dir (git checkout drops them). Repair: node scripts/bootstrap.mjs --repair-links (fs.symlinkSync type 'junction': no admin on Windows, a plain symlink on POSIX - one code path. The mklink/ln -s dance is gone with the platform; learned 2026-07-12, retired 2026-08-25.)"
+  },
+
+  "scheduler_rule": {
+    "source": "system/manifest.json projects[].schedule_jobs",
+    "note": "Task Scheduler jobs are DECLARED in the manifest and created by /cron-setup. bootstrap only reports missing PersonalOS-* tasks; it never creates them (recreation is /cron-setup's job so the wrapper flags stay canonical)."
+  },
+
+  "secret_files_rule": {
+    "source": "system/credentials-ledger.json",
+    "note": "The gitignored ledger names where every credential lives. bootstrap existence-checks the FILE-type entries (local_path field, or a repo-relative path in `where`); values are never read or printed. A missing ledger on a fresh machine means the encrypted vault backup has not been restored yet - restore it first (vault/projects/recovery/vault-backup-plan.md)."
+  },
+
+  "ssh": [
+    { "alias": "n8n", "note": "~/.ssh/config Host n8n -> the Hetzner box (key-only root). Backups, HQ ship, voice-note pulls all use the alias." }
+  ],
+
+  "claude_settings": {
+    "file": "~/.claude/settings.json",
+    "expect_keys": ["model", "fallbackModel"],
+    "expect_env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1", "DISABLE_AUTOUPDATER": "1" },
+    "note": "identity.md section 4: all four must be re-applied after a restore (interactive model default, sonnet-only fallback, auto-memory OFF, autoupdater OFF)."
+  },
+
+  "git_expectations": {
+    "remote": "origin",
+    "core_longpaths": true,
+    "note": "PUBLIC repo alex-kiarash-ai/personal-os; nightly 21:30 push needs the PAT in Windows Credential Manager (ledger id github-backup-pat)."
+  }
+}
