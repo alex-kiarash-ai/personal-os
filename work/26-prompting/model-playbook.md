@@ -162,6 +162,8 @@ Per-model starting points:
 | Opus 4.8 / 4.7 | `xhigh` for coding and agentic work; `high` as the minimum for intelligence-sensitive workloads |
 | Sonnet 5 | `high`; `xhigh` for the hardest coding and agentic tasks |
 | Sonnet 4.6 | `medium` as the practical default; set it explicitly to avoid unexpected latency |
+| Haiku 4.5 | `low` for classification, extraction and high-volume routing; `medium` only when the task needs real reasoning (row added 2026-08-26, inspection fix P3-10: Haiku is an answerable option in /prompting step 4 and had no row here) |
+| Opus 4.6 | `high`; it over-explores and over-spawns subagents, so cap delegation explicitly rather than raising effort (row added 2026-08-26, inspection fix P3-10) |
 
 If you migrate a workload between models, run a fresh effort sweep on your own evals. The levels were recalibrated between generations, so carried-over settings are usually wrong.
 
@@ -171,7 +173,7 @@ If you migrate a workload between models, run a fresh effort sweep on your own e
 
 Fable 5 is built for problems that were previously too complex, long-running, or ambiguous. It is strongest on end-to-end work that would take a person hours, days, or weeks. Anthropic notes that teams testing it only on simple workloads tend to undersell it, so point it at your hardest unsolved problem.
 
-Mythos 5 shares the same underlying model; Fable 5 adds safety measures for biology, cybersecurity, and LLM research. All prompting guidance below applies to both.
+Mythos 5 shares the same capabilities, specs and pricing (the docs say capabilities, never weights; Mythos 5 is access-gated through Project Glasswing, so it is not a model you can simply route to); Fable 5 adds safety measures for biology, cybersecurity, and LLM research. All prompting guidance below applies to both.
 
 ### 4.1 What changed versus Opus 4.8
 
@@ -366,7 +368,7 @@ Do not route narration or reasoning through it; over-calling defeats the purpose
 ### 4.12 Scaffolding changes worth making
 
 - **Start at the top of your difficulty range.** Pick a task harder than you would assign to prior models, and have Fable 5 scope it, ask clarifying questions, and execute.
-- **Make self-verification explicit on long runs.** Fresh-context verifier subagents outperform self-critique: `Establish a method for checking your own work at an interval of [X] as you build. Run this every [X interval], verifying your work with subagents against the specification.`
+- **Make self-verification explicit on long runs.** Fresh-context verifier subagents TEND TO outperform self-critique: `Establish a method for checking your own work at an interval of [X] as you build. Run this every [X interval], verifying your work with subagents against the specification.`
 - **Refactor old prompts and skills.** Skills built for prior models are often too prescriptive and can degrade output quality. Remove older instructions where default behavior is already better. Fable 5 is also good at updating skills on the fly based on what it learns.
 - **Never ask it to reproduce its reasoning in the response.** Instructions to echo, transcribe, or explain internal reasoning as response text can trigger the `reasoning_extraction` refusal category and cause fallbacks to Opus 4.8. If you need reasoning visibility, read the structured `thinking` blocks from adaptive thinking instead.
 
@@ -599,16 +601,14 @@ continue with the task as asked rather than quietly narrowing, widening, or tran
 Finish the whole task, and stop short of actions that are clearly beyond what was asked.
 ```
 
-**Anti-over-engineering**
+**Anti-over-engineering** - the canonical text is in section 4.3. **Do not copy from here.**
 
-```
-Avoid over-engineering. Only make changes that are directly requested or clearly necessary.
-Don't add features, refactor code, or make improvements beyond what was asked. Don't add
-docstrings, comments, or type annotations to code you didn't change. Don't add error
-handling, fallbacks, or validation for scenarios that can't happen; trust internal code and
-framework guarantees, and only validate at system boundaries. Don't create helpers or
-abstractions for one-time operations, and don't design for hypothetical future requirements.
-```
+> Moved to a pointer 2026-08-26 (inspection fix P3-4). This library held a SECOND copy of the 4.3 block and the
+> two had already drifted: 4.3 carries "Don't use feature flags or backwards-compatibility shims when you can just
+> change the code" and "Avoid premature abstraction and half-finished implementations", neither of which was here,
+> while this copy carried a docstrings line 4.3 does not. A run following the spec's "full text in section 11"
+> pointer shipped the WEAKER block. Two homes for one fact is exactly what the one-home rule forbids, and it broke
+> here first. Read 4.3.
 
 **Grounded progress on long runs**
 
@@ -619,16 +619,11 @@ explicitly. Report outcomes faithfully: if tests fail, say so with the output; i
 skipped, say that; when something is done and verified, state it plainly without hedging.
 ```
 
-**Autonomous operation**
+**Autonomous operation** - the canonical text is in section 4.9. **Do not copy from here.**
 
-```
-You are operating autonomously. The user is not watching in real time and cannot answer
-questions mid-task. For reversible actions that follow from the original request, proceed
-without asking. Before ending your turn, check your last paragraph. If it is a plan, an
-analysis, a question, or a promise about work you have not done, do that work now with tool
-calls. End your turn only when the task is complete or you are blocked on input only the
-user can provide.
-```
+> Moved to a pointer 2026-08-26 (inspection fix P3-4). Same drift as the block above: 4.9 carries "asking 'Want me
+> to...?' or 'Shall I...?' will block the work", the offering-follow-ups-is-fine clarification, and "a list of next
+> steps" in the last-paragraph check. None of the three were in this copy. Read 4.9.
 
 **Subagent policy**
 

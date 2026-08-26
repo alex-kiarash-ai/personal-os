@@ -493,6 +493,22 @@ async function v6ModelRouting({ manifest, context }, failures, warnings) {
     const ov = (mr.overrides || []).find(o => o.workflow === id);
     return ov ? ov.model : mr.default;
   };
+  // The ACCEPTABLE SET for the sweep (leg b), not the single headline model.
+  // Fixed 2026-08-26 (inspection ticket X-2). expectedFor() returns one string, and the sweep compared every
+  // model found in a workflow against it, so a workflow that legitimately runs TWO models could never pass V6
+  // no matter what override was written: the per-node `overrides[].models` map was honoured only in leg (a),
+  // which loops over the sync-n8n-voice TARGETS. A new two-model workflow that is not a voice-sync target was
+  // therefore unvalidatable by construction. Found while stress-testing /prompting with a request for exactly
+  // that shape (a Sonnet 4.6 prose node feeding an Opus 5 judgment node).
+  const acceptableFor = id => {
+    const ov = (mr.overrides || []).find(o => o.workflow === id);
+    if (!ov) return new Set([mr.default]);
+    const set = new Set();
+    if (ov.model) set.add(ov.model);
+    for (const m of Object.values(ov.models || {})) set.add(m);
+    if (!set.size) set.add(mr.default);
+    return set;
+  };
 
   const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
   if (!base || !key) {
@@ -582,10 +598,10 @@ async function v6ModelRouting({ manifest, context }, failures, warnings) {
     const found = new Set();
     for (const n of wf.nodes || []) for (const m of modelIdsInNode(n)) found.add(m);
     if (found.size === 0) continue;                       // no LLM call: nothing to route
-    const exp = expectedFor(wf.id);
+    const ok = acceptableFor(wf.id);
     for (const m of found) {
-      if (m !== exp)
-        flagFor(wf.id)(`V6 (sweep): live workflow ${wf.id} ("${wf.name}") runs model ${m} but meta.model_routing expects ${exp} - fix the workflow, or add a documented override to the contract`);
+      if (!ok.has(m))
+        flagFor(wf.id)(`V6 (sweep): live workflow ${wf.id} ("${wf.name}") runs model ${m} but meta.model_routing accepts only ${[...ok].join(', ')} - fix the workflow, or add a documented override to the contract`);
     }
   }
 

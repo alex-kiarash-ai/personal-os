@@ -286,3 +286,18 @@ one-liner and run `generate-alex.js` (now it is real). Effort: ~1-2 days, the ca
 
 ## Trifecta
 Gate: **read-only**. Legs: private_data=false, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Consumes untrusted landscape feeds. The skills auto-install lane is a LOCAL write gated by a deterministic audit, not external comm. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.
+
+## Known coverage gap: the model-playbook refresh trigger (added 2026-08-26, inspection ticket X-3)
+
+`work/26-prompting/model-playbook.md` names THIS project as its refresh trigger: a new flagship model means
+/prompting needs a new playbook section and a matching addendum block, or it hands out guidance written for the
+wrong model. The 2026-08-26 inspection checked whether that trigger has ever fired and found
+**`system/landscape-log.jsonl` contains zero entries for Fable 5 and zero for Mythos 5**, both of which are real,
+current, and confirmed against Anthropic's live docs the same day. Opus 5 WAS logged (2026-07-26), so the monitor
+works in general and missed these two specifically.
+
+Consequence: the playbook's deepest section, about 30 percent of the file, describes models this system's own
+watcher never saw ship. The snapshot is currently accurate, so nothing is broken today. What is missing is the
+mechanism that would tell us when it stops being accurate. Until the monitor's model-detection covers the full
+family, treat the playbook's dated header as the only staleness signal and re-verify it by hand when a model
+question actually matters.
