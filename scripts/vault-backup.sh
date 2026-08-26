@@ -69,10 +69,10 @@ for step in \
 do
     name="${step%%|*}"
     cmd="${step#*|}"
-    set +e
+    # No set -e re-enable here: this script is deliberately NOT errexit (header; the 2026-08-26
+    # incident - a re-enabled -e killed the run before it could report its own failure).
     # shellcheck disable=SC2086  # deliberate word-split: the args are ours, not user input
     out="$(node $cmd 2>&1 | tail -n 1)"
-    set -e
     echo "$name: $out" >> "$LOG"
 done
 
@@ -121,12 +121,15 @@ elif [ ! -f "$pass_file" ]; then
     reason="passphrase file missing at the ledger-configured path"
 else
     # 1. Build the include set (derived from .gitignore, so it cannot drift from what is local-only).
-    set +e
-    plan="$(node "$ALEX_ROOT/scripts/lib/backup-include.mjs" --list-file "$list_file" 2>&1)"
+    # stderr goes to the LOG, never into $plan: $plan must be pure JSON for the parses below, and a
+    # library WARNING on stderr (the pre-migration secret-path note fires on Windows) poisoned it on
+    # 2026-08-26. The old `set -e` re-enable here was the second half of that bug: this script is
+    # deliberately NOT errexit (header), and re-enabling it made the poisoned parse kill the run
+    # before it could log FAILED or push RED - the exact class this script exists to prevent.
+    plan="$(node "$ALEX_ROOT/scripts/lib/backup-include.mjs" --list-file "$list_file" 2>>"$LOG")"
     plan_code=$?
-    set -e
     if [ "$plan_code" -ne 0 ]; then
-        reason="include-set build failed: $plan"
+        reason="include-set build failed (exit $plan_code) - see the log for its stderr"
         plan=""
     fi
 fi
@@ -139,6 +142,14 @@ if [ -z "$reason" ]; then
     secrets_ok="$(printf '%s' "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).secrets.ok?"1":""))')"
     secrets_root="$(printf '%s' "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).secrets.root))')"
     secrets_leaf="$(printf '%s' "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).secrets.leaf))')"
+    # Git Bash on Windows: GNU tar reads "C:\..." as a remote host spec (the W12 hazard, back via
+    # the two -C anchor legs on this platform; it broke the identity-docs append 2026-08-26 and the
+    # P0.3 verify correctly refused the blob). cygpath exists exactly where the hazard does, so the
+    # drive paths become /c/... here and the tar invocations stay identical on every platform.
+    if command -v cygpath >/dev/null 2>&1; then
+        [ -z "$identity_root" ] || identity_root="$(cygpath -u "$identity_root")"
+        [ -z "$secrets_root" ] || secrets_root="$(cygpath -u "$secrets_root")"
+    fi
     echo "include: $n paths" >> "$LOG"
     [ -n "$identity_ok" ] || echo "WARNING identity docs: '$identity_root/$identity_leaf' not found - the master reference + plain-English guide are NOT in this backup" >> "$LOG"
     [ -n "$secrets_ok" ] || echo "WARNING secrets: '$secrets_root/$secrets_leaf' not found - the relocated credentials are NOT in this backup (ruling A moved them out of the repo, so nothing else covers them)" >> "$LOG"
@@ -203,8 +214,16 @@ elif [ -z "$reason" ]; then
     # 3. Round-trip verify BEFORE shipping: decrypt + list entries. Never ship a blob we cannot open.
     if [ -z "$reason" ]; then
         "$GPG" --batch --yes --quiet --passphrase-file "$pass_file" -d -o "$vrf_file" "$gpg_file" >> "$LOG" 2>&1
-        names="$("$TAR" -tf "$vrf_file" 2>/dev/null)"
-        entries="$(printf '%s\n' "$names" | grep -c . || true)"
+        # The listing goes to a FILE and every check reads the file (2026-08-26). It was a shell
+        # variable pushed through a fresh printf|grep pipe per assertion, and on Git Bash under
+        # parallel-session load those pipes flake: grep saw a short stream and reported a file
+        # missing from a blob that verifiably contained it - three runs, three different phantom
+        # miss-sets, unreproducible in a quiet shell. A file read has no pipe to flake; it is also
+        # what the one-off debug harness did, which is why the harness kept passing while the
+        # script kept failing.
+        names_file="$work/verify-names.txt"
+        "$TAR" -tf "$vrf_file" > "$names_file" 2>>"$LOG"
+        entries="$(grep -c . "$names_file" 2>/dev/null || true)"
         if [ "$entries" -lt 50 ]; then
             reason="verify failed: only $entries entries decrypted"
         else
@@ -213,10 +232,17 @@ elif [ -z "$reason" ]; then
             # that silently stopped covering these is exactly the state these assertions exist to end.
             missing=""
             for want in $(printf '%s' "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).assertNames.join(" ")))'); do
-                printf '%s\n' "$names" | grep -q -- "$want" || missing="$missing $want"
+                grep -q -- "$want" "$names_file" || missing="$missing $want"
             done
             if [ -n "$missing" ]; then
                 reason="verify failed: required file(s) missing from the archive:$missing"
+                # Diagnostic (2026-08-26): on a by-name miss, log what the archive END actually
+                # holds - the appended legs live there, and a truncated or oddly-quoted tail is
+                # invisible in the one-line reason. Costs nothing on the happy path.
+                {
+                    echo "verify diagnostic: last 8 archive entries were:"
+                    tail -n 8 "$names_file" | sed 's/^/  | /'
+                } >> "$LOG"
             else
                 echo "verified: required files present in the blob" >> "$LOG"
             fi
