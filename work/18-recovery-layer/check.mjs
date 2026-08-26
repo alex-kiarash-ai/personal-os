@@ -353,9 +353,15 @@ try {
   const isEphemeral = (j) => j.startsWith('PersonalOS-retry-') || j === 'PersonalOS-qra-poller';
   const docJobs = [...new Set((schedRaw.match(/PersonalOS-[\w-]+/g) || []))].filter((j) => !isEphemeral(j)).sort();
 
-  // Ruling C: on the macOS dev box there is no scheduler to be in drift WITH, so C7/C7b are SKIPPED
-  // loudly rather than reporting all 23 documented jobs as missing. That would be 23 false findings
-  // every run, which is how a checker gets ignored.
+  // Ruling C: on a dev box with no systemd there is no scheduler to be in drift WITH, so C7/C7b are
+  // SKIPPED loudly rather than reporting all 23 documented jobs as missing. That would be 23 false
+  // findings every run, which is how a checker gets ignored.
+  //
+  // Wording corrected 2026-08-26 (inspection ticket X-1): this said "the macOS dev box" and the dev box
+  // is now win32, so the message and its rationale disagreed. The SKIP is deliberate and loud, and the
+  // 2026-08-26 inspection initially flagged it as a silent coverage hole - that was wrong, it says so
+  // every run. The residual gap is real but different: this drift class is only ever checked on the
+  // Linux host, so nothing catches scheduler drift during development here.
   let liveJobs = [];
   let schedulerReadable = false;
   if (!hasSystemd()) {

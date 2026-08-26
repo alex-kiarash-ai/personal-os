@@ -199,12 +199,12 @@ autonomous runs, the hardest one-shot implementations. Point it at the hard thin
 | Prompt slot | What ships |
 |---|---|
 | INPUT 1, boundaries | "When the request is a problem description, a question, or thinking out loud rather than an instruction to change something, the deliverable is your assessment. Report the findings and stop. Do not apply a fix until asked. Before a command that changes system state, check the evidence supports that specific action; a signal that pattern-matches a known failure may have a different cause." (4.6) |
-| INPUT 1, restraint | The anti-over-engineering block (4.3, full text in playbook section 11): no features, refactors or abstractions beyond the task, no error handling for cases that cannot happen, no compatibility shims. Fable 5 tidies beyond the task at higher effort. |
+| INPUT 1, restraint | The anti-over-engineering block (**full text in playbook 4.3, NOT section 11** - corrected 2026-08-26, inspection fix P3-4: section 11 held a drifted second copy missing two of 4.3's lines, so this pointer was sending runs to the weaker block; the duplicate is now a pointer): no features, refactors or abstractions beyond the task, no error handling for cases that cannot happen, no compatibility shims. Fable 5 tidies beyond the task at higher effort. |
 | INPUT 1, brevity | "Lead with the outcome: your first sentence answers what happened or what you found. Keep it short by being selective about what you include, not by compressing into fragments, abbreviations or arrow chains. Readable beats terse." (4.4) |
 | INPUT 2, delegation | **INVERTS the Opus 5 cap.** "Delegate independent subtasks to subagents and keep working while they run. Intervene if a subagent goes off track or is missing context." (4.7) The #04 research routing still holds, because that is a structural rule of this system and not a model-layer opinion. |
 | Progress | **The highest-value Fable 5 line.** "Before reporting progress, audit each claim against a tool result from this session. Report only work you can point to evidence for; if something is unverified, say so. If tests fail, say so with the output; if a step was skipped, say that." (4.5) Anthropic measured this as nearly eliminating fabricated status reports. |
 | Verification | A named fresh-context verifier subagent at a stated interval, checking against the specification, IS allowed on long runs (4.12). Still no bare "verify your work". |
-| Long unattended runs | Add the autonomous-operation block (4.9, full text in playbook section 11) when nobody is watching: no permission questions mid-task, and check the last paragraph before ending a turn. Fable 5's known failure mode is ending on a statement of intent without the tool call. |
+| Long unattended runs | Add the autonomous-operation block (**full text in playbook 4.9, NOT section 11** - same drift, corrected 2026-08-26 by P3-4; section 11's copy was missing three of 4.9's lines including the one that names the failure mode) when nobody is watching: no permission questions mid-task, and check the last paragraph before ending a turn. Fable 5's known failure mode is ending on a statement of intent without the tool call. |
 | OUTPUT 1, length | Same line as Opus 5. |
 | Suggested effort | `high` is the default. `xhigh` only for genuinely capability-sensitive work. **Do not reflexively max it:** playbook 4.3 notes low effort on Fable 5 often exceeds `xhigh` on prior models. |
 
@@ -384,7 +384,7 @@ what worked. On current models both instincts cost quality.
 3. Build HTML/CSS/SVG, render headless Chrome --screenshot, READ the PNG and review before delivering.
 
 **Excel**
-1. /xlsx skill, branded from brand-config.md.
+1. Excel build, branded from brand-config.md. **Pointer-rot note (2026-08-26, inspection fix P3-7/C21): `/xlsx` and `/xlsx-manipulation` are named here and in root CLAUDE.md but neither is installed nor available as a skill on this machine.** Build the workbook directly (openpyxl) with real formulas until one is installed; do not write a prompt that depends on a skill that is not there. (`copy-editing` and `copywriting`, flagged in the same sweep, ARE installed; that flag was wrong.)
 2. ALWAYS real formulas (=SUM, =SUMIFS, =IF), never hardcoded values. Usable standalone.
 
 **CV**
@@ -503,7 +503,14 @@ Both halves sit outside because neither can be set from inside a pasted prompt, 
 - **`Built for:`** names the EXECUTOR model resolved at step 4, never the artifact model (inspection fix P0-1/C23: branch (b) used to resolve an n8n NODE's model while this line means the session's model, so a literal reading put a node model here under Opus 5 instructions, which is the exact invisible mismatch this line exists to expose). **It is written into the saved file too, not only into chat** (inspection fix P1-4): the spec claimed this line makes a saved prompt auditable months later, and a chat message cannot do that. Zero of twelve saved prompts carried it before this fix. It is not decoration. A prompt carrying the Fable 5 delegation and progress lines, pasted into an Opus 5 session, is wrong in a way nothing else in the artifact reveals: it still reads perfectly. This line is the only place the mismatch is visible, and it is what makes a saved prompt in `outputs/prompting/` auditable months later.
 - **`Suggested effort:`** comes from the resolved model's row in the model layer above, never from habit. Effort is a SESSION setting (`claude --effort <level>` at launch, levels `low|medium|high|xhigh|max`). **Never carry a level across models:** the playbook (section 3) is explicit that the levels were recalibrated between generations, so a setting that was right on one model is usually wrong on the next.
 
-If he answers "run it now" and the resolved model is not what this session runs, say so in one line before running. Running it anyway is usually still the right call; silently running it as if the model matched is not.
+If he answers "run it now" and the resolved EXECUTOR model is not what this session runs, say so in one line before running. Running it anyway is usually still the right call; silently running it as if the model matched is not.
+
+**"Run it now" on a DURABLE automation (added 2026-08-26, inspection fix P2-9/M11).** The two rules collide: this
+offer executes the prompt here, while durable work is supposed to route through /new registry-first. The registry
+wins on ORDER, not on permission. Running it now is fine, and the run's FIRST step is the /new registry entry:
+`system/manifest.json` first, `node scripts/generate-alex.js`, then scaffold. What is never fine is free-building
+a permanent automation that never lands in the registry, because an unregistered project is invisible to every
+validator, the recovery sweep and the routing table.
 
 ## Hard cases (design answers, keep these behaviors)
 | Case | Answer |

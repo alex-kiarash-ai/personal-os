@@ -52,3 +52,20 @@ The honest boundary (stated up front): Alex has no large migration waiting today
 
 ## Build status
 - **2026-07-14:** built as a fireable on-demand capability from the dynamic-workflows build. Spec + command + registry entry + status page. No live run yet (ON-DEMAND, first_fire null by design; a first fire is a deliberate window-spend against a named target).
+
+## Vault-target warning (added 2026-08-26, inspection ticket X-4)
+
+The engine's headline safety property is "branch off main, never migrate on main", so a bad migration is a
+`git checkout` away from undone. **That promise does not hold for a migration whose TARGET is `vault/`.**
+`vault/` is gitignored (`.gitignore`), so git has nothing to roll back: the files are not tracked, the branch
+is irrelevant, and a destructive vault sweep is permanent the moment it runs.
+
+Found while stress-testing /prompting with an unattended overnight vault-backlink migration. The generated
+prompt inherited the branch-off-main guardrail and would have handed an unattended multi-hour run a rollback
+promise that was false.
+
+**Required before any vault-targeted migration:** a timestamped copy of the target tree taken in the same run
+(not the nightly tar, which may be up to 24h old), the path to that copy printed before the first write, and a
+stated restore command. Refuse the job if the copy cannot be made. Two related traps in the same class:
+`.canvas` files reference vault notes BY PATH, so a link-only sweep silently breaks them, and they need their
+own unit class with the `json-canvas` skill named.
