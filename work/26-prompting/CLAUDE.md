@@ -11,6 +11,10 @@ Shaheen does not write prompts. He speaks his intent in plain English (typed or 
 
 ## The flow (in order, every invocation)
 0. **Overlap check (FIRST, Shaheen 2026-07-11).** Check the request against the routing table / `system/manifest.json`. If an existing automation (#01-#25) substantially covers it, flag it in the gap round: "this is mostly #07 email-triage - extend it, or build new anyway?" Shaheen decides. Never silently generate a prompt that rebuilds a live system under a new name.
+0.5. **Resolve the target model (Shaheen 2026-08-26).** Which model will RUN this prompt decides which model-layer lines go into it. Resolution order, in order, stop at the first that applies:
+   a. **He named a model** ("build this for Fable", "this one runs on Haiku") -> use it, do not ask.
+   b. **The prompt targets an n8n node or a scheduled `claude -p` wrapper** -> the model is already fixed by `system/manifest.json` `meta.model_routing`, which V6 and V13 assert against live n8n and the local wrappers. Read it, state which model applies and why, do not ask. An answer here can never override that contract.
+   c. **Everything else** -> **ASK, every time.** AskUserQuestion, `Opus 5` (the default, and what an interactive session runs) or `Fable 5`, with the automatic Other for Sonnet 5 / Haiku 4.5 / a 4.x model. This question rides as the FIRST question of the single gap round, and the round fires even when the model is the only gap.
 1. **Read the request, extract the context.** Voice-loop input arrives messy (run-ons, fragments, ESL-direct). Extract intent as-is; never ask him to repeat himself.
 2. **Identify the task type** (patterns below) and whether it is a one-off task or a durable automation.
 3. **Build the step sequence** for that task type. Do not ask permission. Build the steps.
@@ -30,14 +34,14 @@ Plain English, written for Alex. What is being asked in one line, what domain it
 ### INPUT
 Numbered steps, always 1-2-3. Every generated prompt's INPUT includes, at minimum:
 1. **Identity.** Operate as Alex. Re-read `soul.md` (repo root; mandatory after any compaction). Root `CLAUDE.md` auto-loads; its Standing Orders and gates always win over this prompt - on any conflict, CLAUDE.md wins. Hold Shaheen's voice throughout: direct, spoken, no filler, no em-dashes.
-   **Scope (added 2026-07-28, Opus 5 guidance).** Every generated Identity step carries this, verbatim or close to it: "Deliver this task at the scope asked. Make routine judgment calls yourself; check in only where different readings lead to materially different work. If the request looks mistaken or a better approach exists, say so in one sentence and continue as asked, rather than quietly narrowing, widening, or transforming it. Finish the whole task, and stop short of actions clearly beyond it. The standing gates in CLAUDE.md are not scope creep; they still run." The last sentence is load-bearing: without it the scope line reads as permission to skip Close-Out. Opus 5 expands scope on its own, and this constitution is a scope amplifier (Change Propagation spans 8 file classes, Close-Out B adds more, Activity Capture and People Intake fire unprompted), so a narrow one-off needs the boundary stated.
+   **Model-layer lines (was "Scope", rewritten 2026-08-26).** Identity carries the scope, brevity and correction lines for the RESOLVED model, lifted from that model's block in **The model layer** below. On Opus 5 that is the scope-asked line plus the conciseness line; on Fable 5 it is the boundaries block plus the anti-over-engineering block plus the lead-with-the-outcome line. Ship one set, never both, and never the Opus 5 text under a Fable 5 label. The verbatim wording lives in exactly one home, the model-layer table, so this section cannot hold a second copy that drifts from it. **Why the scope boundary is needed at all, on either model:** both expand scope on their own, and this constitution is a scope amplifier (Change Propagation spans eight file classes, Close-Out B adds more, Activity Capture and People Intake fire unprompted), so a narrow one-off has to say so.
 2. **Resources.** Opens with, verbatim, always: **"Identify the skills that are needed for the task and use them."** Then the teeth: consult the Skill Bindings table in root CLAUDE.md; MANDATORY bindings are non-negotiable. /prompting resolves the bindings AT GENERATION TIME and NAMES the specific skills, MCPs, and file pointers here (from the lookup table below). Never leave this as a generic "use available skills" line.
-   **Delegation (added 2026-07-28, Opus 5 guidance).** Opus 5 delegates readily, and delegation multiplies cost and time when it lands on small work. Every generated Resources step bounds it: "Delegate only to genuinely independent, sizeable parallel tracks. Research goes through /research-team (#04), never an ad-hoc squad. Never a subagent to verify or double-check work already done." **Exception, and it is the common case here:** when Shaheen dictates the relay himself (Agent 1 / Agent 2 / Agent 3 with named roles and handoffs), that IS the spec - build it as he said, cold-context subagents and all, and the cap does not apply.
+   **Delegation (rewritten 2026-08-26).** The delegation line comes from the resolved model's block, and it is the shape that flips hardest between models: Opus 5 caps delegation (5.7), Fable 5 wants it and manages it well (4.7). Read the block, never assume. Two things hold on every model regardless: research routes through /research-team (#04) rather than an ad-hoc squad, because that is structural to this system and not a model-layer opinion; and when Shaheen dictates the relay himself (Agent 1 / Agent 2 / Agent 3 with named roles and handoffs), that IS the spec and no delegation rule applies.
 3. **Task-specific steps.** The actual work, numbered, following the pattern for this task type. For identity-carrying output (visual or voice), the first task step is: "Run the Brand + Soul Pre-Flight Gate from root CLAUDE.md and print the pre-flight line before generating a single byte."
 
 ### OUTPUT
 Numbered steps, always 1-2-3:
-1. **Deliverable.** Exactly what gets produced and in what format. Unstated = gap, ask. **State the length too (added 2026-07-28, Opus 5 guidance):** "Match the length to what the task needs: cover the substance, no filler sections, no redundant summaries, no boilerplate." Where a real band exists, NAME it (LinkedIn ~150 words per work/12, a CV's page count, a one-page brief). Opus 5 writes longer files to disk than earlier models, and Shaheen calibrates length by hand when it runs long (soul.md My Words: "make it simple, short, not very short, but short"; "lean, no unnecessary explanation padding") - this line is that preference encoded once, instead of him correcting it every time.
+1. **Deliverable.** Exactly what gets produced and in what format. Unstated = gap, ask. **State the length too (2026-07-28; confirmed model-independent 2026-08-26):** "Match the length to what the task needs: cover the substance, no filler sections, no redundant summaries, no boilerplate." Where a real band exists, NAME it (LinkedIn ~150 words per work/12, a CV's page count, a one-page brief). Opus 5 writes longer files to disk than earlier models (5.3) and Fable 5 is no shorter, so this is the one 07-28 shape that ships on BOTH blocks unchanged. Shaheen calibrates length by hand when it runs long (soul.md My Words: "make it simple, short, not very short, but short"; "lean, no unnecessary explanation padding") - this line is that preference encoded once, instead of him correcting it every time.
 2. **Destination.** Where it lives. Deliverables follow Output Hygiene: `outputs/{automation}/YYYY-MM-DD/`. Unclear = gap, ask.
 3. **Close-Out Gate (ALWAYS the final step, never skipped).** Verbatim: "Run the Close-Out Gate from root CLAUDE.md and print the Close-Out Report." Reference the real gate; NEVER paraphrase or restate a lite version of it (two versions drift).
 
@@ -55,6 +59,85 @@ Verification appears in a generated prompt only as one of these three, and then 
 
 Everything else is over-verification. Leave it out. The gates already own the checking; a prompt that re-asks for it is paying twice.
 
+**Model gate (added 2026-08-26).** The three forms above are model-INDEPENDENT: none of them is self-verification, so none is affected by which model runs. The BAN on blanket verification is not model-independent. It is Opus 5 guidance (playbook 5.5) and it stays in force for Opus 5. **On Fable 5 it is partially reversed:** playbook 4.12 says fresh-context verifier subagents outperform self-critique on long runs, so a Fable 5 prompt for a long or unattended run MAY carry a fourth form, an explicit verifier subagent at a stated interval, checking against the specification. Still never a bare "verify your work" or "re-verify before responding" on any model. The difference is that a named verifier with a stated interval and a stated target is a mechanism, while a blanket instruction is just pressure.
+
+## The model layer (added 2026-08-26, from `work/26-prompting/model-playbook.md`)
+
+Prompting is two layers stacked (playbook section 1). The **universal layer** is everything else in this spec: it
+is where most of the quality comes from and it barely changes. The **model layer** is a short list of behaviors
+that differ per model, small in number and large in effect. Write the universal layer once, swap the addendum.
+
+**Why this section exists.** The 2026-07-28 pass read Anthropic's Opus 5 guide and wrote four Opus 5 shapes into
+EVERY generated prompt unconditionally: the scope line, the delegation cap, the length line, and the blanket
+verification ban. Three of them **invert on Fable 5**. A Fable 5 prompt built by the old spec told the model to
+cap delegation and skip verification, which is the opposite of what that model wants, in the exact register the
+playbook's section 10 says now causes harm. The lesson generalizes past these two models: **a model-layer rule
+applied unconditionally is a bug with a delay on it**, and it stays invisible because the prompt still reads well.
+
+The resolved model comes from flow step 0.5. Read that model's playbook section at generation time; never work
+from memory of it, and never carry an effort level across from another model (playbook section 3: the levels were
+recalibrated between generations, so a carried-over setting is usually wrong).
+
+### Block: Opus 5 (the default)
+
+Playbook section 5. Interactive Claude Code sessions run this today.
+
+| Prompt slot | What ships |
+|---|---|
+| INPUT 1, scope | "Deliver this task at the scope asked. Make routine judgment calls yourself; check in only where different readings lead to materially different work. If the request looks mistaken or a better approach exists, say so in one sentence and continue as asked, rather than quietly narrowing, widening, or transforming it. Finish the whole task, and stop short of actions clearly beyond it. The standing gates in CLAUDE.md are not scope creep; they still run." |
+| INPUT 1, brevity | "Keep responses focused and concise. Keep caveats short and spend most of the response on the main answer. When asked to explain, give a high-level summary unless depth is asked for." Opus 5 runs longer than prior models and **effort does not shorten the visible answer** (5.2), so brevity has to be prompted. |
+| INPUT 1, corrections | "Only correct an earlier statement when the error would change the code, the conclusion or a decision. Otherwise make the fix and move on." (5.5) |
+| INPUT 2, delegation | "Delegate only to genuinely independent, sizeable parallel tracks. Research goes through /research-team (#04), never an ad-hoc squad. Never a subagent to check work already finished." (5.7) |
+| Progress | "Before your first tool call, say in one sentence what you are about to do. While working, update only on a real finding or a change of direction. Finish by leading with the outcome." (5.4) |
+| Verification | The ban holds. No blanket verification of any kind (5.5, and the hard rule above). |
+| OUTPUT 1, length | "Match the length to what the task needs: cover the substance, no filler sections, no redundant summaries, no boilerplate." Name a real band where one exists. (5.3) |
+| Suggested effort | `high` is the default. `xhigh` for demanding multi-file agentic work and adversarial audits. `low` and `medium` liberally, they are the main cost control and hold quality well. |
+
+The last sentence of the scope line is load-bearing. Without it the scope line reads as permission to skip
+Close-Out, and this constitution is a scope amplifier (Change Propagation spans eight file classes, Close-Out B
+adds more, Activity Capture and People Intake fire unprompted).
+
+### Block: Fable 5
+
+Playbook section 4. Built for problems that are too long-running or too ambiguous for a normal session: multi-day
+autonomous runs, the hardest one-shot implementations. Point it at the hard thing, not the routine thing.
+
+| Prompt slot | What ships |
+|---|---|
+| INPUT 1, boundaries | "When the request is a problem description, a question, or thinking out loud rather than an instruction to change something, the deliverable is your assessment. Report the findings and stop. Do not apply a fix until asked. Before a command that changes system state, check the evidence supports that specific action; a signal that pattern-matches a known failure may have a different cause." (4.6) |
+| INPUT 1, restraint | The anti-over-engineering block (4.3, full text in playbook section 11): no features, refactors or abstractions beyond the task, no error handling for cases that cannot happen, no compatibility shims. Fable 5 tidies beyond the task at higher effort. |
+| INPUT 1, brevity | "Lead with the outcome: your first sentence answers what happened or what you found. Keep it short by being selective about what you include, not by compressing into fragments, abbreviations or arrow chains. Readable beats terse." (4.4) |
+| INPUT 2, delegation | **INVERTS the Opus 5 cap.** "Delegate independent subtasks to subagents and keep working while they run. Intervene if a subagent goes off track or is missing context." (4.7) The #04 research routing still holds, because that is a structural rule of this system and not a model-layer opinion. |
+| Progress | **The highest-value Fable 5 line.** "Before reporting progress, audit each claim against a tool result from this session. Report only work you can point to evidence for; if something is unverified, say so. If tests fail, say so with the output; if a step was skipped, say that." (4.5) Anthropic measured this as nearly eliminating fabricated status reports. |
+| Verification | A named fresh-context verifier subagent at a stated interval, checking against the specification, IS allowed on long runs (4.12). Still no bare "verify your work". |
+| Long unattended runs | Add the autonomous-operation block (4.9, full text in playbook section 11) when nobody is watching: no permission questions mid-task, and check the last paragraph before ending a turn. Fable 5's known failure mode is ending on a statement of intent without the tool call. |
+| OUTPUT 1, length | Same line as Opus 5. |
+| Suggested effort | `high` is the default. `xhigh` only for genuinely capability-sensitive work. **Do not reflexively max it:** playbook 4.3 notes low effort on Fable 5 often exceeds `xhigh` on prior models. |
+
+Two Fable 5 traps worth knowing before a prompt ships to it. **Never ask it to reproduce, echo or explain its
+internal reasoning as response text** (4.12): that can trigger a refusal category and force a fallback to Opus 4.8.
+And avoid surfacing a remaining-token countdown in the harness (4.9), which triggers it to suggest starting a new
+session mid-run.
+
+### Other models
+
+No full block, by Shaheen's decision (2026-08-26): only Opus 5 and Fable 5 earn one, because those are the two he
+points work at. If a request names something else, do not guess and do not fall back to the Opus 5 block. Read the
+playbook section and pull the two or three lines that matter:
+
+- **Sonnet 5** goes to section 6. Interprets literally, especially at low effort, so say "apply this to every
+  section, not just the first". Watch `max_tokens`, its tokenizer produces roughly 30 percent more tokens for the
+  same text. On design work it settles into one default style; ask for several distinct directions and pick one.
+- **Haiku 4.5** goes to section 8. Needs MORE explicit structure, not less: tight scope, a small output example to
+  lock the format, no reliance on inference. This is the one place where the "short instructions beat long
+  enumerations" advice reverses.
+- **Opus 4.8 / 4.7 / 4.6 and Sonnet 4.6** go to sections 7 and 8.
+
+### The one exemption both blocks keep
+
+When Shaheen dictates the relay himself (Agent 1 / Agent 2 / Agent 3 with named roles and handoffs), that IS the
+spec. Build it as he said, cold-context subagents and all. No delegation rule from either block applies.
+
 ## The file lookup table (what INPUT points at)
 
 **Core, every generated prompt:**
@@ -63,6 +146,7 @@ Everything else is over-verification. Leave it out. The gates already own the ch
 | `soul.md` (repo root) | Voice + identity. "Re-read, mandatory after compaction." |
 | root `CLAUDE.md` | Auto-loads; the prompt defers to its Standing Orders + gates. |
 | Skill Bindings table (in root CLAUDE.md) | Source for resolving the mandatory skills sentence. |
+| `work/26-prompting/model-playbook.md` | The model layer. Universal rules in section 2, effort in section 3, per-model behaviors in 4 to 8, the delete-list in 10, ready blocks in 11. Read the resolved model's section at generation time. |
 
 **Conditional, resolved by task type at generation time:**
 | File | When |
@@ -75,6 +159,83 @@ Everything else is over-verification. Leave it out. The gates already own the ch
 | `work/03-application-engine/config/n8n-api-key.txt` (+ base `https://n8n.shaheenkiarash.com/api/v1`) | n8n tasks. |
 | `docs/n8n/{workflow}/` | Extending an existing live workflow. |
 | `scheduler/schedule.md` | Anything scheduled. |
+
+## Universal construction rules (added 2026-08-26, playbook sections 2 and 10)
+
+Model-independent, so they apply on every generated prompt regardless of what step 0.5 resolved. The playbook is
+blunt that this layer is where most of the quality lives, and the spec was carrying none of it explicitly.
+
+### Documents on top, the ask last (playbook 2.6) - the highest-value rule here
+
+When a prompt carries pasted source material of roughly 20K tokens or more (a long transcript, a full job ad set,
+a document dump, a big JSON export), the material goes **ABOVE** CONTEXT / INPUT / OUTPUT, and the ask stays last.
+Anthropic measures up to 30 percent better response quality from putting the query at the end, largest on complex
+multi-document inputs. Below that size, keep the normal three-header order.
+
+Shape it as:
+
+```
+<documents>
+  <document index="1">
+    <source>[filename, URL or what it is]</source>
+    <document_content>
+    [the long content]
+    </document_content>
+  </document>
+</documents>
+
+CONTEXT / INPUT / OUTPUT as normal, below the documents.
+```
+
+Add the quote-first instruction on any long input: "First quote the passages relevant to the task, then do the
+task using those passages." It keeps a long input anchored and cuts drift.
+
+### Tag the content types (playbook 2.4)
+
+Instructions, context, pasted input and examples never blur together. Pasted material gets wrapped, never inlined
+loose in the middle of a paragraph. Use consistent tag names across prompts: `<document>`, `<input>`, `<example>`.
+This is a small change with a real effect on a prompt that carries a job ad, an email thread or a transcript,
+which is most of what he pastes.
+
+### State what the output enables (playbook 2.2)
+
+CONTEXT already says what is being asked and what domain it sits in. Add what the output is FOR. Explaining why an
+instruction matters lets the model generalize to cases the prompt never anticipated, which is exactly what a
+pointer-style prompt run three weeks later needs. The frame: "I am working on [larger task] for [who]. They need
+[what the output enables]. With that in mind: [request]."
+
+### Examples, when they earn their place (playbook 2.3)
+
+Examples are the most reliable way to steer format, tone and structure. Three to five is the documented sweet
+spot, each in `<example>` tags inside `<examples>`, relevant and varied enough that no unintended pattern gets
+picked up. **A positive example of the wanted shape beats a paragraph of prohibitions**, which is worth reading
+against this spec's own habit of writing rules as bans.
+
+### Describe the target, not the ban (playbook 2.7)
+
+"Write in flowing prose paragraphs" beats "do not use markdown". Where a rule can be stated positively, state it
+positively. The hard rules in this spec that are genuinely prohibitions (no dashes, no invented numbers, no
+blanket verification) stay as they are: those are enforcement, not style guidance.
+
+### Never put these in a generated prompt (playbook 10)
+
+The delete-list. Each of these was correct advice for an older model and now actively costs quality or errors:
+
+| Do not write | Why |
+|---|---|
+| A prefilled assistant turn | 400 error on 4.6 and later. |
+| `budget_tokens` thinking config | Deprecated on 4.6, an error on 4.7 and later. Budget lives in effort. |
+| `temperature`, `top_p`, `top_k` | 400 error on Sonnet 5. Steer tone through the prompt. |
+| "CRITICAL: you MUST use this tool when..." | Over-triggers. "Use this tool when..." is enough. |
+| "If in doubt, use [tool]" / "Default to using [tool]" | Over-triggers on 4.6 and later. |
+| "Double-check your work" / "include a final verification step" | Over-verification with no quality gain. See the verification hygiene rule. |
+| "After every 3 tool calls, summarize progress" | Sonnet 5 and Fable 5 handle updates on their own. |
+| "Explain your reasoning in the response" | Can trigger a refusal on Fable 5 and force a fallback to Opus 4.8. |
+| A hand-written step-by-step reasoning plan | Replace with the goal, the constraints and a quality bar. The model's own reasoning usually exceeds a prescribed plan. |
+| An effort level carried over from another model | The levels were recalibrated between generations. |
+
+The last two matter most for this function, because a prompt engineer's instinct is to write more steps and reuse
+what worked. On current models both instincts cost quality.
 
 ## Task patterns (auto-suggest INPUT step 3; a starting library, extended at close-out)
 
@@ -160,10 +321,11 @@ Before delivering, confirm each is present. If missing, ask in the single batche
 - Delivery format stated.
 - Destination / project name known.
 - Any MCP or API the task needs is named (ambiguous = ask which).
+- **Target model resolved?** (step 0.5). Named by him, fixed by `meta.model_routing`, or ASKED. An unstated model is always a gap; it is the one question that fires even when nothing else is missing.
 - **One-off task, or durable automation?** Durable -> the generated prompt routes through the /new flow (registry-first: `system/manifest.json` entry, `node scripts/generate-alex.js`, scaffold, `check.mjs --init` re-baseline). Never free-build a permanent automation.
 - **Overlap resolution recorded** (step 0): extend vs build new, per Shaheen's answer.
 
-Do not ask more than needed. One clean round beats three small ones. Nothing missing = skip straight to delivery. Always offer the *defaults* skip.
+Do not ask more than needed. One clean round beats three small ones. Always offer the *defaults* skip. **Amended 2026-08-26:** "nothing missing = skip straight to delivery" no longer holds when the target model is unresolved. An unstated model is ALWAYS a gap, so the round still fires with the model as its only question. That is deliberate and it is Shaheen's instruction: the model decides which model-layer lines ship, and guessing it silently is how a prompt ends up carrying guidance written for a different model.
 
 ## Token efficiency principles (Shaheen 2026-07-11)
 - Reference existing assets instead of repeating them (pointer style: point at the file, never restate its contents).
@@ -174,7 +336,16 @@ Do not ask more than needed. One clean round beats three small ones. Nothing mis
 ## Delivery format
 A single markdown code block with three headers, CONTEXT, INPUT, OUTPUT, ready to paste into a Claude Code session. **Lean: no explanation padding around it, just the block** (Shaheen 2026-07-11). Notes only if he asks. Save a copy to `outputs/prompting/YYYY-MM-DD/{slug}.md`. Then the single follow-up: "run it now?" - yes executes it in this session as Alex; no ends the run.
 
-**One line rides OUTSIDE the block (added 2026-07-28, Opus 5 guidance):** `Suggested effort: <low|medium|high|xhigh>`. Effort is the primary cost and latency lever on Opus 5 (low and medium hold quality at a fraction of the tokens; xhigh is for demanding multi-file agentic work and hard audits). It is a SESSION setting - `claude --effort <level>` at launch, verified levels `low|medium|high|xhigh|max` - so a pasted prompt cannot set it. That is why it sits beside the block and not inside it; the block stays lean. Rule of thumb: mechanical or narrow = low/medium, a normal build = high (the default), a multi-file build or an adversarial audit = xhigh.
+**One line rides OUTSIDE the block (2026-07-28; made model-aware 2026-08-26):**
+
+`Built for: <model> - Suggested effort: <low|medium|high|xhigh>`
+
+Both halves sit outside because neither can be set from inside a pasted prompt, and the block stays lean.
+
+- **`Built for:`** names the model resolved at step 0.5. It is not decoration. A prompt carrying the Fable 5 delegation and progress lines, pasted into an Opus 5 session, is wrong in a way nothing else in the artifact reveals: it still reads perfectly. This line is the only place the mismatch is visible, and it is what makes a saved prompt in `outputs/prompting/` auditable months later.
+- **`Suggested effort:`** comes from the resolved model's row in the model layer above, never from habit. Effort is a SESSION setting (`claude --effort <level>` at launch, levels `low|medium|high|xhigh|max`). **Never carry a level across models:** the playbook (section 3) is explicit that the levels were recalibrated between generations, so a setting that was right on one model is usually wrong on the next.
+
+If he answers "run it now" and the resolved model is not what this session runs, say so in one line before running. Running it anyway is usually still the right call; silently running it as if the model matched is not.
 
 ## Hard cases (design answers, keep these behaviors)
 | Case | Answer |
@@ -186,6 +357,9 @@ A single markdown code block with three headers, CONTEXT, INPUT, OUTPUT, ready t
 | Prompt staleness (run weeks later) | Pointer style; the prompt's Identity step re-reads live files at run time. |
 | Prompt runs where soul/CLAUDE already injected | Say "re-read", never restate voice rules inline (could contradict a newer soul.md). |
 | Standing-order conflicts (budget rule, gates, model routing) | The subordination line: CLAUDE.md always wins over a generated prompt. |
+| Model unstated | Step 0.5 asks, every time, as the first question of the single gap round. Never infer it from the session, never default silently. Defaults answer = Opus 5. |
+| He names a model that contradicts `meta.model_routing` | The manifest wins and V6/V13 enforce it. Say which model actually applies and why, in one line, then build for that. This is not a gap question. |
+| Model has no addendum block (Sonnet 5, Haiku, a 4.x) | Read that model's playbook section and pull the two or three lines that matter. Never fall back to the Opus 5 block, which is what makes a wrong-model prompt look right. |
 | No pattern AND no bound skill | First principles + `find-skills` check (via the #25 audit lane); append the new pattern at close-out. |
 
 ## Vault Structure
@@ -202,6 +376,7 @@ soul.md (voice), root CLAUDE.md (bindings + gates + routing table), `system/mani
 ## Connections
 - Can target ANY project (generated prompts point at the target's work/ + vault files).
 - Feeds #23 self-review: saved prompts in outputs/prompting/ are minable for which prompts worked.
+- **#25 evolution owns the refresh trigger (added 2026-08-26).** `model-playbook.md` is a dated snapshot of Anthropic docs, so it goes stale the day a new flagship model ships. #25's daily monitor already logs new Claude models to `system/landscape-log.jsonl`; a new flagship means this function needs a playbook section AND a matching addendum block, or /prompting quietly hands out guidance written for the wrong model. That is the failure this whole section exists to prevent, one generation later.
 - Durable-automation requests hand off to the /new flow. Overlapping requests hand off to the existing automation's spec.
 
 ## Prompt regression cases (Phase 1, 2026-07-25)
@@ -276,8 +451,12 @@ OUTPUT
    Report.
 ```
 
-`Suggested effort: high` (rides outside the block; a multi-node live build with credentials
-would be `xhigh`, a one-node tweak `low`).
+`Built for: Opus 5 - Suggested effort: high` (rides outside the block; a multi-node live build with
+credentials would be `xhigh`, a one-node tweak `low`). Shaheen answered the step-0.5 question with the
+default, so the Identity step above carries the Opus 5 scope and conciseness lines and the Resources step
+carries the Opus 5 delegation cap. Had he answered Fable 5, those three would have been the boundaries
+block, the lead-with-the-outcome line and the delegate-and-keep-working line instead, and the grounded-
+progress block would have been added.
 
 **n8n live-workflow repair relay (added 2026-08-06, run 45/46; the repair sibling of the review/audit pattern, built when both job engines went silent)**
 1. Skills: `n8n-workflow-patterns` + `n8n-node-configuration` (MANDATORY), `n8n-validation-expert` on any validation error, `n8n-code-javascript` for every Code node read or written, `systematic-debugging` past a first failed fix, `n8n-cli` for read-only instance ops.

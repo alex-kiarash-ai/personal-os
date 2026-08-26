@@ -147,6 +147,15 @@ For EVERY item Shaheen approves from a digest, same discipline as any other chan
 2. **New model** -> test it in a SANDBOX automation first (a throwaway `work/` scratch or the Writer
    Voice Eval harness), never straight to production. If it becomes the prose model, update the
    Model Routing rule in `CLAUDE.md` and re-run the voice sync + the Writer Voice Eval.
+2b. **New FLAGSHIP model -> refresh the prompting model layer (added 2026-08-26).** A new flagship also
+   changes how prompts should be WRITTEN, not just which model runs them, and Anthropic publishes a
+   per-model prompting page for exactly that reason. Two artifacts go stale the day it ships:
+   `work/26-prompting/model-playbook.md` (a dated snapshot, sources listed in its section 12) needs the
+   new section, and `work/26-prompting/CLAUDE.md` needs a matching addendum block. Skip it and /prompting
+   keeps handing out guidance written for the previous generation, silently, because a wrong-model prompt
+   still reads perfectly. Check the new page for INVERSIONS first: between Opus 5 and Fable 5 three shapes
+   reversed outright (delegation, verification, scope), and an inversion carried forward unchanged is worse
+   than no guidance at all.
 3. **New pattern** -> it becomes the next numbered automation (#26, #27, ...): write its
    `system/manifest.json` entry FIRST (the /new discipline), then scaffold `work/NN-name/`.
 4. Run **`node scripts/generate-alex.js`** -> all docs and integrations regenerate.

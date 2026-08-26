@@ -1060,7 +1060,7 @@
       "title": "Prompting",
       "state": "ON-DEMAND",
       "trigger": "on-demand",
-      "one_liner": "The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot.",
+      "one_liner": "The translator function: Shaheen speaks plain English, Alex acts as a senior prompt engineer and returns a lean CONTEXT/INPUT/OUTPUT prompt for Claude Code; overlap check vs existing automations, one gap round with a defaults skip, skills resolved + named from the bindings table, pointer-style file references, then offers to run it on the spot. Model-aware since 2026-08-26: prompting is built as a universal layer plus a per-model addendum (work/26-prompting/model-playbook.md), and the function ASKS which model will run the prompt every time Shaheen does not say, because three of the model-layer shapes invert between Opus 5 and Fable 5.",
       "docs": "26-prompting.md",
       "schedule_jobs": [],
       "hq_project": null,
