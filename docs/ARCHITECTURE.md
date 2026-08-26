@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-25. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-08-26. -->
 
 # Architecture: how Alex works
 
@@ -51,13 +51,21 @@ The single canonical copy. Before any conversation clear, and at the end of any 
 
 If you are about to end a session having touched only one or two files of a multi-file change, stop and finish the propagation. Shaheen never has to ask. (Full order history + the docx anchor-remap record: docs/constitution-annex/standing-orders-history.md.)
 
-### Committing Is Automatic - Never Ask (STANDING ORDER, Shaheen 2026-07-28, ALWAYS)
+### Commits: Branch-First, Per-Change, Never Ask (STANDING ORDER, Shaheen 2026-07-28; AMENDED 2026-08-26 with Shaheen + Eduardo's branch-first ruling)
 
-His words, verbatim: *"YOU SHOULD NOT ASK ME TO COMMIT THE WORK EVERY TIME I DO ANY CHANGES DURING THE DAY."* Never ask, never offer, never close with "want me to commit?" - `scripts/git-backup.sh` commits + pushes daily at 21:30 with GREEN/RED to HQ. Report what changed and where; never hand back a git decision. The order suppresses the ASK, not the judgment - three things stay yours to act on:
-- **Privacy, urgent:** the repo is PUBLIC and `.gitignore` is the SOLE barrier. Anything new with personal data/credentials/vault content must be gitignore-covered BEFORE 21:30 (`git check-ignore <path>` to prove it). Say it the moment you see it.
+His 2026-07-28 words, verbatim, still binding: *"YOU SHOULD NOT ASK ME TO COMMIT THE WORK EVERY TIME I DO ANY CHANGES DURING THE DAY."* Never ask, never offer, never close with "want me to commit?" Report what changed and where; never hand back a git decision.
+
+**The 2026-08-26 amendment (Shaheen's call after discussing with Eduardo, the day after the powershell reconciliation proved why): the repo is now BRANCH-FIRST.** The two-lives split of Aug 3-25 happened because daily work and a rebuild diverged with no PR flow between them; this order is the machine that prevents the class.
+1. **All real work happens on a branch, never directly on main.** One branch per effort (`work/<topic>`, `fix/<thing>`); the session CREATES it without asking, the same way it never asked to commit.
+2. **Commit per meaningful change, with a real message, as part of doing the work.** Small labeled saves, not one end-of-day lump. This replaces "the nightly sweep will catch it" as the primary save path.
+3. **main receives changes ONLY through a pull request.** Branch protection on GitHub enforces this mechanically (direct pushes to main are refused; CI must be green to merge). Merging into main is Shaheen's button by default; he can delegate it explicitly in a session ("merge it").
+4. **The 21:30 nightly sweep is the BACKSTOP, not the workflow.** `scripts/git-backup.sh` commits + pushes whatever branch the machine is standing on, GREEN/RED to HQ, so a day where a human saved nothing still ends saved. On a properly-committed day it finds nothing, which is the healthy state. Because main is protected, **the working checkout never parks on main** - it sits on the current work branch, so the sweep always has a pushable home.
+
+The order still suppresses the ASK, not the judgment - three things stay yours to act on:
+- **Privacy, urgent:** the repo is PUBLIC and `.gitignore` is the SOLE barrier. Anything new with personal data/credentials/vault content must be gitignore-covered BEFORE it is ever committed (`git check-ignore <path>` to prove it). Say it the moment you see it.
 - **A tree that would fail the gate** (pre-commit runs validate-alex + gitleaks): fix it before close-out, don't report it as a question.
 - **Work that genuinely needs its own revert point:** MAKE the commit as part of the job. Don't ask permission to do your own work.
-Uncommitted `work/**/CLAUDE.md` edits show as drift until the nightly commit accepts them - never surface that as an action for him.
+Uncommitted `work/**/CLAUDE.md` edits show as drift until a commit accepts them - never surface that as an action for him.
 
 ### The AI-Lane CV Master Is Frozen (STANDING ORDER, Shaheen 2026-08-19, ALWAYS)
 
