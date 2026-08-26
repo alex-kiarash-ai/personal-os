@@ -150,6 +150,19 @@ const want = name => !ONLY || ONLY.includes(name);
       log.step('  prompt-regression (advisory): ' + out);
     } catch (e) { log.step('  prompt-regression advisory skipped (non-fatal): ' + e.message); }
 
+    // 3b-ii. DELIVERED-artifact audit (ADVISORY, added 2026-08-26, inspection fix P1-1). The case replay
+    //        above asserts on INSTRUCTION files only, so it proves the rule survived and never that the
+    //        delivered prompt carried it. That hole hid four drifts for weeks (Suggested-effort at 26%
+    //        adoption, Built-for at 0%, 86% length growth, and run 54 shipping the retired soul wording).
+    //        This audits the newest artifacts in outputs/prompting/. Advisory for the same reason as above:
+    //        a deliberate shape change should warn, not break a build.
+    try {
+      const cp = require('child_process');
+      const out = cp.execSync('node scripts/prompt-regression-check.js --delivered --advisory',
+        { cwd: require('path').resolve(__dirname, '..') }).toString().trim();
+      log.step('  prompt-delivered (advisory): ' + out);
+    } catch (e) { log.step('  prompt-delivered advisory skipped (non-fatal): ' + e.message); }
+
     // 3c. Propagation debt (ADVISORY, stress-test fix F-02, 2026-07-25): the C8 spec-vs-status hash
     //     compare, surfaced HERE instead of only on the Monday sweep. Root cause it pays: the 07-25
     //     upgrade batch edited 12 work specs, self-verified with validators + a generator dry-run +
