@@ -208,7 +208,7 @@ function v1AutomationCount({ stagedDir, manifest }, failures) {
 //          excluded by convention) must exist as a live systemd user timer, and every live
 //          PersonalOS-* job must be documented. Transient tasks (schedule.md "## Transient tasks"
 //          section, e.g. the self-removing QRA poller) are exempt from must-exist-live but count
-//          as documented if armed (2026-07-13). No systemd at all (the macOS dev box): LOUD SKIP in every
+//          as documented if armed (2026-07-13). No systemd at all (this dev box is Windows): LOUD SKIP in every
 //          context. Systemd present but unreachable: FAIL in generator context,
 //          LOUD SKIP in pre-commit context (a clone on another machine can still commit).
 // ---------------------------------------------------------------------------------------------
@@ -243,10 +243,11 @@ function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
   // (b) live systemd user timers
   // BASH MIGRATION 2026-08-05: this half read Windows Task Scheduler; it now reads
   // `systemctl --user list-timers`. Two skip paths, and the difference between them matters:
-  //   - NO SYSTEM D AT ALL (the macOS dev box, ruling C): a LOUD SKIP in every context. The dev
-  //     machine has no job train to be in drift WITH, so failing there would make `validate` unusable
-  //     on the machine where the code is written - and a validator people learn to ignore is worse
-  //     than one that says plainly what it did not check.
+  //   - NO SYSTEMD AT ALL: this USED to be a loud skip in every context, on the reasoning that a
+  //     dev machine has no job train to be in drift with. SUPERSEDED 2026-08-28: that reasoning was
+  //     false on this box, which runs a real 23-job Windows Task Scheduler, and the skip is what let
+  //     every one of those jobs die unnoticed for two days. Windows now reads schtasks (below); any
+  //     other systemd-less platform FAILS rather than passes.
   //   - SYSTEMD PRESENT BUT UNREACHABLE: the pre-existing behavior is kept exactly - FAIL in
   //     generator context, LOUD SKIP in pre-commit, so an offline machine can still commit but a
   //     real generator run cannot quietly skip the reality check.

@@ -329,7 +329,7 @@ function generateUnits({ schedule, log }) {
   log(
     verified.length
       ? `  systemd: ${verified.length}/${written.length} OnCalendar expressions verified by systemd-analyze`
-      : '  systemd: OnCalendar expressions NOT verified (systemd-analyze absent - expected on the macOS dev box, a finding on the Linux host)'
+      : '  systemd: OnCalendar expressions NOT verified (systemd-analyze absent - expected on a dev box without systemd, a finding on the Linux host)'
   );
   if (disabled.length) log(`  systemd: ${disabled.length} DISABLED by design, units written but never enabled: ${disabled.map((d) => d.job).join(', ')}`);
   for (const s of skipped) log(`  systemd: SKIPPED ${s}`);
