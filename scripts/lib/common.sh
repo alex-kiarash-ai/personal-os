@@ -102,6 +102,20 @@ resolve_claude() {
 # Sets $LOG (append-only run log, read by the checkers) and $TMPOUT (a real temp FILE, because
 # process substitution <(...) is a bashism the close-out CLI should not depend on).
 # Registers a trap so $TMPOUT is always removed, including on SIGINT/SIGTERM, not just clean exit.
+# Prompt cache TTL (2026-08-28, report Phase 0 cost item). Measured across 558 session logs:
+# cache WRITES are ~90% of token cost, because the default 5-minute cache expires mid-run while
+# tool calls are slow, so one scheduled run rebuilds its own ~60k-token prefix dozens of times.
+# ENABLE_PROMPT_CACHING_1H is the documented switch (code.claude.com/docs/en/env-vars).
+#
+# Two caveats kept here rather than in a commit message, because both decide whether this HELPS:
+#  1. A 1-hour cache WRITE bills at 2x input against the 5-minute write at 1.25x. It only pays on a
+#     high-churn workload. These runs are high-churn by measurement; a future low-churn job is not,
+#     and would cost MORE with this on.
+#  2. Subscription users inside included usage already get a 1-hour TTL automatically, so on those
+#     runs this is a no-op. It bites when a run draws on usage credits.
+# So this is set, not claimed: re-measure before quoting a saving.
+export ENABLE_PROMPT_CACHING_1H=1
+
 log_init() {
     [ -n "${1:-}" ] || die "log_init requires a job name"
     _alex_job="$1"
