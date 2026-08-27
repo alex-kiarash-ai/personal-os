@@ -252,6 +252,7 @@ system/*
 !system/skills-sources.json
 !system/landscape-log.jsonl
 !system/environment-schema.json
+!system/guard-waivers.json
 !system/recall/
 # ...and re-exclude the recall DATA after re-including its code directory (last match wins).
 system/recall/*.db

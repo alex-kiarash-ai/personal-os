@@ -250,31 +250,52 @@ function v2ScheduledJobs({ stagedDir, schedule, context }, failures, warnings) {
   //   - SYSTEMD PRESENT BUT UNREACHABLE: the pre-existing behavior is kept exactly - FAIL in
   //     generator context, LOUD SKIP in pre-commit, so an offline machine can still commit but a
   //     real generator run cannot quietly skip the reality check.
-  if (!hasSystemd()) {
-    warnings.push(
-      `WARNING V2 SKIPPED (live half): no systemd on this machine (platform=${process.platform}), so the ` +
-        `${schedule.allJobNames.length} documented jobs were NOT checked against a live scheduler. ` +
-        'Expected on the macOS dev box; on the Linux host this is a finding.'
-    );
-    return;
-  }
+  // 2026-08-28: V2 no longer skips-and-passes on Windows. It reads the live Windows Task Scheduler
+  // via schtasks, the same ground truth C7 and h-scheduler.js use. A validator that reports PASS while
+  // checking nothing is the exact defect that let the 23-job scheduler outage run silently for two days.
   let live;
-  try {
-    live = liveJobs();
-  } catch (e) {
-    const msg = `V2 (live half): systemd timer query unavailable - ${e.message}`;
-    if (context === 'pre-commit') { warnings.push(`WARNING V2 SKIPPED (live half, pre-commit): ${msg}`); return; }
+  if (!hasSystemd() && process.platform === 'win32') {
+    try {
+      const csv = require('child_process').execFileSync('schtasks', ['/query', '/fo', 'CSV', '/nh'], { encoding: 'utf8', timeout: 15000, windowsHide: true });
+      const seen = new Set();
+      for (const line of csv.split(/\r?\n/)) {
+        if (!line.trim()) continue;
+        const cells = line.match(/"([^"]*)"/g);
+        if (!cells || cells.length < 3) continue;
+        const nm = cells[0].replace(/"/g, '').replace(/^\\/, '');
+        if (!nm.startsWith('PersonalOS-') || nm.startsWith('PersonalOS-retry-')) continue;
+        seen.add(nm);
+      }
+      live = [...seen];
+    } catch (e) {
+      const msg = `V2 (live half): the Windows Task Scheduler could not be read - ${e.message}. Recorded as a failure, never a pass: a check that cannot run must not report success.`;
+      if (context === 'pre-commit') { warnings.push(`WARNING V2 (live half, pre-commit): ${msg}`); return; }
+      failures.push(`FAILED V2: ${msg}`);
+      return;
+    }
+  } else if (!hasSystemd()) {
+    const msg = `V2 (live half): no readable scheduler on this machine (platform=${process.platform}), so the ${schedule.allJobNames.length} documented jobs were NOT checked against anything live.`;
+    if (context === 'pre-commit') { warnings.push(`WARNING V2 (live half, pre-commit): ${msg}`); return; }
     failures.push(`FAILED V2: ${msg}`);
     return;
+  } else {
+    try {
+      live = liveJobs();
+    } catch (e) {
+      const msg = `V2 (live half): systemd timer query unavailable - ${e.message}`;
+      if (context === 'pre-commit') { warnings.push(`WARNING V2 SKIPPED (live half, pre-commit): ${msg}`); return; }
+      failures.push(`FAILED V2: ${msg}`);
+      return;
+    }
   }
   const liveSet = new Set(live), docSet = new Set(schedule.allJobNames);
   const transientSet = new Set(schedule.transientJobNames || []); // documented one-shots, live only while armed
   const notRegistered = schedule.allJobNames.filter(j => !liveSet.has(j));
   const unknown = live.filter(j => !docSet.has(j) && !transientSet.has(j));
   if (notRegistered.length)
-    failures.push(`FAILED V2: job(s) documented in scheduler/schedule.md but MISSING from the live systemd user timers: ${notRegistered.join(', ')}`);
+    failures.push(`FAILED V2: job(s) documented in scheduler/schedule.md but MISSING from the live scheduler: ${notRegistered.join(', ')}`);
   if (unknown.length)
-    failures.push(`FAILED V2: live systemd PersonalOS-* timer(s) not documented in scheduler/schedule.md: ${unknown.join(', ')}`);
+    failures.push(`FAILED V2: live PersonalOS-* job(s) not documented in scheduler/schedule.md: ${unknown.join(', ')}`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -768,6 +789,22 @@ function v7StateDriftLint({ stagedDir, manifest }, failures, warnings) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Guard waivers (2026-08-28, report Phase 0 item 0.3). A guard that cannot run reports RED, not PASS.
+// The only exception is a DATED waiver in system/guard-waivers.json; on/after `expires` it fails anyway,
+// so a waiver rots into a finding rather than into silence.
+function guardWaiver(id) {
+  try {
+    const p = path.join(REPO, 'system', 'guard-waivers.json');
+    if (!fs.existsSync(p)) return null;
+    const doc = JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (doc.schema !== 'guard-waivers@1') return null;
+    const w = (doc.waivers || []).find((x) => x.id === id);
+    if (!w || !w.expires) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    return today < w.expires ? w : { ...w, expired: true };
+  } catch (_) { return null; }
+}
+
 // V8 - HQ hex scan + token staleness (upgrade P5, 2026-07-12, design 1.6/4.5). ERROR-tier.
 //      (a) every hex literal in the HQ app source (the alex-hq repo's app/: *.ts/*.tsx/*.css under
 //          app/, lib/ and any future scripts/; node_modules, .next, public/data and the generated
@@ -808,7 +845,11 @@ function v8HqHexScan({ stagedDir, colorTokens }, failures, warnings) {
   // one identity-carrying UI surface, the exact class C19/C21 exist to catch) and must never hard
   // fail either, or the pre-commit gate breaks on every machine that does not host the site.
   if (!hqRepo.exists()) {
-    warnings.push(`WARNING V8 SKIPPED: the alex-hq website repo is not on this machine (${hqRepo.root()}) - the HQ off-palette hex scan and the tokens.css staleness check did NOT run. Clone it, or set ALEX_HQ_REPO / manifest meta.paths.alex_hq_repo.`);
+    const w = guardWaiver('V8-hq-repo-absent');
+    const base = `the alex-hq website repo is not on this machine (${hqRepo.root()}) - the HQ off-palette hex scan and the tokens.css staleness check did NOT run. Clone it, or set ALEX_HQ_REPO / manifest meta.paths.alex_hq_repo.`;
+    if (w && !w.expired) warnings.push(`WARNING V8 WAIVED until ${w.expires} (${w.id}, owner ${w.owner}): ${base}`);
+    else if (w && w.expired) failures.push(`FAILED V8: waiver ${w.id} EXPIRED ${w.expires} and was never resolved - ${base}`);
+    else failures.push(`FAILED V8: ${base} No waiver in system/guard-waivers.json, and a guard that cannot run must not report success.`);
     return;
   }
 

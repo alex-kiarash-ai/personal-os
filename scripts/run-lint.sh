@@ -10,6 +10,10 @@ ALEX_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ALEX_ROOT/scripts/lib/common.sh"
 alex_root_cd
 parse_common_flags "$@"
+# C31: the scheduler task is PersonalOS-lint-monthly, but the job (and its log) is "lint". Override
+# so the completion signal keys on the registry name rather than the log name.
+ALEX_TASK_NAME="PersonalOS-lint-monthly"
+export ALEX_TASK_NAME
 log_init "lint-monthly"
 
 quota_gate 'recovery' || exit 0

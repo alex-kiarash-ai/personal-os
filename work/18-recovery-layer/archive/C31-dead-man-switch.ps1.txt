@@ -1,0 +1,90 @@
+# --- C31 task completion monitor (the dead man's switch; design: vault/research/alex-completion-monitor.md,
+# built 2026-08-24). The number is free: nothing ever shipped as C31, the earlier proposal under it was
+# superseded before any code existed, and the never-reuse rule governs RETIRED checks (C16), not
+# unbuilt proposals.
+#
+# THE INVERSION. Every other check here judges state. This one judges NOTHING: each scheduled task
+# appends a signal as its FINAL act after genuine success, and this check only notices absence. Red is
+# the default posture, so a registered task is green ONLY by evidence. That is what makes the mechanism
+# un-rottable: there is no red branch that can silently stop being reachable, because red is what
+# happens when nothing is done at all.
+#
+# DELIBERATELY NOT READ: LastTaskResult, or any scheduler state. The old design needed a declared
+# expected-exit contract to tell a healthy exit 2 from a broken one; signals from INSIDE the task make
+# that unnecessary. The 0x8007042B / ERROR_PROCESS_ABORTED class (the abort that hid for 34 days)
+# arrives here as MISSING through pure absence, because a process killed mid-run never reaches its
+# final act.
+#
+# Three verdicts, NEVER collapsed into one colour: green (fresh signal, exit 0), WENT-WRONG (fresh
+# signal, nonzero exit - it ran, finished, and reported its own failure), MISSING (no signal in the
+# window - it never ran, died mid-run, or was never wired). A task that vanished and a task that
+# reported failure are different problems with different urgency.
+$registryPath = Join-Path $repo 'system\task-registry.json'
+$signalsPath  = Join-Path $repo 'system\task-signals.jsonl'
+if (Test-Path $registryPath) {
+    # Dot-sourcing the helper brings `Set-StrictMode -Version Latest` into THIS scope, and the ~800
+    # lines around it were never written under strict mode. Restore immediately: we want the reader,
+    # not its dialect.
+    . (Join-Path $repo 'scripts\lib\json-writer.ps1')
+    Set-StrictMode -Off
+
+    # Rule 4's first production use: the reader fails LOUD on a wrong or absent schema id, and that
+    # throw lands in the outer catch -> Push-CheckerError -> exit 1. A monitor reading a registry it
+    # does not understand must stop, not guess.
+    $registry = Read-AlexJson -Path $registryPath -ExpectedSchema 'task-registry@1'
+    $regTasks = @($registry.tasks)
+
+    $signals = New-Object System.Collections.Generic.List[object]
+    $badLines = 0
+    if (Test-Path $signalsPath) {
+        foreach ($ln in (Get-Content $signalsPath)) {
+            if ([string]::IsNullOrWhiteSpace($ln)) { continue }
+            try { $signals.Add(($ln | ConvertFrom-Json)) } catch { $badLines++ }
+        }
+    }
+    if ($badLines -gt 0) {
+        Add-Drift 'task-signals' "system/task-signals.jsonl carries $badLines unparseable line(s). The ledger is append-only with exactly one writer role, so a malformed line means a partial write or a second writer."
+    }
+
+    $INVC   = [System.Globalization.CultureInfo]::InvariantCulture
+    $DTS    = [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal
+    $nowUtc = [DateTime]::UtcNow
+    $declared = @{}
+
+    foreach ($t in $regTasks) {
+        if (-not $t.name) { continue }
+        $declared[[string]$t.name] = $true
+        $windowH = [double]$t.interval_hours + [double]$t.grace_hours
+        $cutoff  = $nowUtc.AddHours(-$windowH)
+
+        $latestWhen = $null; $latestCode = 0
+        foreach ($s in $signals) {
+            if ([string]$s.task -ne [string]$t.name) { continue }
+            $st = [DateTime]::MinValue
+            if (-not [DateTime]::TryParse([string]$s.ts, $INVC, $DTS, [ref]$st)) { continue }
+            if ($null -eq $latestWhen -or $st -gt $latestWhen) { $latestWhen = $st; $latestCode = [int]$s.exit_code }
+        }
+
+        # Every finding carries the task, the expectation, and what was actually seen (louder-green rule).
+        if ($null -eq $latestWhen -or $latestWhen -lt $cutoff) {
+            $seen = if ($null -eq $latestWhen) { 'never signalled' } else { "last signal $($latestWhen.ToString('yyyy-MM-dd HH:mm')) UTC, outside the window" }
+            Add-Drift 'task-missing' "MISSING: $($t.name) - expected a completion signal every $($t.interval_hours)h (+$($t.grace_hours)h grace); $seen. Script: $($t.script). What it does: $($t.description)."
+        } elseif ($latestCode -ne 0) {
+            Add-Drift 'task-went-wrong' "WENT-WRONG: $($t.name) - reported its OWN failure, exit $latestCode at $($latestWhen.ToString('yyyy-MM-dd HH:mm')) UTC (inside the ${windowH}h window). It ran to the end; the work failed. Not the same as MISSING. Script: $($t.script)."
+        }
+    }
+
+    # Wiring without declaration: something emits signals that nothing expects, so nothing would notice
+    # if it stopped. The coverage ratchet running backwards.
+    $undeclared = @($signals | ForEach-Object { [string]$_.task } | Where-Object { $_ -and -not $declared.ContainsKey($_) } | Sort-Object -Unique)
+    foreach ($u in $undeclared) {
+        Add-Drift 'task-unregistered' "UNREGISTERED: '$u' emits completion signals but is absent from system/task-registry.json - wiring exists without a declaration, so its silence would be invisible. Declare it: node scripts/manage-task-registry.js add --name '$u' --script <path> --interval-hours <n> --grace-hours <n> --desc '<one line>'"
+    }
+    Say "C31 task-completion: $($regTasks.Count) registered, $($signals.Count) signal(s) on file"
+} else {
+    # The registry is gitignored by design (it names this machine's tasks and their timing, public repo),
+    # so a fresh clone legitimately has none. Absent registry is NOT drift; it is not-yet-configured.
+    Say "C31 task-completion: SKIP (no system/task-registry.json yet - gitignored, so a fresh clone starts without one)"
+}
+
+

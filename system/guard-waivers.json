@@ -1,0 +1,14 @@
+{
+  "schema": "guard-waivers@1",
+  "note": "A guard that cannot run must report RED, not PASS. The ONLY exception is an entry here, and every entry expires. On/after `expires` the guard fails regardless of this file, so a waiver rots into a finding instead of into silence. Added 2026-08-28 (report Phase 0 item 0.3). Never add an entry without an owner and a real date.",
+  "waivers": [
+    {
+      "id": "V8-hq-repo-absent",
+      "check": "V8",
+      "reason": "The alex-hq website repo was split out of this repo on 2026-08-04 (commit e274c75) into a sibling repo that is NOT on this machine and NOT on the alex-kiarash-ai GitHub account, so V8's off-palette hex scan and tokens.css staleness check have no tree to walk. The pre-split source IS recoverable from this repo's history at e274c75^ (46 files). Pending decision: restore the sibling repo, or delete the pointer and retire V8's live half.",
+      "owner": "Shaheen",
+      "created": "2026-08-28",
+      "expires": "2026-09-30"
+    }
+  ]
+}
