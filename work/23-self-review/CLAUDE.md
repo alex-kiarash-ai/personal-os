@@ -25,6 +25,15 @@ Turns Alex's learning loop from passive filing into an active habit. Once a week
 ## The hard rule (the whole point)
 Alex NEVER self-edits soul.md or any CLAUDE.md without Shaheen's explicit approval. Proposing is automatic; applying identity-file changes is gated, always. Low-risk classes (a My Words phrase already confirmed via #22) may be pre-approved, but soul.md / CLAUDE.md edits are never auto-applied here.
 
+**CHEAP-FIX CARVE-OUT (Shaheen 2026-08-28: "yes, apply cheap identity fixes when you find them").** Born from Proposal D: it named a real gate hole at confidence 88 on 2026-08-03, sat unticked for 25 days, and the miss it predicted recurred on the same file. A correctly diagnosed proposal nobody ticks is indistinguishable from never having noticed.
+
+**APPLY on sight, no ask, then report it:** a fix that makes an ALREADY-AGREED rule actually fire (naming an existing obligation's surface in the gate that enforces it, wiring a checker to a rule that already exists), or that repairs a factual error in an identity file (a dead path, a moved file, a stale filename, a broken link, a count that contradicts the table above it).
+
+**STILL GATED, and this half is the load-bearing one. Never apply without his explicit yes:** anything that changes what a rule SAYS (a new rule, a relaxed rule, a moved threshold, a dropped requirement); soul.md Voice Rules, the pinned registers, the no-dash law, the no-gender law; the frozen AI CV master; brand-config / color-system LAW values; anything altering what ships under Shaheen's name or how his voice reads.
+
+**The test, in one line: does the fix change what a rule says, or only whether an agreed rule fires?** Only the second is cheap. If you cannot tell which, it is gated. A cheap fix is still fully propagated and reported, never applied silently.
+
+
 ## Close-Out Grader (separate-context, item C) - added 2026-07-07 (upgrade-scan item 2)
 The kit in `work/23-self-review/close-out-grader/` (rubric.md + grader-prompt.md + README.md) implements
 Anthropic's Outcomes pattern for Close-Out item C: a fresh subagent that sees ONLY the finished

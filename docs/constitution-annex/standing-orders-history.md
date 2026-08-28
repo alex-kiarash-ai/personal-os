@@ -183,3 +183,29 @@ way corrupts silently and still LOOKS right in most renderings. Build such paths
 raw string, and grep for control characters after writing. `work/16-alex-hq/scripts/build-graph.mjs` uses a NUL 
 separator deliberately and is NOT this bug; `vault/log.md` carries one in a historical entry and is append-only, 
 so both were left alone.
+
+## /self-review: the cheap-fix carve-out (2026-08-28)
+
+**Operative rule: `work/23-self-review/CLAUDE.md`, "The hard rule".** This is why it moved.
+
+Shaheen, verbatim: **"yes, apply cheap identity fixes when you find them."** It narrows a rule that had been
+absolute since the first build: *Alex NEVER self-edits soul.md or any CLAUDE.md without explicit approval.*
+
+**The evidence that forced it.** Proposal D of 2026-08-03 named a real hole in the Brand + Soul Pre-Flight Gate,
+at confidence 88, with a minimal forward fix. Nobody ticked it. On 2026-08-28 the miss it predicted recurred on
+the same file, and the delivery check that the missing gate would have forced then found three genuine voice
+defects in already-shipped text. **The queue was not protecting the identity files, it was hiding a known defect
+in them.** A correctly diagnosed proposal nobody ticks is indistinguishable from never having noticed.
+
+**Why the boundary is drawn where it is.** The risk of this carve-out is obvious: "identity fix" could be read as
+licence to edit soul.md, the frozen CV master, or the colour law. It is not. The split is between a rule's CONTENT
+and its ENFORCEMENT. Making an agreed rule fire changes nothing about what the system believes or how Shaheen
+sounds; it only closes the gap between a rule and its execution. Changing what a rule SAYS is a decision about his
+system and stays his, exactly as before.
+
+**The test, and the tiebreak that matters most: if you cannot tell which side a fix is on, it is gated.** The
+carve-out exists to stop known defects rotting in a queue, not to widen what Alex may decide alone. Every cheap
+fix is still fully propagated and reported in the session it happens; "no ask" never means "no telling".
+
+**Deliberately unchanged:** root CLAUDE.md's "Lessons PROPOSE, never auto-edit the constitution". A lesson is an
+observation, not a diagnosed fix with a named surface, so lessons still propose and that line stays true.
