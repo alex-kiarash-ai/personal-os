@@ -20,12 +20,26 @@ Full runbook with exact commands: `work/11-whatsapp-harvest/phase2-runbook.md`. 
 2. **Backup (Shaheen-side, ask, never assume).** iPhone on USB, Trust + passcode, **Encrypt local backup
    ON** in Apple Devices, Back Up Now. The WhatsApp DB only exists in ENCRYPTED backups. The password
    lives in his password manager, never the vault, and he enters it at extract time.
-3. **Locate the backup:** `%USERPROFILE%\Apple\MobileSync\Backup\<UDID>` (older iTunes:
-   `%APPDATA%\Apple Computer\MobileSync\Backup\<UDID>`).
-4. **Extract, TEXT ONLY:**
-   `wtsexporter -i -b "<backup folder>" --txt --no-html -o "outputs\whatsapp-harvest\phase2\<date>"`
-   Prompts for the backup password. `--include <numbers>` to scope to key people. **NO MEDIA, EVER
-   (hard rule):** if the tool writes a media folder, delete it immediately; keep only the text export.
+3. **Locate the backup, then PROVE it is fresh:** `%USERPROFILE%\Apple\MobileSync\Backup\<UDID>`
+   (older iTunes: `%APPDATA%\Apple Computer\MobileSync\Backup\<UDID>`), then
+   `python scripts/whatsapp-aggregate.py --verify-backup --backup "<backup folder>"`.
+   It refuses unless the snapshot is `finished`, encrypted and fresh. **This check is why run 2
+   exists:** the backup on disk was 54 days old, and a stale snapshot parses perfectly and reports a
+   clean harvest, so nothing else in this flow would have caught it.
+   Run `--password-only` BEFORE making a new backup: if the password is gone, the day changes shape
+   entirely, and finding that out after a 40-minute backup is the worst possible ordering.
+4. **Extract + aggregate (REWRITTEN 2026-09-02, run 2):**
+   `python scripts/whatsapp-aggregate.py --backup "<backup folder>" --out system/whatsapp-chat-stats.json`
+   Prompts for the password (or reads `WA_BACKUP_PASSWORD`). Pulls only `ChatStorage.sqlite`,
+   `ContactsV2.sqlite`, `CallHistory.sqlite` and their `-wal`/`-shm` sidecars, then emits one
+   aggregate row per chat.
+   **NO MEDIA, EVER: now satisfied by construction, not by cleanup.** `wtsexporter -b` has no way to
+   skip media (`-c, --move-media ... otherwise copy it`), which is where run 1's 8.66 GB came from.
+   Never pass `-b`. If wtsexporter is needed as a cross-check, point it at the already-extracted
+   databases with `-d`/`-w`, use `-j` single-file JSON, and never `--per-chat`, `--txt` (Windows
+   filename bug on emoji group names) or `--avoid-encoding-json` (cp1252 write bug).
+   **The `-wal` sidecar is load-bearing:** SQLite keeps uncheckpointed writes there, so skipping it
+   can silently drop the newest messages while the run still reports clean.
 5. **Harvest, respecting the privacy contract:**
    - Shaheen's lines (right-aligned) → soul.md "My Words", per-language register (English/Arabic/Swedish), date-stamped. Phrasing only; skip health, relationship intimacy, third-party-sensitive content.
    - Friends → vault/people/{name}.md: relationship context, life events, last-contact date. NEVER transcripts of their words.
@@ -36,7 +50,7 @@ Full runbook with exact commands: `work/11-whatsapp-harvest/phase2-runbook.md`. 
 
 ## Hard rules (repeated because they matter)
 - **Budget rule: CHECKPOINT PUSHES.** Write each thread's harvest to the vault immediately after reading it. On any usage-limit signal, stop capture and finish only the import of what's already read (Shaheen's 80% rule, 2026-06-12).
-- **NO MEDIA, EVER.** Text only. Never save pictures or videos. Voice messages are ignored (phase 2 transcription = pending Shaheen decision).
+- **NO MEDIA, EVER.** Text only. Never save pictures or videos. **Voice notes: Shaheen opted IN 2026-09-02** (reversing the ignore default): transcribe locally, `--language` set explicitly per chat, delete each audio file in a `finally:` so a crash cannot leave audio on disk. torch here is CPU-only, so cap the batch.
 - READ ONLY. This reads a backup, never the live account: no typing, no sending, no marking read, zero ban risk.
 - Friends' content stays out of the vault except minimal context.
 - Delete every extracted media file at the end of the run. The text export is the only artifact that survives.
