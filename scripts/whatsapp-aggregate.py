@@ -403,11 +403,28 @@ def parse_messages(db_path, now, window_12m, window_8w):
         rec = dict(zip(sel, row))
         pk = rec["Z_PK"]
         jid = rec.get(c_jid) or ""
+        suffix = jid.split("@", 1)[1] if "@" in jid else ""
+        local = jid.split("@", 1)[0] if "@" in jid else jid
+        if suffix == "newsletter":
+            kind = "newsletter"     # WhatsApp Channel, one-way broadcast
+        elif suffix == "status" or local == "status":
+            # Status/story feed. Appears as "status@broadcast" canonically, but this
+            # backup also carries a bare "@status" suffix, so match both forms.
+            kind = "status"
+        elif suffix == "broadcast":
+            kind = "broadcast"      # his own broadcast list, one-to-many outbound
+        elif suffix == "g.us" or rec.get(c_stype) == 1:
+            kind = "group"
+        elif suffix == "lid":
+            kind = "person"         # real person, privacy-preserving id, no phone derivable
+        else:
+            kind = "person"
         chats[pk] = {
             "chat_pk": pk,
             "jid": jid,
             "display_name": rec.get(c_name) or "",
-            "is_group": jid.endswith("@g.us") or (rec.get(c_stype) == 1),
+            "kind": kind,
+            "is_group": kind == "group",
             "archived": bool(rec.get(c_arch)),
         }
     log(f"  sessions: {len(chats)}")
@@ -415,6 +432,7 @@ def parse_messages(db_path, now, window_12m, window_8w):
     # --- messages, one ordered pass per chat
     agg = defaultdict(lambda: {
         "total": 0, "m12": 0, "m8w": 0, "from_me": 0, "from_them": 0,
+        "me12": 0, "them12": 0, "me8w": 0, "them8w": 0,
         "first": None, "last": None, "last_from_me": None,
         "voice_notes": 0, "voice_notes_8w": 0, "media_msgs": 0,
         "my_text_samples": [], "latencies": [],
@@ -449,10 +467,18 @@ def parse_messages(db_path, now, window_12m, window_8w):
             a["m8w"] += 1
         if from_me:
             a["from_me"] += 1
+            if dt >= window_12m:
+                a["me12"] += 1
+            if dt >= window_8w:
+                a["me8w"] += 1
             if text and len(a["my_text_samples"]) < 40 and dt >= window_12m:
                 a["my_text_samples"].append(text)
         else:
             a["from_them"] += 1
+            if dt >= window_12m:
+                a["them12"] += 1
+            if dt >= window_8w:
+                a["them8w"] += 1
 
         if mtype == 3:  # audio / voice note
             a["voice_notes"] += 1
@@ -594,6 +620,7 @@ def build_rows(chats, agg, contacts, calls, now, window_12m, window_8w):
             "display_name": meta["display_name"],
             "saved_contact_name": contact.get("saved_name"),
             "phone": phone or contact.get("phone"),
+            "kind": meta["kind"],
             "is_group": meta["is_group"],
             "archived": meta["archived"],
             "msgs_total": a["total"],
@@ -601,6 +628,12 @@ def build_rows(chats, agg, contacts, calls, now, window_12m, window_8w):
             "msgs_8w": a["m8w"],
             "from_me": a["from_me"],
             "from_them": a["from_them"],
+            "from_me_12m": a["me12"],
+            "from_them_12m": a["them12"],
+            "from_me_share_12m": (round(a["me12"] / (a["me12"] + a["them12"]), 3)
+                                  if (a["me12"] + a["them12"]) else None),
+            "from_me_8w": a["me8w"],
+            "from_them_8w": a["them8w"],
             "first_msg": iso(a["first"]),
             "last_msg": iso(a["last"]),
             "last_sender": ("me" if a["last_from_me"] else "them") if a["last_from_me"] is not None else None,
@@ -711,7 +744,10 @@ def main():
 
     active_12m = sum(1 for r in rows if r["msgs_12m"] > 0)
     active_8w = sum(1 for r in rows if r["msgs_8w"] > 0)
-    people = [r for r in rows if not r["is_group"]]
+    people = [r for r in rows if r["kind"] == "person"]
+    kinds = {}
+    for r in rows:
+        kinds[r["kind"]] = kinds.get(r["kind"], 0) + 1
     payload = {
         "generated": now.isoformat(),
         "source_backup": os.path.abspath(args.backup) if args.backup else None,
@@ -722,6 +758,9 @@ def main():
             "active_8w": active_8w,
             "one_to_one": len(people),
             "groups": len(rows) - len(people),
+            "by_kind": kinds,
+            "newsletter_messages_excluded": sum(r["msgs_12m"] for r in rows
+                                                if r["kind"] in ("newsletter", "status", "broadcast")),
             "saved_contact_names": len(contacts),
             "voice_notes_8w": sum(r["voice_notes_8w"] for r in rows),
         },
@@ -736,7 +775,9 @@ def main():
     log("")
     log(f"  chats {t['chats']}  messages {t['messages']}")
     log(f"  active 12m {t['active_12m']}   active 8w {t['active_8w']}")
-    log(f"  1:1 {t['one_to_one']}   groups {t['groups']}   saved names {t['saved_contact_names']}")
+    log(f"  by kind: {t['by_kind']}")
+    log(f"  people {t['one_to_one']}   saved names {t['saved_contact_names']}")
+    log(f"  broadcast messages excluded from people ranking: {t['newsletter_messages_excluded']}")
     log(f"  voice notes in last 8w: {t['voice_notes_8w']}")
     log(f"  -> {args.out}")
 

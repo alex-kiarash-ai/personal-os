@@ -57,6 +57,11 @@ def build_fixtures(d):
         (1, "1000001@s.whatsapp.net", "Chat-List Name", 0, 0, ats("2026-09-01 10:05:00")),
         (2, "123-456@g.us", "A Group", 1, 0, ats("2025-01-01 10:00:00")),
         (3, "1000002@s.whatsapp.net", "Silent Contact", 0, 0, None),  # zero messages
+        # WhatsApp Channel. One-way broadcast, NOT a person and NOT an @g.us group.
+        # In the real 2026-09-02 data these were the four highest-volume "chats" and
+        # would have topped the people ranking with 39,635 messages of news feed.
+        (4, "120363000000000001@newsletter", "Some News Channel", 0, 0, None),
+        (5, "status@broadcast", "Status", 0, 0, None),
     ])
     con.executemany("INSERT INTO ZWAMESSAGE VALUES (?,?,?,?,?,?)", [
         (1, 1, 0, ats("2026-01-01 09:00:00"), "inside 12 months but not 8 weeks", 0),
@@ -66,6 +71,11 @@ def build_fixtures(d):
         (5, 2, 1, ats("2025-01-01 09:00:00"), "old group msg", 0),
         (6, 2, 0, ats("2025-01-01 10:00:00"), "another old one", 0),
         (7, 1, 1, None, "null date, must be skipped", 0),
+        # 40 inbound broadcast messages, zero outbound. Volume alone would rank this
+        # above every real person in the fixture.
+        *[(100 + i, 4, 0, ats("2026-08-2%d 09:00:00" % (i % 10)), f"headline {i}", 0)
+          for i in range(40)],
+        (200, 5, 0, ats("2026-08-20 09:00:00"), "a status update", 0),
     ])
     con.commit()
     con.close()
@@ -114,12 +124,14 @@ def main():
         by_jid = {c["jid"]: c for c in data["chats"]}
 
         print("\nTotals")
-        check("chats (silent one dropped)", t["chats"], 2)
-        check("messages (null date skipped)", t["messages"], 6)
-        check("active_12m", t["active_12m"], 1)
-        check("active_8w", t["active_8w"], 1)
-        check("one_to_one", t["one_to_one"], 1)
-        check("groups", t["groups"], 1)
+        check("chats (silent one dropped)", t["chats"], 4)
+        check("messages (null date skipped)", t["messages"], 47)
+        check("kind census", t["by_kind"],
+              {"person": 1, "group": 1, "newsletter": 1, "status": 1})
+        check("people count excl broadcast", t["one_to_one"], 1)
+        check("broadcast msgs excluded", t["newsletter_messages_excluded"], 41)
+        check("active_12m", t["active_12m"], 3)
+        check("active_8w", t["active_8w"], 3)
         check("saved_contact_names", t["saved_contact_names"], 1)
         check("voice_notes_8w", t["voice_notes_8w"], 1)
 
@@ -135,6 +147,8 @@ def main():
         check("msgs_8w", one["msgs_8w"], 3)
         check("from_me", one["from_me"], 1)
         check("from_them", one["from_them"], 3)
+        check("from_me_12m", one["from_me_12m"], 1)
+        check("from_me_share_12m", one["from_me_share_12m"], 0.25)
         check("first_msg", one["first_msg"], "2026-01-01")
         check("last_msg", one["last_msg"], "2026-09-01")
         check("last_sender", one["last_sender"], "me")
