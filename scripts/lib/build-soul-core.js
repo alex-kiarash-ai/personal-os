@@ -49,7 +49,21 @@ const OUT = path.join(REPO, 'soul-core.md');
 
 const NEWEST_N = 20;        // the recency slice
 const MIN_ENTRIES = 12;     // refuse-below-floor: fewer selected entries than this = no emit
-const WARN_BYTES = 60 * 1024; // honesty rail: warn (never refuse) if the card outgrows this
+/*
+ * Approach warning. DERIVED from the enforced cap, never a second hardcoded number.
+ *
+ * Until 2026-09-02 this was a flat `60 * 1024`. That number predates the byte budget: run 47 armed
+ * the real cap at meta.vault.soul_core_byte_budget on 2026-08-23 and set it to 90KB deliberately,
+ * because trimming to 60KB drives the recency slice into the MIN_ENTRIES floor and that is Shaheen's
+ * voice-quality call, not a plumbing default. Nobody updated the warn line, so every build printed a
+ * warning measured against a threshold the system had already decided not to enforce. A warning
+ * nobody can act on is the same dead-signal shape as the run-46 N1 backup WARNING, one file over.
+ *
+ * Deriving it means the two can never drift apart again: the warning now says "the cap is close and
+ * the trim is about to start dropping your oldest recency entries", which is a thing to act on.
+ */
+const WARN_AT_FRACTION = 0.90;      // warn once the card reaches this share of the enforced cap
+const WARN_BYTES_FALLBACK = 60 * 1024; // only when the manifest carries no budget at all
 
 // Required operative headings (prefix match; suffixes like "(most to least)" vary).
 const REQUIRED_HEADINGS = [
@@ -238,7 +252,15 @@ function build({ log = () => {}, outPath = OUT, soulPath = SOUL, pinsPath = PINS
       log(`  soul-core: trimmed to budget - ${before} B (${beforeN} entries) -> ${card.length} B (${sel.newest.length} entries), budget ${budget} B`);
     }
   }
-  if (card.length > WARN_BYTES) log(`  WARN: card is ${card.length} B (> ${WARN_BYTES})`);
+  const warnAt = budget > 0 ? Math.round(budget * WARN_AT_FRACTION) : WARN_BYTES_FALLBACK;
+  if (card.length > warnAt) {
+    const pct = budget > 0 ? ` (${(card.length / budget * 100).toFixed(1)}% of the ${budget} B cap)` : '';
+    const room = budget > 0 ? budget - card.length : 0;
+    log(`  WARN: card is ${card.length} B, past the ${warnAt} B approach line${pct}. ` +
+      (budget > 0
+        ? `${room} B of headroom left, about ${Math.max(0, Math.floor(room / 2800))} more entries before the trim starts dropping the oldest of the ${sel.newest.length}.`
+        : 'No budget in meta.vault.soul_core_byte_budget, so nothing is enforcing a cap.'));
+  }
 
   // Atomic: staging sibling + rename over the real path.
   const staging = outPath + '.staging';

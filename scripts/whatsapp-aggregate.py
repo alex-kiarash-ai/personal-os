@@ -76,6 +76,10 @@ def extract_databases(backup_path, extract_dir, password):
     """Pull ONLY the WhatsApp sqlite files out of the encrypted backup. No media, ever."""
     try:
         from iphone_backup_decrypt import EncryptedBackup, RelativePath
+        try:
+            from iphone_backup_decrypt import DomainLike
+        except ImportError:
+            DomainLike = None
     except ImportError:
         log("FATAL: iphone_backup_decrypt not installed. pip install iphone_backup_decrypt")
         sys.exit(2)
@@ -84,6 +88,7 @@ def extract_databases(backup_path, extract_dir, password):
     log(f"Opening encrypted backup: {backup_path}")
     backup = EncryptedBackup(backup_directory=backup_path, passphrase=password)
 
+    domain = getattr(DomainLike, "WHATSAPP", "%net.whatsapp.%") if DomainLike else "%net.whatsapp.%"
     wanted = {
         "messages": getattr(RelativePath, "WHATSAPP_MESSAGES", "ChatStorage.sqlite"),
         "contacts": getattr(RelativePath, "WHATSAPP_CONTACTS", "ContactsV2.sqlite"),
@@ -101,10 +106,115 @@ def extract_databases(backup_path, extract_dir, password):
         except Exception as exc:  # a missing optional DB must not kill the run
             if key == "messages":
                 log(f"FATAL: could not extract {relpath}: {exc}")
-                log("If the password was wrong or the backup is not encrypted, stop and check.")
+                log("Likely causes: wrong password, an unencrypted backup (which contains NO")
+                log("WhatsApp data at all), or Advanced Data Protection / end-to-end backup.")
                 sys.exit(2)
             log(f"  SKIP {WA_DBS[key]}: not in backup ({type(exc).__name__})")
+
+        # SQLite WAL sidecars. Uncheckpointed writes live in -wal, so the NEWEST
+        # messages can be missing entirely if it is not extracted alongside the db.
+        # That is silent data loss: the run looks clean and simply does not know
+        # about the last few days. sqlite replays the wal automatically on open.
+        for suffix in ("-wal", "-shm"):
+            side_dest = dest + suffix
+            try:
+                backup.extract_file(relative_path=relpath + suffix,
+                                    domain_like=domain,
+                                    output_filename=side_dest)
+                log(f"    + sidecar {os.path.basename(side_dest):22s} "
+                    f"{os.path.getsize(side_dest)/1e6:7.1f} MB")
+            except Exception:
+                pass  # absent sidecar = already checkpointed, which is normal
     return found
+
+
+# ---------------------------------------------------------------- backup preflight
+
+def read_backup_plists(backup_path):
+    """Status.plist + Manifest.plist. Both are binary plists; plistlib handles them."""
+    import plistlib
+    out = {}
+    for name in ("Status.plist", "Manifest.plist"):
+        fp = os.path.join(backup_path, name)
+        if not os.path.exists(fp):
+            return None, f"{name} missing from {backup_path}"
+        try:
+            with open(fp, "rb") as fh:
+                out[name] = plistlib.load(fh)
+        except Exception as exc:
+            return None, f"could not parse {name}: {exc}"
+    return out, None
+
+
+def verify_backup(backup_path, password, max_age_hours=24):
+    """
+    Pre-flight before anything long-running. Returns 0 ok, 2 stop.
+
+    The staleness check is the whole reason harvest run 2 exists: the backup on
+    disk was 54 days old and nothing in the documented method would have noticed.
+    A stale snapshot parses perfectly and reports a fresh harvest.
+    """
+    plists, err = read_backup_plists(backup_path)
+    if err:
+        log(f"FAIL  {err}")
+        return 2
+
+    status = plists["Status.plist"]
+    manifest = plists["Manifest.plist"]
+    snapshot = status.get("SnapshotState")
+    date = status.get("Date")
+    encrypted = manifest.get("IsEncrypted")
+    ok = True
+
+    log(f"  SnapshotState  {snapshot}")
+    log(f"  Date           {date}")
+    log(f"  IsFullBackup   {status.get('IsFullBackup')}   (False is normal for an incremental)")
+    log(f"  IsEncrypted    {encrypted}")
+    log(f"  ProductVersion {manifest.get('Lockdown', {}).get('ProductVersion')}")
+
+    if snapshot != "finished":
+        log(f"FAIL  snapshot is '{snapshot}', not 'finished'. The backup is mid-flight.")
+        ok = False
+    if not encrypted:
+        log("FAIL  backup is NOT encrypted. Unencrypted iOS backups contain NO WhatsApp data.")
+        log("      Turn on 'Encrypt local backup' in Apple Devices and back up again.")
+        ok = False
+    if date is not None:
+        age_h = (datetime.now(timezone.utc) - date.replace(tzinfo=timezone.utc)).total_seconds() / 3600
+        log(f"  age            {age_h/24:.1f} days")
+        if age_h > max_age_hours:
+            log(f"FAIL  backup is {age_h/24:.1f} days old. Back Up Now first, then re-run.")
+            log("      Parsing a stale snapshot while reporting a fresh harvest is the")
+            log("      exact failure this check exists to prevent.")
+            ok = False
+    else:
+        log("FAIL  Status.plist carries no Date")
+        ok = False
+
+    mdb = os.path.join(backup_path, "Manifest.db")
+    if os.path.exists(mdb):
+        log(f"  Manifest.db    {datetime.fromtimestamp(os.path.getmtime(mdb)):%Y-%m-%d %H:%M} "
+            f"({os.path.getsize(mdb)/1e6:.0f} MB)")
+    else:
+        log("FAIL  Manifest.db missing")
+        ok = False
+
+    if password:
+        try:
+            from iphone_backup_decrypt import EncryptedBackup
+            b = EncryptedBackup(backup_directory=backup_path, passphrase=password)
+            if b.test_decryption():
+                log("  password       OK")
+            else:
+                log("FAIL  password rejected by the backup keybag.")
+                ok = False
+        except Exception as exc:
+            log(f"FAIL  password test raised {type(exc).__name__}: {exc}")
+            ok = False
+
+    log("")
+    log("VERDICT: PASS - safe to extract" if ok else "VERDICT: STOP - do not extract")
+    return 0 if ok else 2
 
 
 # ---------------------------------------------------------------- schema helpers
@@ -431,11 +541,43 @@ def main():
     ap.add_argument("--backup", help="iOS backup UDID folder (encrypted)")
     ap.add_argument("--extract-dir", default="outputs/whatsapp-harvest/_db",
                     help="where the three sqlite files land (must be gitignored)")
-    ap.add_argument("--out", required=True, help="output JSON path (must be gitignored)")
+    ap.add_argument("--out", help="output JSON path (must be gitignored)")
     ap.add_argument("--skip-extract", action="store_true",
                     help="reuse databases already in --extract-dir")
     ap.add_argument("--as-of", help="YYYY-MM-DD, defaults to today (UTC)")
+    ap.add_argument("--verify-backup", action="store_true",
+                    help="preflight only: plists + password test, then exit. Extracts nothing.")
+    ap.add_argument("--password-only", action="store_true",
+                    help="test ONLY the encryption password; skip the freshness check. "
+                         "Run this BEFORE making a new backup: if the password is gone the "
+                         "whole day changes shape, and finding out after a 40-minute backup "
+                         "is the worst ordering.")
+    ap.add_argument("--no-password-test", action="store_true",
+                    help="skip the decryption test (plist checks only, never prompts)")
+    ap.add_argument("--max-age-hours", type=float, default=24.0,
+                    help="fail the freshness check above this age (default 24)")
     args = ap.parse_args()
+
+    if args.verify_backup:
+        if not args.backup:
+            log("FATAL: --verify-backup needs --backup")
+            sys.exit(2)
+        if args.no_password_test:
+            pw = ""
+        elif "WA_BACKUP_PASSWORD" in os.environ:
+            pw = os.environ["WA_BACKUP_PASSWORD"]  # deliberately set, empty means skip
+        else:
+            import getpass
+            try:
+                pw = getpass.getpass("iPhone backup encryption password (blank to skip test): ")
+            except Exception:
+                pw = ""
+        max_age = float('inf') if args.password_only else args.max_age_hours
+        sys.exit(verify_backup(args.backup, pw, max_age))
+
+    if not args.out:
+        log("FATAL: --out is required")
+        sys.exit(2)
 
     now = (datetime.strptime(args.as_of, "%Y-%m-%d").replace(tzinfo=timezone.utc)
            if args.as_of else datetime.now(timezone.utc))
