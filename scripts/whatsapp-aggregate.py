@@ -228,6 +228,77 @@ def verify_backup(backup_path, password, max_age_hours=24, password_only=False):
     return 0 if ok else 2
 
 
+def check_db_health(db_path, backup_path):
+    """
+    Two assertions the documented method never made.
+
+    1. Integrity. iphone_backup_decrypt WARNs that the decrypted size is smaller than
+       the manifest size. That is EXPECTED: the manifest records the AES-padded size.
+       The real test is whether sqlite's own header agrees with the bytes on disk, so
+       check page_size * page_count against the file, plus integrity_check. A genuinely
+       truncated db claims more pages than exist and fails both.
+
+    2. Currency. The newest message must be close to the backup snapshot time. This is
+       the silent-loss check: if the WAL was dropped or the phone had not synced, the
+       parse still succeeds and simply does not know about recent days. Nothing else in
+       the pipeline would notice, because the numbers all look plausible.
+    """
+    import sqlite3
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    cur = con.cursor()
+
+    try:
+        cur.execute("PRAGMA integrity_check")
+        rows = cur.fetchall()
+    except sqlite3.DatabaseError as exc:
+        # A badly truncated file fails here rather than returning a verdict.
+        log(f"FATAL: {os.path.basename(db_path)} is not a readable database: {exc}")
+        log("       The file is corrupt or truncated. Re-extract before going further.")
+        sys.exit(2)
+    verdict = rows[0][0] if len(rows) == 1 else f"{len(rows)} problems"
+    if verdict != "ok":
+        log(f"FATAL: integrity_check says {verdict}")
+        sys.exit(2)
+
+    cur.execute("PRAGMA page_size")
+    page_size = cur.fetchone()[0]
+    cur.execute("PRAGMA page_count")
+    page_count = cur.fetchone()[0]
+    on_disk = os.path.getsize(db_path)
+    header_says = page_size * page_count
+    log(f"  integrity ok, {page_count} pages, header {header_says/1e6:.1f} MB "
+        f"vs {on_disk/1e6:.1f} MB on disk")
+    if header_says > on_disk:
+        log(f"FATAL: sqlite header claims {header_says} bytes but only {on_disk} exist.")
+        log("       That IS a real truncation, unlike the decrypt-size warning.")
+        sys.exit(2)
+
+    snap = None
+    if backup_path:
+        plists, err = read_backup_plists(backup_path)
+        if not err:
+            snap = plists["Status.plist"].get("Date")
+
+    cur.execute("SELECT MAX(ZMESSAGEDATE) FROM ZWAMESSAGE")
+    row = cur.fetchone()
+    newest = apple_ts(row[0]) if row else None
+    con.close()
+
+    if newest is None:
+        log("FATAL: no dated messages in ZWAMESSAGE")
+        sys.exit(2)
+    log(f"  newest message {newest:%Y-%m-%d %H:%M} UTC")
+    if snap is not None:
+        gap_h = (snap.replace(tzinfo=timezone.utc) - newest).total_seconds() / 3600
+        log(f"  gap to backup snapshot: {gap_h:.1f} h")
+        if gap_h > 48:
+            log(f"FATAL: newest message is {gap_h/24:.1f} days older than the snapshot.")
+            log("       The most recent messages are missing. Likely a dropped -wal sidecar,")
+            log("       or WhatsApp had not synced on the phone. Do NOT report this as a")
+            log("       complete harvest.")
+            sys.exit(2)
+
+
 # ---------------------------------------------------------------- schema helpers
 
 def table_exists(cur, name):
@@ -625,6 +696,9 @@ def main():
             sys.exit(2)
         found = extract_databases(args.backup, args.extract_dir, password)
         del password
+
+    log("Checking database integrity...")
+    check_db_health(found["messages"], args.backup)
 
     log("Parsing messages...")
     chats, agg, total_msgs = parse_messages(found["messages"], now, window_12m, window_8w)
