@@ -146,7 +146,7 @@ def read_backup_plists(backup_path):
     return out, None
 
 
-def verify_backup(backup_path, password, max_age_hours=24):
+def verify_backup(backup_path, password, max_age_hours=24, password_only=False):
     """
     Pre-flight before anything long-running. Returns 0 ok, 2 stop.
 
@@ -213,6 +213,17 @@ def verify_backup(backup_path, password, max_age_hours=24):
             ok = False
 
     log("")
+    if password_only:
+        # Freshness was deliberately not checked, so this verdict must NOT read as
+        # clearance to extract. Saying "safe to extract" over a stale snapshot is the
+        # same false-green class this whole preflight exists to prevent.
+        if not password:
+            log("VERDICT: plists checked only. No password given, freshness NOT checked.")
+        elif ok:
+            log("VERDICT: PASSWORD OK. Freshness NOT checked - make a fresh backup next.")
+        else:
+            log("VERDICT: PASSWORD PROBLEM - see the FAIL line above.")
+        return 0 if ok else 2
     log("VERDICT: PASS - safe to extract" if ok else "VERDICT: STOP - do not extract")
     return 0 if ok else 2
 
@@ -558,6 +569,9 @@ def main():
                     help="fail the freshness check above this age (default 24)")
     args = ap.parse_args()
 
+    if args.password_only or args.no_password_test:
+        args.verify_backup = True  # these only modify the preflight; imply it
+
     if args.verify_backup:
         if not args.backup:
             log("FATAL: --verify-backup needs --backup")
@@ -573,10 +587,14 @@ def main():
             except Exception:
                 pw = ""
         max_age = float('inf') if args.password_only else args.max_age_hours
-        sys.exit(verify_backup(args.backup, pw, max_age))
+        sys.exit(verify_backup(args.backup, pw, max_age, password_only=args.password_only))
 
     if not args.out:
-        log("FATAL: --out is required")
+        log("FATAL: --out is required for a parse run.")
+        log("")
+        log("If you meant to check the backup rather than parse it, use:")
+        log("  --password-only   test just the encryption password (before making a backup)")
+        log("  --verify-backup   full preflight: encrypted, finished, fresh, password")
         sys.exit(2)
 
     now = (datetime.strptime(args.as_of, "%Y-%m-%d").replace(tzinfo=timezone.utc)
