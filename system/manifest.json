@@ -563,7 +563,7 @@
       "title": "WhatsApp Harvest",
       "state": "ON-DEMAND",
       "trigger": "on-demand (iPhone backup); its timer stays DISABLED by design",
-      "one_liner": "Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.",
+      "one_liner": "Voice-corpus + people + relationship harvest from an encrypted iPhone backup. Phase 1 screen-scrape retired (dead end). Run 2 (2026-09-02) made it a scripted pipeline: deterministic per-chat aggregates over every chat, per-chat digests with card redaction, and local voice-note transcription. Feeds CRM last_contact + circle tiers + the soul corpus; plans and action points become calendar rows Shaheen approves by id, never auto-written. Phase 3 read-only WAHA gateway built-ready, off until post-offer.",
       "docs": "11-whatsapp-harvest.md",
       "schedule_jobs": [
         "PersonalOS-whatsapp-harvest"
