@@ -14,8 +14,8 @@ Read Shaheen's WhatsApp through the OFFICIAL desktop client (linked device, zero
 
 ## Hard rules
 - **Budget rule (Shaheen, 2026-06-12): at ~80% of usage limit, stop everything except importing already-captured WhatsApp data.** Operationalized as: (1) CHECKPOINT PUSHES, write each thread's harvest to soul.md/vault immediately after reading it, never batch to the end; (2) on any usage-limit signal, abort remaining capture and finish only the import of what's already read. No token buys unpushed data.
-- **NO MEDIA, EVER (Shaheen, 2026-06-12): text only.** Never save, copy, or export pictures or videos. Run screenshots are working files only and are deleted at the end of every run. This rule binds phase 2 too: the backup extractor must skip all media files.
-- **Voice messages: currently IGNORED** (cannot be read from screen). Phase 2 may transcribe locally via Whisper with immediate audio deletion, but that is an explicit Shaheen decision still to be made, not a default.
+- **NO MEDIA, EVER (Shaheen, 2026-06-12): text only.** Never save, copy, or export pictures or videos. **Satisfied by construction since 2026-09-02, not by cleanup:** the harvest decrypts only `ChatStorage.sqlite`, `ContactsV2.sqlite`, `CallHistory.sqlite` and their `-wal`/`-shm` sidecars, so no media directory is ever created. Do NOT use `wtsexporter -b`: it cannot skip media (`-c, --move-media ... otherwise copy it`) and that is where run 1's 8.66 GB came from. Voice notes are the one exception and are pulled one file at a time by exact path, transcribed, and deleted in a `finally`.
+- **Voice messages: TRANSCRIBED since 2026-09-02 (Shaheen's decision, reversing the 06-12 ignore default).** Local Whisper only, nothing leaves the machine, `--language` passed explicitly per chat (auto-detect on 30s of Levantine Arabic returns fluent confident WRONG text rather than an error), and each audio file is deleted in a `finally` block so an interrupt cannot leave audio on disk. One file on disk at a time, extracted by exact path, never by pattern. Engine: `scripts/whatsapp-voice.py`. **Why it changed:** the three people Shaheen speaks to most sent 43, 41 and 30 voice notes in one 8-week window, and Mehmet's thread carries 130 messages with ZERO text commitments, so text-only left the closest relationships half blank.
 - READ ONLY. Never type, click send, or touch a message box. Drafting WhatsApp replies is out of scope for phase 1.
 - Friends' message content stays out of the vault except minimal context (one-line "what's going on in their life").
 - Shaheen's own lines are the corpus. Harvest phrasing, not secrets: no health, relationship, or third-party-sensitive content into soul.md.
@@ -57,3 +57,21 @@ Read-only **WAHA Core** gateway on the Hetzner box, webhook -> n8n -> CRM/corpus
 
 ## Trifecta
 Gate: **read-only**. Legs: private_data=true, untrusted_content=true, external_comm=false (agent-security Rule-of-Two, three-plan validation P3, 2026-07-17). Private people/voice corpus + untrusted WhatsApp messages; read-only harvest. Source of truth: the `trifecta` block in system/manifest.json + [[research/trifecta-map]]. Validator V12 fails the build if this gate stops matching the manifest.
+
+
+## Close-Out Extras (added 2026-09-02, run 2)
+On top of the universal Close-Out list, a harvest run reports:
+1. **Backup freshness proven, not assumed.** `--verify-backup` passed: snapshot `finished`, encrypted,
+   dated today, and the newest message within 48h of the snapshot. Run 2 existed largely because the
+   backup on disk was 54 days stale and a stale snapshot parses perfectly.
+2. **Zero media extracted**, and the number said out loud. Not "media deleted": never created.
+3. **Every audio file deleted in a `finally`**, and the temp dir verified gone.
+4. **Card redaction verified**, not just run: the digest builder re-scans its own output and exits
+   non-zero if any Luhn-valid number survives.
+5. **`_raw/` purged**, with the assertion printed. Digests and transcripts carry other people's
+   verbatim words and never survive the run.
+6. **No verbatim quote of another person's words** reached any people page. Conclusions only.
+7. **Every calendar event was approved by id and read-back verified, with ZERO attendees.** An
+   attendee would send a real invite to a third party and would turn a read-only harvest into
+   outbound comms built from attacker-controllable content.
+8. **Circle tiers were PROPOSED, never written from observation.** The tag comes from Shaheen.
