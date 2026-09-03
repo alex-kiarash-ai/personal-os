@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-02. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-03. -->
 
 # Architecture: how Alex works
 

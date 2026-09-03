@@ -93,7 +93,24 @@ Accessibility is not optional. Use these pairings only:
 
 ### 4.5 Charts and Data Visualization
 
-Order of series colors: `#0a9396`, `#ee9b00`, `#005f73`, `#94d2bd`, `#ca6702`. Reserve the reds for negative values, thresholds, or alerts in the data itself. Gridlines and axes: `#94d2bd` at 20 to 30% opacity on dark, `#001219` at 15% on light.
+**Series colors are per-theme. The two orders below are NOT interchangeable.** A single order cannot serve both canvases: this palette is dark-leaning, so its pale members die on white and its deep members die on Ink Black.
+
+- **Light surfaces** (`#ffffff`, `#fff5e1`): `#0a9396`, `#ee9b00`, `#005f73`, `#94d2bd`, `#ca6702`.
+- **Dark surfaces** (`#001219`, `#00232e`): `#0a9396`, `#ee9b00`, `#94d2bd`, `#e9d8a6`, `#ca6702`.
+
+Series 1 and 2 are Dark Cyan and Golden Orange in both themes on purpose, so the same chart reads as the same family whichever way it is rendered.
+
+**Dark Teal `#005f73` is never a series color on dark.** It measures 2.62:1 on Ink Black and 2.25:1 on the elevated dark face, under the 3:1 floor, so a Dark Teal bar or line is close to invisible against the canvas. On dark it keeps its §4.1 role as a SURFACE color. The dark order drops it and promotes the rest, with Vanilla Custard `#e9d8a6` (13.48:1) taking the fourth slot.
+
+**The floor: every series color clears 3:1 against the canvas it sits on.** That is the WCAG non-text contrast bar for graphical objects, and bars, lines, dots and their legend swatches are graphical objects. Measure it, do not eyeball it. Full measured palette on all four brand surfaces: §4.7.
+
+**Redundancy carve-out.** A series may sit below 3:1 only when its identity is carried by something besides color as well: a label on the series itself, a value label on the bar, a distinct dash pattern, or an unambiguous position. Same principle as the D7 burn-numeral deviation in `brand-config.md`, where color is an enhancement and never the sole carrier of meaning. Below 3:1 with color as the only signal is a defect, not a deviation.
+
+**Reserve the reds for negative values, thresholds, or alerts in the data itself**, and note the reds are theme-dependent too: Oxidized Iron `#ae2012` (2.74:1) and Brown Red `#9b2226` (2.41:1) both fail on Ink Black, and Rusty Spice `#bb3e03` passes on Ink Black at 3.46:1 but fails on the elevated dark face at 2.97:1. On dark, a data alarm takes Rusty Spice on the `#001219` canvas only, or Signal Coral `#ff8a75` (8.31:1) on either dark face.
+
+Gridlines and axes: `#94d2bd` at 20 to 30% opacity on dark, `#001219` at 15% on light.
+
+**Known defect on the LIGHT order, recorded 2026-09-03 and deliberately NOT fixed here.** Golden Orange `#ee9b00` measures 2.25:1 on white and Pearl Aqua `#94d2bd` measures 1.72:1, both under the floor, so light charts currently pass only under the redundancy carve-out above. The candidate repair is Burnt Caramel `#ca6702` (3.85:1) in place of Golden Orange and Ink Black `#001219` (19.08:1) in place of Pearl Aqua. That repaints every existing light chart and changes the accent color a viewer sees, so it is Shaheen's call, not a bug fix. Raised 2026-09-03, awaiting his ruling.
 
 **Approved data-viz exception (2026-07-12, D10):** a network/force graph's own self/"me" node may render pure white `#ffffff` for maximum contrast against the teal node field (the Alex HQ Brain graph does this). This is a single-node legibility choice, not a series color; it does not count against the one-accent rule.
 
@@ -107,6 +124,27 @@ Allowed gradients, use sparingly (hero sections, social covers):
 
 Never blend the teal family directly into the red family in a single gradient.
 
+### 4.7 Measured Contrast Reference
+
+Computed WCAG contrast ratios, generated 2026-09-03. **3:1 is the floor for graphical objects** (chart series, icons, borders); **4.5:1** is the floor for normal text and **3:1** for large text. Regenerate this table if the palette ever changes.
+
+| Colour | Ink Black `#001219` | elev dark `#00232e` | White `#ffffff` | Warm Cream `#fff5e1` |
+|---|---|---|---|---|
+| Ink Black `#001219` | 1.00 | 1.16 | 19.08 | 17.63 |
+| Dark Teal `#005f73` | **2.62** | **2.25** | 7.28 | 6.73 |
+| Dark Cyan `#0a9396` | 5.11 | 4.40 | 3.73 | 3.45 |
+| Pearl Aqua `#94d2bd` | 11.10 | 9.54 | **1.72** | **1.59** |
+| Vanilla Custard `#e9d8a6` | 13.48 | 11.59 | **1.42** | **1.31** |
+| Golden Orange `#ee9b00` | 8.47 | 7.29 | **2.25** | **2.08** |
+| Burnt Caramel `#ca6702` | 4.95 | 4.26 | 3.85 | 3.56 |
+| Rusty Spice `#bb3e03` | 3.46 | **2.97** | 5.52 | 5.10 |
+| Oxidized Iron `#ae2012` | **2.74** | **2.36** | 6.97 | 6.43 |
+| Brown Red `#9b2226` | **2.41** | **2.07** | 7.92 | 7.32 |
+| White `#ffffff` | 19.08 | 16.41 | 1.00 | 1.08 |
+| Signal Coral `#ff8a75` | 8.31 | 7.14 | **2.30** | **2.12** |
+
+Bold = below the 3:1 graphical-object floor on that surface. Read this table before choosing any color for a chart, an icon, or a border, and pick the column that matches the canvas the thing actually sits on. The 2.97 for Rusty Spice on the elevated dark face is the same measurement recorded independently as D7 in `brand-config.md`, which is a useful check that this table and that record agree.
+
 ---
 
 ## 5. Do and Don't Summary
@@ -115,13 +153,14 @@ Never blend the teal family directly into the red family in a single gradient.
 - Keep large areas calm: Ink Black, white, and the teal family carry the brand.
 - Use Golden Orange as the single point of energy per view.
 - Keep the reds for warnings, errors, and genuinely urgent messages.
-- Check contrast before shipping anything with text.
+- Check contrast before shipping anything with text **or any chart series**, measured against the canvas it actually sits on (§4.7).
 
 **Don't**
 - Don't use more than one accent color in the same component.
 - Don't put orange or red text on teal backgrounds.
 - Don't use the red family decoratively (icons, borders, backgrounds "for variety").
 - Don't introduce outside colors without checking Section 6 first.
+- Don't reuse the light-theme series order on a dark canvas, or the reverse. They are different lists for a measured reason (§4.5).
 
 ---
 
@@ -242,5 +281,6 @@ If you remember nothing else, remember this:
 - **Brand:** Dark Teal + Dark Cyan
 - **Soft touch:** Pearl Aqua, Vanilla Custard
 - **Action:** Golden Orange (hover: Burnt Caramel), dark text on it
-- **Alarm only:** the three reds
-- **One accent per view. Contrast always checked.**
+- **Alarm only:** the three reds, and on dark they need substituting (§4.5)
+- **Charts:** series order is per-theme. Dark Teal is never a series color on dark.
+- **One accent per view. Contrast always checked, against the real canvas.**
