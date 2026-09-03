@@ -17,9 +17,14 @@ Three rules this file exists to enforce:
    input by default: four undeleted transcripts per note, which is exactly the leak the
    no-media rule exists to stop.
 
-Language is passed explicitly per chat. Whisper auto-detect on 30 seconds of Levantine
-Arabic is unreliable, and a wrong detect produces fluent, confident, wrong text rather
-than an error, which is the worst failure mode for this job.
+Language handling is ASYMMETRIC, and the asymmetry was learned the hard way. Whisper
+auto-detect on 30 seconds of Levantine Arabic is unreliable, so a non-English language is
+forced when the chat's evidence supports it. English is never forced: the chat's language
+guess comes from Shaheen's outgoing TEXT, and text language is not voice language. He
+texts one family member in English and speaks Arabic with him, and forcing en onto that
+audio produced 14 fluent, confident, entirely wrong transcripts on the first real run.
+A wrong forced language fails silently; auto-detect at least reports what it heard, and
+the run now prints every disagreement between the guess and what Whisper actually heard.
 
 Output is working material. It holds other people's verbatim words and is deleted at
 close-out; only conclusions reach the vault.
@@ -38,7 +43,17 @@ from datetime import datetime, timedelta, timezone
 
 APPLE_EPOCH_OFFSET = 978307200
 
-LANG_MAP = {"ar": "ar", "ar+en": "ar", "sv": "sv", "tr": "tr", "en": "en"}
+# NEVER force "en". The chat's language guess is derived from Shaheen's outgoing TEXT, and
+# text language is not voice language: he texts one family member in English and speaks
+# Arabic with him. Forcing en onto that produced 14 confidently fluent, entirely wrong
+# transcripts on 2026-09-02, with transliterated Arabic ("Fain sa'a fi mahalat maftooh")
+# and outright hallucination ("PAGE LINE PAGE LINE") rendered as English sentences.
+#
+# The asymmetry is the point. Whisper already leans English, so forcing a NON-English
+# language corrects that bias, while forcing English amplifies it and removes the only
+# signal that anything went wrong. Where the evidence says English, pass None and let
+# Whisper detect, then compare `detected_language` against the guess afterwards.
+LANG_MAP = {"ar": "ar", "ar+en": "ar", "sv": "sv", "tr": "tr", "en": None}
 
 
 def log(msg):
@@ -195,6 +210,31 @@ def main():
     log("")
     log("transcribed %d, failed %d, %.0f min of audio in %.0f min"
         % (done, failed, done_s / 60.0, (time.time() - started) / 60.0))
+
+    # Report where Whisper disagreed with the chat's text-derived guess. A disagreement is
+    # not an error, it is the signal that this chat is spoken in a different language than
+    # it is typed in, and those transcripts deserve a second look before anything is
+    # derived from them.
+    try:
+        seen = {}
+        with open(args.out, encoding="utf-8") as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                det = r.get("detected_language")
+                if det:
+                    seen.setdefault((r.get("chat"), r.get("lang"), det), 0)
+                    seen[(r.get("chat"), r.get("lang"), det)] += 1
+        odd = [(c, g, d, n) for (c, g, d), n in seen.items() if g and g != d]
+        if odd:
+            log("")
+            log("LANGUAGE DISAGREEMENTS (guess vs what Whisper heard) - review before use:")
+            for c, g, d, n in sorted(odd, key=lambda x: -x[3]):
+                log("  %-28s guessed %s, heard %s  (%d notes)" % (c[:28], g, d, n))
+    except Exception as exc:
+        log("  (could not summarise languages: %s)" % exc)
+
     log("-> %s" % args.out)
     return 0 if failed == 0 else 1
 
