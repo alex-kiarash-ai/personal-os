@@ -32,7 +32,9 @@ Ink Black `#001219` · Dark Teal `#005f73` · Dark Cyan `#0a9396` · Pearl Aqua 
 - Nice-to-have someday: vector SVG from the original design file.
 
 ## Charts / Data Visualization
-Follow `color-system.md` §4.5 (series order, reds for data alarms only, gridline opacities) and §4.6 (allowed gradients). No local copy here — the duplicate was deleted 2026-07-08 (D9); the law file is the only place these rules live.
+Follow `color-system.md` §4.5 (**per-theme** series order, the 3:1 floor, reds for data alarms only, gridline opacities), §4.6 (allowed gradients) and §4.7 (the measured contrast table: read it before picking any chart color). No local copy here — the duplicate was deleted 2026-07-08 (D9); the law file is the only place these rules live.
+
+**The series order is two lists, not one (amended 2026-09-03).** Dark Teal `#005f73` is never a series color on dark: it measures 2.62:1 on Ink Black, so a Dark Teal bar is close to invisible. Picking the wrong list is the easiest way to ship an unreadable chart.
 
 ## Presentations
 - Build decks with **Claude Design (DesignSync)** on claude.ai/design, then export PDF (standing rule 2026-06-15). NOT .pptx / python-pptx.
