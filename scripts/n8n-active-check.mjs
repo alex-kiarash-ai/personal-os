@@ -49,8 +49,12 @@ import fs from 'node:fs';
 import https from 'node:https';
 import { spawnSync } from 'node:child_process';
 import { paths, manifest, secret, ROOT } from './lib/paths.mjs';
+import { installExitSignal } from './lib/task-signal.mjs';
 
 const DRY = process.argv.includes('--dry-run');
+// C31 dead-man signal (stress-test S-D3, 2026-09-04): emit one on exit so this daily watcher, a
+// zero-token node task that never sourced common.sh, proves it ran; --dry-run is a test and is skipped.
+installExitSignal(ROOT, 'PersonalOS-n8n-active-check', DRY);
 const N8N_BASE = 'https://n8n.shaheenkiarash.com/api/v1';
 
 fs.mkdirSync(paths.logDir(), { recursive: true });

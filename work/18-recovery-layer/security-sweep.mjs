@@ -28,6 +28,7 @@ import path from 'node:path';
 import https from 'node:https';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { installExitSignal } from '../../scripts/lib/task-signal.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -36,6 +37,9 @@ process.chdir(REPO);
 const { sha } = (await import(`${REPO}/scripts/lib/repo-hash.js`)).default;
 
 const DRY = process.argv.includes('--dry-run');
+// C31 dead-man signal (stress-test S-D3, 2026-09-04): emit one on exit so a security-sweep that never
+// ran (the 08-03 crash class) is visible; --dry-run is a test and is skipped.
+installExitSignal(REPO, 'PersonalOS-security-sweep', DRY);
 
 fs.mkdirSync(path.join('outputs', 'logs'), { recursive: true });
 const LOG = path.join(REPO, 'outputs', 'logs', 'security-sweep.log');

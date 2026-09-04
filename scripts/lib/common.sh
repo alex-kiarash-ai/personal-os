@@ -125,7 +125,11 @@ log_init() {
     TMPOUT="$(mktemp "${TMPDIR:-/tmp}/alex-${_alex_job}.XXXXXX")" || die "mktemp failed"
     export TMPOUT
     # shellcheck disable=SC2064  # expand TMPOUT now, on purpose: the trap must know the real path
-    trap "rm -f '$TMPOUT'" EXIT INT TERM
+    # The EXIT trap ALSO emits the C31 dead-man signal (stress-test S-D3), so the zero-token scripts
+    # that never call close_out (vault-backup, git-backup, run-vault-index, auth-check) still prove
+    # they ran. $? is captured FIRST because the rm resets it. A script that overrides this EXIT trap
+    # must call alex_signal_exit itself.
+    trap "_alex_rc=\$?; rm -f '$TMPOUT'; alex_signal_exit \"\$_alex_rc\"" EXIT INT TERM
     # The wrapper's own absolute path, for the Close-Out Gate's retry ladder. PowerShell sniffed it
     # from Get-PSCallStack; bash has no equivalent, so it is captured here once and passed on.
     ALEX_WRAPPER="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -259,6 +263,11 @@ run_with_watchdog() {
 # Deliberately dependency-free and non-fatal: an append that fails must never take down the run it is
 # reporting on, and it must not need node, jq or the network.
 task_signal() {
+    # Idempotent per process (stress-test S-D3, 2026-09-04): both close_out and the log_init EXIT
+    # trap call this, and close_out runs FIRST carrying the accurate determined code, so first-call
+    # wins and the trap's later call with a raw $? is skipped. A script that never reaches close_out
+    # (the zero-token backups, a git-backup that exits on a failed push) still signals via the trap.
+    [ -n "${_ALEX_SIGNALLED:-}" ] && return 0
     _ts_task="${ALEX_TASK_NAME:-${1:-}}"
     _ts_code="${2:-0}"
     [ -n "$_ts_task" ] || return 0
@@ -266,8 +275,15 @@ task_signal() {
     _ts_file="${ALEX_ROOT:-.}/system/task-signals.jsonl"
     _ts_when="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)" || return 0
     printf '{"task":"%s","at":"%s","exit":%s,"wrapper":"%s"}\n'         "$_ts_task" "$_ts_when" "$_ts_code" "${ALEX_WRAPPER:-unknown}" >> "$_ts_file" 2>/dev/null || true
+    _ALEX_SIGNALLED=1
     return 0
 }
+
+# EXIT-trap signal: fire the C31 dead-man signal no matter HOW the script ends - an early exit, an
+# error, or a path that never reaches close_out. log_init installs this on the EXIT trap; a script
+# that sets its OWN EXIT trap (vault-backup, auth-check) must call this from it. Idempotent via
+# task_signal's guard, so close_out's accurate-code call still wins when it runs. (stress-test S-D3.)
+alex_signal_exit() { task_signal "" "${1:-$?}"; }
 
 close_out() {
     _co_project="${1:-}"
