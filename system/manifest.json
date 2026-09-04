@@ -795,7 +795,7 @@
       "title": "Recovery Layer",
       "state": "LIVE",
       "trigger": "Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe",
-      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 24 checks (C1-C25, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db) + the soul-core injection card + the status/backup rotation caps (S1 Compiled Surfaces).",
+      "one_liner": "Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 30 checks (C1-C31, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db) + the soul-core injection card + the status/backup rotation caps (S1 Compiled Surfaces).",
       "docs": "18-recovery-layer.md",
       "schedule_jobs": [
         "PersonalOS-recovery-check",
