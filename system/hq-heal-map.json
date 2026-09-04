@@ -97,6 +97,15 @@
       "enabled": true
     },
     {
+      "id": "n8n-engine-errored",
+      "desc": "a governed n8n job engine whose LAST scheduled run ERRORED (the 2026-08-05 P-02 watcher's finding, e.g. an Anthropic credit block) is a silent production outage during a job hunt - escalate HUMAN_ONLY on the FIRST occurrence, never let it dissolve into the unknown-red catch-all (stress-test S-H1, 2026-09-04, the P-01 route generalized from the identity lane to the pipeline lane)",
+      "probe": "n8n_engine_errored",
+      "risk": "HUMAN_ONLY",
+      "remedy": "no safe auto-fix: 'redeploy/reactivate' is n8n-broken's PROPOSE job; a last-run-error is usually the account out of credit or a suspended key, which needs Shaheen. Check the Anthropic balance and GET /executions/{id}?includeData=true for the failing node",
+      "escalate_fail": "",
+      "enabled": true
+    },
+    {
       "id": "unknown-red",
       "desc": "CATCH-ALL: any project red that no check above claims - never let a red light be silently ignored",
       "probe": "unknown_red",
