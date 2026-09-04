@@ -47,7 +47,7 @@ list_file="$work/include.list"
 # ALWAYS shred the plaintext tar, the decrypted verify copy, the local .gpg and the list - on SIGINT
 # and SIGTERM too, not only a clean exit (the PowerShell `finally` covered only a normal unwind).
 cleanup() { rm -rf "$work"; }
-trap 'cleanup' EXIT INT TERM HUP
+trap '_alex_rc=$?; cleanup; alex_signal_exit "$_alex_rc"' EXIT INT TERM HUP  # signal chains the C31 dead-man switch (stress-test S-D3)
 
 # --- 0. Nightly deterministic aggregates ---------------------------------------------------------
 # All four are BEST-EFFORT and must NEVER block the backup: each output is regenerable, the backup is

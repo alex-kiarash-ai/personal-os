@@ -24,7 +24,7 @@ resolve_claude
 # 1. The auth micro-prompt. Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
 probe_file="$(mktemp "${TMPDIR:-/tmp}/alex-authprobe.XXXXXX")"
 mcp_file="$(mktemp "${TMPDIR:-/tmp}/alex-authmcp.XXXXXX")"
-trap 'rm -f "$TMPOUT" "$probe_file" "$mcp_file"' EXIT INT TERM
+trap '_alex_rc=$?; rm -f "$TMPOUT" "$probe_file" "$mcp_file"; alex_signal_exit "$_alex_rc"' EXIT INT TERM  # signal chains the C31 dead-man switch (stress-test S-D3)
 
 set +e
 "$CLAUDE" --model claude-sonnet-4-6 -p "Reply with exactly: OK" > "$probe_file" 2>&1

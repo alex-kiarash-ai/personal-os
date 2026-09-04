@@ -31,6 +31,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { installExitSignal } from '../../scripts/lib/task-signal.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Derive the repo root from the script's own location. A RECOVERY tool must survive a restore to
@@ -48,6 +49,11 @@ const { liveJobs: systemdJobs, hasSystemd } = await import(libUrl('scripts/lib/g
 
 const INIT = process.argv.includes('--init');
 const DRY = process.argv.includes('--dry-run');
+// C31 dead-man signal (stress-test S-D3, 2026-09-04): this task never sourced common.sh, so C31 red
+// it every week for want of a completion signal. Emit one on exit; a --dry-run/--init is a test, not
+// a real scheduled run, so it is skipped. This run's signal lands AFTER the sweep read the ledger, so
+// recovery-check's own freshness is proven on the NEXT cycle, which is honest and sufficient.
+installExitSignal(REPO, 'PersonalOS-recovery-check', DRY || INIT);
 
 const STATE_DIR = path.join(HERE, 'state');
 fs.mkdirSync(STATE_DIR, { recursive: true });
