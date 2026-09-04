@@ -221,6 +221,15 @@ def probe_stuck_status(summary, entry):
 # morning-brief urgent_count=4 false-positive.)
 SIGNAL_METRICS = {"urgent_count", "act_now", "followups_due"}
 
+# The stable signature the daily n8n watcher (scripts/n8n-active-check.mjs, the 2026-08-05 P-02
+# execution-health leg) and the /application-engine ops-check emit when a governed workflow's LAST
+# scheduled run errored, or when the Anthropic account behind it is out of credit. Deliberately
+# specific to an execution/billing failure so a generic stale tile never matches it. (stress-test
+# S-H1, 2026-09-04.)
+ENGINE_ERROR_SIG = ("last run error", "failed run", "n8n unhealthy", "error cron",
+                    "error crons", "anthropic credit", "credit balance", "insufficient",
+                    "engine errored", "engines errored")
+
 
 def probe_unknown_red(summary, entry, claimed):
     hits = []
@@ -284,6 +293,50 @@ def probe_soul_canary(summary, entry, claimed):
             f"Identity lane - check the injection path and scripts/lib/soul-canary.ps1 before the next run.",
         )
         log("soul-canary-failed", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
+
+
+def probe_n8n_engine_errored(summary, entry, claimed):
+    """A governed n8n job engine whose LAST scheduled run errored is a production outage, and during
+    a job hunt it is silent: the only symptom is 'no new drafts', indistinguishable from a slow market.
+
+    Added 2026-09-04 (stress-test finding S-H1). The 2026-08-05 P-02 execution-health leg made the
+    watcher DETECT this - n8n-active-check exits 1 and even names the cause - but the resulting red
+    carried no dedicated route, so it fell to the `unknown-red` catch-all (PROPOSE, medium) and sat
+    there while #03/#14/#32 produced nothing for ten-plus days on an Anthropic credit block. This is
+    the exact P-01 shape the soul-canary escalation closed for the identity lane, generalized to the
+    pipeline lane.
+
+    Two deliberate differences from every PROPOSE probe, identical to soul_canary's reasoning:
+      - NO age threshold. A dead job pipeline during an active job hunt is worth interrupting for on
+        the first run, not the third (`stuck-red-status` waits 3 days by design; this waits zero).
+      - HUMAN_ONLY, not PROPOSE. Redeploy/reactivate is `n8n-broken`'s job; THIS red is 'the last run
+        ERRORED', whose usual cause (the account out of credit, a suspended key) only a person can
+        clear. Escalating is the whole remedy.
+    Claims its projects so the catch-all does not re-file the same red at lower severity; the heal map
+    orders this BEFORE unknown-red for exactly that reason.
+    """
+    hits = []
+    for name, p in summary.get("projects", {}).items():
+        if name in claimed:
+            continue
+        for m in p.get("metrics", {}).values():
+            if m.get("status") != "red":
+                continue
+            if any(sig in str(m.get("headline", "")).lower() for sig in ENGINE_ERROR_SIG):
+                hits.append((name, str(m.get("headline", ""))))
+                claimed.add(name)
+                break
+    if not hits:
+        return log("n8n-engine-errored", "ok", "no engine last-run-errored reds")
+    for name, headline in hits:
+        escalate(
+            f"n8n-engine-errored-{name}",
+            "high",
+            f"a governed n8n job engine has errored on its last scheduled run ('{name}'): {headline}. "
+            f"The pipeline is producing nothing - check the Anthropic credit balance and the failing "
+            f"node (GET /executions/{{id}}?includeData=true).",
+        )
+        log("n8n-engine-errored", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
 
 
 def probe_identity_views(summary, entry):
@@ -455,6 +508,12 @@ def main():
             # The heal map orders this BEFORE unknown-red for exactly that reason.
             try:
                 probe_soul_canary(summary, entry, claimed)
+            except Exception as e:
+                log(entry["id"], "error", f"probe crashed: {e}")
+        elif pid == "n8n_engine_errored":
+            # Also takes `claimed`, ordered BEFORE unknown-red, same reason as soul_canary.
+            try:
+                probe_n8n_engine_errored(summary, entry, claimed)
             except Exception as e:
                 log(entry["id"], "error", f"probe crashed: {e}")
         elif pid in PROBES:
