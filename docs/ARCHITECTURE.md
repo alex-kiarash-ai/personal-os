@@ -426,7 +426,7 @@ Audit outcome note: n8n's official instance-ai skills (workflow-builder, debuggi
 ## Scheduling
 
 When user asks to schedule: add to scheduler/schedule.md, tell them to run /cron-setup.
-/cron-setup creates local system jobs (**systemd user timers** on this machine; units generated into `systemd/` from scheduler/schedule.md, and `loginctl enable-linger $USER` is mandatory or they never fire). Most jobs run a fresh `claude -p "Run /{command}"` and exit; some are zero-token scripts or remote n8n, not `claude -p` (the recovery checker `check.mjs` Mon 07:30, the git + vault backups 21:30 / 21:45, the health ingest on n8n).
+/cron-setup creates local system jobs. **This machine is Windows: jobs run under Windows Task Scheduler** (`PersonalOS-*`, via PowerShell `Get-ScheduledTask` / `schtasks`; each action is `bash.exe -lc "cd <repo> && bash scripts/<name>.sh"`, rewired 2026-08-28). The generated `systemd/` units are the eventual Linux host's inert target (`loginctl enable-linger` matters only there). Most jobs run a fresh `claude -p "Run /{command}"` and exit; some are zero-token scripts or remote n8n (the recovery checker `check.mjs` Mon 07:30, the git + vault backups 21:30 / 21:45, the health ingest on n8n).
 
 ## Backup & Recovery (live 2026-07-02)
 
