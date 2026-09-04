@@ -41,6 +41,14 @@ const DRY = process.argv.includes('--dry-run');
 // ran (the 08-03 crash class) is visible; --dry-run is a test and is skipped.
 installExitSignal(REPO, 'PersonalOS-security-sweep', DRY);
 
+// Fail loud on an UNCAUGHT crash (stress-test S-D5, 2026-09-04). The in-sweep try/catch below pushes
+// RED on a logic throw, but a crash during setup or in the report section is outside it and would
+// exit silently on HQ until the Monday C31 sweep noticed the missing signal. Push RED immediately so
+// a crash is loud the same day; installExitSignal (above) still records the failure for C31 too.
+function crashRed(e) { try { if (!DRY) hqPush('red', `security sweep CRASHED: ${(e && e.message) || e}`); } catch { /* best-effort */ } console.error(e && e.stack || e); process.exit(1); }
+process.on('uncaughtException', crashRed);
+process.on('unhandledRejection', crashRed);
+
 fs.mkdirSync(path.join('outputs', 'logs'), { recursive: true });
 const LOG = path.join(REPO, 'outputs', 'logs', 'security-sweep.log');
 const say = (m) => {
