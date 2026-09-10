@@ -233,7 +233,14 @@ export function clearQuotaCapped(kind = 'plan', log, reason = 'cleared') {
       q.anthropic_api.reset_date = null;
       cleared = true;
       logLine(log, `quota-state: anthropic_api capped->ok (${reason}) at ${now}`);
-      runNode(['scripts/human-actions.js', 'done', 'cap-raise-console']);
+      // A16-T9 (2026-09-10): the result was discarded, so an automated close that FAILED looked
+      // exactly like one that worked and the item sat open with nobody told. A `done` on an
+      // already-closed item exits 1 by design, which is why the code is not fatal here - but the
+      // two outcomes are now distinguishable in the log, which is the whole point of writing one.
+      const cl = runNode(['scripts/human-actions.js', 'done', 'cap-raise-console']);
+      logLine(log, cl && cl.status === 0
+        ? 'human-actions: closed cap-raise-console'
+        : `human-actions: close of cap-raise-console did not apply (status ${cl ? cl.status : 'n/a'}) - already closed, or the write failed`);
     }
     if (cleared) {
       writeQuotaState(q);

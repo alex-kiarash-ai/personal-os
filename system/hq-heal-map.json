@@ -6,7 +6,8 @@
     "home": "recovery-layer (#18) - the FIX half of the detect-only checker",
     "trigger": "runs as part of every HQ update (after scripts/hq_harvest_push.py), Shaheen 2026-07-21",
     "risk_classes": {
-      "AUTO_SAFE": "deterministic, reversible, no external side-effect (re-ship, re-push, recount) - run automatically, always read-back-verified; escalate if the verify fails, never retry",
+      "AUTO_SAFE_LOCAL": "deterministic, reversible, and entirely LOCAL - no other machine is touched. Run automatically, always read-back verified, one attempt then escalate.",
+      "AUTO_SAFE_REMOTE": "deterministic and reversible, but it MUTATES A LIVE REMOTE (an scp to the box, a POST to the HQ webhook). Run automatically ONLY with a CHECKED read-back; an empty or failed verify ESCALATES rather than reporting healed. Split out of AUTO_SAFE 2026-09-10 (stress-test A16-T6): the single label read 'no external side-effect' while three of its five members reached another machine, so the autonomy boundary the label described was not the one the code observed.",
       "PROPOSE": "a live mutation (workflow redeploy/reactivation, clearing a stuck flag) - queued to human-actions with a diagnosis, NEVER auto-run (Shaheen's autonomy boundary 2026-07-21)",
       "HUMAN_ONLY": "needs Shaheen's hands or credentials (phone HealthKit, OAuth) - queued as his to do"
     },
@@ -17,7 +18,7 @@
       "id": "mcp-count-truth",
       "desc": "stored infra.mcp_tools must equal the live `claude mcp list` connected-server count",
       "probe": "mcp_count",
-      "risk": "AUTO_SAFE",
+      "risk": "AUTO_SAFE_REMOTE",
       "remedy": "re-derive via hq_infra_harvest and re-push the mcp event",
       "escalate_fail": "MCP count re-pushed but the summary still disagrees - the ingest webhook or summary API may be down",
       "enabled": true
@@ -26,7 +27,7 @@
       "id": "box-data-fresh",
       "desc": "the 5 channel-B JSONs on the box (/opt/alex-hq-data) must be fresh (mtime within 15 min of a harvest)",
       "probe": "box_fresh",
-      "risk": "AUTO_SAFE",
+      "risk": "AUTO_SAFE_REMOTE",
       "remedy": "re-scp the locally-built JSONs and re-verify each box mtime",
       "escalate_fail": "box data files still stale after re-scp - SSH to the box is failing (key/agent) or the box is down",
       "enabled": true
@@ -44,7 +45,7 @@
       "id": "quota-stale-cap",
       "desc": "quota.anthropic_api red but system/quota-state.json says the cap is ok = a stale flag no early-reset path cleared (the 07-13 class). Ground truth is the state file, so this is auto-clearable.",
       "probe": "quota_stale",
-      "risk": "AUTO_SAFE",
+      "risk": "AUTO_SAFE_REMOTE",
       "remedy": "push a truthful corrective green + verify (only when quota-state.json state==ok; a real cap is left red)",
       "escalate_fail": "quota red won't clear despite quota-state.json ok - ingest issue",
       "enabled": true
@@ -71,7 +72,7 @@
       "id": "identity-doc-views",
       "desc": "the two identity docs must remain ONE file object each: real files in meta.paths.identity_doc_real_dir, every legacy location a directory junction into it",
       "probe": "identity_views",
-      "risk": "AUTO_SAFE",
+      "risk": "AUTO_SAFE_LOCAL",
       "needs_summary": false,
       "remedy": "re-create a missing or EMPTIED view (link only, never document bytes), then read-back verify os.path.samefile",
       "escalate_fail": "the view could not be re-linked and verified, or a real file with unknown bytes now sits at the view path (never overwritten - a human may have edited the wrong location)",
@@ -90,7 +91,7 @@
       "id": "soul-core-stale",
       "desc": "soul-core.md (the identity injection card since the 2026-08-16 @-import swap) missing, stamp unparseable, or stamp sha != sha256(soul.md) - sessions are fed a stale identity slice or the truncated fallback",
       "probe": "soul_core_stale",
-      "risk": "AUTO_SAFE",
+      "risk": "AUTO_SAFE_LOCAL",
       "needs_summary": false,
       "remedy": "rebuild once via `node scripts/lib/build-soul-core.js --force` (write-locked, atomic, refuse-below-floor), then read-back verify the stamp equals the live soul.md sha; one attempt, escalate on verify-fail, never retry",
       "escalate_fail": "Likely the builder's floor refused (soul.md structure broke: missing operative heading / canary / too few entries) or the write-lock is wedged - run `node scripts/lib/build-soul-core.js --force` by hand and read its error; check outputs/logs/vault-index.log",
