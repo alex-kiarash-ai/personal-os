@@ -1033,21 +1033,38 @@ try {
     const today = fmt(now()).slice(0, 10);
     const hookProbes = [
       { name: 'UserPromptSubmit/recall-inject', p: path.join('system', 'recall', 'recall-metrics.jsonl'), days: 3 },
-      { name: 'UserPromptSubmit/capture-typed', p: path.join('outputs', 'typed', 'transcripts', `${today}.md`), days: 3, todayOnly: true },
+      // A04-T14 (2026-09-10): this probed TODAY's transcript by name and, when it was absent, took
+      // the `todayOnly` silent skip. But the day a dead hook is dead is exactly a day with no
+      // today-file, so the probe could only ever be silent about the failure it exists to catch. It
+      // now reads the NEWEST transcript in the directory and ages that, which is the question worth
+      // asking: when did this hook last write anything at all?
+      { name: 'UserPromptSubmit/capture-typed', p: path.join('outputs', 'typed', 'transcripts'), days: 3, newestIn: /^\d{4}-\d{2}-\d{2}\.md$/ },
       { name: 'PreCompact|SessionEnd|ToolFail', p: path.join('system', 'lifecycle.jsonl'), days: 14 },
     ];
     for (const hp of hookProbes) {
-      const hpFull = path.join(REPO, hp.p);
-      if (!exists(hpFull)) {
-        // Never-fired: state it as such. For the per-day transcript this is normal on a quiet day.
-        if (!hp.todayOnly) {
-          addDrift('hook-liveness', `${hp.name}: no evidence file yet at ${hp.p} - NEVER FIRED (not stale). Expected once the hook runs for the first time; if it stays empty past a few sessions the wiring in .claude/settings.json is dead.`);
+      let hpFull = path.join(REPO, hp.p);
+      let shownPath = hp.p;
+      if (hp.newestIn) {
+        // Directory probe: age the NEWEST matching file, so "the hook stopped writing" is visible
+        // rather than indistinguishable from "today was quiet".
+        if (!exists(hpFull)) {
+          addDrift('hook-liveness', `${hp.name}: the evidence directory ${hp.p} does not exist - NEVER FIRED (not stale). Check the wiring in .claude/settings.json.`);
+          continue;
         }
+        const names = fs.readdirSync(hpFull).filter((f) => hp.newestIn.test(f)).sort();
+        if (!names.length) {
+          addDrift('hook-liveness', `${hp.name}: ${hp.p} exists but holds no transcript at all - NEVER FIRED (not stale).`);
+          continue;
+        }
+        shownPath = path.join(hp.p, names[names.length - 1]);
+        hpFull = path.join(REPO, shownPath);
+      } else if (!exists(hpFull)) {
+        addDrift('hook-liveness', `${hp.name}: no evidence file yet at ${hp.p} - NEVER FIRED (not stale). Expected once the hook runs for the first time; if it stays empty past a few sessions the wiring in .claude/settings.json is dead.`);
         continue;
       }
       const ageDays = days(now() - fs.statSync(hpFull).mtime);
       if (ageDays > hp.days) {
-        addDrift('hook-liveness', `${hp.name}: last evidence ${Math.round(ageDays * 10) / 10}d ago in ${hp.p}, window is ${hp.days}d - the hook went QUIET. Check .claude/settings.json wiring and the script's own log.`);
+        addDrift('hook-liveness', `${hp.name}: last evidence ${Math.round(ageDays * 10) / 10}d ago in ${shownPath}, window is ${hp.days}d - the hook went QUIET. Check .claude/settings.json wiring and the script's own log.`);
       }
     }
   }
@@ -1179,6 +1196,27 @@ try {
         addDrift('task-signals', `system/task-signals.jsonl carries ${badLines} unparseable line(s). The ledger is append-only with exactly one writer role, so a malformed line means a partial write or a second writer.`);
       }
       const nowMs = now().getTime();
+      // A05-T6 (2026-09-10): a signal naming a task the registry does not carry means someone or
+      // something wrote to a ledger this check treats as ground truth. Two `PersonalOS-STRESSTEST-*`
+      // rows from the 2026-09-04 audit are the live proof. The rows are NOT deleted - this repo
+      // baselines history rather than rewriting it to satisfy a checker (the C26 ruling), and they
+      // are inert because C31 asks about registered tasks and never about these. What was missing was
+      // any way to notice a NEW one, so the window is 7 days: recent means someone is writing now.
+      {
+        const regNames = new Set((reg.tasks || []).map((t) => t && t.name).filter(Boolean));
+        const recentCutoff = nowMs - 7 * 24 * 3600000;
+        const strays = new Map();
+        for (const sg of signals) {
+          const nm = String(sg.task || '');
+          if (!nm || regNames.has(nm)) continue;
+          const w = Date.parse(sg.at || sg.when || '');
+          if (Number.isNaN(w) || w < recentCutoff) continue;
+          strays.set(nm, Math.max(strays.get(nm) || 0, w));
+        }
+        for (const [nm, w] of strays) {
+          addDrift('task-signals', `signal ledger carries a row for '${nm}', which is NOT in system/task-registry.json, written ${Math.round(days(nowMs - w) * 10) / 10}d ago. Either the task is real and unregistered (so nothing watches it for silence), or something is writing test rows into the ledger C31 trusts.`);
+        }
+      }
       let missing = 0, wentWrong = 0, green = 0;
       for (const t of regTasks) {
         const windowH = Number(t.interval_hours || 24) + Number(t.grace_hours || 4);
