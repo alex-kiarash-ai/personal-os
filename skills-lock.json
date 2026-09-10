@@ -1,37 +1,40 @@
 {
   "version": 2,
-  "lockSemantic": "computedHash = sha256 of the INSTALLED skill file at .agents/skills/<name>/SKILL.md (hash-of-installed-disk). Re-baselined 2026-07-17 (three-plan validation P0a/S7-step-1): the prior v1 hashes were hash-at-fetch-of-source and had drifted from installed content for 22/31 skills - the drift traced cleanly to the install mechanism (npx-installed/description-curated skills drifted; raw-fetch DATA installs still matched), content-reviewed script-free markdown, not tampering. skillPath fields are the HISTORICAL source-repo-relative paths the skill was fetched from; they do NOT resolve on disk and are provenance only. Recovery check S7 (WS-A security sweep) recomputes this hash against installed content. Since 2026-08-05 (enterprise-assessment idea 4) auto-installs also carry sourceCommit = the exact upstream commit SHA the audit ran against and the post-install byte-verify held the installed copy to, plus installedAt; entries installed before that date have no sourceCommit (their provenance is hash-only, by history).",
-  "rebaselined": "2026-07-17",
+  "lockSemantic": "computedHash = sha256 of the INSTALLED skill file at .agents/skills/<name>/SKILL.md (hash-of-installed-disk). Re-baselined 2026-07-17 (three-plan validation P0a/S7-step-1): the prior v1 hashes were hash-at-fetch-of-source and had drifted from installed content for 22/31 skills - the drift traced cleanly to the install mechanism (npx-installed/description-curated skills drifted; raw-fetch DATA installs still matched), content-reviewed script-free markdown, not tampering. skillPath fields are the HISTORICAL source-repo-relative paths the skill was fetched from; they do NOT resolve on disk and are provenance only. Recovery check S7 (WS-A security sweep) recomputes this hash against installed content. Since 2026-08-05 (enterprise-assessment idea 4) auto-installs also carry sourceCommit = the exact upstream commit SHA the audit ran against and the post-install byte-verify held the installed copy to, plus installedAt; entries installed before that date have no sourceCommit (their provenance is hash-only, by history). RE-HASHED 2026-09-10 (stress-test A12-T2): the tree moved from CRLF to LF on 2026-08-05 (909665f) and 57 of 85 digests were CRLF-era, so the baseline could not tell an edit from line-ending drift; every computedHash is now sha256 of the installed file bytes AS THEY ARE on the LF tree (the same sha() S7 uses), and entries that moved carry rehashedAt.",
+  "rebaselined": "2026-07-17; 2026-09-10 rehash (LF tree, A12-T2)",
   "skills": {
     "ab-testing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/ab-testing/SKILL.md",
-      "computedHash": "d60e41696796025443fe00caedff26732a71a3b3a1199d122f1f6ab9da98f514",
+      "computedHash": "1fd229160f6014f3f2d7c92cc7d2f991fbf8dc9ed68aac9793c71b408a6d1144",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.758Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "ad-creative": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/ad-creative/SKILL.md",
-      "computedHash": "acf1e7c39ed068afc176c36ceb5e16b55f026b4c0f37cd30826e310a6e357c96",
+      "computedHash": "e874d7bde2f55a5f0687c938ea9d3c1f210a73ff948d58ba3ee0e08631587702",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.758Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "ads": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/ads/SKILL.md",
-      "computedHash": "1917f0253a9d9b1b32c705c24ff6e09e5ea2ac12df09ec4821dc6b80394e7395",
+      "computedHash": "8be65c0dfa275bb42f238530e7ba4efe9a9d45bee74eaac02f0f2a644a8f1857",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.759Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "agent-development": {
       "source": "anthropics/claude-code",
@@ -54,29 +57,32 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/ai-seo/SKILL.md",
-      "computedHash": "bd7177b68fa3ed8fb16d3b676820a0a433faaa9474536b1eadad179553f60a69",
+      "computedHash": "009333fb0cd44942caf83ae95a1acee24b1bfbb15eca14107b243106e3f32322",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "analytics": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/analytics/SKILL.md",
-      "computedHash": "5674199dfb5f0897aef81fd333e727f8cd9ae4a6757defe133a135c0790037cf",
+      "computedHash": "16aab197f87bf6e2599d179061f1947d96acafe0a340837432d8ab96d2f8c55a",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.760Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "aso": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/aso/SKILL.md",
-      "computedHash": "0af2a8b30637f2693e7f790be64754021b6fa387f075afffb97787b1c61c1b3f",
+      "computedHash": "158f42a00846d9e4bb2a27c0ecf8c10745891a45916dc3de9127a124c0a6dcfc",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.761Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "career-changer-translator": {
       "source": "davila7/claude-code-templates",
@@ -90,91 +96,100 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/churn-prevention/SKILL.md",
-      "computedHash": "68c9b49e1b3e2c437ae1eb7d960c4594fe7f2895b77f7f093c2a8f14af27eeeb",
+      "computedHash": "88fd25b77e44ef3689d68d54091df9659a40f5e905c8bdeb09bdeed3f049ad67",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.762Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "co-marketing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/co-marketing/SKILL.md",
-      "computedHash": "2fb7b6115981b6cb8231e382e3cfaf9045e11747df26629b25e7cc74f48f70e8",
+      "computedHash": "893a3115b2e07abd5fa99568de6eb168a086db044cf44f4ba29e96ec324cbd74",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.762Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "cold-email": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/cold-email/SKILL.md",
-      "computedHash": "585e65516e05e5fe228e206466cc08480b6d45c701fbdf18be4359582edc7024",
+      "computedHash": "b7f8d793169a5111c857e5720c6b80028686cc95d5a0d0d6570957c2710aff9e",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.763Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "community-marketing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/community-marketing/SKILL.md",
-      "computedHash": "06bcc8bfe293b7db7edb9b1702059a5b9a34655b4dbbad2c52a3e934c6a8c805",
+      "computedHash": "edd8060b63820e620a0612af0a280cf3ee68d3eab80684932257205c8327d971",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.764Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "competitor-profiling": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/competitor-profiling/SKILL.md",
-      "computedHash": "0a94a59423affbe196e15d1f995a130f53ed8b7e4a5dd27a1dcdb4f295c5db5b",
+      "computedHash": "ea7b5b7feb79ead8df038653c33aae96d38890784018a2b0afae9b2a1e21b3af",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.765Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "competitors": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/competitors/SKILL.md",
-      "computedHash": "76939d5a48e64ef872c591b9dde8ca0fcd591eea2e0304a2195265cdedd49a16",
+      "computedHash": "99e9ea715b1ac6dbaedda345a27358fb5e099f7d4fd5be63789d6e65cf2a6f46",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.765Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "content-strategy": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/content-strategy/SKILL.md",
-      "computedHash": "b55ddc71f39626091b6025438b4bc2e2a1f9c7fd4beea415d00a4aba9463278d",
+      "computedHash": "0611532b2a0dce8d0d5b783c99bba10d13a6d5fd7eecd829974012f74ea33258",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.766Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "copy-editing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/copy-editing/SKILL.md",
-      "computedHash": "3d64c76f6b23e9b624a724234de78259b5cffdb3e375513a52baf5f3cc502533",
+      "computedHash": "9b5a20be3dc5513c8f0b4f4c4960857e4d28ed83698a5b33c8dde9dc75a47bf6",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.767Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "copywriting": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/copywriting/SKILL.md",
-      "computedHash": "37909bbc83d050fb8375e5b1df96725b6f7c7c3b6163d278c849fd58cac073b6",
+      "computedHash": "ecdaabca28863d1472f79ba637842fdf4ac2fd9acc92b215ab7f152e757b2a33",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.767Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "cover-letter-generator": {
       "source": "davila7/claude-code-templates",
@@ -204,21 +219,23 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/cro/SKILL.md",
-      "computedHash": "fb4f8601c3c723b3167a21bd2a7ce7d4b6530f39fc28cc9f1e09d56530c9c5ce",
+      "computedHash": "199016bec3b44bc6a7507b111b6028f6550cc852cd54c7d0df789f15d6f814c4",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.768Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "customer-research": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/customer-research/SKILL.md",
-      "computedHash": "1b50c866840071c0c43253077d084fc8cc4306a7feff85662251dc42b2e4664f",
+      "computedHash": "f44c116c46904bba256604f62e97048c2872f389a963843254129cc511cdf1ff",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.769Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "defuddle": {
       "source": "kepano/obsidian-skills",
@@ -240,21 +257,23 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/directory-submissions/SKILL.md",
-      "computedHash": "c92a79c5ee332f7902e6deda0ca81c7cda5538ff97fb4bb8a470be66e839370a",
+      "computedHash": "dd08854f5cd1e16413dd588b13e02a32ce01dd3a9f4e9b1099f92a7b635ac24a",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.770Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "emails": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/emails/SKILL.md",
-      "computedHash": "9b7c554a4d5bc11143172ab0720625737c21ab036ea83b6b4fe5ed44a3d54cd8",
+      "computedHash": "1fbd54df4c59f48408057e7db0dfb1a53c033e6a4ca5cd1927a47c51ec28d8f1",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.771Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "excalidraw-diagram": {
       "source": "breferrari/obsidian-mind",
@@ -268,21 +287,23 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/free-tools/SKILL.md",
-      "computedHash": "b742b42fe1ebac2cfa5a237a691925857fe21a5d255eea161842bc9786100c6c",
+      "computedHash": "76dc4535041899581cfea32a77094ed19dda5de718e9345caf1f236356f9a6b7",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.771Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "image": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/image/SKILL.md",
-      "computedHash": "9bd0e962508d134fab19c48d34dfec132e2d1b3e88089352f3581dae9d9c090d",
+      "computedHash": "c34b67e249e558410ee960043d0de3c1d188dc3b6ba36d7714c16ec6f1fad46e",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.772Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "image-manipulation-image-magick": {
       "source": "github/awesome-copilot",
@@ -328,21 +349,23 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/launch/SKILL.md",
-      "computedHash": "4302e77b9fc68a3a52ec6198a529d09dd6f05b0de50e6f20b275083fcfdabcea",
+      "computedHash": "6d8bbd61449c48c458b20457c0b698386fe808e7063a7baadc197fc179bd94bb",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.772Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "lead-magnets": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/lead-magnets/SKILL.md",
-      "computedHash": "23d32e25ab1a3360a9a5c001b846c055b3011f881753e9843b02eefffae80701",
+      "computedHash": "bfb1e260e56fb11611bfac94236e7ebf79433e3350012ecce2379eef0af25af8",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.773Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "linkedin-profile-optimizer": {
       "source": "davila7/claude-code-templates",
@@ -356,51 +379,56 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/marketing-council/SKILL.md",
-      "computedHash": "2526dd62e5ea6e6bf71ad8992c09747daac3f93657c65db92a03ca0fff7cf9c5",
+      "computedHash": "0b94358427c344e1f5f50169770cce44e0b065ec8b05fc887a800daed008ac31",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.773Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "marketing-ideas": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/marketing-ideas/SKILL.md",
-      "computedHash": "6fbfc72b1d7a31e0f38e22ca23e43797fb1899442676517e01eab8ffe0311543",
+      "computedHash": "7fe1f79d008129c359f28ec733837693567a11f54bd578e1fd0d178ac69bbb8d",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.774Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "marketing-loops": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/marketing-loops/SKILL.md",
-      "computedHash": "a7497254dad220c2226e652b8a75241880e3804274f40239f2d022d43c13b9a9",
+      "computedHash": "db4ba419ee74c7ef4c6dacffdf92fa4038e720640a4b4b95e8766ad9ff269898",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.774Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "marketing-plan": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/marketing-plan/SKILL.md",
-      "computedHash": "89e3e2e321377aab667a9d1113e01b7c93c3eccc57323fc72a2619bbad3648e3",
+      "computedHash": "548e1bd8f31fdef3ffb8edf4f3218a8162b4ac2f04b639affe547bee6dd0cba0",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.775Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "marketing-psychology": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/marketing-psychology/SKILL.md",
-      "computedHash": "f02e4fe8370d629d914032f5f8a3a988e2825e5bdae08215cf08cfb4ff07de73",
+      "computedHash": "573bbe4f6e300e7fb75299e314f56e26382d284782caa2ae0e0f33eb2e646548",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.776Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "mermaid-visualizer": {
       "source": "breferrari/obsidian-mind",
@@ -421,9 +449,10 @@
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-code-javascript/SKILL.md",
-      "computedHash": "70062dd63cd3f9672c0393154a01c2dfff389e560a77c6468a6801e87cdb37ad",
+      "computedHash": "fba689826dd62fee2f7f18ea4deef7bf005953313d12196d8dfaf93f493effb0",
       "sourceCommitBackfilled": "02965226846ad6aca0fdead94765db3cad1fca95",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "n8n-mcp-tools-expert": {
       "source": "czlonkowski/n8n-skills",
@@ -437,25 +466,28 @@
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-node-configuration/SKILL.md",
-      "computedHash": "305d90ad5a8c6e22fa20bcdfc4fac5fed43e1aca24ea066534ccd63c70a54739",
+      "computedHash": "7f851b91dca19a0e0ea32c74499db22cb43507f2fe95e195bdecf77bcf00ba20",
       "sourceCommitBackfilled": "02965226846ad6aca0fdead94765db3cad1fca95",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "n8n-validation-expert": {
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-validation-expert/SKILL.md",
-      "computedHash": "52322ec67be8f1bc415ba4f95cd940befd882221e8b1168fa94762f394187d53",
+      "computedHash": "a0cb1ea68087bf4ed9134acbffb077a7e55841ea3059ac1e76410aa27074845e",
       "sourceCommitBackfilled": "02965226846ad6aca0fdead94765db3cad1fca95",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "n8n-workflow-patterns": {
       "source": "czlonkowski/n8n-skills",
       "sourceType": "github",
       "skillPath": "skills/n8n-workflow-patterns/SKILL.md",
-      "computedHash": "85dee5bf1dc32c6fd3d65faac433714dd0b9919ec0d36c0359c2716b709a22d2",
+      "computedHash": "10ad2eee8d602f187f7cba11eaf532171ef5845c8e9b0ac1cc91b0784cd111ed",
       "sourceCommitBackfilled": "02965226846ad6aca0fdead94765db3cad1fca95",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "no-ai-slop": {
       "source": "petergyang/no-ai-slop",
@@ -469,73 +501,81 @@
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
       "skillPath": "skills/obsidian-bases/SKILL.md",
-      "computedHash": "83bc04a2c306a61c216c0cfecbb4d032cc763896623d229cd2a6dab811083032",
+      "computedHash": "c0037f20926c7d8591cdd040365e4c0e4c0c4146386a506f28f241faee9a27d9",
       "sourceCommitBackfilled": "a1dc48e68138490d522c04cbf5822214c6eb1202",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "obsidian-cli": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
       "skillPath": "skills/obsidian-cli/SKILL.md",
-      "computedHash": "b4d398c64e086d84cfd51bed896b9bdc243a5fd8a9ea2815a261cd9cb4da3155",
+      "computedHash": "b54257cdc0e5d04488b35b0c797bfe427b24359f0848d3c73924dcacf8da6358",
       "sourceCommitBackfilled": "a1dc48e68138490d522c04cbf5822214c6eb1202",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "obsidian-markdown": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
       "skillPath": "skills/obsidian-markdown/SKILL.md",
-      "computedHash": "ef409b7eeda59e2e0c5cdead334dcc997dc9459d689859b3a610ffa9af5cabc5",
+      "computedHash": "7ad72e1f0a9081ed325e76b6402ad5de50a00e63e2341fd403a92f147234a007",
       "sourceCommitBackfilled": "a1dc48e68138490d522c04cbf5822214c6eb1202",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "offers": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/offers/SKILL.md",
-      "computedHash": "953b1edfc506d2ea2f8a295ef87d036be80250688ee5dbeb8d5d2711d1982a8e",
+      "computedHash": "cdc291bdf93b9ce135c39f034283acaee136b453239b7fe712823fae4f2d5a12",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.777Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "onboarding": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/onboarding/SKILL.md",
-      "computedHash": "c0b8f0408af98fb8fae3eaf6b57e01e5f88376de323981b8061e5c1389e7c91a",
+      "computedHash": "15a802ffb73828730aba90b740426fbb8d2070721ee92d6f8737de4704e8ff0f",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.777Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "paywalls": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/paywalls/SKILL.md",
-      "computedHash": "808811e6693cc271e42e0f2da67b9a409b0846b2d36766700e5ccdbf77905d45",
+      "computedHash": "d062c03f6b99e76ffaa367a1494ba80098b2033d4d74609b895373a024a8eac1",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.778Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "pdf": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/pdf/SKILL.md",
-      "computedHash": "067401220db5745f719ff8c048d545d5edc8545e809668a3a6f9e2892fa51d48",
+      "computedHash": "9f78b8359fbd4943ad260a7a1e436e5a96503406d6c34e99f69223d647d85b9c",
       "sourceCommitBackfilled": "3b3fad96af16a10759d930941b4520ba0c40edae",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "popups": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/popups/SKILL.md",
-      "computedHash": "9bc16b9e894501061848f10f9ec5924d1d38b9330e0e91a006c2ee2ac5c97f83",
+      "computedHash": "6c66e7f923c1eebc7eb7b94971af2e8016d3b5316e14bb1ad4b15ed3522084ce",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.779Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "power-bi-dax-optimization": {
       "source": "github/awesome-copilot",
@@ -565,61 +605,67 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/pricing/SKILL.md",
-      "computedHash": "bc46c9e0f541f3aafa074c587fe063c4f7d92b5778d1a74e9e76ae0ba8db3835",
+      "computedHash": "a5d1cfe49b80569089b3d80f29b92075cf7554cef7e3cf618ef705a348a133f0",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.779Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "product-marketing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/product-marketing/SKILL.md",
-      "computedHash": "75bbf1e4a8803417ffd51c33c718e6831d2b6e35732c6861cd18c74a8512c4da",
+      "computedHash": "6dfd6bd485f62448385844cb9eceefcee0977c843d7a1c9e6077590d4e19d1ec",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.780Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "programmatic-seo": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/programmatic-seo/SKILL.md",
-      "computedHash": "cb1ecdd172e583ed7e7960214c46330cef2e4c5f99e6386487117353fae90e67",
+      "computedHash": "15cb5979cab5263ede902a830e03342869256ece17905bff240eef498e27cde1",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.780Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "prospecting": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/prospecting/SKILL.md",
-      "computedHash": "80ef6f90042bacd0df9380bfc229b2276adf9a230c6b1c1c4ec16ce145208d5b",
+      "computedHash": "beabb53a99b4df893216c18ba84198d7f2622cc83ef35043c09b218840498356",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.780Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "public-relations": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/public-relations/SKILL.md",
-      "computedHash": "9be96ab81d641d752fb8a0336a8a74a91eeb9fcb3797e15b6c67fbf2eba2efcc",
+      "computedHash": "d1aeff136f23e2bf3296d11e86d51abedfd08996fc8bf0c1637dd96faaa693a4",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.781Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "referrals": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/referrals/SKILL.md",
-      "computedHash": "f524892679cf44b9dc928adc492c71f3914afb3d6f6f42a93c510ceca1c9c6fe",
+      "computedHash": "4ddd01713b7ef3c3fb669fd3bb9a720641ee8db8b9ac327c35d6be3548a7f777",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.782Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "resume-ats-optimizer": {
       "source": "davila7/claude-code-templates",
@@ -657,67 +703,74 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/revops/SKILL.md",
-      "computedHash": "5830d8c38bf54d71c0c0c8c5245af4faf722902528f0574650472a7d67a10dfa",
+      "computedHash": "bb27b16ad41c5c2d4fea14c12359c6a01fc755f2bb91140f0c2c43b05b3adb10",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.782Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "sales-enablement": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/sales-enablement/SKILL.md",
-      "computedHash": "7a868080a7911b0203650636794cb09cc81bcf7d59bed8dfc642a30dbb0512de",
+      "computedHash": "d83c3244dd8e2e64d585f1ff0d760eff181587f06b90ceaf8127a4ce618265dd",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.783Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "schema": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/schema/SKILL.md",
-      "computedHash": "f60de349e7a96a9f8be0c41d8aa3120bd0b17e1dba40908f140b9bd729b58edd",
+      "computedHash": "d8b7aa7bcd9727a87fb5470a6c9ee252b99a7ccb84f637d7c67c5d155b507e0b",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.783Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "seo-audit": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/seo-audit/SKILL.md",
-      "computedHash": "95d8939d05f9c4ce49367d11cd83b76f138e34cd9faad477dc092de8427d9148",
+      "computedHash": "3b03a2e07578e9964acac0b6907ae343a904c6547bfefe779ba326db5eedd1cb",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "signup": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/signup/SKILL.md",
-      "computedHash": "4fa31542650bf1de2e7fcf2e9a028c7b2af845c96d0316342079537905b2bd54",
+      "computedHash": "9395aabae64891ebdac5f31d17c83b9d47546dc0c9b22654c7b89e9b04da7cf6",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.784Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "site-architecture": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/site-architecture/SKILL.md",
-      "computedHash": "e04808dc4d2b3cd20640de970ca21e8c337637522620e6a257a5938c8d15b0a4",
+      "computedHash": "a47f693c6a4f45db89276d8c341b3aa3054090cc8002dd4a2635448d7d152492",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.784Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/skill-creator/SKILL.md",
-      "computedHash": "e030e7685e26283b4a76f5202aa3ae8516fb41dde799be5ae8ea6393ec009fe9",
+      "computedHash": "dcd4803e61e913e6fc27294184cd3a71f09f5e924ff20c8a9a20173e7b3c2bcf",
       "sourceCommitBackfilled": "3b3fad96af16a10759d930941b4520ba0c40edae",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "skill-development": {
       "source": "anthropics/claude-code",
@@ -731,21 +784,23 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/sms/SKILL.md",
-      "computedHash": "7092f3767a56d6e1a5e8211d27c693e9e4034a9e98a24ec065d3cbb111fd4d32",
+      "computedHash": "bf649cfac0e3851f28b4746dc0dccb51c7526935b64cae7dd237b1b948c58842",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.785Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "social": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/social/SKILL.md",
-      "computedHash": "5b4db173f8c1fc6d2b1fd7de361f1372f96be7494701e20fe47f28a6fb0bd9dc",
+      "computedHash": "8cc93d9b361622cdb640e87969747b85603bed2d268e923179f8dfb4799ec8c7",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.785Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "systematic-debugging": {
       "source": "obra/superpowers",
@@ -759,19 +814,21 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/video/SKILL.md",
-      "computedHash": "73b777faa3bf2d5eb8dd218df02681881560e46c5355863cd4b93b752b8ebffb",
+      "computedHash": "3b6d4864bae49dd3d60e7f6218e0de0803633989d68bdcf093a3771307387ac2",
       "parked": true,
       "parkedAt": "2026-08-16T10:53:02.786Z",
       "sourceCommitBackfilled": "3df87f97621e18fbed7f6aa684edba54f49779a7",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "webapp-testing": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/webapp-testing/SKILL.md",
-      "computedHash": "8bc27790f6e6dfc2bfa6692326d4518baacf6a31dcc646d963c729adad2f7e34",
+      "computedHash": "51b7349e77ec63b7744a6f63647e7566a0b4d2e301121cc10e8c2113af6556a2",
       "sourceCommitBackfilled": "3b3fad96af16a10759d930941b4520ba0c40edae",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "rehashedAt": "2026-09-10T02:55:00Z"
     }
   }
 }
