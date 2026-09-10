@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // security-sweep.mjs - P5 (three-plan validation, 2026-07-17). Alex's monthly, zero-token,
-// detect-never-repair SECURITY conscience, a sibling of check.mjs. Eleven assertions (S1-S11; S10 added
+// detect-never-repair SECURITY conscience, a sibling of check.mjs. Thirteen assertions (S1-S13; S10 added
 // 2026-09-10 after stress-test A09-T25 found the HQ dashboard snapshot public on a Vercel URL).
 // Ported from security-sweep.ps1 (bash migration Phase 5, 2026-08-05).
 //
@@ -518,6 +518,47 @@ try {
       }
     }
   }
+
+  // --- S13 no known personal-data commit is reachable from main (A06-T2 / S-F2, 2026-09-10) --------
+  // The repo's own rule: personal data off GitHub needs a history PURGE, not a follow-up edit. The
+  // follow-up edit is what happened (78e72db), so every branch TIP reads clean and the only trace
+  // lives in an ancestor commit - which nothing looks at, because personal-data-scan.js reads the
+  // working tree. Merging a carrier branch into main would make a private name permanent history on
+  // a public repo, silently. On 2026-09-10 FOUR remote branches carried the commit (the 09-09 audit
+  // found two) and so did the active fix branch, so the spread grows on its own as branches are cut.
+  //
+  // The carrier list is gitignored (system/history-purge-pending.json): a public file saying "this
+  // commit holds a private name" is a signpost to the thing it protects.
+  {
+    const pend = readJson(path.join('system', 'history-purge-pending.json'));
+    if (!pend || !Array.isArray(pend.commits)) {
+      say('S13 history purge: no pending list (system/history-purge-pending.json absent) - nothing to assert');
+    } else if (!pend.commits.length) {
+      say('S13 history purge: list present and empty - no known personal-data commit outstanding');
+    } else {
+      for (const c of pend.commits) {
+        const sha = String(c.sha || '').trim();
+        if (!sha) continue;
+        const known = spawnSync('git', ['cat-file', '-e', `${sha}^{commit}`], { cwd: REPO, encoding: 'utf8' });
+        if (known.status !== 0) {
+          say(`S13 history purge: ${sha} is not in this clone (purged, or the clone predates it) - not asserted`);
+          continue;
+        }
+        let onMain = 0;
+        for (const ref of ['origin/main', 'main']) {
+          const has = spawnSync('git', ['merge-base', '--is-ancestor', sha, ref], { cwd: REPO, encoding: 'utf8' });
+          if (has.status === 0) {
+            onMain++;
+            addFinding('FINDING', 'S13', `commit ${sha} (${c.what || 'known personal data'}) is an ANCESTOR of ${ref} on the PUBLIC repo - the purge did not happen before the merge. Remedy: ${c.remedy || 'history purge + force-push'}`);
+          }
+        }
+        const carriers = spawnSync('git', ['branch', '-a', '--contains', sha], { cwd: REPO, encoding: 'utf8' });
+        const n = String(carriers.stdout || '').split(/\r?\n/).filter((l) => l.trim()).length;
+        say(`S13 history purge: ${sha} reachable from ${n} ref(s) in this clone; main ${onMain ? 'CARRIES IT (see finding)' : 'clean'}`);
+      }
+    }
+  }
+
 
 
 

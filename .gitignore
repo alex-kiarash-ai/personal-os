@@ -318,3 +318,4 @@ system/mail-channels.json
 # app/public/data/ are now redundant but kept, so the reason survives if the dir ever returns.
 # If the app is ever brought back into this repo, un-ignore it with a reviewed `!` line.
 work/16-alex-hq/app/
+system/history-purge-pending.json
