@@ -132,14 +132,27 @@ def probe_box_fresh(summary, entry):
             pass
     if not stale:
         return log("box-data-fresh", "ok", "all 5 box JSONs fresh")
-    # AUTO_SAFE: re-ship the locally-built files + re-verify
+    # AUTO_SAFE: re-ship the locally-built files + re-verify. Every step's return code is checked
+    # and an EMPTY verify is a failure, never a pass (stress-test A16-T3, P-13 named 08-05: the old
+    # code ignored both return codes and an empty stat listing produced zero "still stale" lines,
+    # which read as "verified fresh" - it signed one live "verified" that verified nothing).
     src = [str(DATA / f"{n}.json") for n in JSONS]
-    run(["scp", "-q", *src, "n8n:/opt/alex-hq-data/"], timeout=60)
+    scp = run(["scp", "-q", *src, "n8n:/opt/alex-hq-data/"], timeout=60)
+    if scp.returncode != 0:
+        escalate("heal-box-ssh", "high", entry["escalate_fail"])
+        return log("box-data-fresh", "escalated", f"re-scp failed (rc={scp.returncode})", "AUTO_SAFE->escalate")
     chk2 = run(["ssh", "-o", "BatchMode=yes", "n8n",
                 "for f in " + " ".join(JSONS) + "; do stat -c '%Y' /opt/alex-hq-data/$f.json; done"], timeout=40)
-    still = [1 for l in chk2.stdout.strip().splitlines() if l.strip().isdigit() and now - int(l) > 900]
+    if chk2.returncode != 0:
+        escalate("heal-box-ssh", "high", entry["escalate_fail"])
+        return log("box-data-fresh", "escalated", f"re-scp done but the verify stat failed (rc={chk2.returncode})", "AUTO_SAFE->escalate")
+    mtimes = [int(l) for l in chk2.stdout.strip().splitlines() if l.strip().isdigit()]
+    if len(mtimes) != len(JSONS):
+        escalate("heal-box-ssh", "high", entry["escalate_fail"])
+        return log("box-data-fresh", "escalated", f"verify returned {len(mtimes)} mtimes for {len(JSONS)} files (empty or partial verify is not a pass)", "AUTO_SAFE->escalate")
+    still = [1 for m in mtimes if now - m > 900]
     if not still:
-        return log("box-data-fresh", "healed", f"re-shipped stale JSONs ({', '.join(stale)}) + verified fresh", "AUTO_SAFE")
+        return log("box-data-fresh", "healed", f"re-shipped stale JSONs ({', '.join(stale)}) + verified fresh ({len(mtimes)}/{len(JSONS)} stat lines)", "AUTO_SAFE")
     escalate("heal-box-ssh", "high", entry["escalate_fail"])
     log("box-data-fresh", "escalated", "still stale after re-scp", "AUTO_SAFE->escalate")
 
