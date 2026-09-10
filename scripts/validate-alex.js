@@ -1078,7 +1078,11 @@ function v10ProtectedFileGuard({ context, changed }, failures, warnings) {
   if (context !== 'pre-commit' || !changed) return; // armed only by the commit hook
   let changeset;
   try { changeset = readStagedChangeset(); }
-  catch (e) { warnings.push(`WARNING V10 SKIPPED: could not read the staged changeset via git - ${e.message}`); return; }
+    // A06-T11 (2026-09-10): this DEGRADED to a warning while the gitleaks leg BLOCKS when it
+    // cannot run. Same situation, opposite posture. A guard that cannot read the changeset has not
+    // checked anything, and on a PUBLIC repo the cost of a wrong pass is unrecoverable while the
+    // cost of a wrong block is one delayed commit. Fail CLOSED, like its neighbour.
+  catch (e) { failures.push(`FAILED V10: could not read the staged changeset via git - ${e.message}`); return; }
   const res = evaluateProtectedChangeset(changeset);
   for (const f of res.failures) failures.push(f);
   for (const w of res.warnings) warnings.push(w);
@@ -1099,7 +1103,8 @@ function v11IgnoredStagedGuard({ context, changed }, failures, warnings) {
     out = execFileSync('git', ['ls-files', '--cached', '--ignored', '--exclude-standard'],
       { cwd: REPO, encoding: 'utf8', maxBuffer: 1 << 24 });
   } catch (e) {
-    warnings.push(`WARNING V11 SKIPPED: could not list tracked-vs-ignored paths via git - ${e.message}`);
+    // A06-T11: same reasoning as V10 above - unable to check is not the same as clean.
+    failures.push(`FAILED V11: could not list tracked-vs-ignored paths via git - ${e.message}`);
     return;
   }
   const paths = out.split('\n').map(s => s.trim()).filter(Boolean);

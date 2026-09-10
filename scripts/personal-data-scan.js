@@ -120,7 +120,14 @@ function deriveNames() {
       const base = f.replace(/\.md$/, '');
       const phrase = base.replace(/-/g, ' ').trim();
       if (phrase.split(' ').length > 1 && phrase.length >= 5) phrases.add(phrase);
-      for (const tok of base.split('-')) {
+      // A06-T10 (2026-09-10): this took EVERY '-' separated segment of a people-page basename as a
+      // watched name token. The People Intake Protocol names those pages `firstname-context`
+      // (`gabriella-hr`, `someone-istanbul`), so the CONTEXT half became a watched name and every
+      // ordinary mention of a city flagged. All 9 REPORT-tier hits in the tree were one city, which
+      // is worse than noise: a report tier that is permanently 9 is a report tier nobody reads, and a
+      // real name appearing among them would be indistinguishable. Take the first segment only; the
+      // full basename still enters the PHRASE set above, so `someone-istanbul` as a whole is watched.
+      for (const tok of base.split('-').slice(0, 1)) {
         const t = tok.toLowerCase();
         if (t.length >= 4 && /^[a-z]+$/.test(t) && !NAME_STOP.has(t)) tokens.add(t);
       }
@@ -147,7 +154,13 @@ function stagedPaths() {
 // the paths of this commit, so the check answers "does what I am about to publish leak?".
 function gitGrep(re, scopePaths) {
   let out = '';
-  const args = ['grep', '-I', '-n', '-i', '-E'];
+  // A06-T4 (2026-09-10): `-I` tells git grep to SKIP binary files, and it was unconditional, so at
+  // COMMIT time a staged binary was invisible to the privacy scan. That is the wrong way round: a
+  // .docx, a .pdf, a .db or a screenshot is exactly where a name, a phone number or a salary figure
+  // hides, and this repo is public. In staged mode the scan now reads binaries too (`-a`); the
+  // whole-tree mode keeps `-I`, because there the volume is unbounded and the commit gate is what
+  // actually stands between a file and GitHub.
+  const args = ['grep', ...(STAGED ? ['-a'] : ['-I']), '-n', '-i', '-E'];
   if (STAGED) args.push('--cached');
   args.push('-e', re, '--');
   args.push(...(STAGED ? scopePaths : ['.']), ...EXCLUDE);
