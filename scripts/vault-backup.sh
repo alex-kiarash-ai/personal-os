@@ -287,8 +287,16 @@ elif [ -z "$reason" ]; then
             reason="scp failed - network or SSH key?"
         else
             remote_size="$(ssh -o BatchMode=yes n8n "stat -c%s /opt/alex-backups/$remote_name" 2>/dev/null | tr -d ' \r')"  # portability-ok: stat -c runs on the REMOTE box, which is Linux
+            # A16-T15 (2026-09-10): this compared the remote size against a 100 KB FLOOR, not against
+            # the file that was sent. A blob truncated anywhere above 100 KB verified as shipped, and
+            # a truncated backup is the one that is discovered during a restore, at the worst possible
+            # moment. Compare the exact byte count instead; the floor is now redundant but kept as the
+            # cheaper first test so an empty/missing file still reports in its own words.
+            local_size="$(wc -c < "$gpg_file" | tr -d ' \r')"
             if [ -z "$remote_size" ] || [ "$remote_size" -lt 100000 ] 2>/dev/null; then
                 reason="remote file missing/truncated (${remote_size:-none} bytes)"
+            elif [ "$remote_size" != "$local_size" ]; then
+                reason="remote copy is ${remote_size} bytes but the local blob is ${local_size} - the ship did not complete"
             else
                 ssh -o BatchMode=yes n8n "cd /opt/alex-backups && ls -1t vault-*.tar.gpg 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -f" >> "$LOG" 2>&1
                 kept="$(ssh -o BatchMode=yes n8n "ls -1 /opt/alex-backups/vault-*.tar.gpg 2>/dev/null | wc -l" | tr -d ' \r')"
