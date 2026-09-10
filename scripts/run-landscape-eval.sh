@@ -57,8 +57,13 @@ digest_path="$out_dir/digest.md"
 
 resolve_claude
 set +e
+# The model call runs WITHOUT the n8n API key in its environment and WITH the untrusted-lane guard
+# armed (stress-test A10-T13, 2026-09-09): this prompt is assembled from external skill-market rows,
+# i.e. attacker-controllable content, and the key is needed only by the installer step below, which
+# runs outside the model. `env -u` removes it for the child only; the export above still serves the
+# installer and the doc regen.
 OUT="$( { cat "$prompt_path"; printf ' %s' "$(alex_verdict_instruction)"; } \
-        | "$CLAUDE" --model claude-sonnet-4-6 -p --dangerously-skip-permissions 2>&1 )"
+        | env -u N8N_API_KEY ALEX_UNTRUSTED_LANE=landscape-eval "$CLAUDE" --model claude-sonnet-4-6 -p --dangerously-skip-permissions 2>&1 )"
 CODE=$?
 set -e
 printf '%s\n' "$OUT" >> "$LOG"
