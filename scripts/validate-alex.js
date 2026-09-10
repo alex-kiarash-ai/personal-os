@@ -784,6 +784,12 @@ function v7StateDriftLint({ stagedDir, manifest }, failures, warnings) {
             if (stateContradicts(word, p.state))
               warnings.push(`WARNING V7: ${rel}:${i + 1} heading says ${word} but system/manifest.json says ${p.name} is ${p.state}`);
         }
+      } else {
+        // A17-T15 (2026-09-10): an absent page was SILENTLY SKIPPED, so a project could declare a
+        // doc in the registry and ship without one. #33 revit-architect did exactly that: `docs`
+        // named 33-revit-architect.md while docs/projects/ went 01..32 with no 33, and nothing in
+        // the suite could say so, because the only assertion was about a file that had loaded.
+        if (p.state !== 'RETIRED') failures.push(`FAILED V7: ${rel} is declared in system/manifest.json (#${p.num} ${p.name}) but does not exist on disk`);
       }
     }
   }
