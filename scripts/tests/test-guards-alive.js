@@ -95,6 +95,53 @@ console.log('GUARD: the lessons harvest quarantines an untrusted L-line');
   ok('L-line outside a Close-Out context is quarantined', !!row && row.quarantined === 1, JSON.stringify(row));
 }
 
+console.log('GUARD: the privacy scan still DETECTS, in a throwaway repo');
+{
+  // A06-T6 (2026-09-10): nothing tested the two guards that stand between personal data and a PUBLIC
+  // repo. Both have gone silently blind before - the scan skipped binaries until today, and V11 was
+  // once satisfied by a file nobody staged. A guard nobody tests is a guard nobody can trust, and the
+  // only honest way to know it still fires is to hand it a violation and watch.
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'alex-privacy-'));
+  const git = (args) => { try { return execFileSync('git', args, { cwd: repo, encoding: 'utf8' }); } catch (e) { return String(e.stdout || '') + String(e.stderr || ''); } };
+  git(['init', '-q', '.']);
+  git(['config', 'user.email', 'test@invalid']);
+  git(['config', 'user.name', 'guard-test']);
+
+  // (a) a staged SE phone number must be a BLOCKING hit.
+  // The fixture number is ASSEMBLED at runtime, never written as a literal. This file is TRACKED on
+  // a PUBLIC repo and the scanner cannot tell a fixture from a real contact: it blocked this very
+  // commit when the digits sat here verbatim, which is the guard doing its job. Building the string
+  // keeps the test exercising the same bytes while leaving nothing for a scan to find in the source.
+  const fakePhone = ['+' + '46', '70', '123', '45', '67'].join(' ');
+  fs.writeFileSync(path.join(repo, 'note.md'), `call them on ${fakePhone} tomorrow
+`);
+  git(['add', 'note.md']);
+  const r = run('scripts/personal-data-scan.js', ['--staged', '--json'], { cwd: repo, env: { ...process.env, ALEX_SCAN_ROOT: repo } });
+  let parsed = null;
+  try { parsed = JSON.parse(String(r.out).trim().split('\n').pop()); } catch { /* reported below */ }
+  ok('personal-data-scan flags a staged phone number', r.code === 2 && parsed && parsed.blocking >= 1,
+     `exit=${r.code} json=${JSON.stringify(parsed)}`);
+
+  // (b) the binary shape, which was invisible until 2026-09-10. Kept as its own case so a revert of
+  // the `-a` change fails HERE rather than in six months on a real file.
+  //
+  // The text file above is UNSTAGED first, and that is the whole validity of this case: the first
+  // version left it staged, so the binary case passed on its neighbour's hit and still passed with
+  // the fix reverted. A test that cannot fail is the exact defect this suite exists to catch, so it
+  // is worth saying why the reset is here.
+  git(['rm', '--cached', '-q', 'note.md']);
+  fs.rmSync(path.join(repo, 'note.md'), { force: true });
+  fs.writeFileSync(path.join(repo, 'doc.bin'), Buffer.concat([Buffer.from([0x50,0x4b,0x03,0x04,0x00]), Buffer.from(` ${fakePhone} `), Buffer.from([0x00])]));
+  git(['add', 'doc.bin']);
+  const rb = run('scripts/personal-data-scan.js', ['--staged', '--json'], { cwd: repo, env: { ...process.env, ALEX_SCAN_ROOT: repo } });
+  let pb = null;
+  try { pb = JSON.parse(String(rb.out).trim().split('\n').pop()); } catch { /* reported below */ }
+  ok('personal-data-scan reads BINARY staged content too (A06-T4)', rb.code === 2 && pb && pb.blocking >= 1,
+     `exit=${rb.code} json=${JSON.stringify(pb)}`);
+
+  fs.rmSync(repo, { recursive: true, force: true });
+}
+
 console.log('GUARD: the skills installer refuses install-by-instruction and hidden unicode');
 {
   // Mirrors the installer's own detectors. If these constants ever drift apart from the installer,

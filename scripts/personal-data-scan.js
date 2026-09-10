@@ -33,7 +33,11 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.join(__dirname, '..');
+// ALEX_SCAN_ROOT is a TEST seam (A06-T6, 2026-09-10): the guards-alive suite needs to hand this
+// scanner a throwaway repo with one planted violation and watch it fire, and without an override it
+// always scanned its own repo, so the test could only ever say "the real tree is clean". Unset in
+// every real invocation, so production behaviour is unchanged.
+const ROOT = process.env.ALEX_SCAN_ROOT || path.join(__dirname, '..');
 const PEOPLE = path.join(ROOT, 'vault', 'people');
 const ALLOWLIST_FILE = path.join(ROOT, 'system', 'personal-data-allowlist.json');
 const JSON_OUT = process.argv.includes('--json');
