@@ -1504,12 +1504,25 @@ if (require.main === module) {
     console.error(`validate-alex: unknown --context '${context}' (valid: generator, pre-commit)`);
     process.exit(1);
   }
-  const stagedDir = stagedArg ? path.resolve(stagedArg.split('=')[1]) : path.join(REPO, '.staging');
+  // .staging/ is the GENERATOR's preview tree, never the thing a commit ships. Arming it by mere
+  // existence let a CLEAN ghost shadow a BROKEN tree at commit time: `effective()` prefers the staged
+  // copy, so a poisoned CLAUDE.md in the working tree produced no G2 line at all and the commit passed
+  // (P-08 08-05, A03-T8b 09-09; a successful `generate-alex.js --dry-run` leaves .staging behind by
+  // design, so the ghost is the normal state after any dry-run). The preview is only authoritative for
+  // the context that produced it, or when a caller names it outright.
+  const explicitStaged = Boolean(stagedArg);
+  let stagedDir = explicitStaged ? path.resolve(stagedArg.split('=')[1]) : path.join(REPO, '.staging');
+  if (!explicitStaged && context !== 'generator') {
+    if (fs.existsSync(stagedDir)) {
+      console.error(`validate-alex: NOTE .staging/ exists and is IGNORED in context=${context} - the working tree is what a commit ships (pass --staged=<dir> to validate a preview tree deliberately)`);
+    }
+    stagedDir = undefined;
+  }
   const changed = process.argv.includes('--changed'); // arms V10 (pre-commit hook passes it)
   // process.exitCode (not process.exit()): a hard exit right after fetch trips a libuv teardown
   // assertion on Windows (uv async handle still closing). Letting the loop drain is safe and the
   // exit code is identical for the caller.
-  runAll({ stagedDir: fs.existsSync(stagedDir) ? stagedDir : undefined, context, changed })
+  runAll({ stagedDir: stagedDir && fs.existsSync(stagedDir) ? stagedDir : undefined, context, changed })
     .then(({ ok }) => { process.exitCode = ok ? 0 : 1; })
     .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }
