@@ -492,6 +492,46 @@ try {
     say(`C7b: compared live trigger times for ${compared} of ${liveJobs.length} live job(s) (${jobDocTime.size} carry a documented clock in scheduler/schedule.md)`);
   }
 
+  // C7c POWER CONDITIONS (added 2026-09-10, stress-test A07-T8 FAIL High). A laptop job that cannot
+  // start on battery, or is stopped when the machine unplugs, or cannot wake the box, does not fail:
+  // it never runs, and a job that never ran pushes no RED. Measured 09-09: vault-backup ran on 7 of
+  // 14 nights, the three nights it alone missed were the three the machine sat on battery at 21:45,
+  // and both catch-up runs started 2 SECONDS after AC came back. Longest gap with no off-machine
+  // copy: 4 days 5 hours. schedule.md:265 records this exact lesson applied to alex-radar and
+  // sprint-tracker on 2026-07-03 and never to these tasks - a per-task fix for a per-task defect
+  // class, which is why it recurred. This leg asserts the flags on EVERY PersonalOS-* task so the
+  // 07-03 lesson cannot be missed one task at a time again.
+  //
+  // The 09-10 survey found FOUR unhardened, not the one the audit measured: vault-backup,
+  // n8n-active-check, and - the ones that matter most - recovery-check and security-sweep, the two
+  // guard jobs. A watchdog that silently skips whenever the laptop is unplugged is the same
+  // dead-check-green shape this layer exists to kill, one level up.
+  if (process.platform === 'win32' && schedulerReadable) {
+    let powerChecked = 0;
+    for (const job of liveJobs) {
+      let xml;
+      try {
+        xml = execFileSync('schtasks', ['/query', '/tn', job, '/xml', 'ONE'], { encoding: 'utf8', timeout: 15000, windowsHide: true });
+      } catch (e) {
+        addDrift('scheduler-power', `'${job}' power conditions could NOT be read (${String(e.message).split('\n')[0]}) - unreadable is drift, not a skip`);
+        continue;
+      }
+      powerChecked++;
+      const flag = (tag) => new RegExp(`<${tag}>\s*(true|false)\s*</${tag}>`, 'i').exec(xml);
+      // Task Scheduler DEFAULTS both battery keys to true when the element is absent, so a missing
+      // element is the unhardened state, not an unknown one. Read it that way.
+      const disallowStart = !flag('DisallowStartIfOnBatteries') || /true/i.test(flag('DisallowStartIfOnBatteries')[1]);
+      const stopOnBattery = !flag('StopIfGoingOnBatteries') || /true/i.test(flag('StopIfGoingOnBatteries')[1]);
+      const bad = [];
+      if (disallowStart) bad.push('will NOT START on battery');
+      if (stopOnBattery) bad.push('is STOPPED when the machine goes on battery');
+      if (bad.length) {
+        addDrift('scheduler-power', `'${job}' ${bad.join(' and ')} - on a laptop that is a silent miss, not a failure, so nothing goes red (A07-T8: 7 of 14 nights had no off-machine copy this way). Fix: Set-ScheduledTask -TaskName ${job} -Settings (a settings object with DisallowStartIfOnBatteries=$false, StopIfGoingOnBatteries=$false, WakeToRun=$true)`);
+      }
+    }
+    say(`C7c: checked power conditions on ${powerChecked} of ${liveJobs.length} live job(s)`);
+  }
+
   // --- C8 dependent staleness (HASH-based, mtime-immune): spec changed since --init but status.md did NOT ---
   // Was mtime-based, which a mass write (the privacy scrub) or a git clone bumps in BOTH directions ->
   // false positives AND negatives. Hashing status.md + CLAUDE.md against the --init baseline flags only

@@ -264,6 +264,21 @@ Nothing needs re-applying by hand any more: the unit file IS the settings, it is
 
 Fixed 2026-07-03: alex-radar and sprint-tracker had `WakeToRun=False` (a Monday / weekday-morning laptop job that could not wake the machine = a silent miss); both flipped to True.
 
+**Power conditions are a CONTRACT on every job, not a per-task afterthought (2026-09-10, stress-test A07-T8).**
+
+Every `PersonalOS-*` task must carry `DisallowStartIfOnBatteries=False`, `StopIfGoingOnBatteries=False`, `WakeToRun=True`, `StartWhenAvailable=True`. **A laptop job that cannot start on battery does not FAIL, it never runs, and a job that never ran pushes no RED** - so the failure is invisible to every organ that watches outcomes. Measured on 09-09: `PersonalOS-vault-backup` ran on 7 of 14 nights, the three nights it alone missed were the three the machine sat on battery at 21:45, and both catch-up runs started 2 SECONDS after AC returned. Longest stretch with no off-machine copy: 4 days 5 hours.
+
+The 07-03 fix above was the same lesson applied to two named tasks, which is why it came back. The 09-10 survey found **four** tasks still on the schtasks defaults: `vault-backup`, `n8n-active-check`, and - worst - `recovery-check` and `security-sweep`, the two guard jobs, so the watchdogs themselves silently skipped whenever the laptop was unplugged. All four hardened 2026-09-10 (definitions backed up first to `work/18-recovery-layer/state/task-xml-backup-20260910/`).
+
+Enforced by **recovery check C7c**, which reads the live flags on every `PersonalOS-*` task each sweep and reports `scheduler-power` drift, so this class can never again be fixed one task at a time. Repair for a single task:
+
+```powershell
+$t = Get-ScheduledTask -TaskName PersonalOS-<name>; $s = $t.Settings
+$s.DisallowStartIfOnBatteries = $false; $s.StopIfGoingOnBatteries = $false; $s.WakeToRun = $true; $s.StartWhenAvailable = $true
+Set-ScheduledTask -TaskName PersonalOS-<name> -Settings $s
+```
+
+
 ## Transient tasks (not standing jobs)
 - **PersonalOS-qra-poller** (added 2026-07-13, Quota Reset Auto-Run): a ONE-SHOT task created by `work/quota-reset-autorun/scripts/arm.sh` when Shaheen arms a quota-reset auto-run. Fires ONCE at reset+offset (a transient `systemd-run --collect` unit, no every-minute polling; `Persistent=true` so it runs on wake), runs the armed prompt, then **removes itself**. Not a standing job, not created by /cron-setup. If you see it in `systemctl --user list-timers`, a run is armed; `disarm.sh` removes it. Documented here so it is not mistaken for a rogue task.
 
