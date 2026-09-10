@@ -1391,9 +1391,18 @@ function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
   if (!budget) return; // not armed until the contract exists
   const claude = effective(stagedDir, 'CLAUDE.md');
   if (!claude) return; // G2 already fails a missing CLAUDE.md
-  const bytes = Buffer.byteLength(claude.text);
+  // Measure the CONSTITUTION, not the generated regions inside the same file (stress-test A02-T16 /
+  // A03-T3, 2026-09-04): the routing table and the auto-skills rows are generated from the registry
+  // and grow with every project, and charging them to the budget left 38 B of headroom, so the
+  // next standing-order sentence (or one longer one_liner) would have blocked every commit
+  // including the nightly backup. The note above says the budget guards regrowth of the
+  // rulebook; this is what it now measures.
+  const constitutionOnly = claude.text
+    .replace(/<!-- ROUTING-TABLE:BEGIN[\s\S]*?<!-- ROUTING-TABLE:END -->/, '')
+    .replace(/<!-- ALEX-AUTO-SKILLS:BEGIN[\s\S]*?<!-- ALEX-AUTO-SKILLS:END -->/, '');
+  const bytes = Buffer.byteLength(constitutionOnly);
   if (bytes > budget) {
-    failures.push(`FAILED V16: CLAUDE.md is ${bytes} B against meta.constitution.byte_budget ${budget} B - ` +
+    failures.push(`FAILED V16: CLAUDE.md (constitution only, generated regions excluded) is ${bytes} B against meta.constitution.byte_budget ${budget} B - ` +
       `the constitution is regrowing. Keep the operative sentence here and move the narrative to ` +
       `docs/constitution-annex/ (the 2026-08-16 diet pattern); raise the budget only as a deliberate manifest edit.`);
   }
