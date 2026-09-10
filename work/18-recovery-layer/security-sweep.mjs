@@ -472,6 +472,54 @@ try {
     }
   }
 
+  // --- S12 branch protection on main matches the declared posture (A06-T7 / M-24, 2026-09-10) -------
+  // The one mechanical barrier between a bad commit and the public default branch is GitHub's branch
+  // protection, and NOTHING asserted it. It could be relaxed or removed - by a token with admin
+  // scope, or by hand - and every surface here stayed green, because each check tests the repo's
+  // CONTENTS and none tested the rules around them. The machine account owns the repo, authors,
+  // approves by absence and merges its own PRs (5 of 5), and holds the scopes to remove the
+  // protection it is subject to, so this is the check that would notice.
+  //
+  // Contract lives in manifest meta.branch_protection, never in this prose (the V6 anti-pattern).
+  {
+    const GH_REPO = 'alex-kiarash-ai/personal-os';   // same slug S8 reads
+    const mf = readJson(path.join('system', 'manifest.json')) || {};
+    const bp = (mf.meta && mf.meta.branch_protection) || null;
+    if (!bp) {
+      addFinding('SETUP', 'S12', 'system/manifest.json meta.branch_protection is absent - the declared protection posture for the public default branch. Add it, then this leg asserts the live rules against it.');
+    } else {
+      const r = spawnSync(process.platform === 'win32' ? 'gh.exe' : 'gh',
+        ['api', `repos/${GH_REPO}/branches/${bp.branch}/protection`],
+        { encoding: 'utf8', timeout: 60000, windowsHide: true });
+      const body = String((r && r.stdout) || '');
+      if (!body.trim()) {
+        // A CONFIGURED live source that will not answer is a sweep failure, never a silent pass.
+        sweepError = `S12: could not read branch protection for ${GH_REPO}:${bp.branch} (${r && r.error ? r.error.message : `exit ${r ? r.status : 'n/a'}`}) - gh CLI absent or unauthenticated`;
+      } else {
+        let live = null;
+        try { live = JSON.parse(body); } catch { /* handled below */ }
+        if (!live || live.message) {
+          addFinding('FINDING', 'S12', `branch protection on ${bp.branch} is NOT readable as a protection object${live && live.message ? ` (${live.message})` : ''} - on a PUBLIC repo whose sole barrier is this ruleset, that is either missing protection or a token without the scope to see it.`);
+        } else {
+          const liveChecks = ((live.required_status_checks || {}).contexts) || [];
+          for (const want of bp.required_status_checks || []) {
+            if (!liveChecks.includes(want)) addFinding('FINDING', 'S12', `required status check '${want}' is declared but NOT enforced on ${bp.branch} (live: ${liveChecks.join(', ') || 'none'}) - a red CI run would not block a merge.`);
+          }
+          const enforce = Boolean((live.enforce_admins || {}).enabled);
+          if (Boolean(bp.enforce_admins) !== enforce) addFinding('FINDING', 'S12', `enforce_admins is ${enforce} on ${bp.branch}, declared ${bp.enforce_admins} - with it off, the account that owns the repo is exempt from every rule below.`);
+          const force = Boolean((live.allow_force_pushes || {}).enabled);
+          if (force && bp.allow_force_pushes === false) addFinding('FINDING', 'S12', `force pushes are ALLOWED on ${bp.branch}, declared forbidden - history on the public default branch can be rewritten.`);
+          const del = Boolean((live.allow_deletions || {}).enabled);
+          if (del && bp.allow_deletions === false) addFinding('FINDING', 'S12', `branch deletion is ALLOWED on ${bp.branch}, declared forbidden.`);
+          const reviews = ((live.required_pull_request_reviews || {}).required_approving_review_count) || 0;
+          if (reviews < (bp.required_approving_review_count || 0)) addFinding('FINDING', 'S12', `required approving reviews on ${bp.branch} is ${reviews}, declared ${bp.required_approving_review_count}.`);
+          say(`S12 branch protection: ${bp.branch} checks=[${liveChecks.join(',')}] enforce_admins=${enforce} force_push=${force} deletions=${del} reviews=${reviews}`);
+        }
+      }
+    }
+  }
+
+
 
 } catch (e) {
   sweepError = `SWEEP THREW: ${e.stack || e.message}`;
