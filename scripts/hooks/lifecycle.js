@@ -26,6 +26,13 @@
  *   node scripts/hooks/lifecycle.js sessionend
  *   node scripts/hooks/lifecycle.js toolfail
  */
+// A01-T17 (2026-09-10): three of the four wired hooks honour ALEX_DISABLED_HOOKS and this one did
+// not, so the constitution's "Killable in one settings line" was false for it. Same shape as
+// scripts/capture-typed-input.js.
+if (String(process.env.ALEX_DISABLED_HOOKS || '').split(',').map((s) => s.trim()).includes('lifecycle')) {
+  process.exit(0);
+}
+
 const fs = require('fs');
 const path = require('path');
 

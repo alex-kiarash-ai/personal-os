@@ -308,7 +308,7 @@ def probe_soul_canary(summary, entry, claimed):
         if rs.get("status") != "red":
             continue
         headline = str(rs.get("headline", ""))
-        # The wrapper writes "soul canary failed: <reason>" (scripts/lib/soul-canary.ps1) and the
+        # The wrapper writes "soul canary failed: <reason>" (scripts/lib/soul-canary.mjs) and the
         # voice lanes prefix it with "scheduled run failed: ". Match the stable middle, case-loose.
         if "soul canary" not in headline.lower() and "soul-canary" not in headline.lower():
             continue

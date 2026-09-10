@@ -156,8 +156,13 @@ function runNode(args) {
  * (auto-resets in hours; the gate's 6h TTL handles recovery). Kind 'api' = the Anthropic Console
  * monthly cap (also auto-appends the Console-raise row to the human-actions queue, idempotent).
  */
-export function setQuotaCapped(kind, log) {
+export function setQuotaCapped(kind, log, dryRun = false) {
+  // A01-T2 (2026-09-10): a --dry-run WROTE this file. `close-out.mjs check --dry-run` with limit
+  // text in the output flipped claude_plan.state to capped, and the next quota-gate then returned
+  // exit 10 and skipped its slot - so a DRY RUN silenced the real job train for six hours. A dry
+  // run must describe what it would do and change nothing; the flag suppressed only the HQ push.
   if (kind !== 'plan' && kind !== 'api') throw new Error(`setQuotaCapped: kind must be plan|api, got ${kind}`);
+  if (dryRun) { logLine(log, `DRYRUN, would set ${kind} capped (quota-state.json NOT written)`); return; }
   try {
     const q = readQuotaState();
     if (!q) {
@@ -582,7 +587,7 @@ export async function closeOutCheck({
 }) {
   const { reason, quotaKind, sentinelLog, degradedLog } = detectFailure({ out, code, degradedReason });
 
-  if (quotaKind) setQuotaCapped(quotaKind, log);
+  if (quotaKind) setQuotaCapped(quotaKind, log, dryRun);
   if (sentinelLog) logLine(log, sentinelLog);
   if (degradedLog) logLine(log, degradedLog);
 
