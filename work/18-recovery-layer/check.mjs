@@ -458,21 +458,38 @@ try {
         if (liveJobs.includes(guess) && !jobDocTime.has(guess)) jobDocTime.set(guess, docTime);
       }
     }
+    // 2026-09-10 (A05-T17): the reader is per-platform and an unreadable time is DRIFT, never a
+    // skip. This leg asked systemd for the times on a box whose scheduler is Task Scheduler, got
+    // ENOENT, and `continue`d on all 23 jobs for 12 days while the sweep header claimed coverage.
+    const { triggerTimeDrift } = await import(pathToFileURL(path.join(HERE, 'lib', 'trigger-times.mjs')).href);
+    const readTaskXml = (job) => {
+      if (process.platform === 'win32') {
+        try {
+          return { xml: execFileSync('schtasks', ['/query', '/tn', job, '/xml', 'ONE'], { encoding: 'utf8', timeout: 15000, windowsHide: true }) };
+        } catch (e) { return { xml: null, readError: `schtasks: ${String(e.message).split('\n')[0]}` }; }
+      }
+      // systemd reports the calendar spec as: TimersCalendar={ OnCalendar=*-*-* 08:00:00 ; ... }
+      const res = spawnSync('systemctl', ['--user', 'show', `${job}.timer`, '-p', 'TimersCalendar'], { encoding: 'utf8' });
+      if (res.error || res.status !== 0) return { xml: null, readError: `systemctl: ${res.error ? res.error.message : `exit ${res.status}`}` };
+      // Re-shape OnCalendar lines into the one form the comparer reads, so both platforms share it.
+      const times = [...String(res.stdout || '').matchAll(/OnCalendar=([^;}]+)/g)]
+        .map((m) => /(\d{1,2}):(\d{2})(?::\d{2})?\s*$/.exec(m[1].trim()))
+        .filter(Boolean)
+        .map((t) => `<StartBoundary>2000-01-01T${String(parseInt(t[1], 10)).padStart(2, '0')}:${t[2]}:00</StartBoundary>`);
+      return { xml: times.length ? times.join('\n') : '' };
+    };
+    let compared = 0;
     for (const job of liveJobs) {
       if (!jobDocTime.has(job)) continue; // no documented clock time
       const want = jobDocTime.get(job);
-      // systemd reports the calendar spec as: TimersCalendar={ OnCalendar=*-*-* 08:00:00 ; ... }
-      const res = spawnSync('systemctl', ['--user', 'show', `${job}.timer`, '-p', 'TimersCalendar'], { encoding: 'utf8' });
-      const liveTimes = [];
-      for (const m of String(res.stdout || '').matchAll(/OnCalendar=([^;}]+)/g)) {
-        const t = /(\d{1,2}):(\d{2})(?::\d{2})?\s*$/.exec(m[1].trim());
-        if (t) liveTimes.push(`${String(parseInt(t[1], 10)).padStart(2, '0')}:${t[2]}`);
-      }
-      if (liveTimes.length === 0) continue; // nothing comparable
-      if (!liveTimes.includes(want)) {
-        addDrift('scheduler-time', `'${job}' fires at ${liveTimes.join('/')} but scheduler/schedule.md documents ${want} (retime the timer, or correct the doc - a wrong hour runs the job at the wrong time silently)`);
-      }
+      const { xml, readError } = readTaskXml(job);
+      compared++;
+      const msg = triggerTimeDrift({ job, want, xml, readError });
+      if (msg) addDrift('scheduler-time', msg);
     }
+    // Said out loud so a zero is visible: "0 findings" and "0 jobs compared" printed identically
+    // before, and that is precisely how this leg's death went unnoticed for 12 days.
+    say(`C7b: compared live trigger times for ${compared} of ${liveJobs.length} live job(s) (${jobDocTime.size} carry a documented clock in scheduler/schedule.md)`);
   }
 
   // --- C8 dependent staleness (HASH-based, mtime-immune): spec changed since --init but status.md did NOT ---
