@@ -94,12 +94,18 @@ const readText = (p) => {
     return null;
   }
 };
+// A UTF-8 BOM is stripped before the parse and a file that STILL does not parse is a drift row,
+// never a silent null (stress-test A04-T17, 2026-09-04: two state files carried a BOM from the
+// PowerShell era, `JSON.parse` threw, this returned null, and C8 read "no baseline" for two weeks
+// while C28 inverted; nine stale-status findings sat hidden behind a green line).
+const corruptJson = [];
 const readJson = (p) => {
   const t = readText(p);
   if (t === null) return null;
   try {
-    return JSON.parse(t);
-  } catch {
+    return JSON.parse(t.charCodeAt(0) === 0xFEFF ? t.slice(1) : t);
+  } catch (e) {
+    corruptJson.push({ p, msg: (e && e.message) || String(e) });
     return null;
   }
 };
@@ -1070,6 +1076,12 @@ try {
           missing++;
           const age = latestWhen ? `${Math.round(days(nowMs - latestWhen))}d old` : 'never signalled';
           addDrift('task-missing', `${t.name}: no completion signal inside its ${windowH}h window (${age}). It never ran, died mid-run, or was never wired. This is the class that hid the 2026-08-25 outage for two days.`);
+        } else if (latestCode === 2 && t.exit2_is_findings === true) {
+          // Terraform-style detailed exit code (stress-test A04-T5, 2026-09-04): this checker and the
+          // security sweep exit 2 when they FIND something, which is a clean run with a report, not a
+          // failure. Only a registry row that declares it earns the mapping; every other task's 2 is
+          // still WENT-WRONG.
+          green++;
         } else if (latestCode !== 0) {
           wentWrong++;
           addDrift('task-failed', `${t.name}: ran and reported its OWN failure (exit ${latestCode}). It is alive and something inside it broke, which is a different problem from MISSING.`);
@@ -1078,6 +1090,10 @@ try {
         }
       }
       say(`C31 task-completion: ${regTasks.length} enabled, ${green} green, ${wentWrong} went-wrong, ${missing} missing, ${signals.length} signal(s) on file`);
+      // Every JSON file any check read this sweep that failed to parse (BOM stripped first) is drift.
+      for (const c of corruptJson) {
+        addDrift('state-corrupt', `${path.relative(REPO, c.p)} does not parse as JSON (${c.msg.slice(0, 80)}). Every check that reads it saw "absent" and took its silent branch; fix the file, do not re-init around it.`);
+      }
     }
   }
 
