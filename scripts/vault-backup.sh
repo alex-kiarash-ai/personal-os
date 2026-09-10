@@ -213,7 +213,18 @@ elif [ -z "$reason" ]; then
 
     # 3. Round-trip verify BEFORE shipping: decrypt + list entries. Never ship a blob we cannot open.
     if [ -z "$reason" ]; then
-        "$GPG" --batch --yes --quiet --passphrase-file "$pass_file" -d -o "$vrf_file" "$gpg_file" >> "$LOG" 2>&1
+        # Exit codes are checked and the decrypted tar is compared BYTE FOR BYTE with the source
+        # (stress-test A07-T3, 2026-09-09): a blob truncated mid-encrypt (disk full, a kill, gpg
+        # half-writing) still decrypts to a tar whose headers list plausibly, so an entry count and
+        # a name grep passed it. gpg's and tar's own exit codes and a cmp against the plaintext tar,
+        # which is still on disk here, are the checks that cannot be fooled by a cut tail.
+        if ! "$GPG" --batch --yes --quiet --passphrase-file "$pass_file" -d -o "$vrf_file" "$gpg_file" >> "$LOG" 2>&1; then
+            reason="verify failed: gpg could not decrypt the blob cleanly (truncated or corrupt)"
+        elif ! cmp -s "$tar_file" "$vrf_file"; then
+            reason="verify failed: decrypted tar differs from the source tar ($(wc -c < "$tar_file" | tr -d ' ') vs $(wc -c < "$vrf_file" | tr -d ' ') bytes)"
+        fi
+    fi
+    if [ -z "$reason" ]; then
         # The listing goes to a FILE and every check reads the file (2026-08-26). It was a shell
         # variable pushed through a fresh printf|grep pipe per assertion, and on Git Bash under
         # parallel-session load those pipes flake: grep saw a short stream and reported a file
@@ -222,9 +233,13 @@ elif [ -z "$reason" ]; then
         # what the one-off debug harness did, which is why the harness kept passing while the
         # script kept failing.
         names_file="$work/verify-names.txt"
-        "$TAR" -tf "$vrf_file" > "$names_file" 2>>"$LOG"
+        if ! "$TAR" -tf "$vrf_file" > "$names_file" 2>>"$LOG"; then
+            reason="verify failed: tar could not list the decrypted archive (truncated or corrupt)"
+        fi
         entries="$(grep -c . "$names_file" 2>/dev/null || true)"
-        if [ "$entries" -lt 50 ]; then
+        if [ -n "$reason" ]; then
+            :
+        elif [ "$entries" -lt 50 ]; then
             reason="verify failed: only $entries entries decrypted"
         else
             # POSITIVE assertion by name (2026-07-25 for the identity docs; extended to the secrets by
