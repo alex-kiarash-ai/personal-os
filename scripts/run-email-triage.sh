@@ -36,8 +36,15 @@ soul_arm
 
 # Untrusted-lane egress guard (2026-08-05, enterprise-assessment idea 5): this run feeds attacker-
 # controllable email bodies into a permissions-skipped model, so the PreToolUse hook
-# (scripts/untrusted-lane-guard.js, armed by this env var) denies WebFetch/WebSearch and any
-# shell egress to a host outside the n8n-box allowlist. The size snapshot below is the tripwire:
+# (scripts/untrusted-lane-guard.js, armed by this env var) denies WebFetch/WebSearch, every git and
+# gh remote verb, and any curl/wget/iwr/Invoke-WebRequest/Invoke-RestMethod/nslookup/certutil/
+# bitsadmin command whose target host is outside the n8n-box allowlist (a network binary with NO
+# parseable target is denied too, since unverifiable is not the same as safe).
+# WHAT IT DOES NOT COVER, stated plainly because this comment used to say "any shell egress" and that
+# was an overpromise (stress-test A13-T5, 2026-09-10): an INTERPRETER that builds a URL at runtime,
+# `python -c "urlopen('ht'+'tp://...')"` or `node -e "fetch(...)"`, is not caught. A contract that
+# overstates its coverage is worse than a narrow one, because it stops people looking for the gap.
+# The size snapshot below is the tripwire:
 # a run during which the guard blocked ANYTHING is reported DEGRADED (RED), because a block is
 # either an injection attempt or a new legitimate need, and both must reach Shaheen.
 export ALEX_UNTRUSTED_LANE='email-triage'

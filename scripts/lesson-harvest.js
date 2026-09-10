@@ -26,6 +26,12 @@ const { upsertLesson, parseLLine } = require('../system/recall/lib/lessons');
 // vault_search.py's freshness-test design) without touching real cursors or the real ledger.
 const LOG_DIR = process.env.ALEX_LOG_DIR || path.join(REPO, 'outputs', 'logs');
 const CURSORS = process.env.ALEX_LESSON_CURSORS || path.join(REPO, 'system', 'recall', 'lesson-cursors.json');
+// The lanes that run with ALEX_UNTRUSTED_LANE set: they read content Alex did not write (inbound
+// mail, fetched pages, skill-market rows) through a permissions-skipped model. Their Close-Out
+// L-line is therefore NOT self-evidence the way an interactive session's is, and it is quarantined
+// on arrival rather than trusted (A13-T7, 2026-09-10). Keyed by LOG FILE because the wrapper's env
+// var is not recorded in the log, and the filename already identifies the lane exactly.
+const UNTRUSTED_LOGS = new Set(['email-triage.log', 'morning-brief.log', 'landscape-eval.log']);
 const PROMOTIONS = process.env.ALEX_LESSON_PROMOTIONS || path.join(REPO, 'system', 'recall', 'lesson-promotions.jsonl');
 const HARVEST_LOG = path.join(LOG_DIR, 'lesson-harvest.log');
 
@@ -98,14 +104,21 @@ function main() {
       const parsed = parseLLine(line.trim());
       if (!parsed) continue; // `L: none` or malformed
       processed++;
-      const trusted = (li - lastCloseOut) <= CTX;
+      // A13-T7 (2026-09-10): the ONLY trust test was "is this L-line inside a Close-Out report".
+      // The lanes that read untrusted content (inbound mail, web pages, skill-market rows) also
+      // print a Close-Out report, so their L-lines scored trusted and reached recall injection,
+      // where they are read as lessons in Alex's own voice. A lesson dictated by an email is the
+      // cleanest injection path this system has: it survives the session, is deduped, hit-counted,
+      // and at enough hits queues a constitution change. Those lanes are named by their log file, so
+      // the harvester can tell without any wrapper change.
+      const trusted = (li - lastCloseOut) <= CTX && !UNTRUSTED_LOGS.has(f);
       if (!trusted) quarantined++;
       try {
         const res = upsertLesson(db, {
           cls: parsed.cls, lesson: parsed.lesson, evidence: parsed.evidence, source_runid: f,
           quarantined: trusted ? 0 : 1,
           source_file: f, source_line: li + 1,
-          origin: trusted ? 'close-out' : 'log-context-unverified',
+          origin: trusted ? 'close-out' : (UNTRUSTED_LOGS.has(f) ? 'untrusted-lane' : 'log-context-unverified'),
         });
         if (res.action === 'insert') inserted++;
         else if (res.action === 'merge') { bumped++; merged++; }
