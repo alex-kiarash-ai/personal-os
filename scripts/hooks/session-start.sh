@@ -21,11 +21,20 @@ PD="${CLAUDE_PROJECT_DIR:-.}"
 #
 # SOUL-PATH is machine-greppable on purpose: the canary proves identity was injected, this proves
 # WHICH path delivered it. Every headless log now answers that question for free.
-if [ -f "$PD/soul-core.md" ]; then
+# A01-T10 (2026-09-10): EXISTENCE was the whole test, so a 0-byte or truncated card booted as
+# "SOUL-PATH: card" and the session ran with no identity while every surface said the card path was
+# taken. The card carries its own integrity marker (a SOUL-CORE-STAMP tail written by the builder)
+# and nothing read it. Three conditions now: the file exists, it is bigger than a floor no real card
+# is under, and it ends in its stamp. A card that fails any of them falls back LOUDLY and says so in
+# different words from a missing one, because "truncated" and "absent" have different causes.
+if [ -f "$PD/soul-core.md" ]    && [ "$(wc -c < "$PD/soul-core.md" 2>/dev/null || echo 0)" -gt 4000 ]    && tail -c 400 "$PD/soul-core.md" 2>/dev/null | grep -q "SOUL-CORE-STAMP: source-sha256="; then
   echo "SOUL-PATH: card"
 else
   echo "SOUL-PATH: fallback-bounded"
-  echo "SOUL-FALLBACK: soul-core.md is MISSING, so only the first 8000 bytes of soul.md are injected below. This is a PARTIAL identity. Read soul.md in full before writing anything in Shaheen's voice, and rebuild the card with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
+  if [ -f "$PD/soul-core.md" ]; then
+    echo "SOUL-FALLBACK: soul-core.md EXISTS but is INVALID (empty, truncated, or missing its SOUL-CORE-STAMP tail), so it was NOT used. Rebuild it with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
+  fi
+  echo "SOUL-FALLBACK: the compiled card was not usable, so only the first 8000 bytes of soul.md are injected below. This is a PARTIAL identity. Read soul.md in full before writing anything in Shaheen's voice, and rebuild the card with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
   if [ -f "$PD/soul.md" ]; then
     head -c 8000 "$PD/soul.md" 2>/dev/null
     echo ""
