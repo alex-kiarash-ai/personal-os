@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // security-sweep.mjs - P5 (three-plan validation, 2026-07-17). Alex's monthly, zero-token,
-// detect-never-repair SECURITY conscience, a sibling of check.mjs. Ten assertions (S1-S10; S10 added
+// detect-never-repair SECURITY conscience, a sibling of check.mjs. Eleven assertions (S1-S11; S10 added
 // 2026-09-10 after stress-test A09-T25 found the HQ dashboard snapshot public on a Vercel URL).
 // Ported from security-sweep.ps1 (bash migration Phase 5, 2026-08-05).
 //
@@ -428,6 +428,51 @@ try {
       say(`S10 public surfaces: ${list.surfaces.length} probed, ${ok} challenge, ${open} OPEN`);
     }
   }
+
+  // --- S11 MCP stdio servers are version-PINNED (stress-test A12-T17, 2026-09-10) -------------------
+  // Three stdio servers executed unpinned registry code at EVERY session start with auto-consent
+  // (`npx -y ...@latest` twice, and a bare `uvx --from flights[mcp]`), on a machine that holds
+  // credentials. The repo's own posture is "zero npm supply-chain surface on a machine that holds
+  // credentials", and that was undone at the CLIENT layer by three fetches per session: whatever the
+  // registry served that morning ran. No S-check or C-check named any MCP version, and S6's
+  // connected-clients baseline has been SETUP-needed since 2026-07-20, so nothing watched this.
+  //
+  // Reads `claude mcp list`, which prints each server's transport and command WITHOUT touching
+  // ~/.claude.json (that file holds OAuth tokens and is deliberately never read here). A stdio
+  // command carrying @latest, or an npx/uvx fetch with no version at all, is a FINDING. A remote
+  // (https) transport runs no local code; a local build path is pinned by the file on disk.
+  {
+    // shell:true on win32 - Node 20+ refuses to spawn a .cmd/.bat directly (EINVAL). The command
+    // and args are fixed literals here, so there is no injection surface in taking a shell.
+    const isWin = process.platform === 'win32';
+    const r = spawnSync(isWin ? 'claude.cmd' : 'claude', ['mcp', 'list'], { encoding: 'utf8', timeout: 120000, windowsHide: true, shell: isWin });
+    // The CLI exits nonzero when ANY server fails its health check and still prints the listing on
+    // stdout, which is what this parses. Only an empty read is a sweep failure.
+    const out = String((r && r.stdout) || '');
+    if (!out.trim()) {
+      sweepError = `S11: could not read 'claude mcp list' (${r && r.error ? r.error.message : `exit ${r ? r.status : 'n/a'}`})`;
+    } else {
+      let stdio = 0;
+      let unpinned = 0;
+      for (const raw of out.split(/\r?\n/)) {
+        const m = /^(.+?):\s+(.+?)\s+-\s+[^-]*$/.exec(raw.trim());
+        if (!m) continue;
+        const name = m[1];
+        const cmd = m[2];
+        if (/^https?:\/\//i.test(cmd)) continue;
+        stdio++;
+        if (!/\bnpx\b|\buvx\b/.test(cmd)) continue;
+        const pinned = /@\d+\.\d+/.test(cmd) || /==\d+\.\d+/.test(cmd);
+        if (/@latest\b/.test(cmd) || !pinned) {
+          unpinned++;
+          addFinding('FINDING', 'S11', `MCP stdio server '${name}' fetches unpinned code at every session start: ${cmd}. Whatever the registry serves that morning executes on a machine holding credentials. Pin it: claude mcp remove ${name} -s <scope>, then claude mcp add ${name} -s <scope> -- <same command with an exact version>`);
+        }
+      }
+      say(`S11 MCP pins: ${stdio} stdio server(s), ${unpinned} unpinned`);
+    }
+  }
+
+
 } catch (e) {
   sweepError = `SWEEP THREW: ${e.stack || e.message}`;
 }
