@@ -7,7 +7,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 ## 1. What you need
 
 - **A paid Claude account** (Max recommended; Pro burns out fast). Alex *is* Claude, no subscription is no brain.
-- **Claude Code** (desktop app / Cowork, or the CLI). **Linux is where Alex runs** (the scheduled job train is systemd user timers); macOS works for development.
+- **Claude Code** (desktop app / Cowork, or the CLI). **This machine is Windows** and the scheduled job train is **Windows Task Scheduler** (`PersonalOS-*` tasks). The `systemd/` unit files are generated for the eventual Linux host and are inert here.
 - **A Google account** (Gmail, Calendar, Drive). **Notion** (free), optional for the base brain but required for the CRM, expenses, and meeting-intel databases (without it Alex degrades to local files, per the Bootstrap rule). **Obsidian** (free, to read the vault).
 - **Optional, only if you want the Alex HQ dashboard's own source:** the `alex-hq` repo. It split out of this one on 2026-08-04 and is expected to sit **beside** `personal-os`, as a sibling folder, not inside it. You do **not** need it to run the Personal Ops System: everything except the dashboard's own build works without it, and the two things that do want it (the brand-token generator and validator check V8) say so plainly and carry on. If you keep it somewhere other than a sibling folder, record that once in `system/manifest.json` → `meta.paths.alex_hq_repo`, or set an `ALEX_HQ_REPO` environment variable. Nothing needs configuring when the sibling layout holds.
 - Base install is about an hour.
@@ -92,20 +92,30 @@ MCP tools are deferred: load them with `ToolSearch("select:<tool>")` before call
 - Gmail
 - Notion
 
-## 6. Scheduling (systemd user timers)
+## 6. Scheduling (Windows Task Scheduler here, systemd on the Linux target)
 
-Nothing runs until you schedule it. On this machine the scheduler is **systemd user timers**;
-`/cron-setup` builds the jobs from `scheduler/schedule.md`, and `node scripts/generate-alex.js`
-writes the unit files into `systemd/`. The best first schedule is the morning brief, daily 8:00.
+Nothing runs until you schedule it. On THIS machine the scheduler is **Windows Task Scheduler**:
+23 `PersonalOS-*` tasks, each one running `bash.exe -lc "cd <repo> && bash scripts/<name>.sh"`.
+`/cron-setup` builds them from `scheduler/schedule.md`, and `node scripts/generate-alex.js` also
+writes systemd unit files into `systemd/` for the eventual Linux host, where they are the live
+mechanism and here they are an inert target. The best first schedule is the morning brief, daily 8:00.
+
+Three recovery checks keep the documented schedule and the live one in agreement: **C7** compares the
+job NAMES, **C7b** compares the live trigger HOURS, and **C7c** asserts the power conditions that
+decide whether a laptop job runs at all.
 
 - **How a scheduled `claude -p` job works:** the timer fires at a time, runs `claude -p "Run
   /{command}" --dangerously-skip-permissions`, the work happens, the process exits, each run is a
   fresh session. The skip-permissions flag is required because a headless run has no TTY to approve
   prompts (do not carry it into interactive use). The jobs run as your own user and reuse existing
   credentials, so no OAuth token is needed.
-- **Run `loginctl enable-linger $USER` once.** Without it, user timers only fire while you are
-  logged in, so a headless box silently runs nothing at all, with no error anywhere. This is the
-  single easiest thing to forget and the hardest to diagnose after the fact.
+- **On Windows, set the power conditions on every task.** A task left on the schtasks defaults will
+  not start on battery, is stopped when the machine unplugs, and cannot wake the box. It does not
+  FAIL, it never runs, so nothing goes red. That cost the encrypted backup seven of fourteen nights
+  in September 2026. Recovery check C7c asserts the three flags on every `PersonalOS-*` task.
+- **(Linux host only) Run `loginctl enable-linger $USER` once.** Without it, user timers only fire
+  while you are logged in, so a headless box silently runs nothing at all, with no error anywhere.
+  This is the single easiest thing to forget and the hardest to diagnose after the fact.
 - **The real jobs are hardened, not naive one-shots:** the scheduled wrappers are `.sh` scripts that
   detect failure, push a RED/GREEN `run_status` to Alex HQ so a dead run is never silent, and
   self-schedule one-shot retries past the quota reset. When you add a new scheduled automation, wrap
@@ -115,10 +125,11 @@ writes the unit files into `systemd/`. The best first schedule is the morning br
 - **Check a job:** `systemctl --user list-timers --all`, logs in `outputs/logs/{name}.log` plus
   `journalctl --user -u PersonalOS-{name}.service` for anything the wrapper never got to write.
   Pause all: `/cron-setup off`. Pause one: `/cron-setup off {name}`. Resume: `/cron-setup on`.
-- **Set the machine timezone before enabling anything** (`sudo timedatectl set-timezone
-  Europe/Stockholm`): every schedule is wall-clock local time.
-- **On macOS none of this exists**, and that is expected: the dev machine has no systemd, so
-  `systemd/` is inert there and the generator degrades to a loud skip rather than pretending.
+- **Set the machine timezone before enabling anything** (Windows: Settings > Time & language;
+  Linux host: `sudo timedatectl set-timezone Europe/Stockholm`): every schedule is wall-clock local
+  time, and recovery check C18 asserts the machine's zone against the travel state.
+- **On a machine with neither scheduler, `systemd/` is inert** and the generator degrades to a loud
+  skip rather than pretending. A check that cannot run says so; it never reports success.
 
 ### The scheduled jobs (from scheduler/schedule.md)
 
