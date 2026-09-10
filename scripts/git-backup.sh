@@ -49,8 +49,14 @@ if [ -z "$reason" ]; then
             }
           } catch (e) { process.exit(3); }
         });' 2>/dev/null)" || {
-        echo "personal-data guard: scan output unparseable, staging left as-is: $scan_raw" >> "$LOG"
-        blocked=""
+        # A07-T13 (2026-09-10): this failed OPEN. An unparseable scan set `blocked=""`, the unstage
+        # block below never ran, and the full `git add -A` set was committed and PUSHED to the PUBLIC
+        # repo. The one moment the guard cannot see is exactly the moment to hold back, and on this
+        # repo .gitignore is the sole barrier, so the cost of a wrong open is unrecoverable while the
+        # cost of a wrong hold is one missed nightly commit. Fail CLOSED on the two residual shapes
+        # the guard exists to catch: a new file at a work/NN root, and anything under scripts/.
+        echo "AMBER personal-data guard: scan output unparseable - failing CLOSED on the residual shapes: $scan_raw" >> "$LOG"
+        blocked="$(git diff --cached --name-only | grep -E '^(work/[^/]+/[^/]+$|scripts/)' || true)"
     }
 fi
 if [ -n "$blocked" ]; then
@@ -92,8 +98,25 @@ br="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 [ -n "$br" ] || br="main"
 
 if [ -z "$reason" ] && [ -z "${ALEX_DRY_RUN:-}" ]; then
-    if ! git push origin "$br" >> "$LOG" 2>&1; then
-        reason="git push failed (branch $br) - network or expired PAT?"
+    # A07-T11 (2026-09-10): every push failure reported the same sentence, "network or expired PAT?",
+    # and that string is what reaches the HQ RED headline. A refused protected branch, a detached
+    # HEAD and a dead remote are three different problems with three different fixes, and the one
+    # line a human reads named none of them. Capture the output and say which it was.
+    push_err="$(git push origin "$br" 2>&1)"; push_rc=$?
+    printf '%s\n' "$push_err" >> "$LOG"
+    if [ "$push_rc" -ne 0 ]; then
+        case "$br" in
+            HEAD)  reason="git push failed - detached HEAD, so there is no branch to push (check out a branch)" ;;
+            main)  reason="git push failed - main is branch-protected by design; work belongs on a branch and reaches main by PR" ;;
+            *)
+                case "$push_err" in
+                    *protected*|*"pre-receive hook declined"*) reason="git push failed (branch $br) - refused by branch protection" ;;
+                    *"Authentication failed"*|*"could not read Username"*|*"Invalid username or password"*) reason="git push failed (branch $br) - authentication refused, the PAT is expired or revoked" ;;
+                    *"unqualified destination"*|*"not a full refname"*) reason="git push failed (branch $br) - unqualified destination refspec" ;;
+                    *"Could not resolve host"*|*"Failed to connect"*|*"Connection timed out"*) reason="git push failed (branch $br) - network unreachable" ;;
+                    *) reason="git push failed (branch $br) - see outputs/logs/git-backup.log for git's own message" ;;
+                esac ;;
+        esac
     fi
 fi
 

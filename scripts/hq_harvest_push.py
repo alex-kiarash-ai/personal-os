@@ -110,7 +110,19 @@ def main():
         try:
             s = json.loads(ha.stdout.strip().splitlines()[-1])
             oc = s.get("open_count", 0); oldest = s.get("oldest_days", 0)
-            st = "red" if s.get("worst_severity") == "critical" else ("amber" if oldest >= 7 else "green")
+            # A16-T10 (2026-09-10): the escalation ladder the constitution describes has three rungs
+            # (day 0 the brief prints it, day 3+ the HQ strip, day 7+ the SessionStart line) and only
+            # the 7-day one was code. The queue reached 101 open with the oldest at 60 days while the
+            # tile stayed green for everything under a week. The middle rung exists now: amber at 3.
+            # Deliberately NOT red at 7 days. The queue's oldest item is 60 days old and 101 are
+            # open, so a 7-day red would be permanently red, and this repo already learned what that
+            # costs (F-14: reporting a healthy-but-unstamped leg in the same words as a rotted one is
+            # how an amber teaches people to ignore it). Red stays for a CRITICAL item, which is a
+            # thing that changed. The day-7 rung is not missing either way: the SessionStart line
+            # already prints the count and the oldest age at every session.
+            st = ("red" if s.get("worst_severity") == "critical"
+                  else "amber" if oldest >= 3
+                  else "green")
             events.append({"project": "human-actions", "metric_key": "open_count", "value_num": oc,
                            "status": st, "headline": f"{s.get('headline', str(oc) + ' open')} · oldest {oldest}d"})
         except Exception as e:

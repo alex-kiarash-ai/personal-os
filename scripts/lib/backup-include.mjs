@@ -65,6 +65,11 @@ const KEEP_OUTPUTS = [
   // file that this tar then encrypts and ships, which covers the stranded work without pushing
   // never-audited branches to a PUBLIC repo (that stays a deliberate, human decision).
   'outputs/git-bundles',
+  // logs added 2026-09-10 (A07-T15): outputs/logs holds git-backup.log and vault-backup.log, the ONLY
+  // record of what shipped and when, and every audit of this layer reads them to reconstruct what
+  // happened on a given night. They were in git (outputs/ is ignored) and in no backup leg, so the
+  // evidence about the backups lived on exactly one disk. ~2 MB.
+  'outputs/logs',
 ];
 
 // The four declared credentials. Named here so the archive assertion can be POSITIVE (assert these

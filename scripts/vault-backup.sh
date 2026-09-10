@@ -46,7 +46,11 @@ list_file="$work/include.list"
 
 # ALWAYS shred the plaintext tar, the decrypted verify copy, the local .gpg and the list - on SIGINT
 # and SIGTERM too, not only a clean exit (the PowerShell `finally` covered only a normal unwind).
-cleanup() { rm -rf "$work"; }
+# A07-T12 (2026-09-10): this trap REPLACES the library's EXIT trap in common.sh, which is what
+# removes $TMPOUT. Overriding it without carrying that line meant every run leaked a temp file; nine
+# were sitting in the temp dir when this was measured. Cleaning up after a script that has just
+# written a multi-gigabyte tar is not optional housekeeping.
+cleanup() { rm -rf "$work"; rm -f "${TMPOUT:-}"; }
 trap '_alex_rc=$?; cleanup; alex_signal_exit "$_alex_rc"' EXIT INT TERM HUP  # signal chains the C31 dead-man switch (stress-test S-D3)
 
 # --- 0. Nightly deterministic aggregates ---------------------------------------------------------
@@ -188,6 +192,7 @@ elif [ -z "$reason" ]; then
     # 2. tar (relative to the repo root), then append the two out-of-repo legs, then encrypt.
     if ! "$TAR" -cf "$tar_file" \
             --exclude='*/.obsidian' --exclude='*/node_modules' --exclude='*/.browser-profile' --exclude='*/.git' \
+            --exclude='*/.next' --exclude='*/venv' --exclude='*/.venv' --exclude='*/__pycache__' \
             -T "$list_file" >> "$LOG" 2>&1; then
         echo "tar reported errors (continuing to the existence check)" >> "$LOG"
     fi
