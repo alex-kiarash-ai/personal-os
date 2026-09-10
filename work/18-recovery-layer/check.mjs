@@ -1055,6 +1055,11 @@ try {
       // heartbeat per lane per day on the ALLOW path, which is the thing to age. 7 days because the
       // armed lanes are daily and a week of silence is unambiguous.
       { name: 'PreToolUse/untrusted-lane-guard', p: path.join('outputs', 'logs', 'untrusted-lane-heartbeat.jsonl'), days: 7 },
+      // A14-T9 (2026-09-10): the last two unprobed hooks. SessionStart now writes a lifecycle
+      // breadcrumb of its own, so the existing lifecycle probe above covers it; PostToolUse/Skill
+      // has always written system/skill-usage.jsonl and nothing aged it. 14 days because skills fire
+      // in bursts and a fortnight of total silence is the signal, not a quiet week.
+      { name: 'PostToolUse/skill-usage', p: path.join('system', 'skill-usage.jsonl'), days: 14 },
     ];
     for (const hp of hookProbes) {
       let hpFull = path.join(REPO, hp.p);

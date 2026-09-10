@@ -12,6 +12,26 @@
 
 PD="${CLAUDE_PROJECT_DIR:-.}"
 
+# A14-T8 (2026-09-10): a session started in a SUBFOLDER loads no .claude/settings.json, so no hooks,
+# no permission rules, no allow list, no commands and no constitution - and the failure is silent,
+# because the thing that would have announced it is one of the things that did not load. If this hook
+# IS running we can still be useful: compare where the session started against the repo root and say
+# so. Never fatal, and never a reason to stop the boot.
+# Compare RESOLVED physical paths, never the raw strings. On this machine git reports
+# `C:/Users/...` while the hook receives the MSYS form `/c/Users/...`; those are the same directory
+# and a string compare called every healthy session a mismatch, which would have been worse than the
+# bug being fixed. Both sides go through `cd && pwd -P`.
+TOP_RAW="$(git -C "$PD" rev-parse --show-toplevel 2>/dev/null || true)"
+TOP="$(cd "$TOP_RAW" 2>/dev/null && pwd -P || true)"
+PD_ABS="$(cd "$PD" 2>/dev/null && pwd -P || true)"
+if [ -n "$TOP" ] && [ -n "$PD_ABS" ] && [ "$TOP" != "$PD_ABS" ]; then
+    echo "SESSION-ROOT: MISMATCH - this session started in '$PD_ABS' but the repo root is '$TOP'. The constitution, the commands and the permission rules are NOT loaded. Close this session and open the repo root instead."
+fi
+
+# One breadcrumb per session so C29 can tell a hook that stopped firing from a quiet week
+# (A14-T9). Appended to the same lifecycle ledger PreCompact/SessionEnd already use.
+printf '{"ts":"%s","event":"sessionstart"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$PD/system/lifecycle.jsonl" 2>/dev/null || true
+
 # --- Identity (P3.2) --------------------------------------------------------------------------
 # The card is delivered by CLAUDE.md's `@soul-core.md` import, NOT here; this is only the fallback
 # for when the card is missing. That fallback used to `cat soul.md` - 229KB into a pipe the harness

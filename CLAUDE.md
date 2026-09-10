@@ -297,7 +297,7 @@ Alex only exists when Claude Code's session folder IS the personal-os root (the 
 
 - **Open the folder, do not attach it.** Desktop app: pick `personal-os` as the session folder. CLI: `cd` into it, run `claude`. A SUBFOLDER does not count.
 - **First-session script for a non-technical user:** open the folder → `/status` to confirm → `/setup` → `/brand`. "Unknown command" on /status = the folder is not loaded; send them back to step one, debug nothing else.
-- Hook paths are cwd-proof (`${CLAUDE_PROJECT_DIR:-.}`) so the hooks survive a subfolder start; the commands and constitution still load only at the root.
+- **A subfolder start loads NOTHING from this repo, and the old wording here was wrong twice over (corrected 2026-09-10, stress-test A14-T8).** It used to say hook paths are cwd-proof so "the hooks survive a subfolder start". They do not. `.claude/settings.json` is not read at all from a subfolder, so there are no hooks to make cwd-proof, no permission rules and no allow list; and `${CLAUDE_PROJECT_DIR:-.}` resolves to wherever the session STARTED, so even a hook that did load would look for its script inside the subfolder and exit. The variable makes a hook path robust to the shell's working directory changing mid-session. It does not make it robust to starting in the wrong place. The session-start hook now prints a `SESSION-ROOT: MISMATCH` line when it can tell.
 - This is step 2 of docs/GETTING-STARTED.md and the opening of docs/README.md; all three move together under Change Propagation.
 
 ## Bootstrap Protocol (First-Run DB Creation)
