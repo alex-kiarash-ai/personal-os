@@ -160,10 +160,15 @@ const HISTORY = /\bFirst run \(|\bPrior state\b|\bhistorical\b|\bat that time\b|
 // INLINE and quote the value they replace (`*(Corrected 2026-07-29 ... this said "OpenAI" ...)*`), so a
 // naive prose scan flags every correctly-corrected file. Strip those spans before scanning, and the
 // checker reads only the live claim - which is exactly what it is supposed to police.
+// A11-T14 / A17-T17 (2026-09-10): the second replace consumed everything from the marker to the end
+// of the LINE, including any live claim written after the correction on that same line. A false
+// claim wrapped behind a supersession note was therefore invisible to C21, the one checker that
+// exists to catch a doc lying about the system. It now stops at the correction's own closing bold
+// marker, so the correction is removed and the text after it stays scannable.
 function stripCorrections(text) {
   return text
     .replace(/\*\((?:Corrected|Correction|Superseded)[\s\S]*?\)\*/gi, ' ')
-    .replace(/\*\*Superseded[^\n]*/gi, ' ');
+    .replace(/\*\*Superseded[^*\n]*(?:\*\*)?/gi, ' ');
 }
 
 function sweepProjectSpecs(manifest, findings) {
@@ -250,6 +255,23 @@ function main() {
     console.error(`facts-check: cannot open facts.db (${e.message}) - run the harvest first`);
     return 1;
   }
+
+  // A11-T13 (2026-09-10): C21 tests standing doc claims AGAINST facts.db, so a ledger that stopped
+  // refreshing turns this check into a comparison of two stale things that agree with each other.
+  // That is worse than no check: it reports consistency. The harvest runs nightly, so anything past
+  // 48h means the chain is down and this run cannot make a truthful statement.
+  try {
+    const mx = db.prepare('SELECT MAX(t_valid) m FROM facts').get().m;
+    if (mx) {
+      const iso = String(mx).replace(' ', 'T');
+      const ms = Date.parse(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}Z`);
+      const ageH = (Date.now() - ms) / 3.6e6;
+      if (Number.isFinite(ageH) && ageH > 48) {
+        console.error(`facts-check: facts.db newest fact is ${ageH.toFixed(0)}h old (over the 48h bar) - the harvest chain is not running, so every doc claim below would be tested against a stale ledger. Not asserting.`);
+        return 2;
+      }
+    }
+  } catch { /* a ledger without a facts table is the openDb error above, not this */ }
 
   const findings = [];
   for (const a of ASSERTIONS) {
