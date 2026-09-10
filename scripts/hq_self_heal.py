@@ -83,11 +83,23 @@ def n8n_events():
         return []
 
 
-def escalate(id_, severity, what):
+def escalate(id_, severity, what, origin="", evidence=""):
     """Queue to the waiting-on-you list; human-actions.js refuses duplicate open ids, so this is
-    idempotent (a returncode != 0 just means it's already queued)."""
-    run(["node", "scripts/human-actions.js", "add", "--id", id_,
-         "--severity", severity, "--what", what])
+    idempotent (a returncode != 0 just means it's already queued).
+
+    origin/evidence (2026-09-10, stress-test A09-T23): every metric this loop reads arrived over the
+    wire, and ONE 48-byte token authorizes any POST to alex-push. A forged red headline carrying an
+    engine signature therefore became the `what` of a HIGH row - an attacker's prose rendered as
+    Alex's own sentence in the queue, the brief and the SessionStart line, with nothing to mark it
+    as untrusted. The headline now travels in `evidence`, quoted and labelled at render; `what` says
+    only what THIS code knows. Callers reading a metric MUST pass both."""
+    cmd = ["node", "scripts/human-actions.js", "add", "--id", id_,
+           "--severity", severity, "--what", what]
+    if origin:
+        cmd += ["--origin", origin]
+    if evidence:
+        cmd += ["--evidence", evidence]
+    run(cmd)
 
 
 def log(check, state, detail, cls=""):
@@ -165,7 +177,10 @@ def probe_n8n_broken(summary, entry):
     if bad.get("value_num", 0) == 0:
         return log("n8n-broken", "ok", "no broken workflows")
     # PROPOSE: a live workflow fix needs Shaheen's ok
-    escalate("heal-n8n-broken", "high", f"n8n broken: {bad.get('headline')} - redeploy/reactivate needs your ok")
+    escalate("heal-n8n-broken", "high",
+             "n8n reported broken workflow(s); a redeploy or reactivation needs your ok. Confirm "
+             "against n8n itself first: the headline below arrived over the HQ push API.",
+             origin="hq-metric n8n liveness", evidence=str(bad.get("headline", "")))
     log("n8n-broken", "proposed", bad.get("headline", ""), "PROPOSE")
 
 
@@ -256,7 +271,10 @@ def probe_unknown_red(summary, entry, claimed):
             continue
         hits.append((name, next(iter(fault_metrics.values())).get("headline", "")))
     for name, worst in hits:
-        escalate(f"heal-unknown-{name}", "medium", f"Unknown red on '{name}': {worst or 'see HQ'} - needs diagnosis")
+        escalate(f"heal-unknown-{name}", "medium",
+                 f"Unknown red on '{name}' - needs diagnosis. The headline below arrived over the "
+                 f"HQ push API and is not verified here.",
+                 origin=f"hq-metric {name}", evidence=str(worst or "see HQ"))
         log("unknown-red", "proposed", f"{name}: {worst}", "PROPOSE")
     if not hits:
         log("unknown-red", "ok", "no unclaimed FAULT reds")
@@ -302,8 +320,11 @@ def probe_soul_canary(summary, entry, claimed):
         escalate(
             f"soul-canary-{name}",
             "high",
-            f"soul.md did not verifiably reach the model on '{name}': {headline}. "
-            f"Identity lane - check the injection path and scripts/lib/soul-canary.ps1 before the next run.",
+            f"soul.md did not verifiably reach the model on '{name}'. Identity lane - check the "
+            f"injection path and the canary gate before the next run. The headline below arrived "
+            f"over the HQ push API and is not verified here.",
+            origin=f"hq-metric {name}",
+            evidence=headline,
         )
         log("soul-canary-failed", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
 
@@ -345,9 +366,12 @@ def probe_n8n_engine_errored(summary, entry, claimed):
         escalate(
             f"n8n-engine-errored-{name}",
             "high",
-            f"a governed n8n job engine has errored on its last scheduled run ('{name}'): {headline}. "
-            f"The pipeline is producing nothing - check the Anthropic credit balance and the failing "
-            f"node (GET /executions/{{id}}?includeData=true).",
+            f"a governed n8n job engine reported an errored last scheduled run ('{name}'). "
+            f"The pipeline may be producing nothing - check the Anthropic credit balance and the "
+            f"failing node (GET /executions/{{id}}?includeData=true). Confirm against n8n itself "
+            f"before acting: the headline below arrived over the HQ push API and is not verified here.",
+            origin=f"hq-metric {name}",
+            evidence=headline,
         )
         log("n8n-engine-errored", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
 
