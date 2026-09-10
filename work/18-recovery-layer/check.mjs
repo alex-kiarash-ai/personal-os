@@ -1123,6 +1123,17 @@ try {
       if (scLen > scBudget) {
         addDrift('soul-core-budget', `soul-core.md is ${scLen} B against the ${scBudget} B budget - the builder's trim hit its MIN_ENTRIES floor, so this needs a human call: raise meta.vault.soul_core_byte_budget deliberately, or prune the My Words corpus`);
       }
+      // A15-T2 (2026-09-10): the check above fires only AFTER the trim has already dropped entries
+      // and still could not fit, so the interesting moment - the first entry silently leaving the
+      // recency slice - passed unreported. The builder stamps `entries=N` and NOTHING read it. A
+      // shortfall means the byte trim is dropping his newest words, which is the least visible way
+      // this corpus loses register: every prose surface keeps working, it just stops sounding like him.
+      const scStamp = readText(scPath) || '';
+      const em = /entries=(\d+)/.exec(scStamp.slice(-400));
+      const wantEntries = Number(manifest.meta?.vault?.soul_core_newest_entries) || 20;
+      if (em && Number(em[1]) < wantEntries) {
+        addDrift('soul-core-budget', `soul-core.md ships ${em[1]} of the ${wantEntries} newest My Words entries - the byte trim dropped ${wantEntries - Number(em[1])}. His most recent phrasing is what every voice-matched draft is built from; raise meta.vault.soul_core_byte_budget or prune older entries deliberately.`);
+      }
     }
   }
 

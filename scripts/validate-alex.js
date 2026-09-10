@@ -65,7 +65,7 @@ const REPO = path.join(__dirname, '..');
 // deriving its expectation from prose (the V6 lesson): so V_MAX is declared HERE, once, and
 // generate-alex.js + the recall h-validators harvester + narrative-drift-check.py all read THIS
 // declaration (a structured `const V_MAX = <n>`), never a printed string or a prose claim.
-const V_MAX = 17;
+const V_MAX = 18;
 const SUITE_RANGE = `G1-G4 + V1-V${V_MAX}`;
 
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -1422,6 +1422,45 @@ function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
 //       Compute-and-compare: skill tokens parsed from the Skill(s) CELL of MANDATORY rows only
 //       (kebab-case tokens), each asserted resolvable. ERROR tier.
 // ---------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------
+// V18 - no stray CONTROL CHARACTER in tracked source (2026-09-10).
+// Born from three sightings of one class in a single day, plus an older one already recorded in the
+// technical master. Writing a backslash-b, backslash-f or backslash-zero escape inside a NON-RAW
+// string in a generator script puts a REAL control byte into the output: backspace, formfeed, or an
+// octal escape. The result LOOKS correct in an editor and in a diff, and it silently disables
+// whatever it landed in: a regex that can never match, a path that cannot resolve. Today it shipped
+// a recovery check and a narrative-drift claim that both tested NOTHING while reporting healthy,
+// which is the exact dead-check-green shape this suite exists to catch. (The escape names are
+// spelled out in words here on purpose: the first version of this comment contained the very bytes
+// it describes, and this check could not see them because it was broken in a second way at the
+// same time.)
+// TAB, LF and CR are legal. Every other C0 byte is not, unless the file declares an
+// `ALEX-ALLOW-CONTROL-BYTES: <reason>` marker.
+function v18ControlCharacters({ stagedDir }, failures) {
+  const SCAN = ['.js', '.mjs', '.cjs', '.py', '.sh', '.json', '.md'];
+  const BAD = new RegExp('[\u0000-\u0008\u000b\u000c\u000e-\u001f]');
+  let files = [];
+  try {
+    files = require('child_process')
+      .execFileSync('git', ['ls-files'], { cwd: REPO, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
+      .split(String.fromCharCode(10)).map((f) => f.trim()).filter(Boolean);
+  } catch { return; }   // no git = nothing to assert, not a failure
+  for (const rel of files) {
+    if (!SCAN.includes(path.extname(rel))) continue;
+    const eff = effective(stagedDir, rel);
+    if (!eff) continue;
+    // A file may use a control byte ON PURPOSE (a NUL as a composite-key separator, for instance).
+    // It declares that with a reasoned marker, so the exception lives beside the code rather than in
+    // a list somewhere else, and a reader meeting the byte finds the reason immediately.
+    if (/ALEX-ALLOW-CONTROL-BYTES:\s*\S/.test(eff.text)) continue;
+    const m = BAD.exec(eff.text);
+    if (!m) continue;
+    const line = eff.text.slice(0, m.index).split(String.fromCharCode(10)).length;
+    const code = m[0].charCodeAt(0).toString(16).padStart(2, '0');
+    failures.push(`FAILED V18: ${rel}:${line} holds a stray control byte (0x${code}). Almost always an escape written inside a NON-RAW string by a generator script: invisible in an editor, and it silently breaks the regex or path it landed in.`);
+  }
+}
+
 function v17MandatorySkillBindings({ stagedDir }, failures) {
   const claude = effective(stagedDir, 'CLAUDE.md');
   if (!claude) return; // G2 owns a missing CLAUDE.md
@@ -1494,6 +1533,7 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   if (manifest) v15CommandHeaders({ stagedDir, manifest }, failures, warnings); // command-file state/trigger headers (WARN-tier for now)
   if (manifest) v16ConstitutionBudget({ stagedDir, manifest }, failures); // constitution byte budget (armed by meta.constitution)
   v17MandatorySkillBindings({ stagedDir }, failures); // MANDATORY skill rows resolve to live junctions (every run)
+  v18ControlCharacters({ stagedDir }, failures);      // no stray control byte in tracked source (every run)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);

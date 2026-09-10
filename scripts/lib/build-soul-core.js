@@ -173,7 +173,14 @@ function assemble({ operative, endCanary, token }, { newest, pinned }, soulSha, 
   }
   parts.push(`NEWEST ${newest.length} ENTRIES by parsed heading date (recency slice, rebuilt nightly, newest first):`, '');
   for (const e of newest) parts.push(e.text, '');
-  parts.push(`SOUL-CORE-STAMP: source-sha256=${soulSha} pins-sha256=${pinsSha} generated-at=${new Date().toISOString()} entries=${newest.length} pinned=${pinned.length} token-count=2`);
+  // A15-T1 (2026-09-10): the stamp recorded the hash of the SOURCE (soul.md) and never of the card
+  // BODY, so a hand edit to soul-core.md survived everything: the nightly rebuild sees a matching
+  // source sha and returns a verified no-op, C23 compares the same source sha, and the self-heal
+  // probe does too. The card is what every session actually reads, and nothing hashed it. body-sha
+  // is over the assembled card ABOVE this line, so it can be recomputed by anyone reading the file.
+  const bodyText = parts.join('\n');
+  const bodySha = crypto.createHash('sha256').update(bodyText).digest('hex');
+  parts.push(`SOUL-CORE-STAMP: source-sha256=${soulSha} pins-sha256=${pinsSha} body-sha256=${bodySha} generated-at=${new Date().toISOString()} entries=${newest.length} pinned=${pinned.length} token-count=2`);
   const card = parts.join('\n');
 
   // Floor checks on the ASSEMBLED card.
@@ -208,9 +215,19 @@ function build({ log = () => {}, outPath = OUT, soulPath = SOUL, pinsPath = PINS
   // Nightly runs with nothing new leave the card byte-identical, so the prompt-cache prefix and the
   // file mtime only move when the corpus or the pin list actually moved.
   if (!force && fs.existsSync(outPath)) {
-    const tail = fs.readFileSync(outPath, 'utf8').slice(-400);
-    const m = tail.match(/source-sha256=([0-9a-f]{64}) pins-sha256=([0-9a-f]{8})/);
-    if (m && m[1] === soulSha && m[2] === pinsSha) {
+    const existing = fs.readFileSync(outPath, 'utf8');
+    const tail = existing.slice(-400);
+    const m = tail.match(/source-sha256=([0-9a-f]{64}) pins-sha256=([0-9a-f]{8})(?: body-sha256=([0-9a-f]{64}))?/);
+    // A hand-edited card must NOT be treated as an unchanged one. If the stamp carries a body hash,
+    // recompute it over everything above the stamp line and rebuild on a mismatch.
+    let bodyOk = true;
+    if (m && m[3]) {
+      const cut = existing.lastIndexOf('\nSOUL-CORE-STAMP:');
+      const body = cut > 0 ? existing.slice(0, cut) : '';
+      bodyOk = crypto.createHash('sha256').update(body).digest('hex') === m[3];
+      if (!bodyOk) log('  soul-core: card body sha MISMATCH - the file was edited after it was built; rebuilding');
+    }
+    if (m && m[1] === soulSha && m[2] === pinsSha && bodyOk) {
       log(`  soul-core: unchanged (soul.md sha ${soulSha.slice(0, 12)}.., pins ${pinsSha}) - verified no-op`);
       return { noop: true, bytes: fs.statSync(outPath).size, sha: soulSha };
     }

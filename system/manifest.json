@@ -237,7 +237,8 @@
       "log_order_baseline": "2026-08-23 17:00",
       "log_order_baseline_note": "P1.5 (run-47 merged plan, 2026-08-23). C26 asserts vault/log.md tail ordering only from this stamp forward. The 276 pre-existing out-of-order pairs measured on 2026-08-23 are HISTORY: they record what actually happened and rewriting them to satisfy a checker would be a lie, so they are baselined rather than repaired. scripts/log-append.js is the mechanical writer that keeps new entries ordered; C26 catches anything written around it.",
       "status_byte_budget": 25600,
-      "note": "S1 Compiled Surfaces P2 (2026-08-16): Tier-1 status.md files are SUMMARIES by contract. scripts/status-rotate.js moves whole dated H2 blocks (oldest first, heading-block-atomic so BM25 chunks keep their inline supersessions) of any over-budget status.md to vault/projects/{name}/history/status-YYYY.md, linked both ways, journaled to system/status-rotate-journal.jsonl before each move. C24 ambers on any status.md over this budget (live byte count, so a dead rotator cannot hide). Nothing is deleted anywhere."
+      "note": "S1 Compiled Surfaces P2 (2026-08-16): Tier-1 status.md files are SUMMARIES by contract. scripts/status-rotate.js moves whole dated H2 blocks (oldest first, heading-block-atomic so BM25 chunks keep their inline supersessions) of any over-budget status.md to vault/projects/{name}/history/status-YYYY.md, linked both ways, journaled to system/status-rotate-journal.jsonl before each move. C24 ambers on any status.md over this budget (live byte count, so a dead rotator cannot hide). Nothing is deleted anywhere.",
+      "soul_core_newest_entries": 20
     },
     "constitution": {
       "byte_budget": 76000,
