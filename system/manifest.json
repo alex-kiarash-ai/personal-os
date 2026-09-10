@@ -5,7 +5,9 @@
     "branch_protection": {
       "_purpose": "The DECLARED protection posture of main on the public repo, asserted live by security-sweep S12 (stress-test A06-T7 / M-24, 2026-09-10). Nothing watched this before: protection could be relaxed or dropped and every surface stayed green. Contract, not prose - S12 reads THIS, so changing the posture means editing here deliberately.",
       "branch": "main",
-      "required_status_checks": ["portable-tests"],
+      "required_status_checks": [
+        "portable-tests"
+      ],
       "enforce_admins": true,
       "allow_force_pushes": false,
       "allow_deletions": false,
@@ -160,6 +162,16 @@
         "name": "alex-costs",
         "status_md": "vault/projects/alex-costs/status.md",
         "reason": "sprint row #18, refresh piggybacks the /expense-wrangler slot"
+      },
+      {
+        "name": "alex-kit",
+        "status_md": "vault/projects/alex-kit/status.md",
+        "reason": "the family redistribution product. Its CODE is a SIBLING repo at Desktop/alex-kit (three installed copies + one pending), so it has no work_dir in this tree by construction; the port triage that keeps the two in step lives in vault/projects/alex-kit/ported.md. Registered 2026-09-10 (stress-test A02-T2): C4 had ambered on it weekly with no owner."
+      },
+      {
+        "name": "daily-plan",
+        "status_md": "vault/projects/daily-plan/status.md",
+        "reason": "the Notion Daily Plan board (created 2026-08-26). The board is LIVE in Notion and its status page carries the live db ids, but the code that drives it (scripts/daily-plan-core.js and the /today command) exists ONLY on the unmerged branch merge/powershell-post-aug7, commit 786ca9e - one of the stranded commits M-19 tracks. Registered 2026-09-10 with that state stated rather than left as a weekly amber with no owner; when that branch lands this becomes a numbered project."
       }
     ],
     "unnumbered": [

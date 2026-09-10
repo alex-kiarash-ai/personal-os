@@ -342,6 +342,39 @@ def main():
             if int(m.group(1)) != live_s:
                 findings.append(f"master claims '{m.group(1)} assertions' but security-sweep.mjs declares S1-S{live_s}")
 
+    # claim 7: no TRACKED doc may restate the validator's suite range (A03-T4/T6, 2026-09-10).
+    # The range is declared once, in validate-alex.js, and the validator prints it itself. A restated
+    # copy is a number that can only rot: port-to-kit.md carried "V1-V18", a range that has never
+    # existed in any version of the suite. outputs/ is excluded because a delivered artifact is a
+    # dated record of what was true when it shipped.
+    live_v2 = live_v_count()
+    if live_v2 is not None:
+        import subprocess
+        try:
+            tracked = subprocess.run(["git", "ls-files", "*.md"], cwd=str(REPO),
+                                     capture_output=True, text=True, timeout=30).stdout.split()
+        except Exception:
+            tracked = []
+        for rel in tracked:
+            if rel.startswith("outputs/") or rel.startswith("docs/constitution-annex/"):
+                continue
+            f = REPO / rel
+            try:
+                body = f.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            # A file that declares itself a DATED RECORD is history by its own statement, and this
+            # repo keeps those intact on purpose (ALEX-REFACTOR-SPEC-FOR-CLAUDE-CODE.md says so in
+            # its own header). Policing a number inside one would ask it to lie about its date.
+            if re.search(r"DATED RECORD", body[:4000], re.I):
+                continue
+            for m in re.finditer(r"V1[-–]V(\d+)", body):
+                if int(m.group(1)) != live_v2:
+                    findings.append(
+                        f"{rel} restates the validator range as V1-V{m.group(1)} but validate-alex.js declares V1-V{live_v2}; "
+                        f"the range is declared once and the validator prints its own"
+                    )
+
     if findings:
         for f in findings:
             print(f)

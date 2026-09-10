@@ -159,7 +159,7 @@ For EVERY item Shaheen approves from a digest, same discipline as any other chan
 3. **New pattern** -> it becomes the next numbered automation (#26, #27, ...): write its
    `system/manifest.json` entry FIRST (the /new discipline), then scaffold `work/NN-name/`.
 4. Run **`node scripts/generate-alex.js`** -> all docs and integrations regenerate.
-5. **Phase 3 validation runs and passes** (G1-G4 + V1-V6). A red check blocks the commit; fix the named
+5. **Phase 3 validation runs and passes** (the validator prints its OWN suite range; do not restate it here). A red check blocks the commit; fix the named
    drift, don't bypass.
 6. Shaheen **reviews the diff once, approves, merges.** That is the only path to production.
 
