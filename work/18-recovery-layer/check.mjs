@@ -716,6 +716,35 @@ try {
     }
   }
 
+  // --- C19b restore-doc paths resolve (stress-test S-G1 08-29 Critical, M-14 09-04, A11-T1 / A17-T1
+  // 09-09: the same dead paths on three audits, and the check the 08-29 fix proposed never existed).
+  // Every BACKTICKED repo path in the restore-first doc, the recovery runbooks and the technical
+  // master must exist on disk; history goes in plain text (lib/doc-paths.mjs states the convention).
+  // Zero-token, no network, derived from the filesystem, never from prose.
+  {
+    const { deadRepoPaths } = await import(pathToFileURL(path.join(HERE, 'lib', 'doc-paths.mjs')).href);
+    // The restore-first doc, the RUNBOOKS (not the dated lint-*.md reports, which name missing pages
+    // by design), and the master's STANDING sections (everything above its running-changes log, which
+    // is an append-only history and keeps its old names).
+    const docs = [path.join(REPO, 'vault', 'identity.md')];
+    const rbDir = path.join(REPO, 'vault', 'projects', 'recovery');
+    if (exists(rbDir)) for (const f of fs.readdirSync(rbDir)) if (f.endsWith('.md') && !/^lint-/.test(f)) docs.push(path.join(rbDir, f));
+    const masterRaw = manifest.meta && manifest.meta.paths && manifest.meta.paths.master_reference_md;
+    const master = masterRaw ? masterRaw.replace(/%USERPROFILE%|^~/, process.env.USERPROFILE || process.env.HOME || '') : null;
+    if (master && exists(master)) docs.push(master);
+    let checked = 0, deadTotal = 0, read = 0;
+    for (const d of docs) {
+      let t = readText(d);
+      if (t === null) continue;
+      if (d === master) t = t.split(/^## 11\. Running changes/m)[0];
+      read++;
+      const r = deadRepoPaths(t, REPO);
+      checked += r.checked; deadTotal += r.dead.length;
+      if (r.dead.length) addDrift('restore-doc-dead-path', `${path.relative(REPO, d) || d} names ${r.dead.length} repo path(s) that do not exist: ${r.dead.slice(0, 6).join(', ')}${r.dead.length > 6 ? ', ...' : ''}. A restore follows these lines; repoint the live claim or move the history out of backticks.`);
+    }
+    say(`C19b restore-doc paths: ${read} doc(s), ${checked} path claim(s), ${deadTotal} dead`);
+  }
+
   // --- C20 backup destinations (F1, 2026-07-25): >=2 INDEPENDENT off-machine destinations must each
   // have verified a copy this cycle. The SPOF this kills: the sole off-machine backup home was the
   // PRODUCTION n8n box, so a box+laptop loss was unrecoverable. Ambers (never reds) until >=2 are
