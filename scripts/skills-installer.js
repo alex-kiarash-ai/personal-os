@@ -449,7 +449,12 @@ if (require.main === module) (async () => {
   const lock = readJSON(LOCK, { skills: {} });
   const installed = new Set(Object.keys(lock.skills || {}).map(s => s.toLowerCase()));
   const allow = new Set((cfg.trust_allowlist || []).map(a => a.toLowerCase()));
-  for (const v of Object.values(lock.skills || {})) if (v.source) allow.add(String(v.source).split('/')[0].toLowerCase());
+  // A12-T9 (2026-09-10): this line WIDENED trust automatically. Every owner already present in the
+  // lock was added to the allowlist, so 9 curated owners became 15 effective ones, and each install
+  // enlarged the set that could authorise the next. A trust list that grows by being used is not a
+  // trust list. Trust now widens only by editing `trust_allowlist` in system/skills-sources.json,
+  // which is a decision someone makes on purpose. (Removed, not commented out, so nothing re-adds it
+  // by reflex; the six history-only owners are recoverable from the lock if any is wanted.)
   const cap = cfg.weekly_install_cap || 3;
 
   // Revocation list (2026-08-05, idea 4): system/skills-sources.json `revoked` names a skill or a

@@ -49,15 +49,33 @@ ROOT="$(git rev-parse --show-toplevel)" || exit 1
 # degraded to fail-open. On a PUBLIC repo where .gitignore is the sole barrier, a scanner that quietly
 # skips is worse than one that blocks: a pushed secret must be ROTATED, not just deleted. So the lookup
 # is now broad (env override -> PATH -> WinGet -> the usual unix bindirs) and absence FAILS CLOSED.
+# A12-T10 (2026-09-10): PATH was consulted BEFORE the known install locations, so anything named
+# `gitleaks` on PATH became the secret scanner - including a stub that exits 0, which passes the leg
+# as "clean" without reading a byte. The order is now: explicit override, then the trusted install
+# locations, then PATH as the last resort. And whatever resolves must answer `version`, so a binary
+# that cannot even identify itself blocks instead of silently approving.
 GITLEAKS=""
 if [ -n "${ALEX_GITLEAKS:-}" ] && [ -x "${ALEX_GITLEAKS}" ]; then
   GITLEAKS="$ALEX_GITLEAKS"
-elif command -v gitleaks >/dev/null 2>&1; then
-  GITLEAKS="gitleaks"
 else
   for _gl in /c/Users/*/AppData/Local/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_*/gitleaks.exe /usr/local/bin/gitleaks /usr/bin/gitleaks /opt/homebrew/bin/gitleaks "$HOME/go/bin/gitleaks"; do
     [ -x "$_gl" ] && { GITLEAKS="$_gl"; break; }
   done
+  if [ -z "$GITLEAKS" ] && command -v gitleaks >/dev/null 2>&1; then
+    GITLEAKS="gitleaks"
+  fi
+fi
+if [ -n "$GITLEAKS" ]; then
+  # It must PRINT a version, not merely exit 0. A stub that exits 0 for every argument answers
+  # `version` successfully and scans nothing, which is the whole shape of this finding; requiring a
+  # digit.digit in the output is what separates a real binary from a rubber stamp.
+  _glv="$("$GITLEAKS" version 2>&1 | head -1)"
+  case "$_glv" in
+    *[0-9].[0-9]*) : ;;
+    *)
+      echo "pre-commit: BLOCKED - the resolved gitleaks ('$GITLEAKS') did not print a version (got: '${_glv:-nothing}'), so it cannot be trusted to scan staged content. Fix the install, or point ALEX_GITLEAKS at a real binary." >&2
+      exit 1 ;;
+  esac
 fi
 if [ -n "$GITLEAKS" ]; then
   "$GITLEAKS" git --staged --no-banner --redact --config "$ROOT/.gitleaks.toml" --exit-code 9 "$ROOT"

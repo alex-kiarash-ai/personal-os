@@ -17,6 +17,7 @@ work/16-alex-hq/config/hq-basic-auth.txt
 # Agent-skills symlink layer (machine-local). Canonical skill content is committed under
 # .agents/skills/. Rebuild on restore, per pair:
 #   ln -s ../../.agents/skills/<name> .claude/skills/<name>
+# (the links on disk are ABSOLUTE, which is what `skills-installer.js` creates and what a restore reproduces; the relative form works too and is what this recipe writes by hand. Either resolves, so C17 passes on both, but do not read the recipe as a description of what is there, A12-T12)
 # (Before the 2026-08-05 Linux move these were NTFS junctions, because core.symlinks=false on
 # Windows would have duplicated the content. On Linux they are ordinary symlinks and recovery
 # check C17 also catches a BROKEN one, which the old check could not distinguish from healthy.)

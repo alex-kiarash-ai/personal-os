@@ -341,9 +341,11 @@
       "source": "multica-ai/andrej-karpathy-skills",
       "sourceType": "github",
       "skillPath": "skills/karpathy-guidelines/SKILL.md",
-      "computedHash": "6e22cc54cb02a5e98ae42d06d9d7292db0c1b43894831b32879beb0166b2aea7",
+      "computedHash": "cf1c21a2a8b43043c725b869c233d3c97fa90e95ace1ba0f92964f390713f929",
       "sourceCommitBackfilled": "2c606141936f1eeef17fa3043a72095b4765b9c2",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "backfilledAt": "2026-08-23T15:09:54Z",
+      "localEdit": "ALEX SCOPE GUARD block added 2026-09-10 (stress-test A14-T13): the CODE-ONLY bound on section 3 lived only in docs/constitution-annex/skills-provenance.md, which a model following this skill never reads. Curated local edit, same class as the description rewrites; re-hashed here so S7 stays green on the intended content.",
+      "rehashedAt": "2026-09-10T20:25:02Z"
     },
     "launch": {
       "source": "coreyhaines31/marketingskills",

@@ -6,6 +6,17 @@ license: MIT
 
 # Karpathy Guidelines
 
+> **ALEX SCOPE GUARD (local edit, 2026-07-28; written into this file 2026-09-10, stress-test A14-T13).**
+> This guard existed only in `docs/constitution-annex/skills-provenance.md`, which is not a file a
+> model reads while it is following this skill. It belongs here, beside the rules it bounds.
+>
+> Section 3, "Surgical Changes", is **CODE-ONLY**. It never overrides the Change Propagation standing
+> order or the Close-Out Gate. In this repo, touching one file and stopping is the defect those
+> orders exist to prevent, not the discipline this section is praising.
+>
+> Sections 1 and 4 restate the Plan Gate and Verify-after-write, which are already binding here.
+> Where any wording differs, root `CLAUDE.md` wins.
+
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
