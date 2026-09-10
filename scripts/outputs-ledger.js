@@ -48,7 +48,11 @@ const STREAM_DIRS = ['logs', 'voice', 'typed'];
 //   name its folder after - which is exactly what C12 flagged on 2026-07-25 (stress-test F-12). Its
 //   artifacts ARE deliverables and DO get ledger rows; only the folder-name assertion needed the
 //   exemption. If the lane ever earns a /new registry slot, drop this entry and use the manifest key.
-const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex', 'prompting-scheduled', 'explainer'];
+// git-bundles = the nightly `git bundle create --all` written by vault-backup.sh (2026-09-10,
+//   stress-test A06-T17): one file holding every LOCAL git ref so a branch that was never pushed is
+//   not one disk failure from gone. It is infrastructure for the backup, not a deliverable, so it is
+//   exempt from the folder-naming assertion and gets no ledger row. Gitignored by the outputs/ rule.
+const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex', 'prompting-scheduled', 'explainer', 'git-bundles'];
 const SKIP_FILES = new Set(['ledger.jsonl', 'INDEX.md', '.gitkeep', 'desktop.ini', 'Thumbs.db', '.platform']);
 const SKIP_EXT = new Set(['.log', '.tmp', '.lock']);
 // Multi-file bundle formats: internals are components of ONE deliverable, never rows themselves
@@ -228,6 +232,17 @@ function reconcile() {
 const CV_RULE_FROM = '2026-08-20';
 const CV_FAMILY  = /^shaheen[_-]kiarash/i;
 const CV_ALLOWED = /^Shaheen_Kiarash_(CV|Cover_?Letter)\.(pdf|docx)$/;
+// Reviewed exceptions to the filename law, by exact repo-relative path (2026-09-10, stress-test
+// A04-T3 follow-on). The law is deliberately matched on HIS NAME rather than on CV-ish words,
+// because the leak it prevents is `Shaheen_Kiarash_AI_Engineer_<Company>.pdf` - a filename with no
+// CV token in it at all. Narrowing the pattern to catch only files that LOOK like a CV would open
+// exactly the hole the law exists to close, so the pattern stays broad and a genuine non-application
+// document is exempted here ONE PATH AT A TIME with its reason, the same shape as the gitleaks and
+// personal-data allowlists. An entry here is a claim that this file is never sent to a recruiter.
+const CV_NAME_EXCEPTIONS = new Map([
+  ['outputs/sessions/2026-08-25-istvan-action-plan/Shaheen_Kiarash_Action_Plan.pdf',
+   'a personal career action plan from a coaching session, never an application attachment; it is not a CV or a cover letter and carries no company or role in its name'],
+]);
 
 function validate() {
   let failed = false;
@@ -254,6 +269,7 @@ function validate() {
     const base = path.basename(f);
     if (!CV_FAMILY.test(base) || CV_ALLOWED.test(base)) continue;
     if (dateFor(f) < CV_RULE_FROM) continue;
+    if (CV_NAME_EXCEPTIONS.has(rel(f).split(path.sep).join('/'))) continue;
     badName.push(rel(f));
   }
   if (badName.length) {

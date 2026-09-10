@@ -156,12 +156,21 @@ function pushCheckerError(err) {
   hqPush({ valueNum: -1, headline: `checker ERROR: ${err}`, status: 'red' });
 }
 
+// A04-T20 (2026-09-10): a check that took a silent branch and asserted NOTHING used to be
+// indistinguishable in the report from a check that ran and passed. On a fresh clone that made the
+// whole sweep read as a clean bill of health for a system it had barely inspected. `noState` records
+// the branch; the report footer lists them, so "30 checks, 0 drift" can be read against how many of
+// those 30 actually looked at anything.
+const noState = [];
+const recordNoState = (check, why) => { noState.push({ check, why }); say(`${check}: NO ASSERTION this run - ${why}`); };
+
+let hqPushFailed = null;   // set by hqPush; surfaced in the report footer (A04-T18, P-25 4th sighting)
 function hqPush({ valueNum, headline, status }) {
   if (DRY) {
     say(`DRYRUN, would push: integrity=${valueNum} ${status} - ${headline}`);
     return;
   }
-  spawnSync(
+  const res = spawnSync(
     process.execPath,
     [
       path.join(REPO, 'scripts', 'lib', 'close-out.mjs'), 'hq-push',
@@ -172,8 +181,18 @@ function hqPush({ valueNum, headline, status }) {
       '--value', String(valueNum),
       '--headline', headline,
     ],
-    { cwd: REPO, stdio: 'ignore' }
+    { cwd: REPO, stdio: 'pipe', encoding: 'utf8' }
   );
+  // P-25, FOURTH sighting (A04-T18): the push result was discarded, so a sweep whose HQ write
+  // failed looked identical to one that succeeded, and the dashboard silently kept yesterday's
+  // integrity tile. Best-effort stays best-effort - a bad token or a dead network must never change
+  // the sweep's exit code, that is the 2026-07-04 hardening - but it is now SAID, and the report
+  // footer carries it so a human reading last-sweep.md can see the tile is stale.
+  if (res && res.status !== 0) {
+    const why = res.error ? res.error.message : `exit ${res.status}`;
+    hqPushFailed = why;
+    say(`HQ push FAILED (${why}) - the integrity tile still shows the PREVIOUS run; the sweep result below is unaffected`);
+  }
 }
 
 let manifest;
@@ -548,6 +567,8 @@ try {
         addDrift('stale-status', `#${p.num} ${p.name}: CLAUDE.md changed since last --init but status.md did not (propagate into status.md, then re-run --init)`);
       }
     }
+  } else {
+    recordNoState('C8 dependent staleness', `no status_hashes in ${path.relative(REPO, BASELINE_FILE)} - run check.mjs --init to seed it; until then a spec change with an unpropagated status.md cannot be detected`);
   }
 
   // --- C9 log monotonicity: vault/log.md line count must never drop (append-only history) ---
@@ -599,8 +620,16 @@ try {
   // validator instead of duplicating it). Detect-only here; the nightly reconcile is the healing lane.
   {
     const lv = spawnSync(process.execPath, [path.join('scripts', 'outputs-ledger.js'), 'validate'], { encoding: 'utf8', cwd: REPO });
-    const out = `${lv.stdout || ''}${lv.stderr || ''}`.split(/\r?\n/)[0] || '';
-    if (lv.status === 2) addDrift('outputs-naming', out);
+    // Report EVERY failing leg, not stdout line 1 (A04-T3). The validator prints leg 1's verdict
+    // first, clean or not, so a leg-1 PASS beside a leg-2 FAILURE was reported as leg 1's clean
+    // line. A real leg-2 failure sat behind that for weeks: a CV-filename false positive kept C12
+    // red while the drift row said something else entirely.
+    const outLines = `${lv.stdout || ''}${lv.stderr || ''}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const fails = outLines.filter((l) => /^VALIDATE FAIL/.test(l));
+    if (lv.status === 2) {
+      if (fails.length) for (const f of fails) addDrift('outputs-naming', f);
+      else addDrift('outputs-naming', outLines[0] || 'outputs-ledger validate reported drift with no VALIDATE FAIL line');
+    }
     else if (lv.status !== 0) addDrift('outputs-naming', `outputs-ledger validate errored (exit ${lv.status})`);
   }
 
@@ -981,6 +1010,9 @@ try {
   // N/A when the map has never been built (an absent optional index is not drift); AMBER when it exists
   // and the newest source file is more than 7 days newer than it. Shells out C12-style so this file's
   // "no network except the one HQ push" contract holds and the freshness logic has ONE home.
+  if (!exists(path.join(REPO, 'system', 'code-graph.json'))) {
+    recordNoState('C30 code-map freshness', 'system/code-graph.json has never been built (an absent optional index is not drift) - build it with node scripts/code-index.js');
+  }
   if (exists(path.join(REPO, 'system', 'code-graph.json'))) {
     const cg = spawnSync(process.execPath, [path.join('scripts', 'code-index.js'), '--stale'], { encoding: 'utf8', cwd: REPO });
     if (cg.status === 2) {
@@ -1126,7 +1158,7 @@ try {
     if (!exists(regPath)) {
       // Gitignored by design (it names this machine's tasks and their timing, and the repo is public),
       // so a fresh clone legitimately has none. Absent registry is not-yet-configured, not drift.
-      say('C31 task-completion: SKIP (no system/task-registry.json yet - gitignored, so a fresh clone starts without one)');
+      recordNoState('C31 task-completion', 'no system/task-registry.json yet (gitignored, so a fresh clone starts without one) - no scheduled job is being watched for silence');
     } else {
       const reg = readJson(regPath);
       if (!reg || reg.schema !== 'task-registry@1') {
@@ -1216,6 +1248,21 @@ try {
     vrLine = `${vr.stdout || ''}${vr.stderr || ''}`.split(/\r?\n/)[0] || 'vault-read report unavailable';
   }
   report.push(`**Vault-read health (informational, not drift):** ${vrLine}`);
+
+  // A04-T20 footer: which checks asserted NOTHING this run, and whether the HQ tile was actually
+  // written. Without these two lines "N drift items" reads as a verdict on the whole system, when it
+  // is only a verdict on the checks that had state to work with.
+  report.push('');
+  if (noState.length) {
+    report.push(`**Checks that made NO assertion this run (${noState.length}):** each took a silent branch because the state it reads is absent. A clean sweep is only clean for the checks that ran.`);
+    for (const r of noState) report.push(`- **${r.check}** - ${r.why}`);
+  } else {
+    report.push('**Checks that made no assertion this run:** none - every check had the state it needed.');
+  }
+  if (hqPushFailed) {
+    report.push('');
+    report.push(`**HQ push FAILED this run** (${hqPushFailed}) - the integrity tile on the dashboard still shows the PREVIOUS sweep. The findings above are unaffected; only their delivery failed.`);
+  }
 
   const lastSweep = path.join(REPO, 'vault', 'projects', 'recovery', 'last-sweep.md');
   fs.mkdirSync(path.dirname(lastSweep), { recursive: true });
