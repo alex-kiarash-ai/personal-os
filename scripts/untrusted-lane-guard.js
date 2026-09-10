@@ -190,7 +190,25 @@ function main() {
   catch { process.exit(0); } // fail-OPEN on a malformed payload: a broken guard must not kill the lane
 
   const verdict = evaluate(hook);
-  if (!verdict) process.exit(0);
+  if (!verdict) {
+    // A13-T11 (2026-09-10): the guard's ONLY artifact was a DENY row, so a guard that had stopped
+    // running and a lane with nothing to block wrote exactly the same thing: nothing. There was no
+    // way to tell a working wall from a dead one. One heartbeat row per lane per DAY (not per call,
+    // which would be thousands) gives C29 something to age, and the whole thing is wrapped so a
+    // heartbeat failure can never turn an allow into a crash.
+    try {
+      const repo = process.env.CLAUDE_PROJECT_DIR || path.join(__dirname, '..');
+      const hb = path.join(repo, 'outputs', 'logs', 'untrusted-lane-heartbeat.jsonl');
+      const today = new Date().toISOString().slice(0, 10);
+      const lane = String(process.env.ALEX_UNTRUSTED_LANE);
+      const last = fs.existsSync(hb) ? fs.readFileSync(hb, 'utf8').trimEnd().split(String.fromCharCode(10)).pop() : '';
+      if (!last.includes(`"${today}"`) || !last.includes(`"${lane}"`)) {
+        fs.mkdirSync(path.dirname(hb), { recursive: true });
+        fs.appendFileSync(hb, JSON.stringify({ day: today, lane, verdict: 'allow' }) + String.fromCharCode(10));
+      }
+    } catch { /* a heartbeat must never turn an allow into a failure */ }
+    process.exit(0);
+  }
 
   try {
     const repo = process.env.CLAUDE_PROJECT_DIR || path.join(__dirname, '..');

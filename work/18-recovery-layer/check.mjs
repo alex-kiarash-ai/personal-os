@@ -1050,6 +1050,11 @@ try {
       // asking: when did this hook last write anything at all?
       { name: 'UserPromptSubmit/capture-typed', p: path.join('outputs', 'typed', 'transcripts'), days: 3, newestIn: /^\d{4}-\d{2}-\d{2}\.md$/ },
       { name: 'PreCompact|SessionEnd|ToolFail', p: path.join('system', 'lifecycle.jsonl'), days: 14 },
+      // A13-T11 (2026-09-10): the egress guard's only artifact was a DENY row, so a guard that had
+      // stopped running looked exactly like a lane with nothing to block. It now writes one
+      // heartbeat per lane per day on the ALLOW path, which is the thing to age. 7 days because the
+      // armed lanes are daily and a week of silence is unambiguous.
+      { name: 'PreToolUse/untrusted-lane-guard', p: path.join('outputs', 'logs', 'untrusted-lane-heartbeat.jsonl'), days: 7 },
     ];
     for (const hp of hookProbes) {
       let hpFull = path.join(REPO, hp.p);
