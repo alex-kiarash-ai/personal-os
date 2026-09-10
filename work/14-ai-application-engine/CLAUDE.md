@@ -26,7 +26,7 @@ handling for `max_tokens` and `refusal`. `max_tokens` stays 16384: on this famil
 gate as a parse error - an outage that looks like a model fault. The parse filters `type === 'text'` and joins.
 
 **Prompt caching is back and it is the cost story:** system prompt + master CV is ~9.3K chars of identical prefix
-per job, and Moonshot had no cache-write tier. From the second call in a run that prefix bills at ~0.1x (live probe:
+per job, and Moonshot had no cache-write tier (that was the kimi-k3 period; the lane is on Anthropic since 2026-08-07). From the second call in a run that prefix bills at ~0.1x (live probe:
 2277 cache-write tokens, 12 uncached input). opus-5 $5/$25 per M, sonnet-5 $3/$15 ($2/$10 intro to 2026-08-31).
 
 **Proven, not asserted:** both credentials probed live on 4 candidate models (200 OK); the exact generated body
@@ -138,7 +138,7 @@ Applied in lockstep with #03 (both engines 41 -> 49 nodes, active throughout). E
 
 ## Credentials (n8n) - ALL REUSED, no new OAuth
 - `Bright Data Header Auth` - exists, validated
-- `Kimi K3 (Moonshot header)` (httpHeaderAuth, id `OffvMkWR01zcpqxo`) - the model credential since 2026-07-27; the `Claude Match+Research` + `Claude Writer` nodes call Moonshot through it.
+- `Kimi K3 (Moonshot header)` (httpHeaderAuth, id `OffvMkWR01zcpqxo`) - **was** the model credential from 2026-07-27 until 2026-08-07, when the lane moved back to Anthropic (`claude-opus-5` Match + `claude-sonnet-5` Writer); the `Claude Match+Research` + `Claude Writer` nodes call Moonshot through it.
 - `Anthropic account 2 (AI engine, split 2026-07-06)` - exists, NO LONGER USED by the model nodes (kept for rollback).
 - `Google Sheets account` (OAuth2) - exists (created for the BI pipeline)
 - `Google Drive account` (OAuth2) - exists

@@ -1,6 +1,6 @@
 # AI Application Engine - the job-hunting robot, aimed at AI roles
 
-**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** Tuesday & Thursday 15:30 Stockholm (cron `30 15 * * 2,4`; 30 min after its twin; retimed 2026-07-24, was every-72h 07:30) · **Nodes:** 36 (32 after the 07-28 simplify, +4 in the 2026-08-07 repair) · **Model:** Moonshot `kimi-k3` at `reasoning_effort:'high'` (was claude-opus-4-8, swapped 2026-07-27) · **Export in this folder:** workflow.json, re-pulled live 2026-08-07 at `versionId a8606631-f4fb-43fd-853b-18e94de8d9f4` / `updatedAt 2026-08-07T08:48:07.505Z` / 36 nodes / active:true.
+**Workflow ID:** `9x9M3EnEEeX3O8dy` · **Runs:** Tuesday & Thursday 15:30 Stockholm (cron `30 15 * * 2,4`; 30 min after its twin; retimed 2026-07-24, was every-72h 07:30) · **Nodes:** 36 (32 after the 07-28 simplify, +4 in the 2026-08-07 repair) · **Model:** `claude-opus-5` on the Match/reasoning call, `claude-sonnet-5` on the Writer/prose call (2026-08-07; SUPERSEDES the 2026-07-27 Moonshot `kimi-k3` move, which SUPERSEDED claude-opus-4-8). Contract: `system/manifest.json` -> `meta.model_routing` · **Export in this folder:** workflow.json, re-pulled live 2026-08-07 at `versionId a8606631-f4fb-43fd-853b-18e94de8d9f4` / `updatedAt 2026-08-07T08:48:07.505Z` / 36 nodes / active:true.
 
 ## What it does
 
@@ -31,7 +31,7 @@ What's **different** inside this copy:
 
 ## Connected to
 
-- **[03-application-engine](../03-application-engine/)** - the parent it was cloned from (2026-06-16); they share the Bright Data scraper, the Gotenberg PDF service, the review-first philosophy, the Moonshot/kimi-k3 model, the QA rule set D' and the counter/storm chain. They now differ on node count (36 vs 38), fit threshold (50 vs 70), 429 posture, `limit_per_input` (4 vs 10) and the dedup guard (#03 only).
+- **[03-application-engine](../03-application-engine/)** - the parent it was cloned from (2026-06-16); they share the Bright Data scraper, the Gotenberg PDF service, the review-first philosophy, the model routing (`claude-opus-5` Match + `claude-sonnet-5` Writer since 2026-08-07), the QA rule set D' and the counter/storm chain. They now differ on node count (36 vs 38), fit threshold (50 vs 70), 429 posture, `limit_per_input` (4 vs 10) and the dedup guard (#03 only).
 - **[hq-pipeline-stats](../hq-pipeline-stats/)** - reads this engine's sheet daily for the Alex HQ dashboard.
 - **[pipeline-error-alert](../pipeline-error-alert/)** - its crash alarm.
 - **Locally:** no command of its own; results reported through the same channels. Project doc: `docs/projects/14-ai-application-engine.md`.

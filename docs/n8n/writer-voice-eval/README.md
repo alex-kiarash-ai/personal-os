@@ -22,7 +22,7 @@ It is a SEPARATE workflow and does NOT touch the live 07:00 pipeline.
    rationales, matched_keywords, gaps, company_facts, work_condition_detected).
 3. **Build Writer Request** (code) - a VERBATIM copy of the live writer node, so the eval tests the
    exact production prompt (includes the CV, the SYSTEM prompt, the TONE table, and the injected
-   `<<<SOUL_VOICE>>>` block). Builds `writer_body` for `claude-opus-4-8` (moved from claude-sonnet-4-6 on 2026-07-24 in lockstep with the two live engines).
+   `<<<SOUL_VOICE>>>` block). Builds `writer_body` for the writer model. **SUPERSEDED 2026-08-07: that is `claude-sonnet-5` today** (this line has read claude-sonnet-4-6, then claude-opus-4-8 on 2026-07-24, then kimi-k3 on 2026-07-27). Live contract: `system/manifest.json` -> `meta.model_routing`.
 4. **Claude Writer** (HTTP) - POST to api.anthropic.com/v1/messages, Anthropic credential, batched 1.
    VERBATIM copy of the live node.
 5. **Parse Writer** (code) - VERBATIM copy; parses the writer JSON (role_line/profile/experience/

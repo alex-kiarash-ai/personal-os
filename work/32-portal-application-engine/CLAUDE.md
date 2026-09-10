@@ -30,7 +30,7 @@ handling for `max_tokens` and `refusal`. `max_tokens` stays 16384: on this famil
 gate as a parse error - an outage that looks like a model fault. The parse filters `type === 'text'` and joins.
 
 **Prompt caching is back and it is the cost story:** system prompt + master CV is ~9.3K chars of identical prefix
-per job, and Moonshot had no cache-write tier. From the second call in a run that prefix bills at ~0.1x (live probe:
+per job, and Moonshot had no cache-write tier (that was the kimi-k3 period; the lane is on Anthropic since 2026-08-07). From the second call in a run that prefix bills at ~0.1x (live probe:
 2277 cache-write tokens, 12 uncached input). opus-5 $5/$25 per M, sonnet-5 $3/$15 ($2/$10 intro to 2026-08-31).
 
 **Proven, not asserted:** both credentials probed live on 4 candidate models (200 OK); the exact generated body
@@ -72,9 +72,13 @@ cloned Match -> Gate -> Writer -> QA -> Render -> Drive pipeline, producing CV +
 | Drive folder | `1FUjKlw-sGvXrApvZ6hSu190m72x1YKDr` |
 
 ## Model routing
-Runs Moonshot `kimi-k3` at `reasoning_effort: 'high'` with the other three job lanes (Shaheen 2026-07-27).
-Model nodes call `api.moonshot.ai/v1/chat/completions` via the `Kimi K3 (Moonshot header)` credential
-(`OffvMkWR01zcpqxo`), `max_tokens` 16384, 10-min HTTP timeout. The contract is manifest
+**Superseded 2026-08-07 (this section described the kimi-k3 period and was 34 days stale when C21 caught it on 2026-09-10).**
+Runs the SPLIT Anthropic assignment with the other three job lanes: **`Claude Match+Research` on `claude-opus-5`,
+`Claude Writer` on `claude-sonnet-5`** (see the 2026-08-07 section at the top of this file). Model nodes call
+`api.anthropic.com/v1/messages` with a cached system block, `max_tokens` 16384 (which caps thinking + text
+together), 10-min HTTP timeout; the Parse nodes filter `content[]` for `type==='text'` because adaptive thinking
+puts a THINKING block first. Between 2026-07-27 and 2026-08-07 these nodes called
+`api.moonshot.ai/v1/chat/completions` via the `Kimi K3 (Moonshot header)` credential (`OffvMkWR01zcpqxo`). The contract is manifest
 `meta.model_routing`, enforced by validator V6. Never change the model here; change it there and run the
 generator. #31 makes no model call.
 
@@ -115,7 +119,7 @@ portal postings #31 banked), external_comm=true (produces outbound-destined CV +
 **All three are real here, which is exactly why this half keeps the gate and #31 does not.**
 
 Verified against the live workflow `sxEYRyeHH7i1mHzb` on 2026-07-29 rather than assumed: there is **no
-send node** anywhere in it. Outbound HTTP is only `api.moonshot.ai` (the model) and internal
+send node** anywhere in it. Outbound HTTP is only the model endpoint (`api.anthropic.com` today; it was `api.moonshot.ai` on the 07-29 verification date) and internal
 `gotenberg:3000` (PDF render); the strings that pattern-match as `gmail` are Shaheen's own contact block
 printed ON the rendered documents, not a delivery path. Alex drafts to Drive, Shaheen submits. The
 external leg is defused by that human submit step, which is what `draft-only` asserts.

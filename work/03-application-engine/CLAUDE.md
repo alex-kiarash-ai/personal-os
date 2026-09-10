@@ -26,7 +26,7 @@ handling for `max_tokens` and `refusal`. `max_tokens` stays 16384: on this famil
 gate as a parse error - an outage that looks like a model fault. The parse filters `type === 'text'` and joins.
 
 **Prompt caching is back and it is the cost story:** system prompt + master CV is ~9.3K chars of identical prefix
-per job, and Moonshot had no cache-write tier. From the second call in a run that prefix bills at ~0.1x (live probe:
+per job, and Moonshot had no cache-write tier (that was the kimi-k3 period; the lane is on Anthropic since 2026-08-07). From the second call in a run that prefix bills at ~0.1x (live probe:
 2277 cache-write tokens, 12 uncached input). opus-5 $5/$25 per M, sonnet-5 $3/$15 ($2/$10 intro to 2026-08-31).
 
 **Proven, not asserted:** both credentials probed live on 4 candidate models (200 OK); the exact generated body
@@ -87,7 +87,7 @@ The external senior-review plan (`Desktop\engines-03-14-remediation-plan.md`) wa
 - **QA hardened (F08/F10/F11/F16/F17):** employer+date whitelist derived from the master CV (F08), legal-suffix-normalized company-mention check (F10), a `CV One Page?` gate blocking multi-page uploads (F11), the dash sanitizer moved out of `Parse Writer` so QA is its sole owner (F16), Drive slug gains `job_posting_id` (F17).
 - **Calls hardened (F05/F07/F12/F13/F14/F15):** cached system blocks (F05), a three-stage parse extractor (F07 parse-side; the assistant-prefill half was reverted - this model 400s on it), BD retry (F12), `limit_per_input` 10->25 (F13), score clamp (F14), match `max_tokens` ->2048 (F15).
 - **Explicit column mapping (F18):** every append node maps columns by name; sheets gained columns to processed_jobs 12 / run_log 22 / needs_review 17.
-- **Model (2026-07-27, separate from the remediation):** both model nodes now run Moonshot `kimi-k3` at `reasoning_effort:'high'`, not claude-opus-4-8 (see Credentials + Cost sections). No runtime acceptance test has run yet; first live exercise = the first Tue/Thu 15:00 cron after 07-27.
+- **Model (2026-07-27, separate from the remediation; SUPERSEDED 2026-08-07, see the split-migration section above):** both model nodes ran Moonshot `kimi-k3` at `reasoning_effort:'high'` from this date until 2026-08-07, not claude-opus-4-8 (see Credentials + Cost sections). No runtime acceptance test has run yet; first live exercise = the first Tue/Thu 15:00 cron after 07-27.
 
 ## Entry Points
 - n8n Schedule Trigger (node "Tue & Thu 15:00 Stockholm"): cron `0 15 * * 2,4`, workflow timezone Europe/Stockholm (changed 2026-07-24 from the every-72h `0 7 */3 * *`)
@@ -111,7 +111,7 @@ The old separate poll-loop export is obsolete: the loop is integrated in stage1.
 
 ## Credentials (n8n)
 - `Bright Data Header Auth` (Header Auth, `Authorization: Bearer <key>`) - EXISTS, validated
-- `Kimi K3 (Moonshot header)` (httpHeaderAuth, `Authorization: Bearer sk-...`, id `OffvMkWR01zcpqxo`, allowedDomains `api.moonshot.ai`) - the model credential since 2026-07-27; the `Claude Match+Research` + `Claude Writer` HTTP nodes now call `https://api.moonshot.ai/v1/chat/completions` through it. Created from Shaheen's "Kimi K3 personal" key. Value in the credentials-ledger pointer + his password manager only.
+- `Kimi K3 (Moonshot header)` (httpHeaderAuth, `Authorization: Bearer sk-...`, id `OffvMkWR01zcpqxo`, allowedDomains `api.moonshot.ai`) - **was** the model credential from 2026-07-27 until 2026-08-07, when the lane moved back to Anthropic; the `Claude Match+Research` + `Claude Writer` HTTP nodes now call `https://api.moonshot.ai/v1/chat/completions` through it. Created from Shaheen's "Kimi K3 personal" key. Value in the credentials-ledger pointer + his password manager only.
 - `Anthropic account` (anthropicApi) - EXISTS, validated. NO LONGER USED by the model nodes (kept for rollback: reverting is a model-node swap back to this cred + the Anthropic body format).
 - Google Sheets OAuth2 (`Google Sheets account`) - **MISSING, the Stage 5b blocker**
 - Google Drive OAuth2 (`Google Drive account`) - **MISSING, the Stage 5b blocker**

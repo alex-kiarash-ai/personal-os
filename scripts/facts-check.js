@@ -140,7 +140,10 @@ function readDoc(p) {
 // name states in history lines, in comparisons to other projects, and in superseded notes, so any
 // regex broad enough to catch a real drift also fires on correct prose, and a checker with false
 // positives gets ignored, which is worse than no checker.
-const FOREIGN_PROVIDERS = /\b(openai|gpt-[0-9o]|gpt4|chatgpt|gemini|llama|mistral|cohere|deepseek|grok)\b/i;
+const FOREIGN_PROVIDERS = /\b(openai|gpt-[0-9o]|gpt4|chatgpt|gemini|llama|mistral|cohere|deepseek|grok|moonshot|kimi(?:-k[0-9])?)\b/i;
+// moonshot|kimi added 2026-09-10 (A17-T5): they were the ACTUAL provider from 2026-07-27 to 08-07,
+// so a doc still claiming them is the most likely routing lie this repo can tell, and the pattern
+// could not see it. Proven by a negative test that did not fire until this line changed.
 // A mention only counts as a ROUTING CLAIM if it reads like one. Feed/source references are excluded:
 // #15 alex-radar legitimately reads the OpenAI news RSS, and that is data ingestion, not model routing.
 const ROUTING_CONTEXT = /\b(model|runs on|run on|prose|writer|voice block|routing|fed from|node runs|call(?:s|ed)? )\b/i;
@@ -155,7 +158,11 @@ const SOURCE_CONTEXT = /\b(rss|feed|changelog|atom|\.xml|news|blog|releases?|lan
 //     true; specs are allowed to remember.
 const PKG_NAME = /openai[-_]whisper/i;
 const DENIAL = /\bno\s+\w*\s?(?:openai|gpt)\b|\bnot\b[^.]{0,40}\b(?:openai|gpt)\b|\bnever\s+(?:carried|ran|run|applied|has)\b|\bno\s+\w+\s+has\s+ever\b/i;
-const HISTORY = /\bFirst run \(|\bPrior state\b|\bhistorical\b|\bat that time\b|\bthe old\b|\bused to\b|\bpreviously\b/i;
+const HISTORY = /\bFirst run \(|\bPrior state\b|\bhistorical\b|\bat that time\b|\bthe old\b|\bused to\b|\bpreviously\b|\bSUPERSEDE[SD]?\b|\bwas\b|\bswap(?:ped)?\b|\bhas read\b|\bwent through\b|\bno longer\b|\bolder notes\b|\b(?:429|outage|overloaded|refusing|blocked by)\b|\(20\d{2}-\d{2}-\d{2}[,)]|\bperiod\b|\[20\d{2}-\d{2}-\d{2}\]|\bExec \d+ \(|\b20\d{2}-\d{2}-\d{2}\b.*\b(?:to|until|through)\b/i;
+// A DATED record - a `[2026-07-27]` bulletin, an `Exec 3670 (08-06 ...)` incident line, a date range -
+// states what was true THEN. Those are the shape the supersession convention asks for, not drift.
+// Supersession phrasing added 2026-09-10: a doc that records what a value USED to be, in the same
+// sentence as the correction, is doing exactly what the convention asks for and must not be flagged.
 // The repo's OWN supersession convention is the biggest false-positive source: corrections are written
 // INLINE and quote the value they replace (`*(Corrected 2026-07-29 ... this said "OpenAI" ...)*`), so a
 // naive prose scan flags every correctly-corrected file. Strip those spans before scanning, and the
@@ -235,6 +242,41 @@ function sweepProjectSpecs(manifest, findings) {
         `${rel}: spec denies having a schedule ("No separate schedule" / "Not scheduled") but the ` +
         `registry gives it ${jobs.length} job(s): [${jobs.join(', ')}]. One of the two is lying to a reader.`
       );
+    }
+  }
+
+  // --- A2. the SAME model-provider scan over the live n8n mirrors (A17-T5, 2026-09-10) -----------
+  // docs/n8n/<workflow>/README.md is the human-readable mirror of what is deployed, and it is the
+  // page a person reads before touching a live workflow. Four of them named `kimi-k3` and
+  // `claude-opus-4-8` for 34 days after the 2026-08-07 move to opus-5/sonnet-5, including in
+  // node-by-node prose asserting the engines call api.moonshot.ai, which they have not since. The
+  // spec sweep above never looked here because it iterates manifest projects. Same rules, same
+  // allowed set, same history/denial carve-outs, so a mirror can record what WAS true.
+  const mirrorRoot = path.join(REPO, 'docs', 'n8n');
+  if (fs.existsSync(mirrorRoot)) {
+    for (const d of fs.readdirSync(mirrorRoot, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      const rel = `docs/n8n/${d.name}/README.md`;
+      const raw = readDoc(rel);
+      if (!raw) continue;
+      const text = stripCorrections(raw);
+      swept++;
+      for (const line of text.split(/\r?\n/)) {
+        const m = line.match(FOREIGN_PROVIDERS);
+        if (!m) continue;
+        if (!ROUTING_CONTEXT.test(line)) continue;
+        if (SOURCE_CONTEXT.test(line)) continue;
+        if (PKG_NAME.test(line)) continue;
+        if (DENIAL.test(line)) continue;
+        if (HISTORY.test(line)) continue;
+        if (/OpenAI-(format|compatible)|OpenAI `?messages`?/i.test(line)) continue;
+        const token = m[1].toLowerCase();
+        if (allowed.has(token)) continue;
+        findings.push(
+          `${rel}: n8n mirror names model provider "${m[1]}" in a routing claim, but ` +
+          `meta.model_routing carries only [${[...allowed].join(', ')}]. Line: "${line.trim().slice(0, 140)}"`
+        );
+      }
     }
   }
   return swept;
