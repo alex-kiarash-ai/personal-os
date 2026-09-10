@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // security-sweep.mjs - P5 (three-plan validation, 2026-07-17). Alex's monthly, zero-token,
-// detect-never-repair SECURITY conscience, a sibling of check.mjs. Nine assertions (S1-S9).
+// detect-never-repair SECURITY conscience, a sibling of check.mjs. Ten assertions (S1-S10; S10 added
+// 2026-09-10 after stress-test A09-T25 found the HQ dashboard snapshot public on a Vercel URL).
 // Ported from security-sweep.ps1 (bash migration Phase 5, 2026-08-05).
 //
 // Exit 0 clean / 2 findings / 1 sweep-error (Terraform -detailed-exitcode convention, same as
@@ -145,6 +146,20 @@ function getJson(url, headers, timeoutMs) {
           }
         });
       }
+    );
+    req.on('timeout', () => req.destroy(new Error(`timed out after ${timeoutMs}ms`)));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+// Status code only, body discarded (S10): what a public surface answers to an unauthenticated GET.
+function headStatus(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request(
+      { hostname: u.hostname, path: u.pathname + u.search, method: 'GET', headers: { 'user-agent': 'alex-security-sweep/S10' }, timeout: timeoutMs },
+      (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); }
     );
     req.on('timeout', () => req.destroy(new Error(`timed out after ${timeoutMs}ms`)));
     req.on('error', reject);
@@ -384,6 +399,33 @@ try {
           say(`S9 personal-data: clean (${pd.namesWatched} names watched)`);
         }
       }
+    }
+  }
+
+  // --- S10 public surfaces challenge, never 200 (stress-test A09-T25, 2026-09-10) -------------------
+  // Every internet-facing URL of the HQ surface listed in the gitignored
+  // work/16-alex-hq/config/public-surfaces.json must answer an unauthenticated GET with a challenge
+  // (401/403/redirect). A 200 means whatever it serves is public: on 2026-09-10 the Vercel snapshot of
+  // the whole dashboard was exactly that, named in a tracked doc, and no check looked at it because
+  // every probe read the Caddy door. The list is gitignored on purpose (a public URL list belongs in
+  // no tracked file); an absent list is SETUP-NEEDED, an unreachable surface is a sweep failure (the
+  // network stance above), and nothing here reads a byte of any body.
+  {
+    const cfg = path.join(REPO, 'work', '16-alex-hq', 'config', 'public-surfaces.json');
+    const list = readJson(cfg);
+    if (!list || !Array.isArray(list.surfaces)) {
+      addFinding('SETUP', 'S10', 'work/16-alex-hq/config/public-surfaces.json is missing (gitignored): the list of internet-facing HQ URLs that must challenge. Recreate it as {"_schema":"public-surfaces@1","surfaces":[{"name","url","expect":"challenge","why"}]}.');
+    } else {
+      let open = 0, ok = 0;
+      for (const s of list.surfaces) {
+        let st;
+        try { st = await headStatus(s.url, 15000); }
+        catch (e) { sweepError = `S10: public surface '${s.name}' unreachable (configured live source): ${e.message}`; continue; }
+        if (st >= 200 && st < 300) { open++; addFinding('FINDING', 'S10', `public surface '${s.name}' answers HTTP ${st} to an unauthenticated GET, NO challenge: whatever it serves is public. ${s.why || ''}`); }
+        else if (st === 401 || st === 403 || (st >= 300 && st < 400)) ok++;
+        else addFinding('FINDING', 'S10', `public surface '${s.name}' answered HTTP ${st}; expected a 401/403/redirect challenge.`);
+      }
+      say(`S10 public surfaces: ${list.surfaces.length} probed, ${ok} challenge, ${open} OPEN`);
     }
   }
 } catch (e) {

@@ -1,12 +1,25 @@
 # Alex HQ - Deployment
 
-**Deploys automatically via Vercel on every push to `main`** of the **alex-hq repo** (GitHub-connected;
-set up 2026-08-04). No manual redeploy step - no Dockerfile, no SSH, no `docker compose`. Push, wait for
-the build, done. (The CLI note worth knowing: `vercel deploy` cuts a *preview* deployment except on a
-project's first-ever deploy, which Vercel auto-promotes to production regardless of the flag used.)
+**What actually serves `hq.shaheenkiarash.com` (measured on the wire 2026-09-09 and 2026-09-10, stress-test
+A16-T24 / A09-T1 / A09-T24): the Hetzner box, Docker, Caddy reverse proxy with `basic_auth`, answering 401 at
+the door.** Until 2026-09-10 this file said that deploy was retired and that Vercel was the current home. Both
+halves were wrong on the wire, and the second was dangerous, see the next paragraph.
 
-- **Vercel project:** `taraz/alex-hq` (org `taraz`, project id `prj_zsRRUoOSTwa88fnQHs1SgirMVda0`).
-- **Current deploy URL:** https://alex-hq-sigma.vercel.app (Vercel-assigned; no custom domain yet).
+**The Vercel project `taraz/alex-hq` (org `taraz`, project id `prj_zsRRUoOSTwa88fnQHs1SgirMVda0`) is an
+UNPROTECTED SNAPSHOT, not a deploy.** It was connected on 2026-08-04 and has served the whole dashboard build of
+that day (verdict line, waiting strip, inbox notes, kr amounts, health words) to anyone holding the URL, with no
+login, ever since (stress-test A09-T25, FAIL Critical; verified 2026-09-10: HTTP 200, no challenge). The URL is
+deliberately not written in this file any more. Until Shaheen turns on Vercel Deployment Protection or deletes
+the project (queued `hq-vercel-public-snapshot`, critical), every Vercel URL of this project is public. The
+monthly security sweep's S10 probes each surface listed in the gitignored `work/16-alex-hq/config/public-surfaces.json`
+and reports a FINDING on any that answers 200 without a challenge; that list carries this one and the live door.
+
+- **Source:** the Next.js app left this repo on 2026-08-04 (`e274c75`) for a sibling repo (`../alex-hq` by the
+  manifest's `meta.paths.alex_hq_repo`). On this machine that path holds only `public/data/` with no git; the
+  running site's source is recoverable at `e274c75^` (46 files, waiver `V8-hq-repo-absent` until 2026-09-30).
+  Four documents described four deploys before 2026-09-10; this paragraph is the one that matches the wire.
+- (Vercel CLI note, kept for whenever the project is protected or rebuilt: `vercel deploy` cuts a *preview*
+  deployment except on a project's first-ever deploy, which Vercel auto-promotes to production regardless of flag.)
 - **Env vars** (set on the Vercel project, not committed - `vercel env add` per environment):
   `HQ_SUMMARY_URL`, `HQ_WEBHOOK_BASE`, `ALEX_HQ_TOKEN`, pointed at the **public** n8n webhooks
   (`https://n8n.shaheenkiarash.com/...`) - not the old Docker-internal `http://n8n:5678` addresses,
@@ -18,24 +31,15 @@ project's first-ever deploy, which Vercel auto-promotes to production regardless
 > by `scripts/lib/alex_paths.py` and `work/16-alex-hq/scripts/lib/paths.mjs`). What stayed here: this
 > file, CLAUDE.md, `scripts/`, and the gitignored `config/`.
 
-## Open items (moved off Hetzner 2026-08-04, not yet reconciled)
-The prior deploy (Hetzner box, Docker, Caddy reverse proxy at `hq.shaheenkiarash.com`) is retired; its
-box-specific gotchas (Caddyfile bcrypt quoting, n8n file-access allowlisting, the `/opt/alex-hq-data`
-volume mount, rollback-copy-on-the-box) no longer apply and were removed from this file. Three things
-that setup handled and Vercel does not yet:
-- **No auth gate.** Caddy's `basic_auth` was the ONLY thing standing between the internet and this
-  dashboard's real personal data (notes, appointments, metrics). Vercel has no drop-in equivalent -
-  **the app itself still has no built-in auth.** Do not treat the current Vercel URL as the real
-  production home until an auth story exists (Vercel Deployment Protection, a middleware password
-  gate, etc.) - right now it is a bare public URL.
-- **No custom domain.** `hq.shaheenkiarash.com` still needs pointing at Vercel (or a new subdomain
-  chosen) once the auth gap above is closed.
-- **Data-serving mechanism unverified.** The old setup volume-mounted `/opt/alex-hq-data` (scp'd by
-  personal-os's build scripts) over the container's `public/data`, so a data refresh needed NO
-  rebuild. `public/data/*.json` is gitignored, so a Vercel deploy today serves whatever was baked into
-  the last build, not a live-updating volume - a data refresh with no code change currently does
-  nothing until the next deploy. Needs a decision: commit the JSON per push, an API route reading from
-  Vercel Blob, or something else.
+## Open items (still open 2026-09-10)
+- **No app-layer auth.** Caddy's `basic_auth` on the box is the ONLY gate on the live deploy and the app has
+  none of its own (08-05 pen test P-44). Vercel has no drop-in equivalent, which is exactly why the Vercel
+  snapshot above is public.
+- **No custom domain on Vercel, and no decision to move.** The box serves the domain today. Pointing
+  `hq.shaheenkiarash.com` at Vercel is a decision for after an app-layer auth story exists, not before.
+- **Data path.** The live deploy volume-mounts `/opt/alex-hq-data` (scp'd by `scripts/hq_harvest_push.py`,
+  re-shipped by the self-heal loop) over the container's `public/data`, so a data refresh needs no rebuild. A
+  Vercel deploy serves whatever was baked at build time, which is why the snapshot is frozen at 2026-08-04.
 
 ## Local-QA gotcha (learned 2026-07-25, the round-2 build; not deploy-target-specific)
 `pkill -f "next-server"` does NOT free port 3000 on Windows. If the old server survives a rebuild, `npm start`
