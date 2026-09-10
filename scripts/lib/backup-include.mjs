@@ -57,6 +57,14 @@ const KEEP_OUTPUTS = [
   // corpus every voice-matched draft is built from existed on exactly one disk.
   'outputs/typed/transcripts',
   'outputs/voice/transcripts',
+  // git bundle added 2026-09-10 (stress-test A06-T17 / A07-T14 / M-19, FAIL High): the tar excludes
+  // '*/.git' and the nightly push carries the CURRENT branch only, so 23 commits existed on exactly
+  // one disk - 20 on backup/main-local-2026-08-25 and 3 on merge/powershell-post-aug7, including the
+  // JSON-standard helpers, the first C31 wiring, the Daily Plan board and the CV-filename carve-out.
+  // A laptop loss deleted all of them. `git bundle create --all` writes every local ref into ONE
+  // file that this tar then encrypts and ships, which covers the stranded work without pushing
+  // never-audited branches to a PUBLIC repo (that stays a deliberate, human decision).
+  'outputs/git-bundles',
 ];
 
 // The four declared credentials. Named here so the archive assertion can be POSITIVE (assert these

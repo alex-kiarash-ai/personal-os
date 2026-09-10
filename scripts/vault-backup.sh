@@ -126,6 +126,22 @@ else
     # 2026-08-26. The old `set -e` re-enable here was the second half of that bug: this script is
     # deliberately NOT errexit (header), and re-enabling it made the poisoned parse kill the run
     # before it could log FAILED or push RED - the exact class this script exists to prevent.
+    # 0c. Every LOCAL git ref into one bundle, BEFORE the include set is built so tonight's bundle is
+    # the one that ships. The tar excludes '*/.git' and git-backup.sh pushes only the current branch,
+    # so any commit on another local branch had exactly one copy: 23 of them on 2026-09-09, some
+    # carrying real work (stress-test A06-T17 / M-19). A bundle is a single file, restores with
+    # `git clone all.bundle` or `git fetch all.bundle <ref>`, and needs no remote. Best-effort: a
+    # failed bundle is logged and never blocks the backup, because a missing bundle is a smaller
+    # loss than a missing vault.
+    mkdir -p "$ALEX_ROOT/outputs/git-bundles"
+    if git -C "$ALEX_ROOT" bundle create "$ALEX_ROOT/outputs/git-bundles/all.bundle" --all >> "$LOG" 2>&1; then
+        bundle_refs="$(git -C "$ALEX_ROOT" bundle list-heads "$ALEX_ROOT/outputs/git-bundles/all.bundle" 2>/dev/null | wc -l | tr -d ' ')"
+        bundle_unpushed="$(git -C "$ALEX_ROOT" log --all --not --remotes=origin --oneline 2>/dev/null | wc -l | tr -d ' ')"
+        echo "git bundle: ${bundle_refs:-?} ref(s) bundled, ${bundle_unpushed:-?} commit(s) exist on no origin ref (now covered by this backup)" >> "$LOG"
+    else
+        echo "WARNING git bundle failed - local-only branches are NOT covered by tonight's blob" >> "$LOG"
+    fi
+
     plan="$(node "$ALEX_ROOT/scripts/lib/backup-include.mjs" --list-file "$list_file" 2>>"$LOG")"
     plan_code=$?
     if [ "$plan_code" -ne 0 ]; then
