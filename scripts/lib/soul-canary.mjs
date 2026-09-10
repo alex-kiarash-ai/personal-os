@@ -50,8 +50,18 @@ export function newSoulNonce() {
 /** The SOUL-CANARY-TOKEN value from soul.md, or null when the gate is not armed. */
 export function getSoulToken(soulPath = paths.soulMd()) {
   if (!fs.existsSync(soulPath)) return null;
-  const m = /SOUL-CANARY-TOKEN:\s*([0-9a-f]{12,})/i.exec(fs.readFileSync(soulPath, 'utf8'));
-  return m ? m[1] : null;
+  // A01-T8 (2026-09-10): this took the FIRST match. soul.md deliberately carries the token TWICE
+  // (top of file and in its own block near the end) so a retrieval that reads either end proves
+  // injection, and the two are supposed to hold the same value. If they ever disagree, taking the
+  // first one means the gate silently validates against half a file: block one passes and a run
+  // echoing block two is diagnosed as an injection FAILURE, which sends the reader hunting the
+  // wrong thing. Disagreement now leaves the gate UNARMED, which the caller already reports
+  // honestly as "gate not armed" rather than as a pass or a wrong-token failure.
+  const hits = new Set(
+    [...fs.readFileSync(soulPath, 'utf8').matchAll(/SOUL-CANARY-TOKEN:\s*([0-9a-f]{12,})/gi)].map((m) => m[1].toLowerCase())
+  );
+  if (hits.size !== 1) return null;
+  return [...hits][0];
 }
 
 /**
@@ -102,7 +112,13 @@ export function testSoulCanary(out, nonce, soulPath = paths.soulMd()) {
   const text = typeof out === 'string' ? out : '';
   const token = getSoulToken(soulPath);
   if (!token) {
-    return { pass: false, reason: `no SOUL-CANARY-TOKEN in ${soulPath} (gate not armed)`, token: null };
+    return { pass: false, reason: `no single agreed SOUL-CANARY-TOKEN in ${soulPath} (gate not armed: the line is absent, or the file's two blocks disagree)`, token: null };
+  }
+  // A01-T11 (2026-09-10): with an empty nonce the freshness half of the regex below collapses to
+  // nothing, so `SOUL-OK <token>` from ANY earlier run satisfies the gate. The nonce is the entire
+  // replay defence, and the CLI accepts `--nonce ''`.
+  if (!nonce) {
+    return { pass: false, reason: 'no nonce supplied, so the gate cannot prove freshness (a replayed SOUL-OK from any earlier run would pass)', token };
   }
   const n = esc(nonce);
   const t = esc(token);

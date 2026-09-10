@@ -242,6 +242,17 @@ system/heal-log.jsonl
 soul.md.*
 soul-*.md
 soul.*.md
+# Widened 2026-09-10 (stress-test A15-T4, A15-T13). The three patterns above cover a dated
+# variant and a .bak, and missed three real shapes, each of which is a FULL identity file on a
+# PUBLIC repo where .gitignore is the only barrier:
+#   soul-core.md.staging  - the atomic-write temp the card builder renames from. A crash between
+#                           write and rename leaves it on disk, and the nightly `git add -A` in the
+#                           skills installer would have staged it.
+#   soul_2026.md          - an underscore instead of a dot or dash. One keystroke from covered.
+#   soul copy.md          - what Windows Explorer names a duplicate.
+*.md.staging
+soul_*.md
+soul *.md
 
 # --- 3. system/ DEFAULT-DENY (was: every personal queue named individually) ---
 # A new queue/state file under system/ was open until someone remembered it. Now the

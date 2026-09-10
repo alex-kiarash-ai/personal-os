@@ -215,8 +215,18 @@ if (INIT) {
     BASELINE_FILE,
     JSON.stringify({ hashes, status_hashes: statusHashes, last_init: fmt(now()) }, null, 2) + '\n'
   );
+  // A11-T15 (2026-09-10): --init wrote the CURRENT count, so re-baselining after a truncation would
+  // record the truncated length as the new floor and C9 could never see the loss. The sweep path has
+  // always used Math.max, and so has the soul high-water; only --init did not. A high-water mark that
+  // a routine command can lower is not a high-water mark. Re-baselining accepts a SPEC change, never
+  // a shorter history.
   const logLines = lineCount(paths.vaultLog());
-  fs.writeFileSync(HW_FILE, JSON.stringify({ lines: logLines, updated: fmt(now()) }, null, 2) + '\n');
+  const prevInitHw = exists(HW_FILE) ? Number((readJson(HW_FILE) || {}).lines) || 0 : 0;
+  const keptHw = Math.max(logLines, prevInitHw);
+  if (logLines < prevInitHw) {
+    console.log(`  NOTE: vault/log.md is ${logLines} lines, BELOW the recorded high-water ${prevInitHw}. Keeping ${prevInitHw}: --init accepts a spec change, not a shorter history. If the log was deliberately archived, delete the high-water file and re-run.`);
+  }
+  fs.writeFileSync(HW_FILE, JSON.stringify({ lines: keptHw, updated: fmt(now()) }, null, 2) + '\n');
   // C28 (2026-08-23): record the ACCEPTED user-scope skill set. Deliberately a name inventory, not
   // hashes: the point is "what is installed outside every gate", and a name arriving or vanishing is
   // the signal. Hashing user-scope content would imply this repo governs it, which it does not.
@@ -227,7 +237,7 @@ if (INIT) {
     JSON.stringify({ skills: usList, updated: fmt(now()) }, null, 2) + '\n'
   );
   console.log(
-    `Baselined: ${manifest.projects.length} CLAUDE.md hashes + log high-water ${logLines} lines + ${usList.length} user-scope skill(s) -> ${STATE_DIR}`
+    `Baselined: ${manifest.projects.length} CLAUDE.md hashes + log high-water ${keptHw} lines + ${usList.length} user-scope skill(s) -> ${STATE_DIR}`
   );
   process.exit(0);
 }
