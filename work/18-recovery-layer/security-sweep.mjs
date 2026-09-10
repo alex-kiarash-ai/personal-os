@@ -27,18 +27,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { installExitSignal } from '../../scripts/lib/task-signal.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
 process.chdir(REPO);
 
-const { sha } = (await import(`${REPO}/scripts/lib/repo-hash.js`)).default;
-
 const DRY = process.argv.includes('--dry-run');
 // C31 dead-man signal (stress-test S-D3, 2026-09-04): emit one on exit so a security-sweep that never
-// ran (the 08-03 crash class) is visible; --dry-run is a test and is skipped.
+// ran (the 08-03 crash class) is visible; --dry-run is a test and is skipped. Installed BEFORE any
+// import that can throw (stress-test A10-T7/T8, 2026-09-09): the dynamic import below used to sit
+// above this line and above the crash handlers, and on Windows it threw ERR_UNSUPPORTED_ESM_URL_SCHEME
+// on a bare `C:\` path, so the sweep died with no signal, no log line and no HQ push on every
+// scheduled run this platform has had. The 995b27c crash handler was dead code here for that reason.
 installExitSignal(REPO, 'PersonalOS-security-sweep', DRY);
 
 // Fail loud on an UNCAUGHT crash (stress-test S-D5, 2026-09-04). The in-sweep try/catch below pushes
@@ -48,6 +50,9 @@ installExitSignal(REPO, 'PersonalOS-security-sweep', DRY);
 function crashRed(e) { try { if (!DRY) hqPush('red', `security sweep CRASHED: ${(e && e.message) || e}`); } catch { /* best-effort */ } console.error(e && e.stack || e); process.exit(1); }
 process.on('uncaughtException', crashRed);
 process.on('unhandledRejection', crashRed);
+
+// file:// URL, never a bare path: `import('C:\\...')` is a scheme error on Windows (the check.mjs:45 pattern).
+const { sha } = (await import(pathToFileURL(path.join(REPO, 'scripts', 'lib', 'repo-hash.js')).href)).default;
 
 fs.mkdirSync(path.join('outputs', 'logs'), { recursive: true });
 const LOG = path.join(REPO, 'outputs', 'logs', 'security-sweep.log');
