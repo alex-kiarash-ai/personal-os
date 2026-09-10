@@ -47,8 +47,63 @@ const SSH_ALLOW = new Set(['n8n']); // the ssh config alias for the box
 
 const NET_BINARIES = /\b(curl|wget|iwr|invoke-webrequest|invoke-restmethod)\b/i;
 
+// Every https?:// URL's HOST, parsed by the rules curl itself uses (WHATWG URL): the host is what
+// follows the last '@' of the authority, so `https://allowed.host@evil.example/x` is a request to
+// evil.example. Stress-test A13-T3 (2026-09-09): the old regex stopped at '@' and returned the
+// allowlisted userinfo, a one-character bypass of the whole wall. Any userinfo in the authority is
+// now reported as `userinfo@<real host>`, which can never be on the allowlist, and a URL the parser
+// rejects is reported as '?' (unverifiable = denied, same stance as the no-URL rule below).
 function hostsFromUrls(cmd) {
-  return [...cmd.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map(m => m[1].toLowerCase());
+  const out = [];
+  for (const m of cmd.matchAll(/https?:\/\/[^\s"'`<>()|;&]+/gi)) {
+    let u;
+    try { u = new URL(m[0]); } catch { out.push('?'); continue; }
+    const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const authority = m[0].replace(/^https?:\/\//i, '').split(/[/?#]/)[0];
+    if (u.username || u.password || authority.includes('@')) out.push(`userinfo@${host}`);
+    else out.push(host);
+  }
+  return out;
+}
+
+// Bodies are DATA, not destinations (stress-test A13-T6 + M-27, 2026-09-09: the brief's own mark
+// POST carried a github link inside a note's text, and every real block in 42 runs was that false
+// positive, which four organs above the guard then reported as a failed run). The argument of every
+// data-carrying flag and every heredoc body is removed before the scan; the request still goes to
+// its target, which is checked exactly as before.
+const DATA_ARG = /(?:^|\s)(?:-d|--data(?:-raw|-binary|-urlencode|-ascii)?|--json|-F|--form|--form-string|-Body)(?:=|\s+)(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\S+)/gi;
+const HEREDOC = /<<-?\s*['"]?(\w+)['"]?[^\n]*\n[\s\S]*?\n[ \t]*\1\b/g;
+function stripDataArgs(cmd) {
+  return cmd.replace(HEREDOC, ' ').replace(DATA_ARG, ' ');
+}
+
+// git / gh remote verbs, found by TOKENISING each shell segment instead of a `git\s+push` regex
+// (stress-test A13-T4, 2026-09-09: `git -C x push`, `git --no-pager push` and `gh --repo r api`
+// all slipped past the regex). Global flags before the verb are skipped, and the flags that take a
+// separate value skip that value too; the first bare word after the binary is the verb.
+const GIT_REMOTE = new Set(['push', 'pull', 'fetch', 'clone', 'remote', 'submodule']);
+const GH_VERBS = new Set(['api', 'repo', 'pr', 'issue', 'run', 'secret', 'release', 'gist', 'workflow']);
+const GIT_VALUE_FLAGS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--super-prefix', '--config-env']);
+const GH_VALUE_FLAGS = new Set(['-R', '--repo', '--hostname']);
+function firstVerb(tokens, i, valueFlags) {
+  for (let j = i + 1; j < tokens.length; j++) {
+    const t = tokens[j];
+    if (t.startsWith('-')) { if (valueFlags.has(t)) j++; continue; }
+    return t.toLowerCase();
+  }
+  return null;
+}
+function remoteVerbs(cmd) {
+  const hits = [];
+  for (const seg of cmd.split(/&&|\|\||;|\||\n/)) {
+    const toks = seg.trim().split(/\s+/).filter(Boolean);
+    toks.forEach((t, i) => {
+      const base = t.replace(/^.*[\\/]/, '').toLowerCase().replace(/\.exe$/, '');
+      if (base === 'git') { const v = firstVerb(toks, i, GIT_VALUE_FLAGS); if (v && GIT_REMOTE.has(v)) hits.push(`git ${v}`); }
+      if (base === 'gh') { const v = firstVerb(toks, i, GH_VALUE_FLAGS); if (v && GH_VERBS.has(v)) hits.push(`gh ${v}`); }
+    });
+  }
+  return hits;
 }
 
 // scp/ssh/rsync/sftp target extraction: `user@host:path`, `host:path`, or a bare `ssh host cmd`.
@@ -80,20 +135,19 @@ function evaluate(hook) {
   if (tool !== 'Bash' && tool !== 'PowerShell') return null;
 
   const c = String(((hook && hook.tool_input) || {}).command || '');
-  if (/\bgh\s+(api|repo|pr|issue|run|secret|release|gist|workflow)\b/i.test(c)) {
-    return { reason: 'gh (GitHub CLI) is not allowed in an untrusted lane', detail: c };
-  }
-  if (/\bgit\s+(push|pull|fetch|clone|remote|submodule)\b/i.test(c)) {
+  const scan = stripDataArgs(c); // destinations only; bodies and heredocs are data
+  for (const verb of remoteVerbs(scan)) {
+    if (verb.startsWith('gh ')) return { reason: 'gh (GitHub CLI) is not allowed in an untrusted lane', detail: c };
     return { reason: 'git remote operations are not allowed in an untrusted lane', detail: c };
   }
-  const urlHosts = hostsFromUrls(c);
+  const urlHosts = hostsFromUrls(scan);
   for (const h of urlHosts) {
     if (!HOST_ALLOW.has(h)) return { reason: `URL host '${h}' is not on the lane allowlist`, detail: c };
   }
-  if (NET_BINARIES.test(c) && urlHosts.length === 0) {
+  if (NET_BINARIES.test(scan) && urlHosts.length === 0) {
     return { reason: 'network binary with no parseable target URL (unverifiable = denied)', detail: c };
   }
-  for (const h of sshTargets(c)) {
+  for (const h of sshTargets(scan)) {
     if (!SSH_ALLOW.has(h) && !HOST_ALLOW.has(h)) {
       return { reason: `ssh/scp target '${h}' is not on the lane allowlist`, detail: c };
     }
@@ -131,5 +185,5 @@ function main() {
   process.exit(2);
 }
 
-module.exports = { evaluate, hostsFromUrls, sshTargets, HOST_ALLOW, SSH_ALLOW };
+module.exports = { evaluate, hostsFromUrls, sshTargets, stripDataArgs, remoteVerbs, HOST_ALLOW, SSH_ALLOW };
 if (require.main === module) main();
