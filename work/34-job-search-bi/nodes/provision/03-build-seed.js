@@ -151,7 +151,6 @@ return [{ json: out }];
 
 const jsCode = [
   '// GENERATED at build time from work/34-job-search-bi/config/seed.json. Edit that file, not this node.',
-  `const TOKEN = ${JSON.stringify(seed.provision.token)};`,
   `const TAB_ORDER = ${JSON.stringify(seed.tab_order)};`,
   `const TABS = ${JSON.stringify(seed.tabs)};`,
   `const LANES = ${JSON.stringify(seed.lanes)};`,
