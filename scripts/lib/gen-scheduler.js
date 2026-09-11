@@ -20,7 +20,7 @@
 //   - PersonalOS-retry-* one-shots are ephemeral by design and excluded on both sides (same as
 //     recovery check C7).
 //
-// PLATFORM GUARD (ruling C): on a machine with no systemd - the macOS dev box - the LIVE half
+// PLATFORM GUARD (ruling C): on a machine with no systemd - this dev box is Windows - the LIVE half
 // cannot run. It degrades to a LOUD SKIP: never a silent no-op (which would let real drift hide),
 // never a crash (which would break `generate-alex.js` on the machine where it is edited). Unit
 // GENERATION still happens there, on purpose, so the units are reviewable in git before deploy.
@@ -52,7 +52,7 @@ async function run({ schedule, apply, log }) {
     log(
       `  scheduler: LIVE CHECK SKIPPED - no systemd on this machine (platform=${process.platform}). ` +
         `${documented.length} jobs documented, ${gen.written.length} unit pairs written to systemd/. ` +
-        'This is expected on the macOS dev box (ruling C: dev on macOS, run on Linux); on the Linux ' +
+        'This is expected on a dev box without systemd (ruling C: dev here, run on Linux); on the Linux ' +
         'host it means systemd is unreachable and the scheduler is UNVERIFIED.'
     );
     return {

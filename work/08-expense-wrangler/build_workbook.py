@@ -154,6 +154,14 @@ ms.cell(ub_row, 1, "Uncaptured burn est. (2026-07)").font = Font(name="Calibri",
 ms.cell(ub_row, 2 + len(CATS),
         f"=MAX(0,{MONTHLY_BURN_TARGET}-{total_col_letter}{july_row_in_ms})").number_format = CURFMT
 
+aug_row_in_ms = hrow + 1 + 7          # 2026-08 is month index 7 (Jan=0)
+aug_label_row = ub_row + 1
+aug_ub_row    = ub_row + 2
+ms.cell(aug_label_row, 1, "--- Aug 2026 close ---").font = Font(name="Calibri", color="9CA3AF", size=9)
+ms.cell(aug_ub_row, 1, "Uncaptured burn est. (2026-08)").font = Font(name="Calibri", italic=True, color=TEAL, size=10)
+ms.cell(aug_ub_row, 2 + len(CATS),
+        f"=MAX(0,{MONTHLY_BURN_TARGET}-{total_col_letter}{aug_row_in_ms})").number_format = CURFMT
+
 # ---------- Sheet 5: Alex Costs (P9a merge, 2026-07-31) ----------
 # Receipt-backed rows from the 2026-07-02 alex-cost-tracker.xlsx, merged here at the monthly close.
 # Totals use real formulas; data rows are receipt-backed inputs (not computed values).
@@ -173,12 +181,15 @@ for c_idx, name in enumerate(["Date", "Type", "Vendor", "Description", "Amount (
     cell = ac.cell(ACL_START - 1, c_idx, name)
     cell.fill = hdr_fill; cell.font = hdr_font; cell.border = border; cell.alignment = center
 AC_ROWS = [
-    ("2026-04-24", "Annual", "Anthropic",  "Claude Pro annual €225 @ EUR/SEK 11.20",   2520.00),
-    ("2026-05-16", "API",    "Anthropic",  "API top-up #1 $25 @ USD/SEK 9.60",          240.00),
-    ("2026-06-03", "Infra",  "Hetzner",    "VPS May invoice €7.44 @ EUR/SEK 11.20",      83.33),
-    ("2026-06-22", "API",    "Anthropic",  "API top-up #2 $25 @ USD/SEK 9.60",          240.00),
-    ("2026-07-02", "API",    "Anthropic",  "API top-up #3 $25 @ USD/SEK 9.60",          240.00),
-    ("2026-07-03", "Domain", "Cloudflare", "Domain renewal $10.46 @ USD/SEK 9.60",      100.42),
+    ("2026-04-24", "Annual", "Anthropic",  "Claude Pro annual €225 @ EUR/SEK 11.20",       2520.00),
+    ("2026-05-16", "API",    "Anthropic",  "API top-up #1 $25 @ USD/SEK 9.60",              240.00),
+    ("2026-06-03", "Infra",  "Hetzner",    "VPS May invoice €7.44 @ EUR/SEK 11.20",          83.33),
+    ("2026-06-22", "API",    "Anthropic",  "API top-up #2 $25 @ USD/SEK 9.60",              240.00),
+    ("2026-07-02", "API",    "Anthropic",  "API top-up #3 $25 @ USD/SEK 9.60",              240.00),
+    ("2026-07-03", "Domain", "Cloudflare", "Domain renewal $10.46 @ USD/SEK 9.60",          100.42),
+    # August 2026 close (2026-08-31)
+    ("2026-08-01", "Max",    "Anthropic",  "Claude Max 5x Aug-Sep €42.14 @ EUR/SEK 11.20",  472.00),
+    ("2026-08-07", "API",    "Anthropic",  "Credit top-up $20+VAT=$25 @ USD/SEK 9.60",      240.00),
 ]
 ACL_END = ACL_START + len(AC_ROWS) - 1
 for i, (d, tp, vendor, desc, amt) in enumerate(AC_ROWS):

@@ -1,5 +1,8 @@
 {
   "_readme": "Config-as-DATA for the #25 Evolution skills lane (added 2026-07-11). The daily landscape monitor (scripts/landscape-monitor.js) reads this to scan agent-skill directories; the weekly installer (scripts/skills-installer.js) reads the trust_allowlist + weekly_install_cap + audit rules. Editing this file changes behavior WITHOUT touching code (SOURCES-as-data ground rule). API shapes below were probed live 2026-07-11; if a directory changes its JSON, fix the `map` here, not the monitor. skillhub.club is DISCOVERY-ONLY: its github_stars are whole-repo/mirror-bot stars (noise), its own simple_score is null, and installs always resolve to + audit the GitHub source (never its one-click). The trust_allowlist is the real filter, not popularity.",
+  "paused": true,
+  "paused_reason": "Survival Audit 2026-08-30 Phase 0. Shaheen: do not audit a system that is still growing underneath you. Re-enable only as an explicit step of the final plan.",
+  "paused_at": "2026-08-30",
   "weekly_install_cap": 3,
   "_cap_note": "The 'safe != free' budget guard (skills-sh-sweep.md): every installed skill taxes every session's context + matching surface. Never auto-install more than this many per weekly eval; the rest fall to the digest.",
   "max_log_per_run": 40,
@@ -45,9 +48,11 @@
   ],
   "_keywords_note": "Derived from the manifest project portfolio + their domains. Keep the list <= 45 so a single daily run stays under skillsmp.com's 50-req/day anon cap. The eval judges fit against the real projects; these just cast the net.",
   "revoked": [],
-  "watch": ["graphify", "graphifyy"],
+  "watch": [
+    "graphify",
+    "graphifyy"
+  ],
   "_watch_note": "P2.3 (run-47 merged plan, 2026-08-23). NOT a revocation - a name the weekly digest must surface with its caveat before anyone installs anything matching it. graphify: the real PyPI package is `graphifyy` with TWO y's, and the one-y `graphify` is UNCLAIMED as of 2026-08-23 (pypi.org/pypi/graphify/json returns 404, master-verified), while the CLI it installs is named `graphify` and the skill's own prose invites a hand-run pip. So the natural typo is an open namespace anyone can register for arbitrary code execution. Registering it defensively is explicitly NOT this system's job (it is an external namespace); immunising our own future sessions costs one line. Also relevant: the PyPI publisher identity has no verified link to the GitHub org, so the chain `repo you audited = wheel you installed` is unproven either way.",
-
   "_revoked_note": "Skill names or whole owner/repo sources (case-insensitive) the installer must refuse, added 2026-08-05 (enterprise-assessment idea 4). A revoked candidate is flagged, never installed; an ALREADY-installed revoked skill is reported for manual removal every weekly run but never auto-removed (auto-install was approved 2026-07-11, auto-REMOVE never was).",
   "trust_allowlist": [
     "anthropics",

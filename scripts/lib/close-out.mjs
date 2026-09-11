@@ -520,7 +520,7 @@ function scheduleRetry({ reason, log, wrapper, dryRun }) {
     logLine(
       log,
       `retry NOT scheduled: no systemd on this machine (platform=${process.platform}). ` +
-        `Would have registered ${rname} at ${hhmm(rat)}. This is expected on the macOS dev box; ` +
+        `Would have registered ${rname} at ${hhmm(rat)}. This is expected on a dev box without systemd (this one is Windows); ` +
         `on the Linux host it means systemd is unreachable and the retry ladder is DOWN.`
     );
     return;

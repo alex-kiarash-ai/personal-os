@@ -117,6 +117,6 @@ journalctl --user -u PersonalOS-{name}.service -n 50 --no-pager
 
 ## Other platforms (portability note)
 This command is systemd-first because that is where Alex runs (ruling C: dev on macOS, run on Linux).
-**On the macOS dev box none of this works and that is expected** - `systemd/` is inert there, and the
+**On a dev box without systemd none of this works and that is expected** (this one is Windows) - `systemd/` is inert there, and the
 generator degrades to a LOUD SKIP rather than pretending. Do not reintroduce an OAuth token; reuse the
 logged-in session.

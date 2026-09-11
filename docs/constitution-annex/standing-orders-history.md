@@ -148,3 +148,64 @@ The mechanical enforcement of Change Propagation (the Standing Order at the top 
 `Close-Out [session|<automation>]: A1..A6 <ok/status> · B <touched surfaces or none> · C <N/A or verified> · V <My Words entry added / none because ...> · L <lesson or none> · Extras <..> · Verdict: COMPLETE|INCOMPLETE(<missed>)`
 
 **Gold-standard report shapes (PASS + a done-right INCOMPLETE):** [[research/exemplars/gold-close-out]] (`vault/research/exemplars/gold-close-out.md`). Read it when a run lands INCOMPLETE - a good INCOMPLETE names the missed surface, the cause, and the carry-over, and states what shipped clean regardless.
+
+## Brand + Soul Pre-Flight Gate: identity docs added to the trigger list (2026-08-28)
+
+**The operative sentence lives in root CLAUDE.md.** This is the record of why it took two misses to get there.
+
+**What happened twice.** On 2026-07-28 and again on 2026-08-28, `Alex-Plain-English-Guide.docx` was edited with 
+no pre-flight line printed. Same file, same cause both times: the guide is reached through Change-Propagation 
+item 7, at the END of a long task, and item 7 reads as a propagation chore rather than as a writing task. The 
+gate's own trigger list did not name the file, so under load there was nothing to fire on.
+
+**Why the first fix did not hold.** Self-review 2026-08-03 diagnosed this exactly, as Proposal D, with clean 
+attribution at confidence 88 and a minimal forward fix. The approval box was never ticked, and the proposal sat. 
+**A correctly diagnosed proposal that nobody ticks is indistinguishable from never having noticed.** That is the 
+reusable lesson, and it argues for applying cheap, precisely-scoped identity fixes when they are found rather 
+than queueing them behind a review nobody returns to.
+
+**One edit on application.** Proposal D named `Desktop\Alex Project\Alex Presentation\files\`, which died in 
+the 2026-08-21 move. Applying it verbatim would have added a trigger pointing at a file that does not exist. The 
+live path is `Desktop\01 Projects\Alex\Story & Guides\`.
+
+**The gate was not ceremony here.** Running the delivery check that the gate would have forced found three real 
+defects in the already-shipped text: a faux-insight setup ("the cause is simple once you see it") and two pieces 
+of interpretive metadiscourse, one of them ("that step matters more than it sounds") near-verbatim a shape 
+soul.md Detection-proofing rule 6 names by example. All three corrected. Skipping the gate put slop into an 
+identity document Shaheen hands to other people.
+
+**The corrupted path found while applying it.** Item 7 in committed HEAD carried a formfeed where `\files` 
+belonged and a control byte where `\01` belonged, from an earlier session writing Windows paths through a 
+non-raw Python string. The same corruption was in `vault/identity.md`, the compendium a fresh clone reads FIRST 
+on restore. Both repaired; every guide and master path in the constitution now resolves on disk. **The trap:** 
+in a non-raw Python string `\f` is a formfeed and `\0` starts an octal escape, so a Windows path written that 
+way corrupts silently and still LOOKS right in most renderings. Build such paths with explicit `chr(92)` or a 
+raw string, and grep for control characters after writing. `work/16-alex-hq/scripts/build-graph.mjs` uses a NUL 
+separator deliberately and is NOT this bug; `vault/log.md` carries one in a historical entry and is append-only, 
+so both were left alone.
+
+## /self-review: the cheap-fix carve-out (2026-08-28)
+
+**Operative rule: `work/23-self-review/CLAUDE.md`, "The hard rule".** This is why it moved.
+
+Shaheen, verbatim: **"yes, apply cheap identity fixes when you find them."** It narrows a rule that had been
+absolute since the first build: *Alex NEVER self-edits soul.md or any CLAUDE.md without explicit approval.*
+
+**The evidence that forced it.** Proposal D of 2026-08-03 named a real hole in the Brand + Soul Pre-Flight Gate,
+at confidence 88, with a minimal forward fix. Nobody ticked it. On 2026-08-28 the miss it predicted recurred on
+the same file, and the delivery check that the missing gate would have forced then found three genuine voice
+defects in already-shipped text. **The queue was not protecting the identity files, it was hiding a known defect
+in them.** A correctly diagnosed proposal nobody ticks is indistinguishable from never having noticed.
+
+**Why the boundary is drawn where it is.** The risk of this carve-out is obvious: "identity fix" could be read as
+licence to edit soul.md, the frozen CV master, or the colour law. It is not. The split is between a rule's CONTENT
+and its ENFORCEMENT. Making an agreed rule fire changes nothing about what the system believes or how Shaheen
+sounds; it only closes the gap between a rule and its execution. Changing what a rule SAYS is a decision about his
+system and stays his, exactly as before.
+
+**The test, and the tiebreak that matters most: if you cannot tell which side a fix is on, it is gated.** The
+carve-out exists to stop known defects rotting in a queue, not to widen what Alex may decide alone. Every cheap
+fix is still fully propagated and reported in the session it happens; "no ask" never means "no telling".
+
+**Deliberately unchanged:** root CLAUDE.md's "Lessons PROPOSE, never auto-edit the constitution". A lesson is an
+observation, not a diagnosed fix with a named surface, so lessons still propose and that line stays true.

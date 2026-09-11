@@ -28,6 +28,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -364,8 +365,31 @@ try {
   // Linux host, so nothing catches scheduler drift during development here.
   let liveJobs = [];
   let schedulerReadable = false;
-  if (!hasSystemd()) {
-    say(`C7 SKIPPED: no systemd on this machine (platform=${process.platform}) - the scheduler half of the sweep did not run`);
+  if (!hasSystemd() && process.platform === 'win32') {
+    // 2026-08-28: C7 no longer skips on Windows. It skipped because there was no scheduler to diff
+    // against, and that stopped being true the moment the Windows Task Scheduler was repaired. A check
+    // that reports PASS while covering nothing is the "green light that cannot go red" defect this
+    // layer exists to kill. schtasks is the same ground truth h-scheduler.js already harvests, so the
+    // two stop watching different, mutually invisible schedulers (Lane A blocker 4).
+    try {
+      const csv = execFileSync('schtasks', ['/query', '/fo', 'CSV', '/nh'], { encoding: 'utf8', timeout: 15000, windowsHide: true });
+      const seen = new Set();
+      for (const line of csv.split(/\r?\n/)) {
+        if (!line.trim()) continue;
+        const cells = line.match(/"([^"]*)"/g);
+        if (!cells || cells.length < 3) continue;
+        const nm = cells[0].replace(/"/g, '').replace(/^\\/, '');
+        if (!nm.startsWith('PersonalOS-') || nm.startsWith('PersonalOS-retry-')) continue;
+        seen.add(nm); // keep the PersonalOS- prefix: docJobs is parsed WITH it (line ~355)
+      }
+      liveJobs = [...seen];
+      schedulerReadable = true;
+      say(`C7: read ${liveJobs.length} live Windows scheduled task(s) via schtasks`);
+    } catch (e) {
+      addDrift('scheduler', `cannot read the live Windows Task Scheduler (${e.message}) - the scheduler half of the sweep did not run, and that is drift, not a pass`);
+    }
+  } else if (!hasSystemd()) {
+    addDrift('scheduler', `no readable scheduler on this machine (platform=${process.platform}) - the scheduler half of the sweep did not run. Recorded as drift rather than a silent skip: a check that cannot run must never report success.`);
   } else {
     try {
       liveJobs = systemdJobs().filter((j) => !isEphemeral(j));
@@ -375,8 +399,8 @@ try {
     }
   }
   if (schedulerReadable) {
-    for (const j of docJobs) if (!liveJobs.includes(j)) addDrift('scheduler', `documented job '${j}' is NOT registered as a systemd timer`);
-    for (const j of liveJobs) if (!docJobs.includes(j)) addDrift('scheduler', `registered timer '${j}' is NOT documented in scheduler/schedule.md`);
+    for (const j of docJobs) if (!liveJobs.includes(j)) addDrift('scheduler', `documented job '${j}' is NOT registered in the live scheduler`);
+    for (const j of liveJobs) if (!docJobs.includes(j)) addDrift('scheduler', `registered job '${j}' is NOT documented in scheduler/schedule.md`);
   }
 
   // C7b TRIGGER TIMES (added 2026-07-25, stress-test fix F-05). Until it existed every scheduler
@@ -976,6 +1000,81 @@ try {
   }
 
   // ---------------------------------------------------------------- report
+  // --- C31 task-completion monitor (the dead-man switch). Recovered 2026-08-28 from
+  // backup/main-local-2026-08-25, where it was written and then stranded when the platform migration
+  // deleted the PowerShell checker. Design: work/18-recovery-layer/archive/C31-dead-man-switch.ps1.txt
+  //
+  // THE INVERSION, and it is the whole point. Every other check here judges state. This one judges
+  // NOTHING: each scheduled task appends a signal as its FINAL act after genuine success, and this
+  // check only notices ABSENCE. Red is the default posture, so a registered task is green ONLY by
+  // evidence. That is what makes it un-rottable: there is no red branch that can silently stop being
+  // reachable, because red is what happens when nothing is done at all.
+  //
+  // WHY IT IS BACK. On ~2026-08-25 all 23 scheduled jobs began failing silently because they pointed at
+  // wrapper scripts a platform migration had deleted, and the failure reporter lived INSIDE the wrapper
+  // that never launched. Nothing alarmed for two days. This check is the mechanism that catches exactly
+  // that class, because a process that never starts cannot reach its final act.
+  //
+  // DELIBERATELY NOT READ: scheduler exit codes or any scheduler state. Signals from INSIDE the task
+  // make an expected-exit contract unnecessary, and a process killed mid-run never signals at all.
+  //
+  // Three verdicts, never collapsed into one colour: fresh signal + exit 0 = green; fresh signal +
+  // nonzero = WENT-WRONG (it ran, finished, and reported its own failure); no signal in the window =
+  // MISSING (never ran, died mid-run, or was never wired). A task that vanished and a task that
+  // reported failure are different problems with different urgency.
+  {
+    const regPath = path.join(REPO, 'system', 'task-registry.json');
+    const sigPath = path.join(REPO, 'system', 'task-signals.jsonl');
+    if (!exists(regPath)) {
+      // Gitignored by design (it names this machine's tasks and their timing, and the repo is public),
+      // so a fresh clone legitimately has none. Absent registry is not-yet-configured, not drift.
+      say('C31 task-completion: SKIP (no system/task-registry.json yet - gitignored, so a fresh clone starts without one)');
+    } else {
+      const reg = readJson(regPath);
+      if (!reg || reg.schema !== 'task-registry@1') {
+        // Fail LOUD on a wrong or absent schema id. A monitor reading a registry it does not
+        // understand must stop, not guess.
+        throw new Error(`C31: system/task-registry.json missing or wrong schema (expected task-registry@1, got ${reg && reg.schema})`);
+      }
+      const regTasks = (reg.tasks || []).filter((t) => t && t.name && t.enabled !== false);
+      const signals = [];
+      let badLines = 0;
+      if (exists(sigPath)) {
+        for (const ln of (readText(sigPath) || '').split(/\r?\n/)) {
+          if (!ln.trim()) continue;
+          try { signals.push(JSON.parse(ln)); } catch { badLines++; }
+        }
+      }
+      if (badLines > 0) {
+        addDrift('task-signals', `system/task-signals.jsonl carries ${badLines} unparseable line(s). The ledger is append-only with exactly one writer role, so a malformed line means a partial write or a second writer.`);
+      }
+      const nowMs = now().getTime();
+      let missing = 0, wentWrong = 0, green = 0;
+      for (const t of regTasks) {
+        const windowH = Number(t.interval_hours || 24) + Number(t.grace_hours || 4);
+        const cutoff = nowMs - windowH * 3600000;
+        let latestWhen = 0, latestCode = 0;
+        for (const s of signals) {
+          if (String(s.task) !== String(t.name)) continue;
+          const w = Date.parse(s.at || s.when || '');
+          if (Number.isNaN(w) || w <= latestWhen) continue;
+          latestWhen = w; latestCode = Number(s.exit || 0);
+        }
+        if (latestWhen === 0 || latestWhen < cutoff) {
+          missing++;
+          const age = latestWhen ? `${Math.round(days(nowMs - latestWhen))}d old` : 'never signalled';
+          addDrift('task-missing', `${t.name}: no completion signal inside its ${windowH}h window (${age}). It never ran, died mid-run, or was never wired. This is the class that hid the 2026-08-25 outage for two days.`);
+        } else if (latestCode !== 0) {
+          wentWrong++;
+          addDrift('task-failed', `${t.name}: ran and reported its OWN failure (exit ${latestCode}). It is alive and something inside it broke, which is a different problem from MISSING.`);
+        } else {
+          green++;
+        }
+      }
+      say(`C31 task-completion: ${regTasks.length} enabled, ${green} green, ${wentWrong} went-wrong, ${missing} missing, ${signals.length} signal(s) on file`);
+    }
+  }
+
   const n = drift.length;
   const byCat = [...drift.reduce((m, d) => m.set(d.cat, [...(m.get(d.cat) || []), d]), new Map())]
     .map(([name, group]) => ({ name, count: group.length, group }))

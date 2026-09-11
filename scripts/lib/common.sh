@@ -102,6 +102,20 @@ resolve_claude() {
 # Sets $LOG (append-only run log, read by the checkers) and $TMPOUT (a real temp FILE, because
 # process substitution <(...) is a bashism the close-out CLI should not depend on).
 # Registers a trap so $TMPOUT is always removed, including on SIGINT/SIGTERM, not just clean exit.
+# Prompt cache TTL (2026-08-28, report Phase 0 cost item). Measured across 558 session logs:
+# cache WRITES are ~90% of token cost, because the default 5-minute cache expires mid-run while
+# tool calls are slow, so one scheduled run rebuilds its own ~60k-token prefix dozens of times.
+# ENABLE_PROMPT_CACHING_1H is the documented switch (code.claude.com/docs/en/env-vars).
+#
+# Two caveats kept here rather than in a commit message, because both decide whether this HELPS:
+#  1. A 1-hour cache WRITE bills at 2x input against the 5-minute write at 1.25x. It only pays on a
+#     high-churn workload. These runs are high-churn by measurement; a future low-churn job is not,
+#     and would cost MORE with this on.
+#  2. Subscription users inside included usage already get a 1-hour TTL automatically, so on those
+#     runs this is a no-op. It bites when a run draws on usage credits.
+# So this is set, not claimed: re-measure before quoting a saving.
+export ENABLE_PROMPT_CACHING_1H=1
+
 log_init() {
     [ -n "${1:-}" ] || die "log_init requires a job name"
     _alex_job="$1"
@@ -116,6 +130,12 @@ log_init() {
     # from Get-PSCallStack; bash has no equivalent, so it is captured here once and passed on.
     ALEX_WRAPPER="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
     export ALEX_WRAPPER
+    # C31 dead-man switch: the scheduler task name this wrapper answers to. The registry keys on the
+    # Task Scheduler name, and a wrapper's job name is that name minus the prefix, so it is derived once
+    # here rather than repeated in 20 wrappers. A wrapper whose name differs overrides ALEX_TASK_NAME
+    # before calling log_init (run-lint.sh is the one such case).
+    ALEX_TASK_NAME="${ALEX_TASK_NAME:-PersonalOS-${_alex_job}}"
+    export ALEX_TASK_NAME
     # --- P1.1 RUN ID (run-47 merged plan, 2026-08-23): the shared join key ------------------------
     # Three write-paths record the same run - vault/log.md prose, outputs/ledger.jsonl rows, and
     # system/heal-log.jsonl - and NONE of them shared a key, so "what else happened in that run?"
@@ -226,6 +246,29 @@ run_with_watchdog() {
 # close_out <project> <exit-code> [degraded-reason] -> the A1/A4 gate. Exits 1 on a detected
 # failure, so calling it as a wrapper's last statement gives the wrapper the right exit code.
 # Pass '' as the project for a wrapper with no run_status tile.
+# --- C31 dead-man switch: emit the task completion signal (recovery check C31).
+# THE CONTRACT: this is the LAST thing a wrapper does, and it runs on success AND on failure, because
+# the two carry different verdicts. A fresh signal with exit 0 is green; a fresh signal with a nonzero
+# exit is WENT-WRONG (it ran, finished, and reported its own failure); NO signal inside the task's
+# window is MISSING, which is what a process that never started or died mid-run produces.
+#
+# Why it exists: on ~2026-08-25 all 23 scheduled jobs failed silently for two days because they invoked
+# wrapper scripts a platform migration had deleted, and the failure reporter lived INSIDE the wrapper
+# that never launched. Absence is the only signal that survives that, so absence is what C31 reads.
+#
+# Deliberately dependency-free and non-fatal: an append that fails must never take down the run it is
+# reporting on, and it must not need node, jq or the network.
+task_signal() {
+    _ts_task="${ALEX_TASK_NAME:-${1:-}}"
+    _ts_code="${2:-0}"
+    [ -n "$_ts_task" ] || return 0
+    [ -n "${ALEX_DRY_RUN:-}" ] && return 0
+    _ts_file="${ALEX_ROOT:-.}/system/task-signals.jsonl"
+    _ts_when="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)" || return 0
+    printf '{"task":"%s","at":"%s","exit":%s,"wrapper":"%s"}\n'         "$_ts_task" "$_ts_when" "$_ts_code" "${ALEX_WRAPPER:-unknown}" >> "$_ts_file" 2>/dev/null || true
+    return 0
+}
+
 close_out() {
     _co_project="${1:-}"
     _co_code="${2:-0}"
@@ -240,6 +283,11 @@ close_out() {
         _co_args=("${_co_args[@]}" --dry-run)
     fi
     node "$(_close_out_mjs)" "${_co_args[@]}"
+    _co_rc=$?
+    # FINAL ACT. After close-out has run, and carrying the run's real exit code, so C31 can tell a job
+    # that reported its own failure from a job that never ran at all.
+    task_signal "" "$_co_code"
+    return $_co_rc
 }
 
 # hq_push <project> <status> <headline> [metric_key] [value_num]

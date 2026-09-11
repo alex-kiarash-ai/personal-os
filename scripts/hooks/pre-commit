@@ -40,17 +40,24 @@ ROOT="$(git rev-parse --show-toplevel)" || exit 1
 #     PREVENT layer - a secret blocked here never enters history. Backstops: security-sweep S1
 #     (monthly full-history) + GitHub push protection (server-side, the guard a local hook cannot be).
 #     gitleaks 8.30.1 is installed (winget); .gitleaks.toml carries the reviewed allowlist.
-#     Fail policy (deliberate): a FOUND secret (exit 9) or a gitleaks that RUNS and errors BLOCKS
-#     (fail-closed on the result). gitleaks ABSENT => loud WARN + PROCEED (fail-OPEN), so a PATH/
-#     machine without gitleaks - including the nightly Task Scheduler backup - is never wedged; the
-#     monthly S1 + push protection are the guarantees. (Unlike the node gate below, which fails
-#     CLOSED because node is machine-scope and truly always present; gitleaks is user-scope.)
+#     Fail policy (AMENDED 2026-08-28, item 0.6): FAIL-CLOSED throughout. A FOUND secret (exit 9), a
+#     gitleaks that RUNS and errors, AND a gitleaks that is ABSENT all BLOCK. The old rule let an absent
+#     scanner proceed so the nightly backup was never wedged; on a PUBLIC repo that trades an
+#     unrecoverable leak against a recoverable missed commit. A missed nightly commit is visible and
+#     retryable; a pushed secret is neither. ALEX_ALLOW_NO_GITLEAKS=1 is the explicit, loud override.
+# 2026-08-28 (report Phase 0 item 0.6): the lookup was ONE hardcoded WinGet glob and anything else
+# degraded to fail-open. On a PUBLIC repo where .gitignore is the sole barrier, a scanner that quietly
+# skips is worse than one that blocks: a pushed secret must be ROTATED, not just deleted. So the lookup
+# is now broad (env override -> PATH -> WinGet -> the usual unix bindirs) and absence FAILS CLOSED.
 GITLEAKS=""
-if command -v gitleaks >/dev/null 2>&1; then
+if [ -n "${ALEX_GITLEAKS:-}" ] && [ -x "${ALEX_GITLEAKS}" ]; then
+  GITLEAKS="$ALEX_GITLEAKS"
+elif command -v gitleaks >/dev/null 2>&1; then
   GITLEAKS="gitleaks"
 else
-  GL="$(ls /c/Users/*/AppData/Local/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_*/gitleaks.exe 2>/dev/null | head -n1)"
-  [ -x "$GL" ] && GITLEAKS="$GL"
+  for _gl in /c/Users/*/AppData/Local/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_*/gitleaks.exe /usr/local/bin/gitleaks /usr/bin/gitleaks /opt/homebrew/bin/gitleaks "$HOME/go/bin/gitleaks"; do
+    [ -x "$_gl" ] && { GITLEAKS="$_gl"; break; }
+  done
 fi
 if [ -n "$GITLEAKS" ]; then
   "$GITLEAKS" git --staged --no-banner --redact --config "$ROOT/.gitleaks.toml" --exit-code 9 "$ROOT"
@@ -65,8 +72,16 @@ if [ -n "$GITLEAKS" ]; then
     exit 1
   fi
   echo "pre-commit: gitleaks staged scan clean."
+elif [ -n "${ALEX_ALLOW_NO_GITLEAKS:-}" ]; then
+  echo "pre-commit: WARNING - gitleaks not found, but ALEX_ALLOW_NO_GITLEAKS is set: STAGED secret scan SKIPPED deliberately." >&2
+  echo "pre-commit: explicit, loud override. Monthly S1 + GitHub push protection are the only remaining backstops." >&2
 else
-  echo "pre-commit: WARNING - gitleaks not found; STAGED secret scan SKIPPED (fail-open). Monthly S1 + GitHub push protection remain the backstops. Install: winget install Gitleaks.Gitleaks" >&2
+  echo "pre-commit: BLOCKED - gitleaks not found, so the STAGED secret scan could not run (fail-CLOSED since 2026-08-28)." >&2
+  echo "pre-commit: this repo is PUBLIC and .gitignore is the sole barrier; a pushed secret must be ROTATED, not just deleted," >&2
+  echo "pre-commit: so an unscanned commit is not certified secret-free and will not pass silently." >&2
+  echo "pre-commit: fix -> winget install Gitleaks.Gitleaks   (or set ALEX_GITLEAKS=/path/to/gitleaks)" >&2
+  echo "pre-commit: override -> ALEX_ALLOW_NO_GITLEAKS=1 git commit ...   or   git commit --no-verify" >&2
+  exit 1
 fi
 
 # Locate node: PATH first, then the machine-scope install location.

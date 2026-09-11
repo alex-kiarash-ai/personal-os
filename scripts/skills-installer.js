@@ -343,6 +343,14 @@ if (require.main === module) (async () => {
   }
   try {
   const cfg = readJSON(CONFIG, {});
+  // Audit pause (2026-08-30, Survival Audit Phase 0, Shaheen authorised). `paused: true` in
+  // system/skills-sources.json stops the AUTO-INSTALL lane only. The #25 monitor and digest legs are
+  // untouched, and the scheduler is untouched, so nothing else in evolution goes dark. Config-as-data
+  // per the file's own ground rule. Reverse by setting paused back to false.
+  if (cfg.paused === true) {
+    console.log(`skills-installer: PAUSED via system/skills-sources.json. Reason: ${cfg.paused_reason || "unstated"}. No audit, no install, no commit this run.`);
+    return;
+  }
   if (!cfg.directories) { console.log('skills-installer: no skills-sources.json - skills lane off.'); return; }
   const manifest = readJSON(MANIFEST, { projects: [] });
   const lock = readJSON(LOCK, { skills: {} });
