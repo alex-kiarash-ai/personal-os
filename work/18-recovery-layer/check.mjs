@@ -945,6 +945,15 @@ try {
     const soulP = paths.soulMd();
     const corePath = path.join(REPO, 'soul-core.md');
     if (exists(soulP)) {
+      // A02-T-01 (2026-09-11): the card reaches the model through ONE line in CLAUDE.md. Every
+      // other check here tests the FILE - present, big enough, correctly stamped, fresh against
+      // soul.md - and all four pass perfectly while nothing imports it. Delivery, not existence.
+      {
+        const claudeMd = readText(path.join(REPO, 'CLAUDE.md')) || '';
+        if (!/^@soul-core\.md\s*$/m.test(claudeMd)) {
+          addDrift('soul-core', "CLAUDE.md does not carry the '@soul-core.md' import line, so the compiled identity card is delivered to NOTHING. Every session runs on the bounded soul.md fallback while the card itself stays valid and fresh. Restore the line directly under the title.");
+        }
+      }
       if (!exists(corePath)) {
         addDrift('soul-core', 'soul-core.md MISSING - sessions run on the truncated full-soul fallback (~2KB reaches the model). Rebuild: node scripts/lib/build-soul-core.js --force');
       } else {

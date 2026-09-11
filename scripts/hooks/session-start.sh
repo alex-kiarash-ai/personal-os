@@ -47,11 +47,21 @@ printf '{"ts":"%s","event":"sessionstart"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >
 # and nothing read it. Three conditions now: the file exists, it is bigger than a floor no real card
 # is under, and it ends in its stamp. A card that fails any of them falls back LOUDLY and says so in
 # different words from a missing one, because "truncated" and "absent" have different causes.
-if [ -f "$PD/soul-core.md" ]    && [ "$(wc -c < "$PD/soul-core.md" 2>/dev/null || echo 0)" -gt 4000 ]    && tail -c 400 "$PD/soul-core.md" 2>/dev/null | grep -q "SOUL-CORE-STAMP: source-sha256="; then
+# A02-T-01 (2026-09-11): a FOURTH condition, and the one that actually delivers the card. The three
+# above test the FILE. None of them tests whether anything IMPORTS it. The card reaches the model
+# through a single line in CLAUDE.md, `@soul-core.md`, and if that line is deleted or renamed the
+# file on disk stays perfectly valid while every session runs with no identity at all - and this
+# hook cheerfully prints "SOUL-PATH: card", because the card is right there. Existence of the
+# delivery mechanism is not delivery.
+soul_imported=0
+grep -qx '@soul-core.md' "$PD/CLAUDE.md" 2>/dev/null && soul_imported=1
+if [ -f "$PD/soul-core.md" ]    && [ "$(wc -c < "$PD/soul-core.md" 2>/dev/null || echo 0)" -gt 4000 ]    && tail -c 400 "$PD/soul-core.md" 2>/dev/null | grep -q "SOUL-CORE-STAMP: source-sha256=" && [ "$soul_imported" = "1" ]; then
   echo "SOUL-PATH: card"
 else
   echo "SOUL-PATH: fallback-bounded"
-  if [ -f "$PD/soul-core.md" ]; then
+  if [ -f "$PD/soul-core.md" ] && [ "$soul_imported" != "1" ]; then
+    echo "SOUL-FALLBACK: soul-core.md is present and valid but CLAUDE.md does NOT carry the '@soul-core.md' import line, so nothing delivers it. Restore that line (it belongs directly under the title) or the card is a file nobody reads."
+  elif [ -f "$PD/soul-core.md" ]; then
     echo "SOUL-FALLBACK: soul-core.md EXISTS but is INVALID (empty, truncated, or missing its SOUL-CORE-STAMP tail), so it was NOT used. Rebuild it with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
   fi
   echo "SOUL-FALLBACK: the compiled card was not usable, so only the first 8000 bytes of soul.md are injected below. This is a PARTIAL identity. Read soul.md in full before writing anything in Shaheen's voice, and rebuild the card with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
