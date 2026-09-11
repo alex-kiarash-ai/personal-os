@@ -84,20 +84,44 @@ function main() {
   }
 
   if (MODE === 'sessionend') {
-    // Was a Close-Out Report actually printed? The session transcript is not readable from here, so
-    // the honest proxy is the day's logs: a Close-Out line written today by anything. MISSING is
-    // recorded as a fact rather than inferred later, which is what gives /self-review a denominator.
+    /*
+     * Was a Close-Out Report actually printed IN THIS SESSION?
+     *
+     * A01-T-03 (2026-09-11): this used to say "the session transcript is not readable from here"
+     * and fall back to scanning the day's LOG FILES for a Close-Out line written by anything. That
+     * premise was wrong - SessionEnd's stdin payload carries `transcript_path` - and the proxy it
+     * justified measured the SCHEDULER, not sessions: any headless wrapper that printed a Close-Out
+     * line today marked every interactive session that day as compliant. "145 of 160" was never
+     * 145 sessions with a report, so the denominator /self-review reasons from was measuring
+     * something else entirely, and in the direction that flatters.
+     *
+     * The transcript is the actual evidence. The log scan survives as an explicit FALLBACK, and the
+     * row records WHICH was used, because a number derived two different ways without saying so is
+     * how this drifted in the first place.
+     */
     let closeOutSeen = false;
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      for (const f of fs.readdirSync(LOGDIR).filter((x) => x.endsWith('.log'))) {
-        const st = fs.statSync(path.join(LOGDIR, f));
-        if (st.mtime.toISOString().slice(0, 10) !== today) continue;
-        const tail = fs.readFileSync(path.join(LOGDIR, f), 'utf8').slice(-20000);
-        if (/Close-Out\s*\[/i.test(tail)) { closeOutSeen = true; break; }
-      }
-    } catch (_) { /* unreadable logs are not a reason to fail */ }
-    appendRow({ event: 'sessionend', reason: payload.reason || null, close_out_seen: closeOutSeen });
+    let source = 'none';
+    const tp = payload.transcript_path;
+    if (tp) {
+      try {
+        const buf = fs.readFileSync(tp, 'utf8');
+        closeOutSeen = /Close-Out\s*\[/i.test(buf.slice(-200000));
+        source = 'transcript';
+      } catch (_) { /* unreadable transcript falls through to the log proxy */ }
+    }
+    if (source === 'none') {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        for (const f of fs.readdirSync(LOGDIR).filter((x) => x.endsWith('.log'))) {
+          const st = fs.statSync(path.join(LOGDIR, f));
+          if (st.mtime.toISOString().slice(0, 10) !== today) continue;
+          const tail = fs.readFileSync(path.join(LOGDIR, f), 'utf8').slice(-20000);
+          if (/Close-Out\s*\[/i.test(tail)) { closeOutSeen = true; break; }
+        }
+        source = 'logs-proxy';
+      } catch (_) { /* unreadable logs are not a reason to fail */ }
+    }
+    appendRow({ event: 'sessionend', reason: payload.reason || null, close_out_seen: closeOutSeen, close_out_source: source });
     return;
   }
 
