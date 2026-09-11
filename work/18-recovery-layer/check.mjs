@@ -47,7 +47,23 @@ const { paths, manifest: loadManifest } = await import(libUrl('scripts/lib/paths
 const { sha, sameHash } = (await import(libUrl('scripts/lib/repo-hash.js'))).default;
 const { liveJobs: systemdJobs, hasSystemd } = await import(libUrl('scripts/lib/gen-systemd.js')).then((m) => m.default || m);
 
-const INIT = process.argv.includes('--init');
+/*
+ * A04-T-08 (2026-09-11): --init was an all-or-nothing union of THREE unrelated baselines - the
+ * per-project spec hashes (C8), the vault-log high-water (C9) and the accepted user-scope skill
+ * inventory (C28). The reason anyone actually runs it is "I propagated a spec change, accept it",
+ * and doing that also silently accepted any user-scope skill that had appeared since. C28 exists
+ * precisely to make a skill installed outside every gate VISIBLE, so the routine command for an
+ * unrelated task was switching off the check most likely to matter.
+ *
+ * Split. `--init` still does all three, because that is the documented command and breaking it
+ * would strand every runbook, but it now NAMES the skill set it accepted; the narrow flags exist
+ * for the case that actually comes up.
+ */
+const INIT_HASHES = process.argv.includes('--init-hashes');
+const INIT_LOG = process.argv.includes('--init-log-highwater');
+const INIT_SKILLS = process.argv.includes('--init-user-skills');
+const INIT_ALL = process.argv.includes('--init');
+const INIT = INIT_ALL || INIT_HASHES || INIT_LOG || INIT_SKILLS;
 const DRY = process.argv.includes('--dry-run');
 // C31 dead-man signal (stress-test S-D3, 2026-09-04): this task never sourced common.sh, so C31 red
 // it every week for want of a completion signal. Emit one on exit; a --dry-run/--init is a test, not
@@ -205,40 +221,60 @@ try {
 
 // ---------------------------------------------------------------- --init: baseline desired state
 if (INIT) {
-  const hashes = {};
-  const statusHashes = {};
-  for (const p of manifest.projects) {
-    hashes[String(p.num)] = sha(path.join(p.work_dir, 'CLAUDE.md'));
-    statusHashes[String(p.num)] = sha(p.status_md); // baseline status.md too, for the hash-based C8
+  const did = [];
+  if (INIT_ALL || INIT_HASHES) {
+    const hashes = {};
+    const statusHashes = {};
+    for (const p of manifest.projects) {
+      hashes[String(p.num)] = sha(path.join(p.work_dir, 'CLAUDE.md'));
+      statusHashes[String(p.num)] = sha(p.status_md); // baseline status.md too, for the hash-based C8
+    }
+    fs.writeFileSync(
+      BASELINE_FILE,
+      JSON.stringify({ hashes, status_hashes: statusHashes, last_init: fmt(now()) }, null, 2) + '\n'
+    );
+    did.push(`${manifest.projects.length} spec + status hashes`);
   }
-  fs.writeFileSync(
-    BASELINE_FILE,
-    JSON.stringify({ hashes, status_hashes: statusHashes, last_init: fmt(now()) }, null, 2) + '\n'
-  );
   // A11-T15 (2026-09-10): --init wrote the CURRENT count, so re-baselining after a truncation would
   // record the truncated length as the new floor and C9 could never see the loss. The sweep path has
   // always used Math.max, and so has the soul high-water; only --init did not. A high-water mark that
   // a routine command can lower is not a high-water mark. Re-baselining accepts a SPEC change, never
   // a shorter history.
-  const logLines = lineCount(paths.vaultLog());
-  const prevInitHw = exists(HW_FILE) ? Number((readJson(HW_FILE) || {}).lines) || 0 : 0;
-  const keptHw = Math.max(logLines, prevInitHw);
-  if (logLines < prevInitHw) {
-    console.log(`  NOTE: vault/log.md is ${logLines} lines, BELOW the recorded high-water ${prevInitHw}. Keeping ${prevInitHw}: --init accepts a spec change, not a shorter history. If the log was deliberately archived, delete the high-water file and re-run.`);
+  if (INIT_ALL || INIT_LOG) {
+    const logLines = lineCount(paths.vaultLog());
+    const prevInitHw = exists(HW_FILE) ? Number((readJson(HW_FILE) || {}).lines) || 0 : 0;
+    const keptHw = Math.max(logLines, prevInitHw);
+    if (logLines < prevInitHw) {
+      console.log(`  NOTE: vault/log.md is ${logLines} lines, BELOW the recorded high-water ${prevInitHw}. Keeping ${prevInitHw}: --init accepts a spec change, not a shorter history. If the log was deliberately archived, delete the high-water file and re-run.`);
+    }
+    fs.writeFileSync(HW_FILE, JSON.stringify({ lines: keptHw, updated: fmt(now()) }, null, 2) + '\n');
+    did.push(`log high-water ${keptHw} lines`);
   }
-  fs.writeFileSync(HW_FILE, JSON.stringify({ lines: keptHw, updated: fmt(now()) }, null, 2) + '\n');
   // C28 (2026-08-23): record the ACCEPTED user-scope skill set. Deliberately a name inventory, not
   // hashes: the point is "what is installed outside every gate", and a name arriving or vanishing is
   // the signal. Hashing user-scope content would imply this repo governs it, which it does not.
-  const usDir = path.join(os.homedir(), '.claude', 'skills');
-  const usList = listDirs(usDir).sort();
-  fs.writeFileSync(
-    path.join(STATE_DIR, 'user-skills-baseline.json'),
-    JSON.stringify({ skills: usList, updated: fmt(now()) }, null, 2) + '\n'
-  );
-  console.log(
-    `Baselined: ${manifest.projects.length} CLAUDE.md hashes + log high-water ${keptHw} lines + ${usList.length} user-scope skill(s) -> ${STATE_DIR}`
-  );
+  //
+  // A04-T-08: this is the leg that must never ride along silently. The usual reason to run --init is
+  // "I propagated a spec change", and accepting an unreviewed user-scope skill in the same breath
+  // switches off the check that exists to notice code installed outside every gate. It still runs
+  // under the plain --init (that is the documented command), but it now names what it accepted.
+  if (INIT_ALL || INIT_SKILLS) {
+    const usDir = path.join(os.homedir(), '.claude', 'skills');
+    const usList = listDirs(usDir).sort();
+    const prev = (readJson(path.join(STATE_DIR, 'user-skills-baseline.json')) || {}).skills || [];
+    const added = usList.filter((x) => !prev.includes(x));
+    const gone = prev.filter((x) => !usList.includes(x));
+    fs.writeFileSync(
+      path.join(STATE_DIR, 'user-skills-baseline.json'),
+      JSON.stringify({ skills: usList, updated: fmt(now()) }, null, 2) + '\n'
+    );
+    did.push(`${usList.length} user-scope skill(s)`);
+    if (added.length || gone.length) {
+      console.log(`  ACCEPTING a changed user-scope skill set: ${added.length ? `+${added.join(', ')}` : ''}${added.length && gone.length ? ' ' : ''}${gone.length ? `-${gone.join(', ')}` : ''}`);
+      console.log('  These live OUTSIDE every gate in this repo. If you only meant to accept a spec change, use --init-hashes instead.');
+    }
+  }
+  console.log(`Baselined: ${did.join(' + ') || '(nothing - no init flag matched)'} -> ${STATE_DIR}`);
   process.exit(0);
 }
 
