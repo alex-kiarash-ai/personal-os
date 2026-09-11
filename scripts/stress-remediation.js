@@ -89,26 +89,54 @@ function readFindings(runDir) {
     if (!/^A\d\d/.test(f)) continue;
     const aspect = f.split('-')[0];
     let inFindings = false;
+    // Column layout is NOT uniform across the seventeen files: A02 carries a separate
+    // "Matrix" column of case ids, A09 folds them into "Finding (case)", A17 has neither.
+    // Reading by position gave A02's case list as the finding text. Read the header.
+    let col = null;
     for (const ln of fs.readFileSync(path.join(dir, f), 'utf8').split(/\r?\n/)) {
       if (/^##\s/.test(ln)) {
         inFindings = /^##\s+Findings raised/i.test(ln);
+        col = null;
         continue;
       }
       if (!inFindings || !ln.startsWith('|')) continue;
-      // | T-04 | Med | finding text (case ids) | one concrete fix |
       const cells = ln.split('|').map((c) => c.trim());
-      if (cells.length < 5) continue;
-      const idm = cells[1].match(/^T-?(\d+)$/);
+      if (col === null) {
+        const head = cells.map((c) => c.toLowerCase());
+        const find = (re) => head.findIndex((h) => re.test(h));
+        if (find(/^sev/) === -1) continue; // not the header row yet
+        // The case-reference column is spelled "Matrix" (A02), "From" (A04), "Case(s)"
+        // elsewhere, or does not exist and the ids ride in the finding text (A09, A17).
+        col = {
+          sev: find(/^sev/),
+          matrix: find(/^(matrix|from|cases?|case ids?)$/),
+          finding: find(/^finding/),
+          fix: find(/fix$/),
+        };
+        // "| Local id | Sev | Case | One concrete fix |" has no Finding column: there the
+        // Case column carries the prose and the ids together, so it is both.
+        if (col.finding === -1) col.finding = col.matrix;
+        continue;
+      }
+      if (/^\|[-\s|]+\|$/.test(ln)) continue; // the |---|---| separator
+      const idm = (cells[1] || '').match(/^T-?(\d+)$/);
       if (!idm) continue;
-      const sev = cells[2].replace(/\*/g, '').replace(/\s*\(.*\)$/, '').trim();
+      const sev = (cells[col.sev] || '').replace(/\*/g, '').replace(/\s*\(.*\)$/, '').trim();
+      const finding = cells[col.finding] || '';
+      // Cases come from the dedicated Matrix column where one exists, otherwise from the
+      // trailing paren of the finding text.
+      // Union, never either-or: a dedicated column is the reliable source, and the finding
+      // text often names further cases the column omits. Missing a case id marks a row open
+      // that is already closed, which costs a re-measurement; the reverse hides real work.
+      const caseSrc = `${col.matrix > -1 ? cells[col.matrix] || '' : ''} ${finding}`;
       rows.push({
         aspect,
         id: key(aspect, idm[1]),
         sev: sev || 'Unlabelled',
-        finding: cells[3],
-        fix: cells[4] || '',
+        finding,
+        fix: cells[col.fix] || '',
         file: f,
-        cases: casesOf(aspect, cells[3]),
+        cases: casesOf(aspect, caseSrc),
       });
     }
   }
