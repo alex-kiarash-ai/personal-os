@@ -1,10 +1,36 @@
 # nodes/
 
-One file per n8n node, numbered in wiring order: `NN-<name>.js`.
+One file per n8n node: `NN-<name>.js`.
+
+**THE NUMBERS STOPPED BEING WIRING ORDER AT 23 (2026-09-12), and that is deliberate.** Files 01 to 22
+are in wiring order. The two paging loops added five nodes that belong in the MIDDLE of the graph:
+23 and 24 sit between 07 and 08, and 25, 26 and 27 sit between 17 and 18. Renumbering twenty two
+files to make room would have churned every test, every card and every handoff line that names one,
+for a number that n8n never reads. The order in the `nodes` array does not affect the workflow:
+connections are assembled by node NAME. Each of the five carries its place in the graph in its own
+header, and the map is:
+
+```
+Plan Queries -> LinkedIn Units Only [out0] -> Search LinkedIn (07) -> LinkedIn Page Guard (23)
+                                              ^                       -> More LinkedIn Pages? (24)
+                                              |                            [out0] loops back to 07
+                                              +----------------------------+
+                                                                           [out1] -> Extract LinkedIn (08)
+LinkedIn Units Only [out1] -> Indeed Units Only [out0] -> the Indeed poll loop (10 to 16)
+                              Indeed Units Only [out1] -> Fetch Board (17) -> Board Page Guard (25)
+                                              ^                            -> More Board Pages? (26)
+                                              |                                 [out0] -> Board Page Pause (27) -> 17
+                                              +---------------------------------+
+                                                                                [out1] -> Extract Board Jobs (18)
+Extract LinkedIn / Extract Indeed Jobs / Extract Board Jobs -> Combine (19) -> Filter (20)
+  -> Read Known Jobs (21) -> Remove Known (22)
+```
 
 Each file exports the node definition and how it connects. `config/build.js --add nodes/NN-name.js`
-appends exactly one of them to the live workflow, backing up first and reading back after. `--rebuild`
-reassembles the whole workflow from every file in this folder, in numeric order.
+appends exactly one of them to the live workflow, backing up first and reading back after.
+**`--add` cannot be used on this workflow any more**: it requires a topological order and there are
+now THREE cycles (the Indeed poll loop and the two paging loops). `--rebuild` reassembles the whole
+workflow from every file in this folder and is the only mode that works.
 
 A file whose name starts with `_` is NOT a node. build.js only globs `/^\d+-.+\.js$/`, so `_lane.js`
 is a build-time helper and can never be mistaken for one.
@@ -30,4 +56,14 @@ file here and build the AI lane correctly with no edit: every path in `_lane.js`
 
 Offline proof for the Code nodes lives in `config/test-stage-a.js` (run time behaviour, against a
 captured sample) and `config/test-stage-a-guards.js` (the build-time guards, each shown failing on a
-synthetic violation). Both are in `config/` because their fixtures carry real values.
+synthetic violation). Both are in `config/` because their fixtures carry real values. The same
+pattern continues per stage through `test-stage-e*`, and `config/test-depth.js` covers the two
+paging loops, including a simulator that runs each loop pass by pass and a negative-test section
+that removes each cap from a COPY of the shipped code and proves the same scenario then runs away.
+
+**A fourth rule, added with the paging loops: a cap that a human can edit needs a second cap that a
+human cannot.** Both page guards read their limits from the settings tab, then `config/lane.json`,
+then a shipped default, so Shaheen can tune them from his phone. That makes the number hand editable,
+and a hand edited `9999` on a weekday cron with nobody in the room is an unbounded loop. So each
+guard also carries a CLAMP in code that the configured value is capped to, and the clamp is named in
+the run report whenever it bites. The configurable cap is a convenience; the clamp is the guard.

@@ -390,12 +390,34 @@ const seenIds = {};
 let duplicateRows = 0;
 let cardsUnparsedTotal = 0;
 const missingField = { title: 0, company: 0, location: 0, posted_at: 0, url: 0 };
-let correlationDegraded = items.length !== planned.length;
+
+// THE PAGING REPORT, stamped on every item by LinkedIn Page Guard. When it is present this node is
+// reading a MULTI PAGE corpus: one item per call across every pass, not one item per planned query.
+// Every count below that used to be derived from planned.length has to come from here instead.
+const PAGING = (items[0] && items[0].json && items[0].json._paging) ? items[0].json._paging : null;
+const callsMade = PAGING ? PAGING.calls_made : planned.length;
+
+// Correlation is the guard's job once paging exists: a page 2 response has NO entry in Plan Queries
+// to correlate against, so the guard stamps the unit onto the item and this node reads it. The old
+// pairedItem path is kept for the case where the guard is bypassed or paging is switched off in the
+// contract, and it degrades loudly rather than silently.
+let correlationDegraded = PAGING ? (PAGING.correlation_degraded === true) : (items.length !== planned.length);
+let unitsFromGuard = 0;
 
 for (let i = 0; i < items.length; i += 1) {
   const res = items[i].json || {};
-  const corr = plannedIndexFor(items[i], i);
-  const unit = planned[corr.idx] || null;
+  let unit = null;
+  let via = null;
+  if (res._unit && typeof res._unit === 'object' && !Array.isArray(res._unit)) {
+    unit = res._unit;
+    via = 'guard';
+    unitsFromGuard += 1;
+  } else {
+    const c = plannedIndexFor(items[i], i);
+    unit = planned[c.idx] || null;
+    via = c.via;
+  }
+  const corr = { idx: unit && typeof unit.seq === 'number' ? unit.seq - 1 : i, via: via };
   if (!unit) {
     calls.push({
       seq: null, of: null, term: null, location_setting: null, url: null,
@@ -420,6 +442,10 @@ for (let i = 0; i < items.length; i += 1) {
     location_setting: unit.location_setting,
     location: unit.location,
     url: unit.url,
+    // Which page of that query this call was. 0 is the base query; anything above 0 only exists
+    // because the previous page came back full.
+    page: res._page && typeof res._page.index === 'number' ? res._page.index : (typeof unit.page_index === 'number' ? unit.page_index : 0),
+    start: typeof unit.start === 'number' ? unit.start : null,
     outcome: verdict.outcome,
     status_code: verdict.status_code,
     reason: verdict.reason,
@@ -502,7 +528,10 @@ for (const c of calls) counts[c.outcome] = (counts[c.outcome] || 0) + 1;
 
 const delivered = counts.ok + counts.empty;
 const failed = counts.refused + counts.error + counts.markup_changed;
-const missingResponses = planned.length - items.length;
+// Calls MADE against responses SEEN, not planned queries against responses. With paging on, one
+// planned query can be several calls, so comparing against planned.length would report a healthy
+// negative number on every run that paged anything.
+const missingResponses = callsMade - items.length;
 const partialParse = cardsUnparsedTotal > 0;
 
 let verdict;
@@ -542,9 +571,9 @@ if (partialParse) {
   );
 }
 if (missingResponses > 0) {
-  warnings.push(missingResponses + ' planned LinkedIn call(s) produced no response item at all. Expected one item per planned call, got ' + items.length + ' for ' + planned.length + '.');
+  warnings.push(missingResponses + ' LinkedIn call(s) produced no response item at all. Expected one item per call made, got ' + items.length + ' for ' + callsMade + ' call(s) across ' + (PAGING ? PAGING.passes : 1) + ' pass(es).');
 } else if (missingResponses < 0) {
-  warnings.push((-missingResponses) + ' more response(s) arrived than were planned. Something other than Plan Queries is feeding the LinkedIn collector.');
+  warnings.push((-missingResponses) + ' more response(s) arrived than calls were made. Something other than the paging loop is feeding the LinkedIn collector.');
 }
 if (counts.empty) {
   warnings.push(
@@ -553,26 +582,47 @@ if (counts.empty) {
     'If empty calls are frequent while the same searches show jobs in a browser, this is the first thing to distrust.'
   );
 }
-// D2 was settled by the Stage C start=10 probe: the page size is 10 and start steps by 10. What was
-// a page-size question is now a COVERAGE question, and it is sharper. A call that came back with
-// exactly one full page is the one shape that cannot tell "that is all there was" from "that is all
-// they served", and the probe showed that for the first BI query it was the second: page 2 held ten
-// more real jobs. So a full page is reported as TRUNCATION, with a count, every run until paging is
-// built. While the contract still calls paging unverified, the old open-question warning stands.
+// D15 is CLOSED by construction as of 2026-09-12: paging is built and adaptive. What remains worth
+// reporting is not "a page was full" (a full page is now followed) but "a full page was NOT
+// followed", which only happens when a cap said no. The guard knows which and why, so the number
+// comes from its report rather than being re-derived here from card counts.
 const fullPageCalls = LINKEDIN_PAGE.verified ? cardCounts.filter((n) => n >= LINKEDIN_PAGE.size).length : 0;
-if (LINKEDIN_PAGE.verified && fullPageCalls > 0) {
-  warnings.push(
-    'D15 TRUNCATION: ' + fullPageCalls + ' of ' + calls.length + ' call(s) came back with a full page of ' +
-    LINKEDIN_PAGE.size + ' card(s). This lane requests start=0 and nothing else, so for every one of those ' +
-    'queries there are almost certainly more results it never asked for. This is a sized collection gap, not ' +
-    'a failure: paging belongs to Stage D and it steps by ' + LINKEDIN_PAGE.step + '. Settled by the Stage C ' +
-    'probe, which found 10 further real jobs on page 2 of the first BI query.'
-  );
+if (PAGING && PAGING.enabled) {
+  if (PAGING.truncated) {
+    const byReason = PAGING.truncation_by_reason || {};
+    warnings.push(
+      'TRUNCATED (D15/D20): ' + (PAGING.queries_truncated || []).length + ' quer(ies) came back with a FULL page of ' +
+      LINKEDIN_PAGE.size + ' card(s) and were NOT followed, so there are more results this run did not ask for. ' +
+      'Reasons: ' + Object.keys(byReason).map((k) => k + ' x' + byReason[k]).join(', ') + '. ' +
+      'This run made ' + PAGING.calls_made + ' LinkedIn call(s) across ' + PAGING.passes + ' pass(es) against a ceiling of ' +
+      PAGING.caps.max_calls_per_run + ' (' + PAGING.caps.max_calls_per_run_from + ') and a per-query cap of ' +
+      PAGING.caps.max_pages_per_query + ' (' + PAGING.caps.max_pages_per_query_from + '). ' +
+      'This is a SIZED gap, not a failure, and it is deliberate: the ceiling exists because the box is a ' +
+      'datacenter IP and LinkedIn is documented to refuse one after roughly ten pages. Raising the ceiling ' +
+      'closes the gap and buys more refusal risk; the two cannot both be had. Queries left unfinished: ' +
+      (PAGING.queries_truncated || []).map((q) => '#' + q.seq + ' after ' + q.pages_taken + ' page(s) [' + q.reason + ']').join('; ')
+    );
+  }
+  if ((PAGING.clamped || []).length) {
+    warnings.push(
+      'A PAGING CAP WAS CLAMPED IN CODE: ' + PAGING.clamped.map((c) => c.cap + ' ' + JSON.stringify(c.was) + ' -> ' + c.now + ' (' + c.why + ')').join('; ') +
+      '. The settings tab is hand editable and this is the bound it cannot raise. If the clamp is genuinely too low, it moves in the node file, deliberately, not in a cell.'
+    );
+  }
+  if (PAGING.stopped_by_pass_clamp) {
+    warnings.push('The paging loop stopped on the hard PASS clamp (' + PAGING.caps.hard_clamp_passes + ' passes). That bound exists so a bug cannot turn a weekday cron into an execution that is still running on Friday, and reaching it means something upstream is not converging.');
+  }
 } else if (!LINKEDIN_PAGE.verified && maxCards > 0) {
   warnings.push(
-    'no call returned more than ' + maxCards + ' card(s), and the contract still calls the LinkedIn page size ' +
-    'unverified (D2). Paging on the wrong step skips rows silently. Resolve it with one start=10 call before ' +
-    'any paging loop is built.'
+    'PAGING IS OFF: no call returned more than ' + maxCards + ' card(s) and the contract does not call the ' +
+    'LinkedIn page size verified (D2). Every query is capped at one page again and the gap is not sized. ' +
+    'Paging on the wrong step skips rows silently, so the loop refuses to guess a step.'
+  );
+} else if (!PAGING && fullPageCalls > 0) {
+  warnings.push(
+    'D15: ' + fullPageCalls + ' of ' + calls.length + ' call(s) came back with a full page of ' + LINKEDIN_PAGE.size +
+    ' card(s) and NO paging report reached this node, so nothing followed them. LinkedIn Page Guard is missing from ' +
+    'the graph or is not wired into this branch, and this lane is back to one page per query with no count of what it missed.'
   );
 }
 if (otherPlanned.length) {
@@ -593,10 +643,18 @@ const report = {
   verdict: verdict,
   source_down: verdict === 'down',
   status_token: verdict === 'down' ? 'source_down:' + SOURCE_KEY : null,
-  planned_calls: planned.length,
+  planned_queries: planned.length,
+  // Kept under the old name too: Stage F and the run ledger read planned_calls, and with paging on
+  // "calls" and "queries" stopped being the same number. This is the CALLS one, which is what the
+  // old name always meant.
+  planned_calls: callsMade,
+  calls_made: callsMade,
+  passes: PAGING ? PAGING.passes : 1,
   responses_received: items.length,
   missing_responses: missingResponses,
   correlation_degraded: correlationDegraded,
+  units_from_guard: unitsFromGuard,
+  paging: PAGING,
   counts: counts,
   rows_emitted: rows.length,
   distinct_job_ids: Object.keys(seenIds).length,
@@ -609,9 +667,10 @@ const report = {
     page_size: LINKEDIN_PAGE.size,
     page_size_verified: LINKEDIN_PAGE.verified,
     calls_returning_a_full_page: fullPageCalls,
-    paging_built: false,
+    paging_built: !!(PAGING && PAGING.enabled),
+    full_pages_not_followed: PAGING ? (PAGING.queries_truncated || []).length : fullPageCalls,
     probe: LINKEDIN_PAGE.verified ? null : 'D2',
-    discrepancy: LINKEDIN_PAGE.verified ? 'D15' : 'D2',
+    discrepancy: LINKEDIN_PAGE.verified ? (PAGING && PAGING.truncated ? 'D20' : null) : 'D2',
   },
   pacing: Object.assign({}, PACING, {
     estimated_sleep_seconds: Math.max(0, (planned.length - 1) * PACING.batch_interval_ms) / 1000,
@@ -647,8 +706,12 @@ module.exports = {
   name: 'Extract LinkedIn',
   type: 'n8n-nodes-base.code',
   typeVersion: 2,
-  position: [1560, 0],
-  connectFrom: 'Search LinkedIn',
+  position: [1820, 0],
+  // MOVED behind the paging loop 2026-09-12. It used to hang straight off Search LinkedIn, which
+  // would now make it run once per PASS, each run seeing one pass's responses and emitting its own
+  // source_report with per-pass counts. It hangs off the guard's exit branch instead, which stays
+  // empty until paging is finished, so this node runs exactly ONCE with the whole corpus.
+  connectFrom: { node: 'More LinkedIn Pages?', outputIndex: 1 },
   notes: 'Parses LinkedIn job cards into the shared row shape and emits one source_report naming every call that was refused, empty, errored or served changed markup. A refusal is never reported as zero jobs.',
   parameters: {
     mode: 'runOnceForAllItems',

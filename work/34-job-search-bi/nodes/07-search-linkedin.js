@@ -117,8 +117,17 @@ module.exports = {
   type: 'n8n-nodes-base.httpRequest',
   typeVersion: 4.2,
   position: [1300, 0],
-  connectFrom: 'LinkedIn Units Only',
-  outputIndex: 0,
+  // TWO SOURCES since 2026-09-12: the router feeds page 1 of every query, and the paging loop feeds
+  // every page after that. n8n runs a node once per incoming branch, which is exactly what a loop
+  // needs, and it is the same shape `Wait 60s` already has in the Indeed poll branch.
+  // Per-entry outputIndex, added to build.js in Stage E, is what lets these two disagree: the router
+  // hands LinkedIn work out of output 0, and `More LinkedIn Pages?` loops out of its TRUE branch,
+  // which is also output 0. They agree here by coincidence and are written out anyway, because the
+  // day one of them moves, a shared index would silently wire the loop to the wrong branch.
+  connectFrom: [
+    { node: 'LinkedIn Units Only', outputIndex: 0 },
+    { node: 'More LinkedIn Pages?', outputIndex: 0 },
+  ],
   onError: 'continueRegularOutput',
   notes: 'One GET per planned LinkedIn search, paced ' + BATCH_INTERVAL_MS + ' ms apart. Never errors: a 429 or a 999 arrives as a normal item with its status code and is classified by the next node as a refusal, not as an empty result.',
   parameters: {

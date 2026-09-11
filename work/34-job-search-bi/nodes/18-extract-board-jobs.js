@@ -775,17 +775,42 @@ function classify(res) {
 // full plan here would silently attribute every board's rows to a LinkedIn search term. The subset
 // is in plan order because Plan Queries emits LinkedIn, then boards, then Indeed, and neither router
 // reorders what it passes through.
+// THE PAGING REPORT, stamped on every item by Board Page Guard when it is in the graph. With it,
+// one planned board can be SEVERAL responses, one per cursor page, and each carries the unit that
+// produced it. Without it this falls back to the original one-response-per-board correlation, which
+// is still correct for the five boards that do not page.
+const PAGING = (items[0] && items[0].json && items[0].json._paging) ? items[0].json._paging : null;
+
 const byPlanned = {};
 const orphans = [];
+let unitsFromGuard = 0;
 for (let i = 0; i < items.length; i += 1) {
-  const corr = plannedIndexFor(items[i], i);
-  const unit = planned[corr.idx];
+  const j = items[i].json || {};
+  let unit = null;
+  let via = null;
+  if (j._unit && typeof j._unit === 'object' && !Array.isArray(j._unit)) {
+    // A page past the first has NO entry in Plan Queries to correlate against, so the guard stamps
+    // the unit on. Correlating a Himalayas page 3 by position would attribute it to whichever board
+    // happened to sit at that index, which is real rows filed under the wrong source and the wrong
+    // attribution obligation.
+    unit = j._unit;
+    via = 'guard';
+    unitsFromGuard += 1;
+  } else {
+    const corr = plannedIndexFor(items[i], i);
+    unit = planned[corr.idx];
+    via = corr.via;
+  }
   if (!unit) {
-    orphans.push({ response_index: i, points_at: corr.idx, via: corr.via });
+    orphans.push({ response_index: i, points_at: null, via: via });
     continue;
   }
-  const slot = byPlanned[unit.source] || (byPlanned[unit.source] = { responses: [], via: corr.via });
-  slot.responses.push(items[i]);
+  const slot = byPlanned[unit.source] || (byPlanned[unit.source] = { responses: [], via: via });
+  slot.responses.push({
+    item: items[i],
+    unit: unit,
+    page: (j._page && typeof j._page.index === 'number') ? j._page.index : 0,
+  });
 }
 
 const rows = [];
@@ -847,12 +872,24 @@ for (const unit of planned) {
     continue;
   }
 
-  if (slot.responses.length > 1) {
+  // MORE THAN ONE RESPONSE IS NOW NORMAL for a paged source, so the array-split test is no longer
+  // "more than one response". It is "more than one response claiming the SAME page", which is the
+  // shape n8n produces when an HTTP Request node with responseFormat json and no fullResponse splits
+  // a bare array into one item per element. Two of these six boards answer with a bare array, so the
+  // test still has to exist; it just cannot be a count any more.
+  slot.responses.sort((a, b) => a.page - b.page);
+  const pagesSeen = {};
+  let duplicatePage = null;
+  for (const r of slot.responses) {
+    if (pagesSeen[r.page] !== undefined) duplicatePage = r.page;
+    pagesSeen[r.page] = (pagesSeen[r.page] || 0) + 1;
+  }
+  if (duplicatePage !== null) {
     report.outcome = 'shape_changed';
     report.verdict = 'down';
     report.reason =
-      slot.responses.length + ' response items point at this single planned call. That is the shape n8n produces ' +
-      'when an HTTP Request node with responseFormat json and NO fullResponse splits an array response into one ' +
+      pagesSeen[duplicatePage] + ' response items claim page ' + duplicatePage + ' of this board. That is the shape n8n ' +
+      'produces when an HTTP Request node with responseFormat json and NO fullResponse splits an array response into one ' +
       'item per element, and two of these six boards answer with a bare array. The rows are not lost, but they ' +
       'arrive with no status code and no way to tell which board they came from, so they are reported rather ' +
       'than guessed at. Fix: fullResponse must be true on Fetch Board.';
@@ -864,7 +901,8 @@ for (const unit of planned) {
     warnings.push('this board was matched to its response by arrival ORDER, because the response carried no pairedItem. Correct here, and fragile: it stops being correct the moment a call produces no item.');
   }
 
-  const res = slot.responses[0].json || {};
+  report.pages_fetched = slot.responses.length;
+  const res = slot.responses[0].item.json || {};
   const verdict = classify(res);
   report.status_code = verdict.status_code;
 
@@ -884,60 +922,109 @@ for (const unit of planned) {
     continue;
   }
 
-  // 2xx. Now the body.
-  const resolved = resolveBody(res);
-  if (resolved.problem) {
-    report.outcome = 'shape_changed';
-    report.verdict = 'down';
-    report.reason = 'HTTP ' + verdict.status_code + ' and ' + resolved.problem + '. This is NOT an empty feed.';
-    warnings.push(report.reason);
-    reports.push({ json: report, pairedItem: { item: 0 } });
-    continue;
-  }
-  if (resolved.reparsed) {
-    warnings.push('the body arrived as a STRING and had to be JSON.parse-d. The feed stopped declaring a json content type, or n8n stopped detecting it. Worth knowing before it becomes a parse failure.');
-  }
+  // 2xx. Now the body, or bodies: one per cursor page.
+  //
+  // A FAILURE ON PAGE 1 FAILS THE SOURCE, exactly as it always did. A failure on a LATER page keeps
+  // every earlier page's rows and degrades the source with the page named. That asymmetry is the
+  // point of paging inside a collector rather than outside one: reaching page 4 and being refused is
+  // three pages better than not having asked, and throwing those three away to report a clean
+  // failure would be the collector deciding that tidiness beats jobs.
+  let feedRows = [];
+  // Counted BEFORE skip_elements, because rows_in_feed means "how many elements the feed actually
+  // held", and RemoteOK's element 0 is a legal notice rather than a job. Reporting the post-skip
+  // number would quietly change what that field has always meant.
+  let rowsInFeedRaw = 0;
+  let pageFailure = null;
+  const pageOutcomes = [];
+  let reparsedWarned = false;
 
-  const body = resolved.body;
-  for (const path of spec.envelope_report) {
-    const v = dig(body, path);
-    report.envelope_observed[path] = v === undefined ? null : v;
-  }
+  for (const r of slot.responses) {
+    const pres = r.item.json || {};
+    const pv = r.page === 0 ? verdict : classify(pres);
 
-  const found = resolveRows(spec, body);
-  if (found.problem) {
-    report.outcome = 'shape_changed';
-    report.verdict = 'down';
-    report.reason =
-      'HTTP ' + verdict.status_code + ' with a real body and the rows are not where the contract says: ' + found.problem + '. ' +
-      'Re-read the live response against envelope and field_map for ' + key + ' in the source contract and fix it THERE, ' +
-      'in the same session. Read as an empty feed this would be a healthy looking zero for as long as nobody looked.';
-    report.envelope_keys_seen = found.keys_seen;
-    warnings.push(report.reason);
-    reports.push({ json: report, pairedItem: { item: 0 } });
-    continue;
-  }
-
-  let feedRows = found.rows;
-  report.rows_in_feed = feedRows.length;
-
-  if (spec.skip_elements > 0) {
-    const skipped = feedRows.slice(0, spec.skip_elements);
-    feedRows = feedRows.slice(spec.skip_elements);
-    report.elements_skipped = spec.skip_elements;
-    // The contract says element 0 of this feed is a legal notice. Checking that it still looks like
-    // one costs nothing and catches the day it becomes a real job, which would otherwise be one job
-    // silently dropped every run forever.
-    const looksRight = skipped.every((el) => el && typeof el === 'object' && (spec.skipped_element_keys || []).some((k) => k in el));
-    report.skipped_element_matched_contract = looksRight;
-    if (!looksRight) {
-      warnings.push(
-        'the first ' + spec.skip_elements + ' element(s) of this feed were skipped because the contract says element 0 is a ' +
-        'legal notice, and they no longer carry ' + (spec.skipped_element_keys || []).join(' or ') + '. If the notice moved or ' +
-        'went away, this lane is dropping a real job every single run. Keys seen: ' + skipped.map((el) => (el && typeof el === 'object') ? Object.keys(el).slice(0, 8).join('/') : typeof el).join(' | ')
-      );
+    function failPage(outcome, reason, extra) {
+      pageOutcomes.push(Object.assign({ page: r.page, outcome: outcome, status_code: pv.status_code, reason: reason, rows: 0 }, extra || {}));
+      if (r.page === 0) {
+        pageFailure = { outcome: outcome, reason: reason, extra: extra || {} };
+      } else {
+        warnings.push('page ' + (r.page + 1) + ' of this feed failed (' + outcome + '): ' + reason + ' Every earlier page is kept and counted; the source is DEGRADED rather than down, because rows already in hand are not made better by throwing them away.');
+      }
     }
+
+    if (pv.outcome) { failPage(pv.outcome, pv.reason); if (pageFailure) break; else continue; }
+
+    const resolved = resolveBody(pres);
+    if (resolved.problem) {
+      failPage('shape_changed', 'HTTP ' + pv.status_code + ' and ' + resolved.problem + '. This is NOT an empty feed.');
+      if (pageFailure) break; else continue;
+    }
+    if (resolved.reparsed && !reparsedWarned) {
+      reparsedWarned = true;
+      warnings.push('the body arrived as a STRING and had to be JSON.parse-d. The feed stopped declaring a json content type, or n8n stopped detecting it. Worth knowing before it becomes a parse failure.');
+    }
+
+    const body = resolved.body;
+    // The envelope is read off PAGE 1. A cursor page carries the same keys and its totalCount drifts
+    // between calls, so reporting the last page's numbers would make the report disagree with the
+    // first call for no reason anybody could follow.
+    if (r.page === 0) {
+      for (const path of spec.envelope_report) {
+        const v = dig(body, path);
+        report.envelope_observed[path] = v === undefined ? null : v;
+      }
+    }
+
+    const found = resolveRows(spec, body);
+    if (found.problem) {
+      failPage(
+        'shape_changed',
+        'HTTP ' + pv.status_code + ' with a real body and the rows are not where the contract says: ' + found.problem + '. ' +
+        'Re-read the live response against envelope and field_map for ' + key + ' in the source contract and fix it THERE, ' +
+        'in the same session. Read as an empty feed this would be a healthy looking zero for as long as nobody looked.',
+        { envelope_keys_seen: found.keys_seen }
+      );
+      if (r.page === 0) report.envelope_keys_seen = found.keys_seen;
+      if (pageFailure) break; else continue;
+    }
+
+    let pageRows = found.rows;
+    rowsInFeedRaw += pageRows.length;
+    if (spec.skip_elements > 0) {
+      const skippedEls = pageRows.slice(0, spec.skip_elements);
+      pageRows = pageRows.slice(spec.skip_elements);
+      report.elements_skipped = spec.skip_elements;
+      const looksRightHere = skippedEls.every((el) => el && typeof el === 'object' && (spec.skipped_element_keys || []).some((k) => k in el));
+      report.skipped_element_matched_contract = looksRightHere;
+      if (!looksRightHere) {
+        warnings.push(
+          'the first ' + spec.skip_elements + ' element(s) of this feed were skipped because the contract says element 0 is a ' +
+          'legal notice, and they no longer carry ' + (spec.skipped_element_keys || []).join(' or ') + '. If the notice moved or ' +
+          'went away, this lane is dropping a real job every single run. Keys seen: ' + skippedEls.map((el) => (el && typeof el === 'object') ? Object.keys(el).slice(0, 8).join('/') : typeof el).join(' | ')
+        );
+      }
+    }
+    feedRows = feedRows.concat(pageRows);
+    pageOutcomes.push({ page: r.page, outcome: 'ok', status_code: pv.status_code, reason: null, rows: pageRows.length });
   }
+
+  report.pages = pageOutcomes;
+
+  if (pageFailure) {
+    report.outcome = pageFailure.outcome;
+    report.verdict = 'down';
+    report.reason = pageFailure.reason;
+    warnings.push(report.reason);
+    reports.push({ json: report, pairedItem: { item: 0 } });
+    continue;
+  }
+
+  report.rows_in_feed = rowsInFeedRaw;
+  const laterPageFailed = pageOutcomes.some((p) => p.outcome !== 'ok');
+
+  // The skip_elements check moved INSIDE the page walk above, because it is a per-page property:
+  // the contract says element 0 of that feed is a legal notice, and a cursor page would carry its
+  // own. Checking that it still looks like one costs nothing and catches the day it becomes a real
+  // job, which would otherwise be one job silently dropped every run forever.
 
   if (spec.watch_string_fields) {
     report.observed_field_types = {};
@@ -1137,19 +1224,59 @@ for (const unit of planned) {
       'contributes zero to this run. That is a real zero with a reason, and it is not the same thing as a broken feed.'
     );
   }
-  if (spec.short_feed_check) {
-    const limit = report.envelope_observed[spec.short_feed_check.rows_field];
-    const total = report.envelope_observed[spec.short_feed_check.total_field];
-    if (typeof limit === 'number' && feedRows.length < limit) {
+  if (laterPageFailed && report.verdict === 'ok') {
+    report.verdict = 'degraded';
+    report.reason = (report.reason ? report.reason + ' ' : '') + 'At least one page past the first failed and its rows are missing; every earlier page is kept.';
+  }
+
+  // --- the paging picture, per source ---------------------------------------
+  // D4 and D5 are CLOSED as of 2026-09-12 and the reason was the endpoint, not the params: this lane
+  // was reading a sample surface that ignored limit and never emitted a cursor (D19). What is worth
+  // reporting now is how deep the run actually got and what it did not reach, because a cap that
+  // bites is the new way this source under-collects and it must be sized rather than flagged.
+  const srcPaging = (PAGING && PAGING.per_source) ? PAGING.per_source[key] : null;
+  if (srcPaging) {
+    report.paging = {
+      pageable: srcPaging.pageable,
+      pages_fetched: srcPaging.pages,
+      rows_seen_across_pages: srcPaging.rows_seen,
+      oldest_reached: srcPaging.oldest_reached,
+      cap: srcPaging.cap,
+      cap_from: srcPaging.cap_from,
+      stops: (PAGING.stops || []).filter((s) => s.source === key),
+    };
+    const capStop = report.paging.stops.find((s) => s.reason === 'page_cap' || s.reason === 'pass_clamp');
+    if (capStop) {
+      report.verdict = report.verdict === 'ok' ? 'degraded' : report.verdict;
+      const wanted = capStop.window_wanted || unit.window_start_effective || unit.window_start;
+      const reachedMs = capStop.oldest_reached ? Date.parse(capStop.oldest_reached) : NaN;
+      const wantedMs = wanted ? Date.parse(wanted) : NaN;
+      const gapHours = (isFinite(reachedMs) && isFinite(wantedMs)) ? ((reachedMs - wantedMs) / 3600000) : null;
       warnings.push(
-        'D4: this feed returned ' + feedRows.length + ' row(s) against its own stated limit of ' + limit +
-        (typeof total === 'number' ? ' with a totalCount of ' + total : '') + '. The row count does NOT track the limit, so ' +
-        '"fewer rows than the limit" must never be read as "that is all there is". Whatever narrows this response, it is not ' +
-        'a param this lane sends. The probe is still open.'
+        'TRUNCATED BY THE PAGE CAP: this feed paged ' + srcPaging.pages + ' time(s), stopped at the cap of ' + srcPaging.cap +
+        ' (' + srcPaging.cap_from + '), and still had a full page and a live cursor in hand. It reached back to ' +
+        (capStop.oldest_reached || 'an unknown time') + ' and the window wanted ' + wanted +
+        (gapHours === null ? '' : ', so roughly ' + gapHours.toFixed(1) + ' hour(s) of this window were never requested') +
+        '. This is a SIZED gap, not a failure: raise ' + key + '_max_pages_per_run in the settings tab to close it.'
+      );
+    } else if (srcPaging.pageable && srcPaging.pages > 1) {
+      warnings.push(
+        'paged ' + srcPaging.pages + ' time(s) by cursor and stopped for a real reason, not a cap: ' +
+        (report.paging.stops.map((s) => s.reason).join(', ') || 'no further page was offered') +
+        '. The whole effective window was covered, back to ' + (srcPaging.oldest_reached || 'an unknown time') + '.'
       );
     }
-    if (report.envelope_observed.nextCursor === null || report.envelope_observed.nextCursor === undefined) {
-      warnings.push('D5: no nextCursor in the response, so the cursor pagination the API says it prefers still has nothing to exercise it. Paging this source stays unbuilt rather than built on the offset param the API calls deprecated.');
+  } else if (spec.short_feed_check) {
+    // No paging report reached this node. For a source the contract calls pageable that means the
+    // guard is missing from the graph, and this source is back to one page per run.
+    const limit = report.envelope_observed[spec.short_feed_check.rows_field];
+    if (typeof limit === 'number' && feedRows.length < limit) {
+      warnings.push(
+        'this feed returned ' + feedRows.length + ' row(s) against its own stated limit of ' + limit +
+        ', and NO paging report reached this node, so nothing followed a cursor. Board Page Guard is missing from the graph ' +
+        'or is not wired into this branch. On the feed endpoint a short page means the end of the feed; on the old search ' +
+        'endpoint it meant nothing at all (D4/D19), so which endpoint is being called matters before this number does.'
+      );
     }
   }
 
@@ -1166,8 +1293,18 @@ if (orphans.length) {
     'these six sources require attribution as a condition of access.'
   );
 }
-if (items.length !== planned.length) {
-  stageWarnings.push('expected one response per planned board (' + planned.length + ') and got ' + items.length + '.');
+const callsMade = PAGING ? PAGING.calls_made : planned.length;
+if (items.length !== callsMade) {
+  stageWarnings.push('expected one response per call made (' + callsMade + ' call(s) across ' + (PAGING ? PAGING.passes : 1) + ' pass(es), for ' + planned.length + ' planned board(s)) and got ' + items.length + '.');
+}
+if (PAGING && (PAGING.clamped || []).length) {
+  stageWarnings.push(
+    'A PAGING CAP WAS CLAMPED IN CODE: ' + PAGING.clamped.map((c) => c.cap + ' ' + JSON.stringify(c.was) + ' -> ' + c.now + ' (' + c.why + ')').join('; ') +
+    '. The settings tab is hand editable and this is the bound it cannot raise.'
+  );
+}
+if (PAGING && PAGING.stopped_by_pass_clamp) {
+  stageWarnings.push('The board paging loop stopped on the hard PASS clamp (' + PAGING.hard_clamp_passes + ' passes), which exists so a bug cannot turn a weekday cron into an execution that is still running on Friday.');
 }
 const disabledBoards = disabledSources.filter((d) => BOARD_KEYS.indexOf(d.source) !== -1);
 if (disabledBoards.length) {
@@ -1183,6 +1320,10 @@ for (const r of reports) {
     boards_disabled: disabledBoards.map((d) => d.source),
     boards_reporting: reports.length,
     rows_emitted_all_boards: totalRows,
+    calls_made: callsMade,
+    passes: PAGING ? PAGING.passes : 1,
+    units_from_guard: unitsFromGuard,
+    paging: PAGING,
     pacing: PACING,
     not_collected_here: Array.from(new Set(otherPlanned.map((u) => u.source))),
     warnings: stageWarnings,
@@ -1215,8 +1356,11 @@ module.exports = {
   name: 'Extract Board Jobs',
   type: 'n8n-nodes-base.code',
   typeVersion: 2,
-  position: [1820, 480],
-  connectFrom: 'Fetch Board',
+  position: [1950, 480],
+  // MOVED behind the paging loop 2026-09-12, same reason as Extract LinkedIn: hung straight off
+  // Fetch Board it would run once per PASS and emit one report per board PER PASS. The guard's exit
+  // branch stays empty until paging is finished, so this node runs exactly ONCE with every page.
+  connectFrom: { node: 'More Board Pages?', outputIndex: 1 },
   notes:
     'Six board feeds into the shared row shape, one source_report per PLANNED board whatever happened to it. ' +
     'A 2xx whose rows are not where the contract says is reported as a changed shape, never as an empty feed. ' +

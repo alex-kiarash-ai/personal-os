@@ -95,6 +95,77 @@ function sources() {
 // ---------------------------------------------------------------------------------------------
 const LIST_KEYS = ['locations', 'search_terms', 'search_terms_sv', 'keep_if_title_has', 'always_drop'];
 const NUMBER_KEYS = ['score_threshold', 'max_scored_per_run', 'max_cost_per_run_usd', 'first_run_window_hours', 'min_window_hours'];
+
+// ---------------------------------------------------------------------------------------------
+// THE PAGING CAPS (added 2026-09-12 with adaptive LinkedIn paging and Himalayas cursor paging).
+//
+// THREE LEVELS, highest wins: the settings tab, then lane.json, then the defaults below.
+//
+// WHY THE DEFAULTS LIVE HERE AND NOT IN lane.json, which is a deviation from the dispatch that
+// asked for a lane.json default, and it is deliberate.
+//   1. The settings tabs are already provisioned and the provisioner is DELETED. Requiring a new
+//      settings row would mean Shaheen hand editing a cell before paging works at all, and he
+//      already has two hand edits queued. A default that needs a manual step is not a default.
+//   2. lane.json is gitignored and PER LANE. #35's node files are a byte-identical copy of #34's,
+//      and #35's lane.json has no paging block. Putting the only default there would make the two
+//      lanes silently disagree, or make a #35 build fail on a missing key, for numbers that are
+//      not personal data and belong in the tracked file where anyone can read them.
+// So: these are the defaults, a lane.json `paging` object overrides them per lane, and an OPTIONAL
+// settings row overrides that at run time. Nothing has to be edited for the shipped numbers to
+// apply, and the run report always says which level each number came from.
+//
+// THE NUMBERS, and what each one is protecting.
+//   linkedin_max_calls_per_run  the HARD ceiling the dispatch demanded. The BI plan already emits
+//     12 base calls and #35 emits 14, against a documented refusal threshold of roughly ten pages
+//     for a datacenter IP that has never been tested from the Hetzner box (D20). 20 leaves 8 extra
+//     pages for BI and 6 for AI. On a normal 24h window most queries return a partial page and cost
+//     nothing extra; the first 168h run is the worst case and will spend the whole budget.
+//     IT CAPS PAGING, NEVER THE BASE PLAN. A ceiling below the base plan means zero extra pages,
+//     never a dropped query: Stage A refused to trim search terms to fit under a number and that
+//     decision stands.
+//   linkedin_max_pages_per_query  stops one busy term eating the whole run budget. The loop already
+//     spends breadth first, so this is the backstop rather than the main lever.
+//   himalayas_max_pages_per_run  the feed is paged until the oldest row on a page falls before the
+//     window, so on a normal day the WINDOW stops the loop, not this cap. Measured density across
+//     the two probe pages is about 4 rows an hour (page 1 spans 9.3 hours in 20 rows; page 2 spans
+//     16 minutes, a batch-import cluster), so a 24h window is on the order of 5 pages and a 168h
+//     first run is on the order of 35. 12 covers the daily case with headroom and truncates the
+//     first run honestly, with the oldest pubDate reached named in the report.
+// ---------------------------------------------------------------------------------------------
+const PAGING_DEFAULTS = {
+  linkedin_max_calls_per_run: 20,
+  linkedin_max_pages_per_query: 5,
+  himalayas_max_pages_per_run: 12,
+};
+// Optional settings rows. NOT in SCHEMA.keys, on purpose: a key in that list is REQUIRED and Parse
+// Settings throws when it is missing, which would break every existing sheet. These are decoded when
+// present and simply absent when they are not.
+const OPTIONAL_NUMBER_KEYS = Object.keys(PAGING_DEFAULTS);
+
+// Resolves defaults against lane.json, at BUILD time. The settings-tab layer is applied at RUN time
+// by Parse Settings, because only the sheet knows what is in the sheet.
+function pagingDefaults() {
+  const l = lane();
+  const over = (l.paging && typeof l.paging === 'object' && !Array.isArray(l.paging)) ? l.paging : {};
+  for (const k of Object.keys(over)) {
+    if (!Object.prototype.hasOwnProperty.call(PAGING_DEFAULTS, k)) {
+      throw new Error(
+        `Stage A node files: lane.json paging has an unknown key '${k}'. Known caps: ${OPTIONAL_NUMBER_KEYS.join(', ')}.\n` +
+        '  Refused rather than ignored: a misspelt cap that is silently dropped reads as a cap that was set.'
+      );
+    }
+    if (!Number.isInteger(over[k]) || over[k] < 1) {
+      throw new Error(`Stage A node files: lane.json paging.${k} is ${JSON.stringify(over[k])}. A cap is a positive whole number.`);
+    }
+  }
+  const values = {};
+  const from = {};
+  for (const k of OPTIONAL_NUMBER_KEYS) {
+    values[k] = Object.prototype.hasOwnProperty.call(over, k) ? over[k] : PAGING_DEFAULTS[k];
+    from[k] = Object.prototype.hasOwnProperty.call(over, k) ? 'lane.json' : 'node default';
+  }
+  return { values, from, keys: OPTIONAL_NUMBER_KEYS.slice() };
+}
 const TEXT_KEYS = ['readme', 'lane', 'score_scale', 'last_run_at', 'geo_rule', 'language_rule', 'match_rule'];
 const FIXED_SWITCH_KEYS = ['scoring_enabled'];
 // Matched case insensitively downstream, so the cell must already be lowercase or the same term
@@ -124,7 +195,15 @@ function settingsSchema() {
     source_switches: sourceSwitches,
     lowercase_lists: LOWERCASE_LISTS.slice(),
     required_nonempty_lists: REQUIRED_NONEMPTY_LISTS.slice(),
+    // Present-or-absent, never required. Deliberately NOT in `keys`: that list is the REQUIRED set
+    // and a key added there throws on every sheet that does not already carry the row.
+    optional_number: OPTIONAL_NUMBER_KEYS.slice(),
   };
+  for (const k of OPTIONAL_NUMBER_KEYS) {
+    if (all.indexOf(k) !== -1) {
+      throw new Error(`Stage A node files: '${k}' is declared both required and optional. An optional key in SCHEMA.keys makes Parse Settings throw on every sheet that has not been hand edited.`);
+    }
+  }
 
   // CROSS CHECK against the seed that actually wrote the tabs, when it is still on disk. This is
   // the check that catches a schema drifting away from the cells it has to read. It is a check,
@@ -165,4 +244,4 @@ function googleSheetsCredential() {
   return { googleSheetsOAuth2Api: { id: lane().credentials.google_sheets, name: 'Google Sheets account' } };
 }
 
-module.exports = { lane, sources, settingsSchema, googleSheetsCredential, REPO, LANE_DIR };
+module.exports = { lane, sources, settingsSchema, googleSheetsCredential, pagingDefaults, REPO, LANE_DIR };

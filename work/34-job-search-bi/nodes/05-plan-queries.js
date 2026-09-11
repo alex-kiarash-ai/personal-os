@@ -46,9 +46,10 @@
  * at config/sources.json. Nothing about the outside world is typed into this file.
  */
 
-const { lane, sources } = require('./_lane');
+const { lane, sources, pagingDefaults } = require('./_lane');
 const L = lane();
 const SRC = sources().sources;
+const PAGING_DEFAULTS = pagingDefaults();
 
 // ---------------------------------------------------------------------------------------------
 // WHAT EACH SOURCE IS, as a unit of work. Asserted against the contract below, so a source added
@@ -70,10 +71,18 @@ const UNIT_KIND = {
 // of '' means the param is DELIBERATELY OMITTED and the reason is carried on the item.
 const BOARD_PLAN = {
   himalayas: {
-    values: { q: '', sort: 'recent' },
-    omitted: { q: 'q is matched against the DESCRIPTION body, not the title (D6): all four probe hits matched on the body and none on the title. Narrowing on it hides real title matches, so pull recent and let the keep list decide in Stage E.' },
-    probes: ['D4', 'D5'],
-    note: 'One call. No paging until D5 settles the cursor contract, and D4 settles whether a short response means the end of the results or just the end of the recency window.',
+    // ENDPOINT CHANGED 2026-09-12 (D19) and this is the biggest single collection change in the
+    // lane. Until now this plan called /jobs/api/search, which is a SAMPLE surface: it ignores
+    // limit, never emits a cursor, and served 7 rows on one query and 2 on another while claiming
+    // totalCounts of 105546 and 5000. Two calls under different query strings came back BYTE
+    // IDENTICAL on fresh origin hits. /jobs/api is the real feed: 20 ordered rows a page with a
+    // working cursor, verified end to end. The row shape is identical, so nothing downstream moved.
+    // `cursor` is empty on page 1 and the Board Page Guard fills it for every page after that.
+    values: { cursor: '' },
+    omitted: { cursor: 'page 1 asks for no cursor. The Board Page Guard reads nextCursor off each response and builds the next url from it, so a cursor never comes from this plan.' },
+    probes: [],
+    paged: true,
+    note: 'PAGED by cursor as of 2026-09-12 (D5 resolved). The feed is ordered pubDate DESCENDING, verified across a page boundary, so the loop pages until the oldest row on a page falls before window_start_effective and stops there. Measured density over the two probe pages is about 4 rows an hour, so a 24h window is on the order of 5 pages. A per-run page cap is the backstop and the collector names the oldest pubDate it actually reached, so a truncated window is sized rather than hidden.',
   },
   remotive: {
     values: { category: '' },
@@ -191,6 +200,62 @@ const LINKEDIN_PAGE = (function readPageContract() {
     }
   }
   return { size: verified ? s.page_size : null, step: verified ? pag.step : null, verified: verified };
+}());
+
+// ---------------------------------------------------------------------------------------------
+// THE PAGEABLE BOARDS, derived from the contract rather than listed here. A board is pageable when
+// its contract entry carries a verified `pagination` block. Today that is Himalayas alone, by
+// cursor. Deriving it means the day a second board's paging is proven, the contract edit is the
+// whole change and this node and both guards follow.
+//
+// BOARD_PLAN.paged is the SECOND opinion and the two must agree. A plan that thinks a board is
+// paged while the contract has no pagination block would build next-page urls from a field nobody
+// verified; the mirror would leave a proven cursor unused and nothing would say so.
+// ---------------------------------------------------------------------------------------------
+const BOARD_PAGINATION = (function readBoardPagination() {
+  const out = {};
+  for (const key of Object.keys(UNIT_KIND)) {
+    if (UNIT_KIND[key] !== 'board') continue;
+    // A board this node knows and the contract does not is a REAL error, and it is
+    // assertPlanMatchesContract's error to raise a few lines below, with the full list of both
+    // sides. Skipping it here rather than reading .pagination off undefined is what keeps that
+    // better message the one the reader gets.
+    if (!SRC[key]) continue;
+    const pag = SRC[key].pagination || null;
+    const contractSaysPaged = !!(pag && pag.verified === true);
+    const planSaysPaged = BOARD_PLAN[key] && BOARD_PLAN[key].paged === true;
+    if (contractSaysPaged !== planSaysPaged) {
+      throw new Error(
+        'Plan Queries: the contract and BOARD_PLAN disagree about whether ' + key + ' is paged.\n' +
+        '  contract pagination.verified = ' + contractSaysPaged + '\n' +
+        '  BOARD_PLAN.paged            = ' + !!planSaysPaged + '\n' +
+        '  One was updated and the other was not. A board paged on one side only either burns calls\n' +
+        '  on a mechanism nobody proved, or leaves a proven one unused, and neither says so at run time.'
+      );
+    }
+    if (!contractSaysPaged) continue;
+    if (pag.kind !== 'cursor') {
+      throw new Error('Plan Queries: ' + key + ' declares pagination.kind "' + pag.kind + '". The board guard only implements cursor paging. Implement the new kind deliberately rather than letting this node plan a page it cannot build.');
+    }
+    for (const f of ['param', 'cursor_field', 'rows_path', 'page_size']) {
+      if (pag[f] === undefined || pag[f] === null || pag[f] === '') {
+        throw new Error('Plan Queries: ' + key + ' pagination is verified but has no ' + f + '. The board guard reads all four to build the next page.');
+      }
+    }
+    if (!/unix seconds/i.test(SRC[key].date_format || '')) {
+      throw new Error(
+        'Plan Queries: ' + key + ' is paged and its declared date_format is "' + SRC[key].date_format + '".\n' +
+        '  The board guard stops paging when the OLDEST row on a page falls before the window, and it\n' +
+        '  only implements the unix-seconds parser. A second date shape here would silently compare\n' +
+        '  NaN and page to the cap every single run.'
+      );
+    }
+    if (!placeholdersOf(SRC[key].endpoint).includes(pag.param)) {
+      throw new Error('Plan Queries: ' + key + ' pages on "' + pag.param + '" and its endpoint template has no {' + pag.param + '} placeholder, so page 1 could not drop it and page 2 could not set it.');
+    }
+    out[key] = { kind: pag.kind, param: pag.param, cursor_field: pag.cursor_field, rows_path: pag.rows_path, page_size: pag.page_size, date_field: SRC[key].date_field };
+  }
+  return out;
 }());
 
 // Bright Data bills per record, so the trigger carries an explicit cap. 10 is deliberately small:
@@ -409,8 +474,11 @@ if (!isOn('linkedin_guest_search')) {
         window_filtered_server_side: true,
         page_size: LINKEDIN_PAGE.size,
         page_size_verified: LINKEDIN_PAGE.verified,
-        // start=0 and nothing else. A full page means more was waiting and this lane did not ask.
-        paging_built: false,
+        // PAGING IS BUILT as of 2026-09-12 (D15 closed). This unit is page 1 of its query; the
+        // LinkedIn Page Guard requests the next page only while a page comes back FULL, under the
+        // per-run call ceiling and the per-query page cap in run.paging.caps.
+        paging_built: LINKEDIN_PAGE.verified,
+        page_index: 0,
         detail_enrichment_enabled: detailOn,
         detail_endpoint: detailOn ? CONTRACT.linkedin_guest_detail.endpoint : null,
         probe_required: LINKEDIN_PAGE.verified ? [] : ['D2'],
@@ -432,6 +500,9 @@ for (const key of BOARD_KEYS) {
     method: CONTRACT[key].method,
     url: fillUrl(CONTRACT[key].endpoint, plan.values),
     whole_feed: plan.whole_feed === true,
+    paged: plan.paged === true,
+    page_index: 0,
+    pagination: BOARD_PAGINATION[key] || null,
     omitted_params: plan.omitted || {},
     publish_lag_hours: lag,
     window_start_effective: lag ? new Date(Date.parse(windowStart) - lag * 3600000).toISOString() : windowStart,
@@ -479,21 +550,77 @@ if (!isOn('brightdata_indeed')) {
   warnings.push('brightdata_indeed is ON. It bills per record, its input shape is unverified, and it is capped at ' + INDEED_LIMIT_PER_INPUT + ' records per input by this plan.');
 }
 
+// --- the paging contract ----------------------------------------------------
+// Resolved once and carried on every unit through run.paging. Both page guards read it from here
+// and from nowhere else, so a cap is decided in one place and quoted in one place. cfg._paging_caps
+// has already merged the three levels (settings tab, then lane.json, then the node default) and
+// cfg._paging_caps_source says which level won for each number.
+if (!cfg._paging_caps) {
+  throw new Error(
+    'Plan Queries: Parse Settings produced no _paging_caps. Both page guards read their caps from ' +
+    'run.paging and an uncapped loop is the one failure mode a scheduled unattended job must not have, ' +
+    'so this stops rather than defaulting. Rebuild the workflow: 04-parse-settings.js and this node ' +
+    'ship together.'
+  );
+}
+const paging = {
+  caps: cfg._paging_caps,
+  caps_source: cfg._paging_caps_source || {},
+  linkedin: {
+    page_size: LINKEDIN_PAGE.size,
+    step: LINKEDIN_PAGE.step,
+    param: 'start',
+    verified: LINKEDIN_PAGE.verified,
+    // The stop condition, stated where both the guard and the report can quote it. It is a PARTIAL
+    // PAGE and deliberately not a date: the three probed LinkedIn pages are not in date order
+    // within a page or across pages, so a first-old-row rule would stop early at random.
+    stop_rule: 'page a query only while its page comes back FULL. A partial page means that query is exhausted.',
+  },
+  boards: BOARD_PAGINATION,
+};
+
 // --- warnings that belong in the run report, not in a comment ---------------
 if (linkedinUnits.length > LINKEDIN_SOFT_CALL_LIMIT) {
   warnings.push(
-    'this plan emits ' + linkedinUnits.length + ' LinkedIn calls, above the ' + LINKEDIN_SOFT_CALL_LIMIT +
+    'this plan emits ' + linkedinUnits.length + ' base LinkedIn calls, above the ' + LINKEDIN_SOFT_CALL_LIMIT +
     ' that a datacenter IP is reported to tolerate before 429 or 999, and the box is a datacenter IP. ' +
-    'Stage B must pace them and treat a 429 or a 999 as a DEGRADED source with a named reason, never as an empty result.'
+    'Adaptive paging can add up to ' + Math.max(0, paging.caps.linkedin_max_calls_per_run - linkedinUnits.length) +
+    ' more, to a hard ceiling of ' + paging.caps.linkedin_max_calls_per_run + ' calls per run (D20). ' +
+    'Stage B paces them and reports a 429 or a 999 as a DEGRADED source with a named reason, never as an empty result.'
   );
 }
+// THE CEILING CAPS PAGING, NEVER THE BASE PLAN. Stage A refused to trim search terms to fit under a
+// number and that decision stands: a ceiling at or below the base plan buys zero extra pages and
+// drops nothing. Said out loud here because a ceiling that silently cancelled planned queries would
+// be the exact under-collection this lane exists to prevent, and it would look identical to a quiet
+// day in the sheet.
 if (linkedinUnits.length && LINKEDIN_PAGE.verified) {
+  const budget = paging.caps.linkedin_max_calls_per_run - linkedinUnits.length;
+  if (budget <= 0) {
+    warnings.push(
+      'LINKEDIN PAGING IS EFFECTIVELY OFF this run: the base plan is ' + linkedinUnits.length + ' call(s) and the ' +
+      'per-run ceiling is ' + paging.caps.linkedin_max_calls_per_run + ' (' + paging.caps_source.linkedin_max_calls_per_run + '), ' +
+      'so there is no budget for a second page of anything. Every query is capped at ' + LINKEDIN_PAGE.size +
+      ' rows again. The base plan is NOT trimmed to make room; raise the ceiling or cut search_terms.'
+    );
+  } else {
+    warnings.push(
+      'LinkedIn paging is ON and adaptive: a query is paged only while its page comes back full (' + LINKEDIN_PAGE.size +
+      ' rows, step ' + LINKEDIN_PAGE.step + '). Base plan ' + linkedinUnits.length + ' call(s), hard ceiling ' +
+      paging.caps.linkedin_max_calls_per_run + ' (' + paging.caps_source.linkedin_max_calls_per_run + '), so up to ' + budget +
+      ' extra page(s), at most ' + paging.caps.linkedin_max_pages_per_query + ' page(s) per query. ' +
+      (firstRun ? 'THIS IS THE FIRST RUN and its ' + cfg.first_run_window_hours + 'h window is the worst case: expect most queries to come back full and the ceiling to bite. ' : '') +
+      'A full page the ceiling refused to follow is reported as a named truncation with a count, never dropped quietly.'
+    );
+  }
+}
+const pagedBoards = boardUnits.filter((u) => u.paged);
+if (pagedBoards.length) {
   warnings.push(
-    'D15: every LinkedIn call requests start=0 only, and the guest page size is ' + LINKEDIN_PAGE.size +
-    ' (D2, settled by probe). So each of the ' + linkedinUnits.length + ' LinkedIn queries is capped at ' +
-    LINKEDIN_PAGE.size + ' rows and anything past the first page is never requested. The Stage C probe ' +
-    'proved page 2 of the first BI query held ' + LINKEDIN_PAGE.size + ' more real jobs. Paging is not ' +
-    'built: it belongs to Stage D and it steps by ' + LINKEDIN_PAGE.step + '.'
+    pagedBoards.length + ' board(s) are paged by cursor (' + pagedBoards.map((u) => u.source).join(', ') + '), up to ' +
+    paging.caps.himalayas_max_pages_per_run + ' page(s) per run (' + paging.caps_source.himalayas_max_pages_per_run + '). ' +
+    'The loop stops early when the oldest row on a page falls before that source\\'s effective window start, so on a ' +
+    'normal day the WINDOW stops it and not the cap. The collector reports the oldest pubDate it actually reached.'
   );
 }
 const unresolvedGeo = linkedinUnits.filter((u) => u.geo_unresolved).length;
@@ -541,6 +668,7 @@ const planSummary = {
 const run = {
   lane: LANE_NUMBER,
   run_started_at: runStartedAt,
+  paging: paging,
   first_run: firstRun,
   window_start: windowStart,
   window_end: runStartedAt,
@@ -601,6 +729,7 @@ const jsCode = [
   `const LINKEDIN_TARGETS = ${JSON.stringify(LINKEDIN_TARGETS)};`,
   `const LINKEDIN_SOFT_CALL_LIMIT = ${JSON.stringify(LINKEDIN_SOFT_CALL_LIMIT)};`,
   `const LINKEDIN_PAGE = ${JSON.stringify(LINKEDIN_PAGE)};`,
+  `const BOARD_PAGINATION = ${JSON.stringify(BOARD_PAGINATION)};`,
   `const INDEED_LIMIT_PER_INPUT = ${JSON.stringify(INDEED_LIMIT_PER_INPUT)};`,
   `const LANE_NUMBER = ${JSON.stringify(String(L.lane))};`,
   LOGIC,

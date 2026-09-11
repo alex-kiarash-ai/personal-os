@@ -47,9 +47,10 @@
  * BUILD time instead of silently defaulting to on at run time.
  */
 
-const { lane, settingsSchema } = require('./_lane');
+const { lane, settingsSchema, pagingDefaults } = require('./_lane');
 const L = lane();
 const SCHEMA = settingsSchema();
+const PAGING_DEFAULTS = pagingDefaults();
 
 const LOGIC = `
 // ---------------------------------------------------------------------------
@@ -121,7 +122,9 @@ if (missing.length) {
 
 var unknown = [];
 for (var key in raw) {
-  if (Object.prototype.hasOwnProperty.call(raw, key) && SCHEMA.keys.indexOf(key) === -1) unknown.push(key);
+  if (Object.prototype.hasOwnProperty.call(raw, key) &&
+      SCHEMA.keys.indexOf(key) === -1 &&
+      SCHEMA.optional_number.indexOf(key) === -1) unknown.push(key);
 }
 // Unknown keys are REPORTED, never fatal. A mistyped key already failed above as a missing one,
 // and he is allowed to keep a note row in his own sheet.
@@ -217,6 +220,39 @@ for (var ti = 0; ti < SCHEMA.text.length; ti++) {
   cfg[SCHEMA.text[ti]] = String(raw[SCHEMA.text[ti]] === undefined ? '' : raw[SCHEMA.text[ti]]).trim();
 }
 
+// --- 4b. the OPTIONAL paging caps ----------------------------------------------------------------
+// Present-or-absent by design. The shipped defaults are baked in at build time from nodes/_lane.js
+// (themselves overridable per lane by lane.json), so paging works today with nobody touching the
+// sheet. Adding one of these rows on his phone overrides the default from the next run onward.
+//
+// A PRESENT ROW IS VALIDATED AS HARD AS A REQUIRED ONE. An empty or non numeric cap is a FAILURE,
+// never a silent fall back to the default: someone who typed a cap meant to change the behaviour,
+// and quietly ignoring it is how a cap that reads as set turns out never to have been.
+cfg._paging_caps = {};
+cfg._paging_caps_source = {};
+for (var oi = 0; oi < SCHEMA.optional_number.length; oi++) {
+  var ok = SCHEMA.optional_number[oi];
+  if (!Object.prototype.hasOwnProperty.call(raw, ok)) {
+    cfg._paging_caps[ok] = PAGING_DEFAULTS.values[ok];
+    cfg._paging_caps_source[ok] = PAGING_DEFAULTS.from[ok];
+    continue;
+  }
+  var os = String(raw[ok]).trim();
+  if (os === '') {
+    bad(ok, 'is present in the tab and EMPTY. A blank cap is not a default: the row exists because ' +
+      'someone meant to set it. Delete the row to use the shipped default (' + PAGING_DEFAULTS.values[ok] + '), or type a number.');
+    continue;
+  }
+  var ov = Number(os);
+  if (!isFinite(ov) || Math.floor(ov) !== ov || ov < 1) {
+    bad(ok, 'is ' + JSON.stringify(raw[ok]) + '. A paging cap is a whole number of 1 or more. ' +
+      'Delete the row to use the shipped default (' + PAGING_DEFAULTS.values[ok] + ').');
+    continue;
+  }
+  cfg._paging_caps[ok] = ov;
+  cfg._paging_caps_source[ok] = 'settings tab';
+}
+
 // --- 5. cross field checks ---------------------------------------------------------------------
 
 // (a) DEAD CONFIG. always_drop wins over keep_if_title_has every time, so a keep term that would
@@ -307,6 +343,8 @@ cfg._meta = {
   sources_enabled: SCHEMA.source_switches.filter(function (k) { return cfg[k]; }).map(stripPrefix),
   sources_disabled: SCHEMA.source_switches.filter(function (k) { return !cfg[k]; }).map(stripPrefix),
   first_run: cfg.last_run_at === '',
+  paging_caps: cfg._paging_caps,
+  paging_caps_source: cfg._paging_caps_source,
 };
 
 return [{ json: cfg }];
@@ -316,6 +354,7 @@ const jsCode = [
   '// GENERATED at build time from work/34-job-search-bi/nodes/04-parse-settings.js.',
   '// Edit that file and re-run build.js. Editing this node in the n8n editor loses the change.',
   `var SCHEMA = ${JSON.stringify(SCHEMA)};`,
+  `var PAGING_DEFAULTS = ${JSON.stringify(PAGING_DEFAULTS)};`,
   `var LANE_NUMBER = ${JSON.stringify(String(L.lane))};`,
   `var LANE_TITLE = ${JSON.stringify(L.title)};`,
   `var SETTINGS_TAB = ${JSON.stringify(L.sheet.settings_tab)};`,

@@ -155,8 +155,14 @@ module.exports = {
   type: 'n8n-nodes-base.httpRequest',
   typeVersion: 4.2,
   position: [1560, 480],
-  connectFrom: 'Indeed Units Only',
-  outputIndex: 1,
+  // TWO SOURCES since 2026-09-12. `Indeed Units Only` output 1 is the six board units, page 1 of
+  // each. `Board Page Pause` output 0 is the cursor paging loop, one item per extra page. The two
+  // outputIndexes genuinely differ, which is exactly why each entry declares its own: build.js used
+  // to carry ONE shared outputIndex per node, and under that rule this wiring was inexpressible.
+  connectFrom: [
+    { node: 'Indeed Units Only', outputIndex: 1 },
+    { node: 'Board Page Pause', outputIndex: 0 },
+  ],
   onError: 'continueRegularOutput',
   notes:
     'One GET per enabled board, paced ' + BATCH_INTERVAL_MS + ' ms apart, one call per host per run. ' +
