@@ -350,6 +350,26 @@ docs/n8n/*/*.json
 *.pem
 *.p12
 *.pfx
+# A10-T-04 (2026-09-11): the BASENAME shapes, which the 09-10 pass missed because it widened by
+# DIRECTORY. `work/*/config/n8n-api-key.txt` was covered by name; the identical file one folder
+# over, or under scripts/, or at a project root, was not. These are the names this system actually
+# gives its secrets, so the rule follows the name rather than the place. Verified below that no
+# tracked file becomes ignored by adding them.
+*-token.txt
+*-token.json
+*_token.txt
+*-api-key.txt
+*-api-key.json
+*-apikey.txt
+*.key
+*.keyfile
+*-credentials.json
+*-secret.txt
+*-secrets.txt
+*.dpapi
+*.gpg-pass
+# `.env*` matches a file whose name STARTS with .env; `secrets.env` starts with 's'.
+*.env
 
 # Data shapes under a project folder: a database, a spreadsheet of people, a jsonl ledger, a scratch
 # export directory. `work/*/CLAUDE.md` and the tracked specs stay tracked because they are named
