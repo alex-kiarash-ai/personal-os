@@ -160,6 +160,24 @@ if [ -z "$reason" ]; then
     hq_push 'recovery' 'green' "backup pushed ($changed files changed, branch $br)" 'run_status' 1
 else
     hq_push 'recovery' 'red' "backup FAILED: $reason" 'run_status' 0
+    # --- A05-T-08 (2026-09-11): a LOCAL fallback for the RED. ---------------------------------
+    # The two ways this job reports a failure are the git push and the HQ push, and both go over
+    # the same network. A DNS outage, a dead router or a captive portal takes GitHub and HQ
+    # together, so the single most important failure this system can have - the off-machine backup
+    # did not happen - is reported to nobody and looks exactly like a quiet successful night.
+    # hq_push returns 0 by design (an undeliverable heartbeat must never red a healthy job), so it
+    # cannot be branched on; the row is written unconditionally on the failure path and the next
+    # interactive session flushes it. Cheap, local, and it survives the network being the problem.
+    printf '%s
+' "$(node -e '
+      const fs=require("fs"),p="system/pending-writes.jsonl";
+      const row={ts:new Date().toISOString(),kind:"hq-red",project:"recovery",metric:"run_status",
+        headline:"backup FAILED: "+(process.argv[1]||"unknown"),
+        note:"written locally by git-backup.sh because the HQ push may have failed for the same network reason the git push did"};
+      try{fs.appendFileSync(p,JSON.stringify(row)+"
+","utf8");process.stdout.write("queued a local RED to "+p);}
+      catch(e){process.stdout.write("could not queue the local RED: "+e.message);}
+    ' "$reason")" >> "$LOG" 2>&1 || true
 fi
 
 if [ -z "$reason" ]; then
