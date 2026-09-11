@@ -37,11 +37,8 @@
       "Bash(bash -c *)",
       "Bash(sh -c *)",
       "Edit(soul.md)",
-      "Write(soul.md)",
       "Edit(CLAUDE.md)",
-      "Write(CLAUDE.md)",
-      "Edit(.claude/settings.json)",
-      "Write(.claude/settings.json)"
+      "Edit(.claude/settings.json)"
     ],
     "deny": [
       "Read(~/.ssh/**)",

@@ -36,8 +36,26 @@ month="$(date '+%Y-%m')"
 prompt="Run /lint in GATED mode (Recovery Phase 3). The deterministic checker just ran with exit code $sweep_exit. Read vault/projects/recovery/last-sweep.md as the nomination shortlist. Judge ONLY: (a) every item the sweep flagged, and (b) semantic drift (stale prose, superseded claims, contradictions, duplicate topics) on the specific pages those items touch, plus pages untouched for 90+ days that the sweep names. Write the findings report to vault/projects/recovery/lint-${month}.md, append vault/log.md, and PROPOSE fixes. Apply nothing without approval; identity files (soul.md, CLAUDE.md, brand) are always proposals. Run the Close-Out Gate."
 
 # Model: Sonnet-4-6 (cost cut, Shaheen 2026-07-16).
+# --- LEAST-PRIVILEGE PILOT (A14-T-12, 2026-09-11) ----------------------------------------------
+# This lane ran in the widest mode in the system, --dangerously-skip-permissions, for a job that
+# READS the vault and WRITES one report. Fifteen lanes run that way; this one is read-mostly and
+# human-gated, which makes it the right place to prove a narrower shape before touching a lane
+# where a mistake costs something.
+#
+# WHAT WAS MEASURED FIRST, because the obvious version does nothing (probed live 2026-09-11):
+#   --permission-mode dontAsk --allowedTools "Read"  ->  Bash STILL RAN.
+# `--allowedTools` PRE-APPROVES tools; it is not a whitelist, and under dontAsk everything else is
+# permitted anyway. Shipping that would have looked like a least-privilege pilot and contained
+# nothing, which is worse than the honest wide mode it replaced.
+#   --permission-mode dontAsk --disallowedTools "Bash"  ->  BLOCKED, and the model said so.
+# A DENY list is what restricts. The stress test's own proposed fix named the allow list; it was
+# wrong, and the only way that surfaced was running both.
+#
+# So: dontAsk (headless - it must never block waiting for a prompt) plus an explicit deny of the
+# tools a vault lint has no business touching. The settings.json deny list still binds on top.
 alex_claude --model claude-sonnet-4-6 \
     -p "$prompt $(alex_verdict_instruction)" \
-    --dangerously-skip-permissions
+    --permission-mode dontAsk \
+    --disallowedTools "WebFetch" "WebSearch" "mcp__claude_ai_Gmail__send_message" "mcp__claude_ai_Gmail__reply" "mcp__claude_ai_Gmail__forward" "mcp__claude_ai_Google_Drive__share_file"
 
 close_out 'recovery' "$CODE"
