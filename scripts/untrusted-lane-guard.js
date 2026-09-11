@@ -141,13 +141,63 @@ function sshTargets(cmd) {
   return out;
 }
 
+/*
+ * IDENTITY SURFACES (A01-T-01 / A13-T-02, 2026-09-11). A lane running
+ * --dangerously-skip-permissions ignores every `allow` and `ask` rule; only `deny` binds. The
+ * settings file carries soul.md and CLAUDE.md as `ask`, which means an untrusted lane could
+ * rewrite the constitution that governs it, or the guard that watches it, and the next session
+ * would load the result as its own identity. The egress guard was the only deterministic thing
+ * standing in these lanes and it never SAW a Write or an Edit, because the hook matcher listed
+ * four tool names and none of them were file writers.
+ *
+ * These paths are refused for WRITING in an untrusted lane, full stop. A lane that needs to edit
+ * its own spec is a lane a human is watching.
+ */
+const IDENTITY_WRITE_DENY = [
+  /(^|[\\/])soul(-core)?\.md(\.staging)?$/i,   // the corpus and the nightly-built injection card
+  /(^|[\\/])CLAUDE\.md$/i,                     // root and every work/NN project constitution
+  /(^|[\\/])\.claude[\\/]/i,                   // settings, hooks, commands, skills
+  /(^|[\\/])\.gitignore$/i,                    // the sole barrier between the vault and a public repo
+  /(^|[\\/])scripts[\\/](untrusted-lane-guard|capture-typed-input)\.js$/i, // the guards themselves
+  /(^|[\\/])system[\\/](manifest|soul-pins)\.json$/i,
+];
+
+/*
+ * MCP VERBS. Deny by what the call DOES to the outside world, not by server name, because the
+ * server list changes and the verbs do not. The split is deliberate:
+ *   - OUTBOUND and DESTRUCTIVE are denied: send, reply, forward, share, submit, respond, trash,
+ *     delete, spawn. A hijacked lane must not be able to speak as Shaheen or destroy evidence.
+ *   - create and update stay ALLOWED, because staging is the triage lane's entire job
+ *     (gmail_create_draft) and a draft is reviewed by a human before it goes anywhere. Denying
+ *     them would close the hole by removing the function.
+ */
+const MCP_VERB_DENY = /(^|_|-)(send|reply|forward|share|submit|respond|trash|delete|remove|spawn)(_|-|$)/i;
+
 // Returns null (allow) or { reason, detail } (deny). Pure - no I/O, no exit.
 function evaluate(hook) {
   const tool = (hook && hook.tool_name) || '';
+  const input = (hook && hook.tool_input) || {};
   if (tool === 'WebFetch' || tool === 'WebSearch') {
     return { reason: `${tool} is disabled in this lane (exfil-by-URL surface, never needed here)`,
-             detail: JSON.stringify((hook && hook.tool_input) || {}).slice(0, 150) };
+             detail: JSON.stringify(input).slice(0, 150) };
   }
+
+  if (/^(Write|Edit|MultiEdit|NotebookEdit)$/.test(tool)) {
+    const p = String(input.file_path || input.notebook_path || '');
+    if (IDENTITY_WRITE_DENY.some((re) => re.test(p))) {
+      return { reason: `${tool} to an identity surface is not allowed in an untrusted lane`, detail: p };
+    }
+    return null; // vault pages, status files and outputs/ are these lanes' real work
+  }
+
+  if (tool.startsWith('mcp__')) {
+    if (MCP_VERB_DENY.test(tool)) {
+      return { reason: `'${tool}' is an outbound or destructive MCP call and is not allowed in an untrusted lane`,
+               detail: JSON.stringify(input).slice(0, 150) };
+    }
+    return null;
+  }
+
   if (tool !== 'Bash' && tool !== 'PowerShell') return null;
 
   const c = String(((hook && hook.tool_input) || {}).command || '');
