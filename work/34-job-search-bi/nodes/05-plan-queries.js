@@ -77,10 +77,16 @@ const BOARD_PLAN = {
   },
   remotive: {
     values: { category: '' },
-    omitted: { category: 'the documented slug did not filter (D7): category=data returned 16 rows spanning eight other categories and no data category. Stage C reads the real slugs from their categories endpoint before any slug is sent.' },
-    probes: ['D7', 'D8'],
+    // D7 RESOLVED 2026-09-11 by the Stage D probe, and the answer is not the one the question
+    // assumed. The param is not WRONG, it is IGNORED: a call with no category at all came back
+    // byte for byte the same as the category=data call, same 16 rows, same eight categories. So
+    // there is no correct slug to go and find, and omitting it, which this plan already did for the
+    // other reason, turns out to be the only honest option. Dropped from probes because a question
+    // with an answer is not a probe; D8 stays because it got WORSE, not better.
+    omitted: { category: 'the param is IGNORED, not wrong (D7, settled by probe): a call with no category returned the identical 16 rows and the identical byte count as one with category=data. There is no slug that narrows this feed.' },
+    probes: ['D8'],
     publish_lag_hours: 24,
-    note: 'Every job here is deliberately 24 hours behind (D8), so its window is shifted by that lag and the run report says so rather than printing a healthy zero.',
+    note: 'Every job here is deliberately 24 hours behind (D8), so its window is shifted by that lag. MEASURED WORSE than documented: on 2026-09-11 the freshest of the 16 rows was 72 hours old, and the whole free feed is 16 jobs (D18). Expect this source to contribute zero on a daily run, and expect the run report to say so with the reason attached rather than printing a healthy zero.',
   },
   remoteok: {
     values: {},
