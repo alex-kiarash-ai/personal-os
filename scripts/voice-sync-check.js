@@ -102,7 +102,24 @@ async function main() {
       const live = liveBlock(wf);
       if (live.err) { rows.push({ ...t, ok: false, why: live.err }); continue; }
       const same = stablePart(live.block) === want;
-      rows.push({ ...t, ok: same, why: same ? 'in sync' : 'voice block does NOT match soul.md' });
+      // A15-T-09 (2026-09-11): while we already have the workflow, assert the no-dash sanitiser
+      // still lives where the constitution says it does. It said "Parse Writer" for months and the
+      // code is in "QA + Fill Templates"; a doc naming the wrong node sends the next person to edit
+      // a node that does nothing, where they find no dash code and conclude it was never built.
+      // The eval lane has no render half, so it is exempt by name rather than by silence.
+      let sanitiser = null;
+      if (!/Voice Eval/i.test(t.name)) {
+        const qa = (wf.nodes || []).find((n) => n.name === 'QA + Fill Templates');
+        const code = qa ? ((qa.parameters && (qa.parameters.jsCode || qa.parameters.functionCode)) || '') : '';
+        if (!qa) sanitiser = "no 'QA + Fill Templates' node";
+        // The node source may carry the em-dash as a LITERAL character or as a — escape
+        // (n8n stores jsCode as a JSON string). The first draft checked only the literal and
+        // reported three false positives against code that plainly does the work.
+        else if (code.indexOf(String.fromCharCode(0x2014)) < 0 && !/u2014/.test(code)) {
+          sanitiser = "'QA + Fill Templates' carries no em-dash handling";
+        }
+      }
+      rows.push({ ...t, ok: same, why: same ? 'in sync' : 'voice block does NOT match soul.md', sanitiser });
     } catch (e) {
       rows.push({ ...t, ok: null, why: `unreachable (${e.message})` });
     }
@@ -113,7 +130,7 @@ async function main() {
   if (JSON_OUT) {
     console.log(JSON.stringify({ asserted: true, checked: rows.length, drift: drift.length, unknown: unknown.length, rows }));
   } else {
-    for (const r of rows) console.log(`  ${r.ok === true ? 'ok  ' : r.ok === false ? 'DRIFT' : 'unk '} ${r.name}: ${r.why}`);
+    for (const r of rows) console.log(`  ${r.ok === true ? 'ok  ' : r.ok === false ? 'DRIFT' : 'unk '} ${r.name}: ${r.why}${r.sanitiser ? ` | SANITISER: ${r.sanitiser}` : ''}`);
     console.log(`voice-sync-check: ${rows.length} lane(s), ${drift.length} drifted, ${unknown.length} unreachable`);
     if (drift.length) console.log('Fix: node scripts/generate-alex.js (the voice sync lives inside the generator, and it is the only thing that may WRITE to these nodes).');
   }
