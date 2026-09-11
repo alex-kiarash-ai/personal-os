@@ -116,7 +116,12 @@ console.log('GUARD: the privacy scan still DETECTS, in a throwaway repo');
   fs.writeFileSync(path.join(repo, 'note.md'), `call them on ${fakePhone} tomorrow
 `);
   git(['add', 'note.md']);
-  const r = run('scripts/personal-data-scan.js', ['--staged', '--json'], { cwd: repo, env: { ...process.env, ALEX_SCAN_ROOT: repo } });
+  // ALEX_ALLOW_EMPTY_NAMELIST is set on purpose (2026-09-11, A03-T-12). These two cases exercise the
+  // PHONE and BINARY detectors, which have nothing to do with the name watch-list, and the synthetic
+  // fixture root deliberately carries no vault/people. Without the override the scan now REFUSES
+  // (exit 3) before reporting, which is the correct new behaviour and would make these two tests
+  // assert nothing. The refusal itself has its own coverage in the A03-T-12 negative test.
+  const r = run('scripts/personal-data-scan.js', ['--staged', '--json'], { cwd: repo, env: { ...process.env, ALEX_SCAN_ROOT: repo, ALEX_ALLOW_EMPTY_NAMELIST: '1' } });
   let parsed = null;
   try { parsed = JSON.parse(String(r.out).trim().split('\n').pop()); } catch { /* reported below */ }
   ok('personal-data-scan flags a staged phone number', r.code === 2 && parsed && parsed.blocking >= 1,
@@ -133,7 +138,7 @@ console.log('GUARD: the privacy scan still DETECTS, in a throwaway repo');
   fs.rmSync(path.join(repo, 'note.md'), { force: true });
   fs.writeFileSync(path.join(repo, 'doc.bin'), Buffer.concat([Buffer.from([0x50,0x4b,0x03,0x04,0x00]), Buffer.from(` ${fakePhone} `), Buffer.from([0x00])]));
   git(['add', 'doc.bin']);
-  const rb = run('scripts/personal-data-scan.js', ['--staged', '--json'], { cwd: repo, env: { ...process.env, ALEX_SCAN_ROOT: repo } });
+  const rb = run('scripts/personal-data-scan.js', ['--staged', '--json'], { cwd: repo, env: { ...process.env, ALEX_SCAN_ROOT: repo, ALEX_ALLOW_EMPTY_NAMELIST: '1' } });
   let pb = null;
   try { pb = JSON.parse(String(rb.out).trim().split('\n').pop()); } catch { /* reported below */ }
   ok('personal-data-scan reads BINARY staged content too (A06-T4)', rb.code === 2 && pb && pb.blocking >= 1,
