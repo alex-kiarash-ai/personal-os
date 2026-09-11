@@ -1,9 +1,15 @@
 # === SECRETS - never commit; if one is ever staged/pushed, rotate it immediately ===
-# KEPT AS A SAFETY NET (bash migration ruling A, 2026-08-05): the four real credentials now live
-# OUTSIDE the repo at ~/.config/alex/secrets/ (mode 600), resolved through
-# system/credentials-ledger.json, so no code names a credential path any more. These entries are
-# DELIBERATELY not deleted - a stale ignore rule costs nothing and still catches a file recreated in
-# the old location by an un-migrated script or an old runbook.
+# CORRECTED 2026-09-11 (A10-T-06). This block used to say the four real credentials "now live
+# OUTSIDE the repo at ~/.config/alex/secrets/" and described these entries as a stale safety net.
+# That is the TARGET state, not this machine: that directory does not exist here, and every live
+# credential is still at the in-repo gitignored path listed below, declared in
+# system/credentials-ledger.json. The nightly vault-backup has been saying so out loud every night
+# ("still at a PRE-MIGRATION in-repo path").
+#
+# So these are LOAD-BEARING rules, not a safety net, and the distinction matters: a reader who
+# believed the old comment would think deleting them was harmless housekeeping. The resolver
+# (scripts/lib/paths.mjs) is correct under both layouts, which is why ruling A can land later
+# without touching any caller.
 work/03-application-engine/config/n8n-api-key.txt
 work/03-application-engine/config/brightdata-api-key.dpapi
 work/16-alex-hq/config/alex-hq-token.txt
