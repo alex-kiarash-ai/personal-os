@@ -242,6 +242,15 @@
     "constitution": {
       "byte_budget": 76000,
       "note": "S1 Compiled Surfaces P3 (2026-08-16, Shaheen-approved diff): CLAUDE.md landed at 63,227 B after the rulebook diet; budget = landing +20% so V16 catches REGROWTH, never the split. New standing content = operative sentence in CLAUDE.md + history in docs/constitution-annex/. Raise only as a deliberate manifest edit."
+    },
+    "voice_sync": {
+      "note": "A08-T-08 (2026-09-11): the writer-node voice sync used a HARDCODED list in sync-n8n-voice.js. It drifted once already - #31/#32 is a clone of #03 carrying its own copy of the writer node, and it kept whatever block it was cloned with until someone noticed on 2026-07-27. A lane now enrols by carrying voice_sync:true on its project row; the eval harness has no project row and is listed here.",
+      "extra": [
+        {
+          "id": "grMqmGzzbTXTEdKr",
+          "name": "Writer Voice Eval (regression)"
+        }
+      ]
     }
   },
   "projects": [
@@ -344,7 +353,8 @@
       "first_fire": "2026-06-10",
       "first_fire_kind": "live",
       "n8n": "9XuIEfxS71DEetVR",
-      "n8n_cron": "0 15 * * 2,4"
+      "n8n_cron": "0 15 * * 2,4",
+      "voice_sync": true
     },
     {
       "num": 4,
@@ -697,7 +707,8 @@
       "first_fire": "2026-06-16",
       "first_fire_kind": "live",
       "n8n": "9x9M3EnEEeX3O8dy",
-      "n8n_cron": "30 15 * * 2,4"
+      "n8n_cron": "30 15 * * 2,4",
+      "voice_sync": true
     },
     {
       "num": 15,
@@ -1259,7 +1270,8 @@
       "first_fire": "2026-07-28",
       "first_fire_kind": "live",
       "n8n": "sxEYRyeHH7i1mHzb",
-      "n8n_cron": "43 15 * * 2,4"
+      "n8n_cron": "43 15 * * 2,4",
+      "voice_sync": true
     },
     {
       "num": 33,
