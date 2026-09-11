@@ -68,9 +68,11 @@ const caseKey = (aspect, n) => `${aspect}#C${String(n).padStart(2, '0')}`;
  */
 function casesOf(aspect, findingText) {
   const out = new Set();
-  const tok = /\b(A\d\d)-T-?(\d+)\b|\bT-?(\d+)\b/g;
+  const tok = /\b(A\d\d)-T-?(\d+)[a-z]?\b|\bT-?(\d+)[a-z]?\b/g;
   let m;
-  let last = null;
+  // A bare "(T3)" inside A03's own file means A03-T3. Defaulting to null instead dropped the
+  // reference entirely and marked two already-fixed rows open.
+  let last = aspect;
   while ((m = tok.exec(findingText))) {
     if (m[1]) {
       last = m[1];
@@ -162,7 +164,7 @@ function closedFromGit(base) {
     process.exit(2);
   }
   const closed = new Map();
-  const tok = /\b(A\d\d)-T-?(\d+)\b|\bT-?(\d+)\b/g;
+  const tok = /\b(A\d\d)-T-?(\d+)[a-z]?\b|\bT-?(\d+)[a-z]?\b/g;
   for (const line of log.split(/\r?\n/)) {
     let m;
     let lastAspect = null;
