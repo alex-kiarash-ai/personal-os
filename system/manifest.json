@@ -257,7 +257,7 @@
         "PersonalOS-sprint-tracker"
       ],
       "hq_project": "sprint",
-      "revisit": null,
+      "revisit": "2026-10-01",
       "work_dir": "work/01-sprint-tracker",
       "commands": [
         "sprint-tracker"
@@ -275,7 +275,8 @@
       },
       "first_fire": "2026-06-10",
       "first_fire_kind": "drill",
-      "n8n": null
+      "n8n": null,
+      "revisit_history": []
     },
     {
       "num": 2,
@@ -860,7 +861,8 @@
       },
       "first_fire": null,
       "first_fire_kind": null,
-      "n8n": null
+      "n8n": null,
+      "revisit_history": []
     },
     {
       "num": 20,
@@ -1137,7 +1139,8 @@
       },
       "first_fire": null,
       "first_fire_kind": null,
-      "n8n": null
+      "n8n": null,
+      "revisit_history": []
     },
     {
       "num": 29,

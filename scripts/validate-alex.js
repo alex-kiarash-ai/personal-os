@@ -65,7 +65,7 @@ const REPO = path.join(__dirname, '..');
 // deriving its expectation from prose (the V6 lesson): so V_MAX is declared HERE, once, and
 // generate-alex.js + the recall h-validators harvester + narrative-drift-check.py all read THIS
 // declaration (a structured `const V_MAX = <n>`), never a printed string or a prose claim.
-const V_MAX = 18;
+const V_MAX = 19;
 const SUITE_RANGE = `G1-G4 + V1-V${V_MAX}`;
 
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -1441,6 +1441,53 @@ function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
 // same time.)
 // TAB, LF and CR are legal. Every other C0 byte is not, unless the file declares an
 // `ALEX-ALLOW-CONTROL-BYTES: <reason>` marker.
+/*
+ * V19 - the DORMANT/PARKED two-strike rule is representable and enforced (A01-T-05, 2026-09-11).
+ *
+ * meta.states_doc has said this since the states were written: "DORMANT = built, waiting on an
+ * external dependency (name it + revisit date; two unchanged revisits force activate-or-retire).
+ * PARKED = deliberately stopped (resume context + revisit date; same two-strike rule)."
+ *
+ * None of it was checkable. A row carries ONE `revisit` date and no way to record that a revisit
+ * HAPPENED, so "two unchanged revisits" could not be counted, no check read the field at all, and
+ * a lapsed date produced no signal anywhere: #28 chat-gateway was four days from its second lapse
+ * with nothing watching. A rule nothing can represent is a rule the system does not have.
+ *
+ * Three assertions, deliberately split by severity, because the point is a nudge that escalates
+ * rather than a wall that gets waived:
+ *   - a DORMANT/PARKED row with NO revisit date at all -> FAIL (the states_doc requires one)
+ *   - a revisit date in the past                       -> WARNING (it is due, go look)
+ *   - two or more recorded revisits with the state unchanged -> FAIL (activate or retire; that IS
+ *     the two-strike rule, and it is the whole reason the history field exists)
+ */
+function v19RevisitDiscipline({ stagedDir }, failures, warnings) {
+  let manifest;
+  try {
+    const eff = effective(stagedDir, 'system/manifest.json');
+    if (!eff) throw new Error('not found');
+    manifest = JSON.parse(eff.text);
+  } catch (e) {
+    failures.push(`FAILED V19: cannot read system/manifest.json (${e.message})`);
+    return;
+  }
+  const today = new Date().toLocaleDateString('sv-SE');
+  for (const p of manifest.projects || []) {
+    if (!/^(DORMANT|PARKED)$/.test(String(p.state || ''))) continue;
+    const who = `#${p.num} ${p.name} (${p.state})`;
+    if (!p.revisit) {
+      failures.push(`FAILED V19: ${who} carries no revisit date. meta.states_doc requires one for every DORMANT/PARKED row, and without it the two-strike rule can never fire.`);
+      continue;
+    }
+    const hist = Array.isArray(p.revisit_history) ? p.revisit_history : [];
+    const unchanged = hist.filter((h) => h && h.outcome === 'unchanged').length;
+    if (unchanged >= 2) {
+      failures.push(`FAILED V19: ${who} has ${unchanged} revisits recorded with the state unchanged. meta.states_doc: two unchanged revisits force activate-or-retire. Decide it, or the row is permanent by neglect.`);
+    } else if (p.revisit < today) {
+      warnings.push(`WARNING V19: ${who} revisit date ${p.revisit} has passed (today ${today}). Review it and append {date, outcome} to revisit_history: outcome "unchanged" counts a strike, "activated" or "retired" closes it.`);
+    }
+  }
+}
+
 function v18ControlCharacters({ stagedDir }, failures) {
   const SCAN = ['.js', '.mjs', '.cjs', '.py', '.sh', '.json', '.md'];
   const BAD = new RegExp('[\u0000-\u0008\u000b\u000c\u000e-\u001f]');
@@ -1539,6 +1586,7 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   if (manifest) v16ConstitutionBudget({ stagedDir, manifest }, failures); // constitution byte budget (armed by meta.constitution)
   v17MandatorySkillBindings({ stagedDir }, failures); // MANDATORY skill rows resolve to live junctions (every run)
   v18ControlCharacters({ stagedDir }, failures);      // no stray control byte in tracked source (every run)
+  v19RevisitDiscipline({ stagedDir }, failures, warnings); // DORMANT/PARKED revisit dates + the two-strike rule (every run)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
