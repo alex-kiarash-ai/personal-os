@@ -30,7 +30,7 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { paths, secret, HQ_TOKEN_ID, HQ_PUSH_URL } from './paths.mjs';
+import { paths, secret, r as repoPath, HQ_TOKEN_ID, HQ_PUSH_URL } from './paths.mjs';
 import https from 'node:https';
 
 function logLine(log, msg) {
@@ -227,6 +227,35 @@ export async function assertSoulCanary({
     } catch (e) {
       logLine(log, `HQ push failed: ${e.message}`);
     }
+  }
+
+  /*
+   * A15-T-10 (2026-09-11): a SOFT-failed canary used to leave no durable trace.
+   *
+   * softFail exists so a lane whose identity injection failed still produces its deliverable rather
+   * than nothing at all - a reasonable call. The consequence nobody accounted for: the run then
+   * continues, prints a Close-Out Report, and /self-review counts it as a clean run. The only
+   * record that this run was written WITHOUT Shaheen's identity is a line in a log file nothing
+   * mines, so "the brief ran fine" and "the brief ran with no voice" look identical in every
+   * metric the system keeps.
+   *
+   * The close-out log is the append-only surface /self-review already reads for repeated failure
+   * classes, so a soft canary failure now lands there as its own row. Never fatal: a failure to
+   * RECORD a degraded run must not become the thing that kills it.
+   */
+  if (softFail && !dryRun) {
+    try {
+      // `r` is the canary RESULT in this scope, so the path helper is imported as repoPath.
+      // The first draft shadowed one with the other: `r.reason` still read fine and
+      // `r(...)` threw into the silent catch, so the row was simply never written.
+      const logPath = repoPath('vault', 'projects', 'self-review', 'close-out-log.md');
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      fs.appendFileSync(logPath,
+        `
+## [${stamp}] ${project || 'unknown-lane'} | SOUL-CANARY FAIL (soft) | ${r.reason} | the run CONTINUED and will report its own verdict, so this is the only record that it produced output without verified identity
+`,
+        'utf8');
+    } catch { /* recording a degraded run must never be what kills it */ }
   }
 
   if (dryRun || softFail) return false;
