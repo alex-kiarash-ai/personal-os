@@ -805,6 +805,40 @@ try {
     }
   }
 
+  // --- C17b installed skills re-audited against TODAY's rules (A12-T-09, 2026-09-11) -------------
+  // SPLIT_LINES is built rather than written as a literal: an inline newline escape kept reaching
+  // disk as a real newline through this session's tooling, which breaks the regex silently.
+  const SPLIT_LINES = new RegExp(String.fromCharCode(92) + 'r?' + String.fromCharCode(92) + 'n');
+  // Every audit rule the installer has runs at INSTALL time. The rules have grown - frontmatter
+  // grants were only refused from 2026-09-10, after the stress test found that a `hooks:` block
+  // registers session-long commands nothing here reads - and the skills installed before a rule
+  // existed were never re-examined. The installer's own comment conceded it: "the existing set is a
+  // separate re-audit item". This is the weekly half of that item, and it asks what is ON DISK
+  // rather than what the upstream repo says today, which is the question that actually matters for
+  // a machine holding credentials.
+  {
+    try {
+      const out = execFileSync(process.execPath,
+        [path.join(REPO, 'scripts', 'skills-installer.js'), '--reaudit-installed'],
+        { encoding: 'utf8', timeout: 120000, windowsHide: true, cwd: REPO });
+      const lines = out.split(SPLIT_LINES).filter((l) => l.trim().startsWith('['));
+      for (const l of lines) addDrift('skills-audit', `installed skill fails the current audit rules: ${l.trim()}`);
+      const head = (out.split(SPLIT_LINES)[0] || '').trim();
+      say(`C17b ${head}`);
+    } catch (e) {
+      // exit 2 = findings, and execFileSync throws on any nonzero. Read the output either way.
+      const out = String((e && e.stdout) || '');
+      if (out) {
+        for (const l of out.split(SPLIT_LINES).filter((x) => x.trim().startsWith('['))) {
+          addDrift('skills-audit', `installed skill fails the current audit rules: ${l.trim()}`);
+        }
+        say(`C17b ${(out.split(SPLIT_LINES)[0] || '').trim()}`);
+      } else {
+        addDrift('skills-audit', `C17b could not re-audit the installed skills (${e.message}) - the "installed before the rule existed" class is unchecked this sweep`);
+      }
+    }
+  }
+
   // --- C18 machine timezone vs travel-state expectation (P8 scheduler TZ audit, 2026-07-17). Detect-only.
   // Every systemd OnCalendar= fires at the machine's wall clock, so if the machine tz drifts from where
   // Alex expects Shaheen to be, follows-Shaheen jobs (brief/triage) OR must-anchor jobs (server-

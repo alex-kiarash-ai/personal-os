@@ -36,6 +36,13 @@ const BIND_BEGIN = '<!-- ALEX-AUTO-SKILLS:BEGIN -->';
 const BIND_END = '<!-- ALEX-AUTO-SKILLS:END -->';
 
 const DRY = process.argv.includes('--dry-run');
+
+// A12-T-09 (2026-09-11): re-audit what is ALREADY installed against today's rules. Runs before any
+// lock or network work, because it touches neither. Exits 2 on findings so a weekly caller can act
+// on the code without parsing prose.
+if (process.argv.includes('--reaudit-installed')) {
+  process.exit(reauditInstalled());
+}
 const today = () => new Date().toISOString().slice(0, 10);
 
 function readJSON(p, fallback) {
@@ -77,6 +84,80 @@ async function ghText(url) {
 }
 
 // Returns { ok:true } or { ok:false, reason }. Deterministic, source-level, from config rules.
+/*
+ * reauditInstalled - run the markdown safety pass over the skills ALREADY on disk (A12-T-09).
+ *
+ * WHY. Every audit rule this installer has runs at INSTALL time against a GitHub repo. The rules
+ * have grown - frontmatter grants were only refused from 2026-09-10, after the stress test found
+ * that a `hooks:` block registers session-long commands nothing here reads - and the skills
+ * installed before a rule existed were never re-examined. The audit's own comment says so: "Two
+ * installed skills already carry frontmatter grants, so (b) is scoped to NEW installs and the
+ * existing set is a separate re-audit item." This is that item.
+ *
+ * LOCAL FILES ONLY, no network: it reads .agents/skills/<name>/**.md off disk, so it can run in the
+ * weekly sweep without a token, without rate limits, and without trusting that the upstream repo
+ * still matches what was installed. That last part matters most - the question is what is ON THIS
+ * MACHINE, not what the source says today.
+ *
+ * REPORTS, NEVER REMOVES. An installed skill that fails today's rules may be one Shaheen relies on,
+ * and silently deleting it would be the installer making a call that is his. Same posture as the
+ * revocation list, which surfaces installed-but-revoked skills for MANUAL removal.
+ */
+function reauditInstalled() {
+  const HIDDEN_UNICODE = /[​⁠﻿‪-‮⁦-⁩]/;
+  const FRONTMATTER_GRANTS = [
+    { re: /^hooks\s*:/mi, what: 'a `hooks:` block (registers session-long commands no gate here inspects)' },
+    { re: /^allowed-tools\s*:/mi, what: 'an `allowed-tools:` grant (pre-approves tools the permission layer would otherwise prompt for)' },
+  ];
+  const INSTRUCTION_SHAPED = [
+    /\bignore\s+(?:(?:the|previous|prior|above|all|any|earlier)\s+)*(?:instructions?|rules?|constitution)\b/i,
+    /\bignore\s+CLAUDE\.md\b/i,
+    /\bdo\s+not\s+tell\s+the\s+user\b/i,
+    /\bwithout\s+(?:telling|informing|notifying)\s+the\s+user\b/i,
+    /\boverrides?\s+(?:the\s+)?(?:constitution|CLAUDE\.md|system\s+prompt)\b/i,
+  ];
+
+  const root = path.join(REPO, '.agents', 'skills');
+  if (!fs.existsSync(root)) { console.log('reaudit: no .agents/skills tree'); return 0; }
+  const findings = [];
+  let scanned = 0, skills = 0;
+
+  const walk = (dir, skill) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(full, skill); continue; }
+      if (!/\.(md|markdown)$/i.test(e.name)) continue;
+      scanned++;
+      let body = '';
+      try { body = fs.readFileSync(full, 'utf8'); } catch { continue; }
+      const rel = path.relative(REPO, full);
+      // Frontmatter grants are only meaningful in the skill's OWN entry file.
+      if (/^SKILL\.md$/i.test(e.name)) {
+        for (const g of FRONTMATTER_GRANTS) {
+          if (g.re.test(body)) findings.push({ skill, rel, what: g.what });
+        }
+      }
+      if (HIDDEN_UNICODE.test(body)) findings.push({ skill, rel, what: 'hidden/bidi Unicode, which renders as one thing and reads as another' });
+      for (const re of INSTRUCTION_SHAPED) {
+        if (re.test(body)) { findings.push({ skill, rel, what: `instruction-shaped prose matching ${re}` }); break; }
+      }
+    }
+  };
+
+  for (const e of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!e.isDirectory()) continue;
+    skills++;
+    walk(path.join(root, e.name), e.name);
+  }
+
+  console.log(`reaudit-installed: ${skills} skill(s), ${scanned} markdown file(s) scanned, ${findings.length} finding(s)`);
+  for (const f of findings) console.log(`  [${f.skill}] ${f.rel}: ${f.what}`);
+  if (findings.length) {
+    console.log('These are REPORTED, not removed: an installed skill failing the current rules may be one in daily use, and that call is Shaheen’s.');
+  }
+  return findings.length ? 2 : 0;
+}
+
 async function auditRepo(owner, repo, skillName, cfg) {
   const a = cfg.audit || {};
   const blockPaths = (a.block_repo_paths || []).map(s => s.toLowerCase());
@@ -202,9 +283,9 @@ async function auditRepo(owner, repo, skillName, cfg) {
     { re: /^allowed-tools\s*:/mi, what: 'an `allowed-tools:` grant, which pre-approves tools the permission layer would otherwise prompt for' },
   ];
   const INSTRUCTION_SHAPED = [
-    /\bignore\s+(?:the\s+)?(?:previous\s+|prior\s+|above\s+|all\s+)?(?:instructions?|rules?|constitution)\b/i,
+    /\bignore\s+(?:(?:the|previous|prior|above|all|any|earlier)\s+)*(?:instructions?|rules?|constitution)\b/i,
     /\bignore\s+CLAUDE\.md\b/i,
-    /\bdisregard\s+(?:the\s+)?(?:previous\s+|prior\s+|above\s+|all\s+)?(?:instructions?|rules?|constitution)\b/i,
+    /\bdisregard\s+(?:(?:the|previous|prior|above|all|any|earlier)\s+)*(?:instructions?|rules?|constitution)\b/i,
     /\bdo\s+not\s+tell\s+the\s+user\b/i,
     /\bwithout\s+(?:telling|informing|notifying)\s+the\s+user\b/i,
     /\balways\s+follow\s+this\s+file\s+(?:instead|first)\b/i,
