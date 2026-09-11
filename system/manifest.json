@@ -1302,6 +1302,66 @@
       "first_fire": "2026-08-21",
       "first_fire_kind": "live",
       "n8n": null
+    },
+    {
+      "num": 34,
+      "name": "job-search-bi",
+      "title": "Job Search BI",
+      "state": "LIVE",
+      "trigger": "n8n weekdays 06:30 (collect + score)",
+      "one_liner": "Daily job-search collector for the Power BI lane: the LinkedIn guest endpoints plus six free public remote boards into one deduped row shape, scored against the BI profile, written to a Google Sheet Shaheen reviews. The source contract lives in work/34-job-search-bi/config/sources.json and is SHARED with #35, so the two lanes can never drift a field name. It collects and scores, it never applies.",
+      "docs": "34-job-search-bi.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/34-job-search-bi",
+      "commands": [],
+      "status_md": "vault/projects/job-search-bi/status.md",
+      "cadence": {
+        "expected_hours": 30,
+        "label": "weekdays 06:30",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "draft-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "n8n_cron": "30 6 * * 1-5"
+    },
+    {
+      "num": 35,
+      "name": "job-search-ai",
+      "title": "Job Search AI",
+      "state": "LIVE",
+      "trigger": "n8n weekdays 06:45 (collect + score)",
+      "one_liner": "Daily job-search collector for the AI Automation lane: the SAME source contract and the same row shape as #34, scored against the AI lane profile with its own keyword set and its own sheet tab. Split from #34 so each lane carries its own n8n id and its own cron and comes under V6 leg (c) plus the daily active-flag watcher. It collects and scores, it never applies.",
+      "docs": "35-job-search-ai.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/35-job-search-ai",
+      "commands": [],
+      "status_md": "vault/projects/job-search-ai/status.md",
+      "cadence": {
+        "expected_hours": 30,
+        "label": "weekdays 06:45",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "draft-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": null,
+      "n8n_cron": "45 6 * * 1-5"
     }
   ]
 }
