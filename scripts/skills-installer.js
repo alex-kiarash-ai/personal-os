@@ -374,12 +374,13 @@ function acquireLock() {
 }
 function releaseLock() { if (heldLock) heldLock.release(); }
 
-// --- Class E security preflight (2026-07-21): the auto-install commit uses --no-verify, so the full
-// pre-commit suite (with its live-n8n V6) can't block a headless install - which leaves this the ONE
-// commit path that skips the hook. Run the SECURITY-critical guards here explicitly before committing to
-// the PUBLIC repo: V11 (no gitignored path forced-added, which would push a secret world-visible) + V10
-// (no protected/immutable NEVER-TOUCH file mutated). Throws to abort the commit on any violation; the
-// non-security checks stay skipped by design (that is why --no-verify is used).
+// --- Class E security preflight (2026-07-21; --no-verify dropped 2026-09-11, A16-T-05).
+// This ran because the auto-install commit used to skip the hook entirely. The commit now goes
+// through the full pre-commit suite like every other, so these are no longer the ONLY guards on
+// this path - they are the EARLY ones. Running them here means an unattended weekly install
+// diagnoses its own refusal ("V11 forced-add guard: ...") instead of dying on an opaque hook exit
+// with no operator watching. V11: no gitignored path forced-added, which would push a secret
+// world-visible. V10: no protected/immutable NEVER-TOUCH file mutated. Throws to abort.
 function securityPreflightOrThrow() {
   const v11 = execSync('git ls-files --cached --ignored --exclude-standard', { cwd: REPO }).toString()
     .split('\n').map(s => s.trim()).filter(Boolean);
@@ -389,9 +390,10 @@ function securityPreflightOrThrow() {
   if (res.failures.length) throw new Error(`V10 protected-file guard: ${res.failures.join('; ')}`);
 }
 
-// The two CONTENT scans the pre-commit hook would have run, executed here because this is the one
-// commit path that uses --no-verify. gitleaks fail-CLOSED on a found secret; personal-data-scan
-// fail-CLOSED on a blocking hit. Both read the STAGED changeset, exactly as the hook does.
+// The two CONTENT scans, run here as well as in the hook (belt and braces since 2026-09-11).
+// gitleaks fail-CLOSED on a found secret; personal-data-scan fail-CLOSED on a blocking hit. Both
+// read the STAGED changeset, exactly as the hook does, so a headless install fails with a named
+// reason rather than an exit code.
 function contentScansOrThrow() {
   try {
     execFileSync('gitleaks', ['protect', '--staged', '--no-banner', '--redact'], { cwd: REPO, stdio: 'pipe' });
@@ -532,8 +534,8 @@ if (require.main === module) (async () => {
         // A12-T12 / T-04 (2026-09-10): STAGE BY PATH. `git add -A` staged every untracked,
         // non-ignored file in the tree, so a second session's half-written note or a scratch export
         // in outputs/ rode into a PUBLIC commit whose message named only the skill - and the
-        // --no-verify below meant gitleaks and the personal-data scan never saw it. Third audit to
-        // find this (P-14 08-05, S-H1 08-29, A12-T12 09-09).
+        // --no-verify (dropped 2026-09-11) meant gitleaks and the personal-data scan never saw it.
+        // Third audit to find this (P-14 08-05, S-H1 08-29, A12-T12 09-09).
         const stagePaths = [
           path.join('.agents', 'skills', name),
           path.join('.claude', 'skills', name),
@@ -545,13 +547,22 @@ if (require.main === module) (async () => {
         for (const rel of stagePaths) {
           if (fs.existsSync(path.join(REPO, rel))) sh(`git add -- "${rel}"`);
         }
-        // The CONTENT scans that --no-verify skips, run here rather than trusted away. --no-verify
-        // stays only because the full hook suite asserts the LIVE n8n API (V6), which a headless
-        // weekly install cannot depend on; it was never meant to buy an exemption from secret and
-        // personal-data scanning of a commit bound for a PUBLIC repo.
+        // A16-T-05 (2026-09-11): --no-verify is GONE. It was the one unattended path in the system
+        // that installs third-party files and committed them to a PUBLIC repo with the commit gate
+        // switched off, flagged by three audits running (P-14 08-05, A16-T20, A12-T12).
+        //
+        // The reason it stayed was that the hook's full suite asserts the LIVE n8n API (V6) and a
+        // headless weekly install cannot depend on the network. That reason was already stale: the
+        // hook runs `--context=pre-commit`, and in that context V6 and V2's live halves downgrade
+        // to a LOUD WARNING SKIP instead of failing (validate-alex.js:538, :556). So the flag was
+        // buying an exemption from gitleaks and the personal-data scan and nothing else.
+        //
+        // These two calls stay as the belt to the hook's braces: they run the same content scans
+        // BEFORE the commit is attempted, so a refusal is diagnosed here rather than as an opaque
+        // hook failure inside an unattended run.
         contentScansOrThrow();
         securityPreflightOrThrow();   // Class E: V11 forced-add + V10 protected-file guards
-        sh(`git commit -m "evolution: auto-install ${name} for ${c.target_project} [skills lane #25]" --no-verify`);
+        sh(`git commit -m "evolution: auto-install ${name} for ${c.target_project} [skills lane #25]"`);
         sha = sh('git rev-parse --short HEAD').trim();
       } catch (e) {
         sha = `(commit failed: ${e.message.split('\n')[0]})`;

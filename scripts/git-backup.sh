@@ -59,6 +59,26 @@ if [ -z "$reason" ]; then
         blocked="$(git diff --cached --name-only | grep -E '^(work/[^/]+/[^/]+$|scripts/)' || true)"
     }
 fi
+# --- A16-T-02 (2026-09-11): the sweep must never be the thing that PUBLISHES a new file. -------
+# The P2.6 scan above catches personal data it can PATTERN-MATCH: names, numbers, key shapes. A
+# personal document whose sensitivity lives in its PROSE passes it, passes gitleaks, passes V10 and
+# V11, and an unattended `git add -A` puts it on a public repo permanently. No scanner fixes that,
+# because the property being detected is meaning.
+#
+# So the rule is structural rather than semantic: this job commits MODIFICATIONS to files a human
+# already chose to track, and holds every NEW path in the residual-risk space until a session runs
+# `git add` on it deliberately. A file the sweep held is still on disk and still in tonight's
+# encrypted vault blob; only its publication waits for a human. That is the correct side to err on
+# when .gitignore is the sole barrier and a push is permanently cacheable.
+if [ -z "$reason" ]; then
+    new_paths="$(git diff --cached --name-only --diff-filter=A | grep -E '^(work/[^/]+/[^/]+$|scripts/|docs/|brand/)' || true)"
+    if [ -n "$new_paths" ]; then
+        blocked="${blocked:+$blocked
+}$new_paths"
+        echo "AMBER new-path hold: the nightly sweep does not publish new files; a session must git add them deliberately" >> "$LOG"
+    fi
+fi
+
 if [ -n "$blocked" ]; then
     # A blocked file must not hold the whole backup hostage: the rest of the day's work still
     # needs its off-machine copy tonight, so unstage only the flagged paths and say so loudly.
@@ -117,6 +137,20 @@ if [ -z "$reason" ] && [ -z "${ALEX_DRY_RUN:-}" ]; then
                     *) reason="git push failed (branch $br) - see outputs/logs/git-backup.log for git's own message" ;;
                 esac ;;
         esac
+    fi
+    # A16-T-02, second half: Verify-after-write. A push that exits 0 is not proof the remote moved
+    # (the 07-15 BUG-17 no-op exited 0 and reported GREEN for days). Read the remote ref back and
+    # compare it to what we just pushed.
+    if [ -z "$reason" ]; then
+        local_head="$(git rev-parse HEAD 2>/dev/null || true)"
+        remote_head="$(git ls-remote origin "refs/heads/$br" 2>/dev/null | awk '{print $1}')"
+        if [ -z "$remote_head" ]; then
+            reason="git push reported success but origin/$br does not exist on the remote (read-back found no ref)"
+        elif [ "$remote_head" != "$local_head" ]; then
+            reason="git push reported success but origin/$br is $remote_head, not the pushed $local_head"
+        else
+            echo "push read-back OK: origin/$br = $local_head" >> "$LOG"
+        fi
     fi
 fi
 
