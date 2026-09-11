@@ -64,7 +64,27 @@ function acquire({ name = DEFAULT_NAME, label = 'unknown', staleMs = DEFAULT_STA
       JSON.stringify({ label, pid: process.pid, since: new Date().toISOString() }, null, 2), 'utf8');
   };
 
+  /*
+   * HEARTBEAT (A02-T-06, 2026-09-11). Staleness is measured from the lock directory's mtime, which
+   * was only ever set at CREATION. So a holder that legitimately runs longer than the 30-minute
+   * window looked exactly like a crashed one, and the next process would steal a live lock and
+   * both would write the same generated surfaces at once. That is the precise race this mutex
+   * exists to prevent, reachable by nothing worse than a slow run: the generator alone does a
+   * full validation suite, four live n8n round-trips and a card rebuild.
+   *
+   * Touching the directory every 5 minutes makes "still working" and "died" distinguishable.
+   * .unref() so a held lock can never keep the process alive on its own.
+   */
+  let beat = null;
+  const startBeat = () => {
+    beat = setInterval(() => {
+      try { const now = new Date(); fs.utimesSync(dir, now, now); } catch { /* lock gone: release will notice */ }
+    }, Math.max(30000, Math.floor(staleMs / 6)));
+    if (typeof beat.unref === 'function') beat.unref();
+  };
+
   const release = () => {
+    if (beat) { clearInterval(beat); beat = null; }
     // Only remove a lock we still own (guards against releasing a lock that was stolen from us).
     const h = holderOf(dir);
     if (h && h.pid !== process.pid) return false;
@@ -74,6 +94,7 @@ function acquire({ name = DEFAULT_NAME, label = 'unknown', staleMs = DEFAULT_STA
 
   try {
     tryMk();
+    startBeat();
     return { ok: true, release, holder: null, reason: null };
   } catch (e) {
     if (e.code !== 'EEXIST') throw e;
@@ -87,6 +108,7 @@ function acquire({ name = DEFAULT_NAME, label = 'unknown', staleMs = DEFAULT_STA
     try {
       fs.rmSync(dir, { recursive: true, force: true });
       tryMk();
+      startBeat();
       return { ok: true, release, holder, reason: 'stole-stale' };
     } catch (e2) {
       return { ok: false, release: () => false, holder, reason: `stale-steal failed: ${e2.message}` };
