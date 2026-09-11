@@ -1542,8 +1542,16 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
-  if (failures.length === 0)
-    console.log(`validate-alex: ${SUITE_RANGE} PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+  if (failures.length === 0) {
+    // A03-T-11 (2026-09-11): the verdict word distinguishes "every check ran and passed" from
+    // "some checks did not run at all". V6 and V8 can SKIP entirely (no live credentials, no
+    // sibling repo) and the summary still read PASS with a warning count beside it, which is the
+    // dead-check-green shape this suite exists to catch, printed by the suite itself. A skip is
+    // not a pass; it is an absence of evidence, and the one-line verdict is what most readers see.
+    const skipped = warnings.filter((w) => /SKIPPED|WAIVED/i.test(w));
+    const verdict = skipped.length ? `PASS-WITH-SKIPS (${skipped.length} check(s) did NOT run)` : 'PASS';
+    console.log(`validate-alex: ${SUITE_RANGE} ${verdict} (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+  }
   return { ok: failures.length === 0, failures, warnings, range: SUITE_RANGE };
 }
 
