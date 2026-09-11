@@ -14,7 +14,11 @@
  *     the quota gate. (Contrast capture-typed-input, the sibling hook, which must write NOTHING to
  *     stdout; this hook's whole job IS the additionalContext, so they have opposite stdout rules and
  *     coexist fine in the UserPromptSubmit array.)
- *   - Hard internal time budget (BUDGET_MS). Cheap reads only; all heavy work (index build, harvest)
+ *   - Internal time budget (BUDGET_MS), checked BETWEEN steps, not during one. A11-T-12
+ *     (2026-09-11): this was documented as a hard bound and it is not one. Every step is gated on
+ *     overBudget() before it starts, so the budget bounds how many steps run; a single slow FTS
+ *     query has no deadline and will overrun it. latency_ms in the telemetry row is the real
+ *     measurement and is what to trust. Cheap reads only; all heavy work (index build, harvest)
  *     happens in the nightly chain.
  *   - Retrieved content is emitted as DATA-NEVER-INSTRUCTIONS (the work/07 security model applied to
  *     the internal read path): a poisoned vault note (#07/#11 file inbound-derived content) must not

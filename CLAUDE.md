@@ -268,9 +268,9 @@ On every HQ update, `scripts/hq_self_heal.py` re-derives ground truth per metric
 ## Recall Spine (LIVE 2026-07-25, `system/recall/`)
 
 The machine-checkable memory organ; full plan + kill criteria: [[research/alex-recall-spine]].
-- **`facts.db`** - bi-temporal fact ledger (gitignored, in the 21:45 tar): every fact carries `t_valid`/`t_invalid`; a changed value SUPERSEDES, never deletes; the `current_fact` unique index makes contradictions unrepresentable. 7 zero-token harvesters repopulate nightly at 21:35; a >20-supersession run aborts + REDs (mass-drift tripwire). **Direction law:** facts.db derives from STRUCTURED sources; docs are tested AGAINST it, never the reverse.
+- **`facts.db`** - bi-temporal fact ledger (gitignored, in the 21:45 tar): every fact carries `t_valid`/`t_invalid`; a changed value SUPERSEDES, never deletes; the `current_fact` unique index makes contradictions unrepresentable. 8 zero-token harvesters repopulate nightly at 21:35; a >20-supersession run aborts + REDs (mass-drift tripwire). **Direction law:** facts.db derives from STRUCTURED sources; docs are tested AGAINST it, never the reverse.
 - **C21** (`scripts/facts-check.js`, Monday) tests standing in-repo doc claims against facts.db; grows one `{doc-regex + fact}` row at a time.
-- **Recall injection** (`system/recall/recall-inject.js`, UserPromptSubmit hook): before every prompt, injects relevant current facts + vault BM25 snippets + lessons as RETRIEVED REFERENCE DATA, never instructions. Fail-OPEN, ≤150ms budget, hard caps, telemetry without prompt text. Killable in one settings line.
+- **Recall injection** (`system/recall/recall-inject.js`, UserPromptSubmit hook): before every prompt, injects relevant current facts + vault BM25 snippets + lessons as RETRIEVED REFERENCE DATA, never instructions. Fail-OPEN, 150ms budget checked BETWEEN steps (not a hard per-query deadline: a slow FTS query can overrun it, and `latency_ms` in the telemetry row is the real measurement), hard caps, telemetry without prompt text. Killable in one settings line.
 - **Lessons** - the Close-Out L-line → `scripts/lesson-harvest.js` nightly → dedup'd hit-counted rows; 2+ hits queues a /self-review promotion candidate behind the human gate. Lessons PROPOSE, never auto-edit the constitution.
 - **Phase 4 (task graph) is ARMED, NOT BUILT** - demand-gated.
 

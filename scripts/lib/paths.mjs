@@ -7,8 +7,10 @@
 // imports from here and never builds a path by string concatenation.
 //
 // It is also the resolver that makes ruling A of the migration plan possible: secrets moved OUT of
-// the repo to ~/.config/alex/secrets/ are found through system/credentials-ledger.json, so no code
-// ever names a credential path again.
+// the repo are found through system/credentials-ledger.json, so no code ever names a credential
+// path again. PLANNED, NOT DONE on this machine (A11-T-05, 2026-09-11): ~/.config/alex/secrets/
+// does not exist here and every live credential still sits at its pre-migration in-repo path,
+// declared in the ledger. The resolver below works either way; ruling A lands with the Linux host.
 //
 // Siblings, keep in agreement: scripts/lib/alex_paths.py (Python), scripts/lib/alex-hq-path.js (CJS).
 // Node builtins only, by design (see package.json -> nodeNotes.why-no-dependencies).
@@ -87,9 +89,13 @@ export function metaPaths() {
 }
 
 // --- secrets (ruling A of the migration plan) -----------------------------------------------------
-// Secrets live OUTSIDE the repo at ~/.config/alex/secrets/ (mode 600) and are declared in
-// system/credentials-ledger.json (gitignored, local-only), which was already the resolver for the
-// gpg passphrase. This function is the ONLY sanctioned way to reach one.
+// TARGET STATE, not current state on this box (A11-T-05, 2026-09-11): secrets are MEANT to live
+// outside the repo at ~/.config/alex/secrets/ (mode 600), declared in system/credentials-ledger.json
+// (gitignored, local-only), which was already the resolver for the gpg passphrase. On this Windows
+// machine that directory does not exist and the ledger still resolves credentials to in-repo
+// gitignored paths; the nightly vault-backup says so out loud every night ("still at a
+// PRE-MIGRATION in-repo path"). This function is the ONLY sanctioned way to reach a credential and
+// is correct under both layouts, which is why the migration can happen without touching callers.
 //
 // FAILS LOUD, ALWAYS. A credential that cannot be found must never degrade to empty string: an
 // empty token turns into a silently-unauthenticated HTTP call that "succeeds" with a 401 body,
