@@ -958,6 +958,27 @@ try {
             addDrift('soul-core', `soul-core.md STALE: card built from sha ${stampM[1].slice(0, 12)}.. but soul.md is now ${liveSha.slice(0, 12)}.. - the nightly rebuild missed; node scripts/lib/build-soul-core.js --force`);
           }
         }
+        // A01-T-12 (2026-09-11): THE CANARY TOKEN MUST BE ONE VALUE ACROSS BOTH FILES, and until
+        // now nothing on this machine checked. The token is how a scheduled run PROVES the identity
+        // was really injected rather than assumed; soul.md carries it twice (top and bottom, the
+        // 08-05 anchoring fix) and the card copies both. The unit test that compares the two blocks
+        // SKIPS in public CI because soul.md is gitignored and never present there, so the only
+        // place this could run was here, and here never looked.
+        //
+        // A drifted token does not look like a failure. Every scheduled run either reports a failed
+        // canary forever, or validates against a stale value and reports success, which is the
+        // injection check checking nothing.
+        {
+          const tok = (t) => [...String(t).matchAll(/SOUL-CANARY-TOKEN:\s*(\S+)/g)].map((m) => m[1].trim());
+          const soulToks = tok(readText(soulP) || '');
+          const coreToks = tok(readText(corePath) || '');
+          const all = new Set([...soulToks, ...coreToks]);
+          if (soulToks.length === 0) {
+            addDrift('soul-core', 'soul.md carries NO SOUL-CANARY-TOKEN line - the headless injection check cannot prove identity reached any scheduled run.');
+          } else if (all.size !== 1) {
+            addDrift('soul-core', `SOUL-CANARY-TOKEN disagrees across the identity files: ${all.size} distinct values (soul.md x${soulToks.length}, soul-core.md x${coreToks.length}). Every scheduled run's injection proof compares against one of these; rotating means changing BOTH blocks in soul.md and rebuilding the card.`);
+          }
+        }
       }
     }
   }
