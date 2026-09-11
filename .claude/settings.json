@@ -150,6 +150,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "mcp__.*|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/outbound-log.js\""
+          }
+        ]
       }
     ]
   }

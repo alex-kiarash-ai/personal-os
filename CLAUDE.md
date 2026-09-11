@@ -457,6 +457,37 @@ The mechanical enforcement of Change Propagation + Post-Run Ingestion + Output H
 
 **Gold-standard report shapes (PASS + a done-right INCOMPLETE):** [[research/exemplars/gold-close-out]] (`vault/research/exemplars/gold-close-out.md`). Read it when a run lands INCOMPLETE - a good INCOMPLETE names the missed surface, the cause, and the carry-over, and states what shipped clean regardless.
 
+## Outbound Channels (STANDING RULE, 2026-09-11, A16-T-12 / P-55 third sighting)
+
+**Every way data leaves this machine, named once, with the rule: a new channel needs a ROW HERE and a LOG.**
+The 2026-08-05 assessment counted 8 classes and asked for exactly this list; it never landed, and by
+2026-09-04 the count was 15 with three instrumented. An un-named channel is not a policy gap in the
+abstract: it is the thing nobody can answer for after an unattended lane has been reading attacker-
+controllable email all month.
+
+The 15 classes, by what they can carry:
+1. **git push** to the PUBLIC repo (`scripts/git-backup.sh`, any session) - logged, HQ status, count not content.
+2. **HQ pushes** to n8n webhooks (`hq_push`, every wrapper) - one log line per caller.
+3. **n8n REST + workflow executions** (the box) - the box's own execution ledger.
+4. **scp to Hetzner** (the encrypted vault blob) - logged, size and destination.
+5. **Backblaze B2** (second backup destination, inert until provisioned).
+6. **Gmail** - drafts only, never send; send/reply/forward are in the `deny` list and in the lane guard.
+7. **Google Calendar** writes. 8. **Google Drive** writes (share is denied). 9. **Notion** writes.
+10. **Cloudflare API** (full read+write by Shaheen's ruling, so the safety is in usage: no DNS change, no
+Workers deploy, unless he names one). 11. **Upwork** (send/submit/respond denied). 12. **Other MCP writes**
+(Revit, Plaud, Power BI, Turkish Airlines). 13. **WebFetch / WebSearch / Exa.** 14. **claude-in-chrome.**
+15. **Artifacts** (publishing a page IS distribution).
+
+**Instrumentation (2026-09-11):** 1-5 were already logged per send. 6-15 now write one row each to
+`outputs/logs/outbound.jsonl` through the `PostToolUse` hook `scripts/hooks/outbound-log.js`:
+timestamp, tool name, host, and whether an untrusted lane flag was set. **Never** arguments, bodies,
+paths or query strings - the log answers "did something go out, where, when" and is deliberately
+useless for reconstructing content, because it sits on disk unencrypted for months. Fail-open by
+construction: it runs after the call, so it can only break a lane, never prevent a send.
+
+**The rule when adding a channel:** add its row above, and give it a log. A channel with neither is
+indistinguishable from one nobody chose.
+
 ## Output Hygiene
 - Deliverables to outputs/{automation-name}/YYYY-MM-DD/ (folder name = the manifest key; one-off session outputs go to outputs/sessions/YYYY-MM-DD-{topic}/)
 - **The deliverables ledger (LIVE 2026-07-11, [[research/output-structure-review]]):** every deliverable gets one row in `outputs/ledger.jsonl` (Close-Out A6: `node scripts/outputs-ledger.js add ...`). `outputs/INDEX.md` + `vault/outputs-index.md` are GENERATED from it, newest first - THE retrieval surface ("that file from a week ago"). Never hand-edit the INDEX files. Self-healing: the nightly vault-backup runs `reconcile` (skeleton rows for misses); the Monday recovery sweep validates outputs/ naming (C12). Files never move for the ledger; it records where they are.
