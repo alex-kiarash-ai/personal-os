@@ -215,9 +215,47 @@ async function probeDeployed() {
       if (res.ok) { const wf = await res.text(); const m = wf.match(/claude-[a-z0-9.-]+/i); model = m ? m[0] : null; }
     } catch { /* API unreachable -> skip the model half */ }
   }
+  /*
+   * A08-T-05 (2026-09-11): COUNT THE CONSECUTIVE FAILURES.
+   *
+   * This printed one stderr line and returned nothing. Nobody reads a daily job's stderr, so
+   * "the probe has read nothing every day for six weeks" and "the probe missed once" looked
+   * identical - while security-sweep S4 went on serving the last good version as if it were
+   * current. A probe that cannot read its own subject is the only thing that knows the version
+   * beneath every model-routing claim is now a guess.
+   *
+   * A streak past 7 days pushes RED and queues a human-action row once. The streak file is tiny
+   * and local; a failure to WRITE it must not become the failure, so every path is best-effort.
+   */
+  const streakFile = path.join(REPO, 'system', 'deployed-probe-streak.json');
+  const readStreak = () => { try { return JSON.parse(fs.readFileSync(streakFile, 'utf8')); } catch { return { fails: 0, since: null, escalated: false }; } };
+  const writeStreak = (o) => { try { fs.writeFileSync(streakFile, JSON.stringify(o, null, 2) + String.fromCharCode(10), 'utf8'); } catch { /* best effort */ } };
+
   if (!n8nVer && !model) {
-    console.error('landscape-monitor: deployed probe read NOTHING (n8n version + writer model both null) - no row logged; investigate the scheduled-context ssh + n8n API. Security-sweep S4 keeps reading the last good version until this succeeds.');
+    const st = readStreak();
+    st.fails = (st.fails || 0) + 1;
+    st.since = st.since || date;
+    console.error(`landscape-monitor: deployed probe read NOTHING (n8n version + writer model both null) - day ${st.fails} of this streak, since ${st.since}. No row logged; investigate the scheduled-context ssh + n8n API. Security-sweep S4 keeps reading the LAST GOOD version until this succeeds, so every version claim downstream is now that old.`);
+    if (st.fails > 7 && !st.escalated) {
+      st.escalated = true;
+      try {
+        execSync(`node ${JSON.stringify(path.join(REPO, 'scripts', 'human-actions.js'))} add --id deployed-probe-blind --sev high --what ${JSON.stringify(
+          `The deployed-versions self-probe has read NOTHING for ${st.fails} consecutive days (since ${st.since}). It reads the n8n version over ssh and the writer model over the n8n API; both are returning nothing in the SCHEDULED context. While it is blind, security-sweep S4 serves the last good version, so every "n8n 2.30.3" claim in the docs is unverified. Check the ssh key/agent available to the 07:10 task and that N8N_API_URL/N8N_API_KEY reach it.`
+        )}`, { stdio: 'ignore', timeout: 20000 });
+      } catch { /* queueing is best-effort; the RED below is the louder signal */ }
+      try {
+        execSync(`node ${JSON.stringify(path.join(REPO, 'scripts', 'lib', 'close-out.mjs'))} hq-push --project evolution --metric deployed_probe --status red --value 0 --headline ${JSON.stringify(
+          `deployed probe blind ${st.fails}d (since ${st.since}) - version claims unverified`
+        )}`, { stdio: 'ignore', timeout: 20000 });
+      } catch { /* an undeliverable heartbeat never fails a run */ }
+    }
+    writeStreak(st);
     return [];
+  }
+  // A successful read clears the streak, so the count means CONSECUTIVE and nothing else.
+  {
+    const st = readStreak();
+    if (st.fails) writeStreak({ fails: 0, since: null, escalated: false });
   }
   const id = `deployed::n8n=${n8nVer || '?'}::model=${model || '?'}`;
   return [{
