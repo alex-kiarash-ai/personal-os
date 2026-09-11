@@ -113,7 +113,38 @@ def escalate(id_, severity, what, origin="", evidence=""):
         log(id_, "note", f"queue add for '{id_}' returned {r.returncode} (already open, or the append failed)")
 
 
+# A09-T-11 (2026-09-11): every heal-log row's `check` id must exist in system/hq-heal-map.json, or
+# the log and the map cannot be joined. They had already diverged: the map declares
+# `quota-stale-cap` and this file logged `quota-stale`, so every row that check ever wrote pointed
+# at nothing, and any analysis keyed on the map silently dropped them. The ids are hardcoded at 44
+# call sites, which is how that happens and why a guard beats fixing them one at a time.
+#
+# Reported, never corrected: quietly rewriting the id would make the log agree with the map while
+# the CODE still disagrees, which is the same lie one layer down.
+_KNOWN_CHECK_IDS = None
+_LOG_ID_WARNED = set()
+
+
+def _known_check_ids():
+    global _KNOWN_CHECK_IDS
+    if _KNOWN_CHECK_IDS is None:
+        try:
+            with open(REPO / "system" / "hq-heal-map.json", encoding="utf-8") as f:
+                m = json.load(f)
+            rows = m.get("checks", m) if isinstance(m, dict) else m
+            _KNOWN_CHECK_IDS = {r.get("id") for r in rows if isinstance(r, dict)}
+        except Exception:
+            _KNOWN_CHECK_IDS = set()   # unreadable map = no assertion, never a crash
+    return _KNOWN_CHECK_IDS
+
+
 def log(check, state, detail, cls=""):
+    known = _known_check_ids()
+    # "hq-summary" is the loop's own infrastructure line, not a map check; it is allowed by name.
+    if known and check not in known and check != "hq-summary" and check not in _LOG_ID_WARNED:
+        _LOG_ID_WARNED.add(check)
+        actions.append({"check": "hq-summary", "state": "warn", "class": "",
+                        "detail": f"heal-log id '{check}' is NOT in system/hq-heal-map.json - the log row and the map cannot be joined (A09-T-11)"})
     actions.append({"check": check, "state": state, "class": cls, "detail": detail})
 
 

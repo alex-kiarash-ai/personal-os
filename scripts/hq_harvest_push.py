@@ -39,6 +39,7 @@ PUSH_URL = "https://n8n.shaheenkiarash.com/webhook/alex-push"
 SUMMARY_URL = "https://n8n.shaheenkiarash.com/webhook/alex-hq-summary"
 JSONS = ["graph", "todos", "life", "projects", "n8n-workflows"]
 
+RUN_START = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
 problems = []   # RED lines
 notes = []      # info lines
 
@@ -128,8 +129,11 @@ def main():
         except Exception as e:
             notes.append(f"human_actions parse: {e}")
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
-    events.append({"project": "alex-hq", "metric_key": "run_status", "value_num": 1, "status": "green",
-                   "headline": f"deterministic harvest clean {now_iso[:16]}Z"})
+    # A09-T-04 (2026-09-11): the alex-hq run_status event used to be appended HERE, hardcoded green,
+    # BEFORE the push and before the read-back. So the tile for the thing that updates the dashboard
+    # was green by construction: it reported "deterministic harvest clean" even on a run whose push
+    # was rejected or whose read-back failed. The one producer nobody was watching was the watcher.
+    # It is pushed at the END now, carrying the real verdict. See the second push below.
 
     if not events:
         problems.append("HARVEST EMPTY: no events gathered")
@@ -153,16 +157,57 @@ def main():
         vreq = urllib.request.Request(SUMMARY_URL, headers={"X-Alex-Token": TOKEN})
         with urllib.request.urlopen(vreq, timeout=30) as r:
             inf = json.load(r).get("projects", {}).get("infra", {}).get("metrics", {})
-        pushed = {e["metric_key"] for e in events if e["project"] == "infra"}
-        missing = [k for k in pushed if k not in inf]
+        # A09-T-10 (2026-09-11): this only checked that the KEY existed. A summary still serving
+        # last week's values passes that test perfectly, which makes "read-back verified" a claim
+        # about the shape of the response rather than about the write having landed. Compare the
+        # VALUE we pushed and require the stored timestamp to be at or after this run's start.
+        pushed = {e["metric_key"]: e for e in events if e["project"] == "infra"}
+        missing, stale_rb, wrong = [], [], []
+        for k, ev in pushed.items():
+            got = inf.get(k)
+            if got is None:
+                missing.append(k); continue
+            ts = str(got.get("ts") or "")
+            if ts and ts < RUN_START:
+                stale_rb.append(f"{k}(ts {ts[:16]} < run start {RUN_START[:16]})")
+            if "value_num" in ev and got.get("value_num") is not None:
+                try:
+                    if float(got["value_num"]) != float(ev["value_num"]):
+                        wrong.append(f"{k}(stored {got['value_num']} != pushed {ev['value_num']})")
+                except (TypeError, ValueError):
+                    pass
         if missing:
             problems.append(f"READ-BACK MISMATCH: infra metrics not in summary: {missing}")
-        else:
-            notes.append("read-back verified: infra metrics live in the summary")
+        if stale_rb:
+            problems.append(f"READ-BACK STALE: the summary served values older than this run: {', '.join(stale_rb)}")
+        if wrong:
+            problems.append(f"READ-BACK VALUE MISMATCH: {', '.join(wrong)}")
+        if not (missing or stale_rb or wrong):
+            notes.append(f"read-back verified: {len(pushed)} infra metric(s) present, fresh and value-matched")
     except Exception as e:
         problems.append(f"READ-BACK FAILED: {e}")
 
-    report(len(events))
+    # A09-T-04, second half: NOW push the alex-hq verdict, after everything that can fail has run.
+    # A failure to deliver this heartbeat is logged and never changes the exit code (the standing
+    # carve-out for run_status), but the VERDICT it carries is finally the truth.
+    verdict_red = bool(problems)
+    try:
+        vbody = json.dumps({"events": [{
+            "project": "alex-hq", "metric_key": "run_status",
+            "value_num": 0 if verdict_red else 1,
+            "status": "red" if verdict_red else "green",
+            "headline": (problems[0][:120] if verdict_red
+                         else f"deterministic harvest clean {now_iso[:16]}Z"),
+        }]}).encode()
+        vr = urllib.request.Request(PUSH_URL, data=vbody, method="POST",
+                                    headers={"X-Alex-Token": TOKEN, "Content-Type": "application/json"})
+        with urllib.request.urlopen(vr, timeout=30) as r:
+            r.read()
+        notes.append(f"alex-hq verdict pushed: {'red' if verdict_red else 'green'}")
+    except Exception as e:
+        notes.append(f"alex-hq verdict push failed (not fatal): {e}")
+
+    report(len(events) + 1)
     sys.exit(1 if problems else 0)
 
 
