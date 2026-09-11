@@ -7,6 +7,8 @@
 // from it, newest first. Files NEVER move; the ledger records where they already are.
 //
 //   node scripts/outputs-ledger.js add --project X --path outputs/... --desc "..." [--link a.md,b]  one row (Close-Out A6 lane)
+//     identity-carrying deliverables (.pdf/.docx/.pptx/.png/.jpg/.svg/.html) also need
+//     --grader PASS|FAIL|SKIPPED (+ --grader-note for FAIL/SKIPPED) - Close-Out C, A01-T-06
 //   node scripts/outputs-ledger.js update-desc --path outputs/... [--desc "..."] [--link ...]  supersede a row's
 //                                                     desc/links (append-only; render shows latest-per-path). The
 //                                                     enrichment lane for skeletal backfill rows. (upgrade P11)
@@ -298,7 +300,40 @@ function add(args) {
   if (!fs.existsSync(full)) { console.error(`add: file not found: ${p}`); process.exit(1); }
   const relP = rel(full);
   if (readLedger().some(r => r.path === relP)) { console.log(`add: already ledgered: ${relP} (use update-desc to revise)`); render(); return; }
+  /*
+   * A01-T-06 (2026-09-11): IDENTITY-CARRYING deliverables must record a grader verdict.
+   *
+   * Close-Out C says a shipped visual or piece of prose in Shaheen's voice gets a blind grader - a
+   * fresh subagent that sees only the artifact and the rubric, never this session's reasoning,
+   * because the 2026-07-03 brand incident shipped past a session grading its own work. The grader
+   * is ADVISORY by Shaheen's choice, and advisory turned out to mean it fired on 2 of 11 identity
+   * days: a rule with no mechanism decays to the rate at which someone remembers it.
+   *
+   * This does not force the grader to RUN, which would make an advisory step blocking against his
+   * decision. It forces the row to SAY, so "not graded" becomes a recorded fact instead of an
+   * absence nobody can see afterwards. `--grader PASS|FAIL|SKIPPED` with a reason for the last two.
+   * Non-identity deliverables (.md, .json, .csv) are unaffected.
+   */
+  const IDENTITY_EXT = /\.(pdf|docx|pptx|png|jpg|jpeg|svg|html)$/i;
+  let grader = get('grader');
+  if (IDENTITY_EXT.test(relP)) {
+    const VALID = ['PASS', 'FAIL', 'SKIPPED'];
+    if (!grader || !VALID.includes(String(grader).toUpperCase())) {
+      console.error(`add: ${relP} is an identity-carrying deliverable, so it needs --grader ${VALID.join('|')}.`);
+      console.error('  Close-Out C: a shipped visual or prose-in-his-voice gets a blind grader (work/23-self-review/close-out-grader/).');
+      console.error('  The grader stays ADVISORY - this only requires the row to SAY what happened, so "not graded" is recorded rather than invisible.');
+      console.error('  SKIPPED is a legitimate answer: add --grader SKIPPED --grader-note "why".');
+      process.exit(1);
+    }
+    grader = String(grader).toUpperCase();
+    if (grader !== 'PASS' && !get('grader-note')) {
+      console.error(`add: --grader ${grader} needs --grader-note "<why>" - a FAIL or a SKIP without a reason is the thing a reader cannot act on later.`);
+      process.exit(1);
+    }
+  }
+
   const row = { ...skeletonRow(full, 'manual'), project, desc, ...runStamp() };
+  if (grader) { row.grader = grader; const gn = get('grader-note'); if (gn) row.grader_note = gn; }
   const links = parseLinks(get);
   if (links.length) row.links = links;
   appendRows([row]);
