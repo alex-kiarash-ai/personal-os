@@ -156,4 +156,20 @@ if [ $STATUS -ne 0 ]; then
   echo "pre-commit: fix the named drift (usually: edit the source, run 'node scripts/generate-alex.js')." >&2
   exit $STATUS
 fi
+
+# --- Prompt regression, only when this commit touches a prompt surface (A03-T-07, 2026-09-11) ----
+# The checker existed and ran in exactly one place: inside generate-alex.js, advisory. So editing a
+# slash command and committing it - the single most common way a production prompt changes - never
+# ran the thing that pins that prompt's shape, unless someone happened to regenerate afterwards.
+# A checker wired only into the tool you forgot to run is a checker you do not have.
+#
+# ADVISORY here, deliberately. It asserts string SHAPES in prose, which is exactly the kind of
+# assertion that goes stale against a legitimate rewrite, and a hard block would teach people to
+# reach for --no-verify on a commit that is fine. It prints, loudly, and the weekly surface stays
+# authoritative.
+PROMPT_TOUCHED="$(git diff --cached --name-only | grep -E '^(\.claude/commands/|work/26-prompting/)' || true)"
+if [ -n "$PROMPT_TOUCHED" ]; then
+  echo "pre-commit: prompt surface touched ($(printf '%s' "$PROMPT_TOUCHED" | wc -l | tr -d ' ') file(s)) - running the prompt regression checker (advisory)."
+  "$NODE" "$ROOT/scripts/prompt-regression-check.js" --advisory || true
+fi
 exit 0
