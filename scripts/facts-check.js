@@ -101,6 +101,23 @@ const ASSERTIONS = [
     // A11-T-03 (2026-09-11): section 4 named its MCP servers by hand and nothing compared that to
     // the machine. A USER-scope server lives outside the repo, so a restore that does not re-add
     // it comes back silently short a capability and nobody finds out until something needs it.
+    // A17-T-19 (2026-09-11): the deployed n8n version is restated in three owner docs and was
+    // verifiable by nobody - no read-only path re-derived it, so all three could drift together and
+    // go on agreeing with each other. The landscape-monitor's deployed probe already ssh's to the
+    // box daily and writes the version to the landscape log; h-n8n now lifts it into facts.db, so
+    // these assertions cost no new box call.
+    //
+    // The ledger also carries `n8n/version_probed`. If that date is old the probe has gone blind
+    // (its own finding, A08-T-05, which escalates past 7 days) and these checks are comparing docs
+    // against a number that was true once. Agreeing with a stale fact is not the same as being right,
+    // and the date is in the ledger so a reader can tell the difference.
+    name: 'claude-md-n8n-version',
+    doc: 'CLAUDE.md',
+    regex: /Runs pinned in docker-compose \(Postgres 16\), ([\d.]+) since/,
+    subject: 'n8n', predicate: 'deployed_version', mode: 'equals',
+    why: 'the constitution states the deployed n8n version; nothing could re-derive it until the probe result reached the ledger',
+  },
+  {
     name: 'identity-mcp-user-scope-count',
     doc: 'vault/identity.md',
     regex: /\*\*(\d+) MCP servers at user scope\*\*/,
