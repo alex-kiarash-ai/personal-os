@@ -165,6 +165,19 @@ const REFUSAL_STATUSES = {
   }
 }());
 
+// The page size and whether it is a measurement, READ from the contract so the run report can never
+// quote a number this lane did not verify. Plan Queries reads the same two fields and asserts them
+// against the D2 row; this node only needs the values, because a stamped plan item already carries
+// the same pair and a disagreement between them would have failed that build first.
+const LINKEDIN_PAGE = (function () {
+  const pag = S.pagination || null;
+  const verified = !!(pag && pag.verified === true);
+  if (verified && typeof S.page_size !== 'number') {
+    throw new Error('Extract LinkedIn: the contract calls LinkedIn paging verified but page_size is ' + JSON.stringify(S.page_size) + '. The truncation warning counts full pages against that number, so it has to be one.');
+  }
+  return { size: verified ? S.page_size : null, step: verified ? pag.step : null, verified: verified };
+}());
+
 const PACING = {
   batch_size: HTTP_NODE.parameters.options.batching.batch.batchSize,
   batch_interval_ms: HTTP_NODE.parameters.options.batching.batch.batchInterval,
@@ -540,11 +553,26 @@ if (counts.empty) {
     'If empty calls are frequent while the same searches show jobs in a browser, this is the first thing to distrust.'
   );
 }
-if (maxCards > 0 && maxCards <= 10) {
+// D2 was settled by the Stage C start=10 probe: the page size is 10 and start steps by 10. What was
+// a page-size question is now a COVERAGE question, and it is sharper. A call that came back with
+// exactly one full page is the one shape that cannot tell "that is all there was" from "that is all
+// they served", and the probe showed that for the first BI query it was the second: page 2 held ten
+// more real jobs. So a full page is reported as TRUNCATION, with a count, every run until paging is
+// built. While the contract still calls paging unverified, the old open-question warning stands.
+const fullPageCalls = LINKEDIN_PAGE.verified ? cardCounts.filter((n) => n >= LINKEDIN_PAGE.size).length : 0;
+if (LINKEDIN_PAGE.verified && fullPageCalls > 0) {
   warnings.push(
-    'no call returned more than ' + maxCards + ' card(s). D2 (page size 10 or 25) is still open, and every observation so far ' +
-    'has landed on exactly 10 across two different time windows. Paging on a step of 25 would skip rows. Resolve it with one ' +
-    'start=10 call before any paging loop is built.'
+    'D15 TRUNCATION: ' + fullPageCalls + ' of ' + calls.length + ' call(s) came back with a full page of ' +
+    LINKEDIN_PAGE.size + ' card(s). This lane requests start=0 and nothing else, so for every one of those ' +
+    'queries there are almost certainly more results it never asked for. This is a sized collection gap, not ' +
+    'a failure: paging belongs to Stage D and it steps by ' + LINKEDIN_PAGE.step + '. Settled by the Stage C ' +
+    'probe, which found 10 further real jobs on page 2 of the first BI query.'
+  );
+} else if (!LINKEDIN_PAGE.verified && maxCards > 0) {
+  warnings.push(
+    'no call returned more than ' + maxCards + ' card(s), and the contract still calls the LinkedIn page size ' +
+    'unverified (D2). Paging on the wrong step skips rows silently. Resolve it with one start=10 call before ' +
+    'any paging loop is built.'
   );
 }
 if (otherPlanned.length) {
@@ -578,8 +606,12 @@ const report = {
   text_fields_sanitised: sanitisedFields,
   page_size_observation: {
     max_cards_on_a_successful_call: maxCards,
-    calls_returning_exactly_10: cardCounts.filter((n) => n === 10).length,
-    probe: 'D2',
+    page_size: LINKEDIN_PAGE.size,
+    page_size_verified: LINKEDIN_PAGE.verified,
+    calls_returning_a_full_page: fullPageCalls,
+    paging_built: false,
+    probe: LINKEDIN_PAGE.verified ? null : 'D2',
+    discrepancy: LINKEDIN_PAGE.verified ? 'D15' : 'D2',
   },
   pacing: Object.assign({}, PACING, {
     estimated_sleep_seconds: Math.max(0, (planned.length - 1) * PACING.batch_interval_ms) / 1000,
@@ -606,6 +638,7 @@ const jsCode = [
   `const REFUSAL_STATUSES = ${JSON.stringify(REFUSAL_STATUSES)};`,
   `const SELECTOR_TOKENS_job_id = ${JSON.stringify(SELECTOR_TOKENS.job_id)};`,
   `const PACING = ${JSON.stringify(PACING)};`,
+  `const LINKEDIN_PAGE = ${JSON.stringify(LINKEDIN_PAGE)};`,
   `const LANE_NUMBER = ${JSON.stringify(String(L.lane))};`,
   LOGIC,
 ].join('\n');

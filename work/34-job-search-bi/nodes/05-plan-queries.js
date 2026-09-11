@@ -149,6 +149,44 @@ const LINKEDIN_VALUE_KEYS = ['keywords', 'location', 'geoId', 'tpr', 'worktype',
 // under-collection this whole stage is built to avoid.
 const LINKEDIN_SOFT_CALL_LIMIT = 10;
 
+// D2, SETTLED 2026-09-11 by the Stage C start=10 probe: the guest page size is 10, not the 25 the
+// brief claimed, and `start` steps by 10. Both numbers are READ from the contract, never typed, and
+// whether D2 is still an open question is read from the contract's OWN discrepancy table. A node
+// that carried its own copy of either would go on asking a question the contract has answered, or
+// worse, stop asking one it has not.
+//
+// The consequence is D15 and it is the reason this block exists at all: this lane requests start=0
+// and nothing else, so every LinkedIn query is capped at one page. The probe proved page 2 holds ten
+// more real jobs for the very first query in the BI plan. Paging is Stage D work; naming the cap
+// here is what stops it being invisible in the meantime.
+const LINKEDIN_PAGE = (function readPageContract() {
+  const s = SRC.linkedin_guest_search;
+  const pag = s.pagination || null;
+  const verified = !!(pag && pag.verified === true);
+  const d2 = (sources().discrepancies || []).find((d) => d.id === 'D2') || null;
+  const d2Resolved = !!(d2 && d2.status === 'RESOLVED');
+
+  if (verified !== d2Resolved) {
+    throw new Error(
+      'Plan Queries: the contract disagrees with itself about D2.\n' +
+      '  sources.linkedin_guest_search.pagination.verified = ' + verified + '\n' +
+      '  discrepancies D2 status RESOLVED = ' + d2Resolved + '\n' +
+      '  One of the two was updated and the other was not. Until they agree, this node cannot say\n' +
+      '  honestly whether the page size is a measurement or a guess, and that is the only thing it\n' +
+      '  reports about paging.'
+    );
+  }
+  if (verified) {
+    if (typeof s.page_size !== 'number' || s.page_size <= 0) {
+      throw new Error('Plan Queries: the contract calls LinkedIn paging verified but page_size is ' + JSON.stringify(s.page_size) + '. A verified page size is a number.');
+    }
+    if (pag.step !== s.page_size) {
+      throw new Error('Plan Queries: the contract says the page size is ' + s.page_size + ' and that start steps by ' + pag.step + '. A paging loop built on the smaller of two disagreeing numbers repeats rows, and on the larger it skips them.');
+    }
+  }
+  return { size: verified ? s.page_size : null, step: verified ? pag.step : null, verified: verified };
+}());
+
 // Bright Data bills per record, so the trigger carries an explicit cap. 10 is deliberately small:
 // the input field names for the Indeed dataset are UNVERIFIED and the first real call is a probe,
 // not a collection run.
@@ -363,12 +401,15 @@ if (!isOn('linkedin_guest_search')) {
         f_tpr: 'r' + windowSeconds,
         start: 0,
         window_filtered_server_side: true,
-        page_size_unproven: true,
+        page_size: LINKEDIN_PAGE.size,
+        page_size_verified: LINKEDIN_PAGE.verified,
+        // start=0 and nothing else. A full page means more was waiting and this lane did not ask.
+        paging_built: false,
         detail_enrichment_enabled: detailOn,
         detail_endpoint: detailOn ? CONTRACT.linkedin_guest_detail.endpoint : null,
-        probe_required: ['D2'],
+        probe_required: LINKEDIN_PAGE.verified ? [] : ['D2'],
       });
-      addProbe('D2');
+      if (!LINKEDIN_PAGE.verified) addProbe('D2');
     }
   }
 }
@@ -438,6 +479,15 @@ if (linkedinUnits.length > LINKEDIN_SOFT_CALL_LIMIT) {
     'this plan emits ' + linkedinUnits.length + ' LinkedIn calls, above the ' + LINKEDIN_SOFT_CALL_LIMIT +
     ' that a datacenter IP is reported to tolerate before 429 or 999, and the box is a datacenter IP. ' +
     'Stage B must pace them and treat a 429 or a 999 as a DEGRADED source with a named reason, never as an empty result.'
+  );
+}
+if (linkedinUnits.length && LINKEDIN_PAGE.verified) {
+  warnings.push(
+    'D15: every LinkedIn call requests start=0 only, and the guest page size is ' + LINKEDIN_PAGE.size +
+    ' (D2, settled by probe). So each of the ' + linkedinUnits.length + ' LinkedIn queries is capped at ' +
+    LINKEDIN_PAGE.size + ' rows and anything past the first page is never requested. The Stage C probe ' +
+    'proved page 2 of the first BI query held ' + LINKEDIN_PAGE.size + ' more real jobs. Paging is not ' +
+    'built: it belongs to Stage D and it steps by ' + LINKEDIN_PAGE.step + '.'
   );
 }
 const unresolvedGeo = linkedinUnits.filter((u) => u.geo_unresolved).length;
@@ -537,6 +587,7 @@ const jsCode = [
   `const BOARD_KEYS = ${JSON.stringify(Object.keys(UNIT_KIND).filter(k => UNIT_KIND[k] === 'board'))};`,
   `const LINKEDIN_TARGETS = ${JSON.stringify(LINKEDIN_TARGETS)};`,
   `const LINKEDIN_SOFT_CALL_LIMIT = ${JSON.stringify(LINKEDIN_SOFT_CALL_LIMIT)};`,
+  `const LINKEDIN_PAGE = ${JSON.stringify(LINKEDIN_PAGE)};`,
   `const INDEED_LIMIT_PER_INPUT = ${JSON.stringify(INDEED_LIMIT_PER_INPUT)};`,
   `const LANE_NUMBER = ${JSON.stringify(String(L.lane))};`,
   LOGIC,
