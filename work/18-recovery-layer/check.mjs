@@ -405,6 +405,12 @@ try {
   // every run. The residual gap is real but different: this drift class is only ever checked on the
   // Linux host, so nothing catches scheduler drift during development here.
   let liveJobs = [];
+  // A04-T-02 (2026-09-11): presence in the scheduler is NOT the same as being armed. A PARKED
+  // project (#01 sprint-tracker, #11 whatsapp-harvest) correctly carries enabled:false in the
+  // registry AND keeps a DISABLED task in Task Scheduler, and comparing on presence alone called
+  // that pair drift twice over. schtasks' third CSV column is the Status ("Ready", "Disabled",
+  // "Running"), so the registry is compared against what is actually armed.
+  const liveDisabled = new Set();
   let schedulerReadable = false;
   if (!hasSystemd() && process.platform === 'win32') {
     // 2026-08-28: C7 no longer skips on Windows. It skipped because there was no scheduler to diff
@@ -422,6 +428,7 @@ try {
         const nm = cells[0].replace(/"/g, '').replace(/^\\/, '');
         if (!nm.startsWith('PersonalOS-') || nm.startsWith('PersonalOS-retry-')) continue;
         seen.add(nm); // keep the PersonalOS- prefix: docJobs is parsed WITH it (line ~355)
+        if (/^disabled$/i.test(cells[2].replace(/"/g, '').trim())) liveDisabled.add(nm);
       }
       liveJobs = [...seen];
       schedulerReadable = true;
@@ -1248,6 +1255,34 @@ try {
           addDrift('task-signals', `signal ledger carries a row for '${nm}', which is NOT in system/task-registry.json, written ${Math.round(days(nowMs - w) * 10) / 10}d ago. Either the task is real and unregistered (so nothing watches it for silence), or something is writing test rows into the ledger C31 trusts.`);
         }
       }
+      // A04-T-02 (2026-09-11): the registry is HAND-GENERATED and nothing ever diffed it against
+      // the live scheduler. `git-backup` sat at enabled:false while running every night and
+      // returning 0, so C31 was not watching the one job whose silence would mean the off-machine
+      // backup had stopped. A dead-man switch with an unchecked list of who to watch is a dead-man
+      // switch for whoever happens to be on the list.
+      //
+      // Guarded on schedulerReadable: an unreadable scheduler is C7's finding to report, and
+      // inventing registry drift from an empty live list would bury it under 23 false rows.
+      if (schedulerReadable) {
+        const liveSet = new Set(liveJobs.filter((j) => !liveDisabled.has(j)));
+        const allReg = (reg.tasks || []).filter((t) => t && t.name);
+        for (const t of allReg) {
+          const live = liveSet.has(t.name);
+          if (t.enabled !== false && !live) {
+            addDrift('registry-drift', `system/task-registry.json watches '${t.name}' for silence, but no such task is registered in the live scheduler. Either the task was renamed or removed and the registry row is stale, or the task is genuinely gone and its silence will never be noticed.`);
+          } else if (t.enabled === false && live) {
+            addDrift('registry-drift', `system/task-registry.json has '${t.name}' at enabled:false, but the task IS live in the scheduler. Nothing is watching a job that runs. This is the exact shape that hid git-backup for weeks.`);
+          }
+        }
+        const regAll = new Set(allReg.map((t) => t.name));
+        for (const j of liveJobs) {
+          if (!/^PersonalOS-/.test(j) || liveDisabled.has(j)) continue;
+          if (!regAll.has(j)) {
+            addDrift('registry-drift', `live scheduled task '${j}' has no row in system/task-registry.json, so C31 will never notice if it stops firing.`);
+          }
+        }
+      }
+
       let missing = 0, wentWrong = 0, green = 0;
       for (const t of regTasks) {
         const windowH = Number(t.interval_hours || 24) + Number(t.grace_hours || 4);
