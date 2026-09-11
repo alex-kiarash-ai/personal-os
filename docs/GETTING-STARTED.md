@@ -45,7 +45,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 
 The registry `system/manifest.json` is the source of truth; this list is generated from it.
 
-- **01 Sprint Tracker** (PARKED; trigger: PAUSED (Shaheen 2026-07-16, until re-enabled)) - Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.
+- **01 Sprint Tracker** (PARKED, revisit 2026-10-01; trigger: PAUSED (Shaheen 2026-07-16, until re-enabled)) - Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.
 - **02 Morning Brief** (LIVE; trigger: daily 8:00) - The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags.
 - **03 Application Engine (BI)** (LIVE; trigger: n8n Tue+Thu 15:00 + watch 8:30) - Job pipeline, Power BI track: source, score, gate, draft, render every Tue & Thu; also an MCP server.
 - **04 Research Team** (ON-DEMAND; trigger: on-demand) - Adaptive multi-agent research squads for EXTERNAL evidence, + an evidence-anchored Adversarial Verification Mode (`verify:` a claim - refuters grounded in external facts, converge to CONFIRMED/REFUTED/UNRESOLVED, never consensus-laundered; the sanctioned way to check an Alex conclusion).

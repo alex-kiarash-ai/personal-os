@@ -923,6 +923,33 @@ try {
       if (soulLines < prevSoulLn) {
         addDrift('soul-shrink', `soul.md shrank from ${prevSoulLn} to ${soulLines} lines (entries ${prevEntries} -> ${soulEntries}) - check for a truncating write`);
       }
+      // A15-T-11 (2026-09-11): ORDERING, which nothing guarded. soul.md's own ordering rule says
+      // entries run newest-first and a new one goes at the TOP, and says in the same breath why: the
+      // corpus HAD drifted into six out-of-order runs, with the six most recent entries sitting past
+      // the June ones near the end of the file, and because the first stretch read cleanly
+      // newest-first the file LOOKED sorted. A reader who stopped scrolling early was not reading a
+      // shorter corpus, they were reading one with the newest entries selectively missing.
+      //
+      // That is the least detectable quality loss this system can suffer: the nightly card takes the
+      // 20 NEWEST by parsed heading date, so a misplaced entry silently stales the register in every
+      // generated draft and nothing looks broken. The rule ended with "nothing guards ordering, so
+      // this rule is the mechanism". A rule is not a mechanism. This is.
+      {
+        const dates = (soulText.match(/^###\s+(?:Harvested\s+)?(\d{4}-\d{2}-\d{2})/gm) || [])
+          .map((h) => h.match(/(\d{4}-\d{2}-\d{2})/)[1]);
+        if (dates.length > 1) {
+          const newest = dates.reduce((a, b) => (b > a ? b : a), dates[0]);
+          if (dates[0] !== newest) {
+            addDrift('soul-order', `soul.md My Words is OUT OF ORDER: the first dated entry is ${dates[0]} but the newest in the file is ${newest}. The nightly card takes the 20 newest by date, so a misplaced entry quietly stales the register in every generated draft while the file still looks sorted. Move it to the top of the dated list.`);
+          }
+          let inversions = 0;
+          for (let i = 1; i < dates.length; i++) if (dates[i] > dates[i - 1]) inversions++;
+          if (inversions > 0 && dates[0] === newest) {
+            addDrift('soul-order', `soul.md My Words has ${inversions} out-of-order entr${inversions === 1 ? 'y' : 'ies'} below the top (the newest IS first, so this reads as sorted until you scroll). Reverse-chronological is the rule; the card's recency slice depends on it.`);
+          }
+        }
+      }
+
       fs.writeFileSync(
         SOUL_HW_FILE,
         JSON.stringify({ entries: Math.max(soulEntries, prevEntries), lines: Math.max(soulLines, prevSoulLn), updated: fmt(now()) }, null, 2) + '\n'
