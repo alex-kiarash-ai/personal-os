@@ -1147,7 +1147,31 @@ function v12TrifectaGate({ stagedDir, manifest }, failures, warnings) {
       if (!p.work_dir) { failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but has no work_dir to hold its ## Trifecta line`); continue; }
       const rel = p.work_dir.replace(/\\/g, '/') + '/CLAUDE.md';
       const cm = effective(stagedDir, rel);
-      if (!cm) { failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but ${rel} was not found`); continue; }
+      if (!cm) {
+        /*
+         * A02-T-05 (2026-09-11): a FRESH CLONE of the public repo failed its own validator here.
+         * #33's whole work dir is gitignored by Shaheen's explicit 2026-08-20 decision (the spec
+         * restates his five private protocol files, which he chose to keep off a public repo until
+         * the function proves itself), while the TRACKED manifest still declares its gate. So the
+         * clone sees a gate with no spec and reports drift for a file that is absent on purpose.
+         *
+         * Tracking the spec would override his decision and dropping the gate would lose a real
+         * declaration, so neither is right. A deliberately-ignored work dir is a LOUD SKIP: on the
+         * machine that owns the project the file is there and this check does its job, and on a
+         * clone the absence is by design. Anything else missing is still a failure.
+         */
+        let ignored = false;
+        try {
+          require('child_process').execFileSync('git', ['check-ignore', '-q', rel], { cwd: REPO, stdio: 'ignore' });
+          ignored = true;
+        } catch { /* exit 1 = not ignored, which is the normal case */ }
+        if (ignored) {
+          warnings.push(`WARNING V12 SKIPPED: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" and ${rel} is GITIGNORED by design, so its ## Trifecta line cannot be asserted from a clone. On the owning machine this check runs normally.`);
+        } else {
+          failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but ${rel} was not found`);
+        }
+        continue;
+      }
       const sec = mdSection(cm.text, /^##\s+Trifecta\b/m);
       if (sec === null) { failures.push(`FAILED V12: ${rel} is missing a "## Trifecta" section (project ${pad(p.num)} declares gate "${t.gate}")`); continue; }
       // The gate must appear on a `Gate:` DECLARATION line, not merely somewhere in the section.
