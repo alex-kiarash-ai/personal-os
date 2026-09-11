@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // security-sweep.mjs - P5 (three-plan validation, 2026-07-17). Alex's monthly, zero-token,
-// detect-never-repair SECURITY conscience, a sibling of check.mjs. Thirteen assertions (S1-S13; S10 added
+// detect-never-repair SECURITY conscience, a sibling of check.mjs. Fourteen assertions (S1-S14; S10 added
 // 2026-09-10 after stress-test A09-T25 found the HQ dashboard snapshot public on a Vercel URL).
 // Ported from security-sweep.ps1 (bash migration Phase 5, 2026-08-05).
 //
@@ -557,6 +557,45 @@ try {
         say(`S13 history purge: ${sha} reachable from ${n} ref(s) in this clone; main ${onMain ? 'CARRIES IT (see finding)' : 'clean'}`);
       }
     }
+  }
+
+  // --- S14 no credential LITERAL in either settings file (stress-test A14-T-07, 2026-09-11) --------
+  // The n8n API key sat as a plaintext JWT inside a permissions allow row in settings.local.json for
+  // roughly 90 of the 91 days since it was issued. Nothing looked: gitleaks reads the STAGED
+  // changeset and settings.local.json is gitignored, so it was invisible to every gate this repo
+  // owns while being read by every session. A permission rule is a strange place to keep a secret
+  // and an easy one to paste into, which is exactly why it needs its own assertion.
+  //
+  // Shapes, not entropy: a JWT, the provider key prefixes, and a Bearer literal. Only the SHAPE and
+  // the row index are ever reported, never the value - a finding that quotes the secret publishes
+  // it into the sweep log.
+  {
+    const SHAPES = [
+      [/eyJ[A-Za-z0-9_-]{10,}\.\S+/, 'a JWT (n8n API key shape)'],
+      [/sk-[A-Za-z0-9_-]{16,}/, 'an sk- provider key'],
+      [/(?:ghp|gho|ghs|ghu)_[A-Za-z0-9]{20,}/, 'a GitHub token'],
+      [/xox[baprs]-[A-Za-z0-9-]{10,}/, 'a Slack token'],
+      [/AKIA[0-9A-Z]{16}/, 'an AWS access key id'],
+      [/[Bb]earer\s+[A-Za-z0-9._-]{20,}/, 'a Bearer literal'],
+    ];
+    let scanned = 0, found = 0;
+    for (const rel of ['.claude/settings.json', '.claude/settings.local.json']) {
+      const abs = path.join(REPO, rel);
+      if (!fs.existsSync(abs)) continue;
+      scanned++;
+      const lines = fs.readFileSync(abs, 'utf8').split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        for (const [re, what] of SHAPES) {
+          if (re.test(lines[i])) {
+            found++;
+            addFinding('FINDING', 'S14', `${rel}:${i + 1} carries ${what}. A permission file is not a credential store and this one is read by every session; the value must be rotated (it has been readable for as long as it has been there) and moved behind system/credentials-ledger.json.`);
+            break;
+          }
+        }
+      }
+    }
+    if (!scanned) say('S14 settings credentials: neither settings file present - not asserted');
+    else say(`S14 settings credentials: ${scanned} settings file(s) scanned, ${found} credential literal(s)`);
   }
 
 
