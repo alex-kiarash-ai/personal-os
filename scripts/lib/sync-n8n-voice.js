@@ -53,8 +53,33 @@ function buildVoiceBlock(soul) {
   if (!vr) throw new Error('sync-n8n-voice: could not find Voice Rules section in soul.md');
   const rules = vr[0].trim();
   const mw = soul.slice(soul.indexOf('## My Words'));
-  const samples = (mw.match(/^- "[^"]+"/gm) || []).slice(0, 8).join('\n');
-  if (samples.length === 0) throw new Error('sync-n8n-voice: no My Words samples found in soul.md');
+
+  /*
+   * A08-T-09 (2026-09-11): NOT EVERY CORPUS ENTRY MAY LEAVE THIS MACHINE.
+   *
+   * This block is sent to Anthropic on every writer call. The samples were "the first 8 quoted
+   * lines under ## My Words", which is the NEWEST entries - and the newest entry is whatever was
+   * harvested last. The 2026-09-03 VOICE entry came from WhatsApp voice notes: real conversations
+   * with named people, harvested locally with the audio deleted on purpose. Nothing stopped those
+   * lines being the top 8 on the next generator run, at which point private conversation with
+   * third parties ships into a third-party API as "texture".
+   *
+   * Samples are taken per ENTRY now, skipping any whose heading marks it private-source. The rule
+   * is SOURCE-based rather than content-based deliberately: judging a line for sensitivity is
+   * exactly the call a regex cannot make, and the heading already records where it came from.
+   */
+  const PRIVATE_SOURCE = /whats\s*app|voice note|(^|[^a-z])private([^a-z]|$)/i;
+  const picked = [];
+  for (const block of mw.split(/\n(?=###\s)/)) {
+    const heading = (block.match(/^###[^\n]*/) || [''])[0];
+    if (PRIVATE_SOURCE.test(heading)) continue;
+    for (const line of block.match(/^- "[^"]+"/gm) || []) {
+      if (picked.length < 8) picked.push(line);
+    }
+    if (picked.length >= 8) break;
+  }
+  const samples = picked.join('\n');
+  if (samples.length === 0) throw new Error('sync-n8n-voice: no shippable My Words samples in soul.md (is every recent entry private-source?)');
   const day = new Date().toISOString().slice(0, 10);
   return [
     `${START} synced ${day} from soul.md - do not edit by hand, re-run the generator (scripts/generate-alex.js)>>>`,
