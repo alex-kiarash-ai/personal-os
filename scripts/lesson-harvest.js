@@ -54,7 +54,8 @@ function main() {
 
   const cursors = loadCursors();
   const db = openDb();
-  let processed = 0; let inserted = 0; let bumped = 0; let promoted = 0;
+  let processed = 0; let inserted = 0; let bumped = 0; let promoted = 0; let backfilled = 0;
+  const NL = String.fromCharCode(10); // named, because an inline escape kept arriving as a real newline
   let merged = 0; let quarantined = 0;
 
   const files = fs.readdirSync(LOG_DIR).filter((f) => f.endsWith('.log'));
@@ -146,6 +147,29 @@ function main() {
     else log(`cursor HELD for ${f} - a failed upsert must not skip those lines next run`);
   }
 
+  // A11-T-06 (2026-09-11): a BACKFILL sweep, because promotion only ever fired on a row the current
+  // run happened to touch. A lesson that reached two hits and was then never repeated sat above the
+  // line forever with promoted_at NULL and never reached the human gate - the threshold was met and
+  // the queue stayed empty, which looks exactly like a system with nothing to promote. Same query as
+  // the inline promotion, run once over the whole table rather than per touched row.
+  try {
+    const due = db.prepare(
+      'SELECT id, class, lesson, evidence, hits FROM lessons ' +
+      'WHERE hits >= 2 AND promoted_at IS NULL AND quarantined = 0 AND t_invalid IS NULL'
+    ).all();
+    for (const row of due) {
+      try {
+        fs.appendFileSync(PROMOTIONS, JSON.stringify({
+          ts: stamp, class: row.class, lesson: row.lesson, hits: row.hits, evidence: row.evidence,
+          source_file: '(backfill)', source_line: 0, merged_by: 'backfill',
+        }) + NL, 'utf8');
+        db.prepare('UPDATE lessons SET promoted_at=? WHERE id=?').run(stamp, row.id);
+        promoted++;
+        backfilled++;
+      } catch (e) { log(`backfill promotion failed for lesson ${row.id}: ${e.message}`); }
+    }
+  } catch (e) { log(`backfill sweep failed: ${e.message}`); }
+
   // P1.7* HEARTBEAT: "no promotions" and "promotions are impossible" looked identical for the whole
   // life of this loop (92 lessons, zero promotions, an unreachable threshold, and a nightly OK).
   // Reporting how close the table actually gets makes an unreachable trigger look different from a
@@ -159,7 +183,7 @@ function main() {
 
   db.close();
   saveCursors(cursors);
-  log(`processed=${processed} inserted=${inserted} bumped=${bumped} merged=${merged} quarantined=${quarantined} promoted=${promoted}`);
+  log(`processed=${processed} inserted=${inserted} bumped=${bumped} merged=${merged} quarantined=${quarantined} promoted=${promoted} backfilled=${backfilled}`);
   log(`heartbeat: ${hb}`);
   log('OK');
   return 0;
