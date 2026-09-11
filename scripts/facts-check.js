@@ -182,10 +182,22 @@ const HISTORY = /\bFirst run \(|\bPrior state\b|\bhistorical\b|\bat that time\b|
 // claim wrapped behind a supersession note was therefore invisible to C21, the one checker that
 // exists to catch a doc lying about the system. It now stops at the correction's own closing bold
 // marker, so the correction is removed and the text after it stays scannable.
+/*
+ * A04-T-10 (2026-09-11): this blanked a LAZY [\s\S]*? span, which crosses paragraphs. A long or
+ * unterminated correction note therefore erased the text AROUND it, and any live claim sitting in
+ * that stretch became invisible to C21 - a doc could drift inside a blanked region and read clean
+ * forever. The point of stripping is to ignore the QUOTED OLD VALUE inside a supersession note, not
+ * to stop reading the document.
+ *
+ * Bounded three ways: the span may not cross a blank line (a correction note is one paragraph), it
+ * is capped at 600 characters, and an unterminated marker is left ALONE rather than swallowing the
+ * rest of the file. Whitespace is preserved in the replacement so line numbers in findings stay true.
+ */
 function stripCorrections(text) {
+  const blank = (m) => m.replace(/[^\n]/g, ' ');   // keep newlines, so reported line numbers do not shift
   return text
-    .replace(/\*\((?:Corrected|Correction|Superseded)[\s\S]*?\)\*/gi, ' ')
-    .replace(/\*\*Superseded[^*\n]*(?:\*\*)?/gi, ' ');
+    .replace(/\*\((?:Corrected|Correction|Superseded)(?:(?!\n\s*\n)[\s\S]){0,600}?\)\*/gi, blank)
+    .replace(/\*\*Superseded[^*\n]*(?:\*\*)?/gi, blank);
 }
 
 function sweepProjectSpecs(manifest, findings) {
