@@ -79,6 +79,35 @@ function stablePart(blockText) {
 
 // Inject/refresh the block inside the node's SYSTEM string literal (idempotent, same as standalone).
 // Returns { code, changed, noop, reason }.
+/*
+ * extractLiveBlock - the voice block as it actually sits in a node, or a reason it is not there.
+ *
+ * Exported 2026-09-11 (A15-T-06) because the drift checker's first draft searched the RAW node code
+ * for the markers and compared what it found. That is wrong in a way that reports total drift: the
+ * SYSTEM literal is JSON-ENCODED in the node source, so every newline inside it is a two-character
+ * 
+ and `stablePart` (which strips up to the first real newline) strips nothing. All four lanes
+ * read as drifted while the generator had just verified all four as in sync.
+ *
+ * The literal must be JSON.parse'd first, which is exactly what injectIntoSystem does below. One
+ * function, used by both, so the writer and the checker can never disagree about where the block is.
+ */
+function extractLiveBlock(code) {
+  // Built, not written inline: an escaped newline kept reaching disk as a real one.
+  const TERM = ';' + String.fromCharCode(10) + 'const TONE';
+  const head = 'const SYSTEM = ';
+  const i = code.indexOf(head);
+  if (i < 0) return { err: 'no SYSTEM const' };
+  const j = code.indexOf(TERM, i);
+  if (j < 0) return { err: 'no SYSTEM terminator' };
+  let sys;
+  try { sys = JSON.parse(code.slice(i + head.length, j).trim()); }
+  catch (e) { return { err: 'SYSTEM literal not JSON-parseable: ' + e.message }; }
+  const s = sys.indexOf(START), e = sys.indexOf(END);
+  if (s < 0 || e <= s) return { err: 'no SOUL_VOICE markers inside SYSTEM' };
+  return { block: sys.slice(s, e + END.length) };
+}
+
 function injectIntoSystem(code, blockText) {
   const head = 'const SYSTEM = ';
   const i = code.indexOf(head);
@@ -173,4 +202,6 @@ async function run({ soul, apply, log }) {
   return results;
 }
 
-module.exports = { run, buildVoiceBlock, injectIntoSystem, TARGETS, NODE, START, END };
+// stablePart exported 2026-09-11 (A15-T-06): the drift checker must compare with the SAME
+// function the sync writes with, or the two slowly disagree about what "unchanged" means.
+module.exports = { run, buildVoiceBlock, stablePart, extractLiveBlock, injectIntoSystem, TARGETS, NODE, START, END };

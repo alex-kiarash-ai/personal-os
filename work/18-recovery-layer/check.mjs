@@ -839,6 +839,46 @@ try {
     }
   }
 
+  // --- C17c live n8n writer voice vs soul.md (A15-T-06, 2026-09-11) -----------------------------
+  // The generator injects the voice block into the four `Build Writer Request` nodes and verifies
+  // it. The gap is BETWEEN generator runs: the re-sync trigger is "whenever soul.md changes, run
+  // the generator", which is a rule a session has to remember, and nothing ever asked the live
+  // workflows whether they still match. A soul.md edit that never got a generator run leaves every
+  // cover letter and LinkedIn draft the engines produce in a stale register, and nothing looks
+  // broken, because a wrong-but-fluent voice is exactly as fluent as the right one.
+  //
+  // GET-only. Repair is the generator's job; the 07-10 silent-deactivation lesson is why a checker
+  // does not get to PUT. No credential = NOT ASSERTED and said out loud, never a silent pass.
+  {
+    try {
+      const out = execFileSync(process.execPath, [path.join(REPO, 'scripts', 'voice-sync-check.js'), '--json'],
+        { encoding: 'utf8', timeout: 120000, windowsHide: true, cwd: REPO });
+      const r = JSON.parse(out.trim().split(SPLIT_LINES).pop() || '{}');
+      if (!r.asserted) {
+        recordNoState('C17c writer voice', `the live n8n voice block was NOT compared this sweep (${r.reason || 'no result'})`);
+      } else {
+        for (const row of (r.rows || [])) {
+          if (row.ok === false) addDrift('voice-sync', `n8n lane '${row.name}' carries a voice block that does NOT match soul.md (${row.why}) - every draft it writes is in a stale register. Fix: node scripts/generate-alex.js`);
+          if (row.ok === null) addDrift('voice-sync', `n8n lane '${row.name}' unreachable (${row.why}) - its voice block is unverified this sweep`);
+        }
+        say(`C17c writer voice: ${r.checked} lane(s), ${r.drift} drifted, ${r.unknown} unreachable`);
+      }
+    } catch (e) {
+      const out = String((e && e.stdout) || '');
+      let handled = false;
+      try {
+        const r = JSON.parse(out.trim().split(SPLIT_LINES).pop() || '{}');
+        if (r.rows) {
+          for (const row of r.rows) {
+            if (row.ok === false) addDrift('voice-sync', `n8n lane '${row.name}' carries a voice block that does NOT match soul.md - every draft it writes is in a stale register. Fix: node scripts/generate-alex.js`);
+          }
+          handled = true;
+        }
+      } catch { /* fall through */ }
+      if (!handled) addDrift('voice-sync', `C17c could not compare the live writer voice blocks (${e.message}) - the stale-register class is unchecked this sweep`);
+    }
+  }
+
   // --- C18 machine timezone vs travel-state expectation (P8 scheduler TZ audit, 2026-07-17). Detect-only.
   // Every systemd OnCalendar= fires at the machine's wall clock, so if the machine tz drifts from where
   // Alex expects Shaheen to be, follows-Shaheen jobs (brief/triage) OR must-anchor jobs (server-
