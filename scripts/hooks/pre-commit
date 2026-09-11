@@ -169,7 +169,9 @@ fi
 # authoritative.
 PROMPT_TOUCHED="$(git diff --cached --name-only | grep -E '^(\.claude/commands/|work/26-prompting/)' || true)"
 if [ -n "$PROMPT_TOUCHED" ]; then
-  echo "pre-commit: prompt surface touched ($(printf '%s' "$PROMPT_TOUCHED" | wc -l | tr -d ' ') file(s)) - running the prompt regression checker (advisory)."
+  # grep -c, not wc -l: a single path with no trailing newline counts as 0 lines, and the first
+  # run of this printed "0 file(s)" while correctly running on one.
+  echo "pre-commit: prompt surface touched ($(printf '%s' "$PROMPT_TOUCHED" | grep -c . ) file(s)) - running the prompt regression checker (advisory)."
   "$NODE" "$ROOT/scripts/prompt-regression-check.js" --advisory || true
 fi
 exit 0
