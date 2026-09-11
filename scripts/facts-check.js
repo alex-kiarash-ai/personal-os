@@ -80,6 +80,24 @@ const ASSERTIONS = [
     why: 'the skills-store count said 29/30 for 11 days while three owner-approved packs had taken it to 82',
   },
   {
+    // A04-T-07 (2026-09-11): the recovery-check count is restated in EIGHT or more prose places
+    // and only four were guarded. The 09-10 fix corrected the owners the editor happened to look
+    // at; these two are the ones a human reads when the sweep is what they are asking about, and
+    // both carried "21" from July while the code ran 30.
+    name: 'recovery-status-check-count',
+    doc: 'vault/projects/recovery/status.md',
+    regex: /\*\*(\d+) checks \(C1-C/,
+    subject: 'recovery-checker', predicate: 'check_count', mode: 'equals',
+    why: 'the recovery status page is what a human reads when asking what the sweep covers; it said 21 for two months',
+  },
+  {
+    name: 'schedule-recovery-check-count',
+    doc: 'scheduler/schedule.md',
+    regex: /\((\d+) checks, C1-C/,
+    subject: 'recovery-checker', predicate: 'check_count', mode: 'equals',
+    why: 'the schedule entry describes what the Monday job does; a wrong count there misdescribes the job itself',
+  },
+  {
     // A11-T-03 (2026-09-11): section 4 named its MCP servers by hand and nothing compared that to
     // the machine. A USER-scope server lives outside the repo, so a restore that does not re-add
     // it comes back silently short a capability and nobody finds out until something needs it.
