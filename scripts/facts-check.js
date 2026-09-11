@@ -80,6 +80,16 @@ const ASSERTIONS = [
     why: 'the skills-store count said 29/30 for 11 days while three owner-approved packs had taken it to 82',
   },
   {
+    // A11-T-03 (2026-09-11): section 4 named its MCP servers by hand and nothing compared that to
+    // the machine. A USER-scope server lives outside the repo, so a restore that does not re-add
+    // it comes back silently short a capability and nobody finds out until something needs it.
+    name: 'identity-mcp-user-scope-count',
+    doc: 'vault/identity.md',
+    regex: /\*\*(\d+) MCP servers at user scope\*\*/,
+    subject: 'mcp', predicate: 'user_scope_count', mode: 'equals',
+    why: 'a restore has to re-add every user-scope MCP by hand; a wrong count here means a connector is quietly never rebuilt',
+  },
+  {
     name: 'identity-escrow-attested',
     doc: 'vault/identity.md',
     regex: /escrow drill re-passed (\d{4}-\d{2}-\d{2})/,

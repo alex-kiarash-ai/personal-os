@@ -22,6 +22,10 @@ const MAX_SUPERSEDE = 20; // the mass-drift tripwire (plan risk table)
 
 const HARVESTERS = [
   'h-manifest', 'h-scheduler', 'h-validators', 'h-recovery', 'h-skills', 'h-n8n', 'h-attest',
+  // h-mcp (A11-T-03, 2026-09-11): identity.md section 4 names the MCP servers by hand and nothing
+  // compared that list to the machine. A USER-scope server lives outside the repo, so a restore
+  // that does not re-add it comes back silently short a capability.
+  'h-mcp',
 ];
 
 function runHarvest({ db, tripwire = MAX_SUPERSEDE } = {}) {
