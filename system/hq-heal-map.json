@@ -37,7 +37,7 @@
       "desc": "no active n8n workflow may be errored or silent past its cadence (n8n_broken_today = 0)",
       "probe": "n8n_broken",
       "risk": "PROPOSE",
-      "remedy": "redeploy from the repo mirror / reactivate - a live mutation, queued not auto-run",
+      "remedy": "REDEPLOYING FROM THE REPO MIRROR IS NOT SAFE AS WRITTEN (A09-T-09, 2026-09-11). The mirrors under docs/n8n/<name>/workflow.json are gitignored, carry no node ids, and - the part that matters - do NOT carry settings.errorWorkflow, so a redeploy from one silently removes the Pipeline Error Alert handler that is the smoke alarm on every active workflow. Before any redeploy: refresh the mirror with a live GET, confirm settings.errorWorkflow is present in what you are about to PUT, and read it back after. Otherwise the fix for 'this workflow is broken' is 'this workflow can no longer tell anyone it broke'. Reactivation alone is safe. Either way it is a live mutation: queued, never auto-run.",
       "escalate_fail": "",
       "enabled": true
     },
