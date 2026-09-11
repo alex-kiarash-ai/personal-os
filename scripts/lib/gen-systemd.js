@@ -279,6 +279,7 @@ function generateUnits({ schedule, log }) {
   const skipped = [];
   const disabled = [];
   const verified = []; // OnCalendar expressions systemd itself parsed (empty on a non-systemd box)
+  const unchanged = []; // A02-T-08: unit pairs whose bytes already matched, so nothing was written
 
   for (const job of schedule.allJobNames) {
     const entry = schedule.entries.find((e) => e.jobNames.includes(job));
@@ -312,14 +313,29 @@ function generateUnits({ schedule, log }) {
     const description = `Alex: ${entry.name}`;
     const exec = rel.endsWith('.mjs') ? `${process.execPath} ${abs}` : abs;
 
-    fs.writeFileSync(
-      path.join(UNIT_DIR, `${job}.service`),
-      renderService(job, { wrapper: exec, description, runtimeMaxSec: h.runtimeMaxSec })
-    );
-    fs.writeFileSync(
-      path.join(UNIT_DIR, `${job}.timer`),
-      renderTimer(job, { description, onCalendar, persistent: h.persistent, wake: h.wake })
-    );
+    /*
+     * A02-T-08 (2026-09-11): COMPARE BEFORE WRITING. This rewrote every unit pair on every run,
+     * identical content and all, so `generate-alex.js --dry-run` left 46 files with fresh mtimes
+     * and a dirty-looking tree even when it changed nothing. A dry run whose side effects are
+     * indistinguishable from a real one teaches people to ignore the difference, which is the same
+     * lesson as the tokens.css write and the status-rotate flag earlier today.
+     *
+     * Byte-compare and skip. The unit content is fully derived from the schedule, so identical
+     * bytes mean nothing to do, and the run reports how many it left alone.
+     */
+    const pairs = [
+      [path.join(UNIT_DIR, `${job}.service`), renderService(job, { wrapper: exec, description, runtimeMaxSec: h.runtimeMaxSec })],
+      [path.join(UNIT_DIR, `${job}.timer`), renderTimer(job, { description, onCalendar, persistent: h.persistent, wake: h.wake })],
+    ];
+    let changed = false;
+    for (const [p, body] of pairs) {
+      let current = null;
+      try { current = fs.readFileSync(p, 'utf8'); } catch { /* absent = write it */ }
+      if (current === body) continue;
+      fs.writeFileSync(p, body);
+      changed = true;
+    }
+    if (!changed) unchanged.push(job);
     written.push(job);
     if (h.disabled) disabled.push({ job, reason: h.disabledReason });
   }
@@ -333,7 +349,7 @@ function generateUnits({ schedule, log }) {
   );
   if (disabled.length) log(`  systemd: ${disabled.length} DISABLED by design, units written but never enabled: ${disabled.map((d) => d.job).join(', ')}`);
   for (const s of skipped) log(`  systemd: SKIPPED ${s}`);
-  return { written, disabled, skipped, verified };
+  return { written, disabled, skipped, verified, unchanged };
 }
 
 function renderReadme({ written, disabled, skipped }) {
