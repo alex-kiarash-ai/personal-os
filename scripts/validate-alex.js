@@ -1521,7 +1521,21 @@ function v17MandatorySkillBindings({ stagedDir }, failures) {
   for (const row of rows) {
     const cells = row.split('|').map(c => c.trim());
     if (cells.length < 4) continue;
-    for (const tok of (cells[2].match(/[a-z0-9]+(?:-[a-z0-9]+)+/g) || [])) skills.add(tok);
+    /*
+     * A03-T-10 (2026-09-11): the group carried a `+`, so a token needed AT LEAST ONE HYPHEN to be
+     * seen. Every MANDATORY skill happens to be hyphenated today (n8n-code-javascript,
+     * skill-creator), so the check has always looked like it works - but the moment a MANDATORY row
+     * names a one-word skill (`pptx`, `pdf`, `brand`), V17 silently asserts nothing about it and a
+     * parked or missing binding passes. The failure arrives with the next row somebody adds.
+     *
+     * `*` instead of `+`, with a stoplist: the cell is prose as well as names ("then", "and", "+"),
+     * so widening the match without one turns connectives into phantom skill names and V17 starts
+     * failing on skills that were never claimed.
+     */
+    const STOP = new Set(['then', 'and', 'or', 'via', 'plus', 'the', 'a', 'an', 'with', 'for', 'use', 'first']);
+    for (const tok of (cells[2].match(/[a-z0-9]+(?:-[a-z0-9]+)*/g) || [])) {
+      if (!STOP.has(tok)) skills.add(tok);
+    }
   }
   if (skills.size === 0) return; // no MANDATORY rows = nothing to assert (not an error shape)
   const dead = [];
