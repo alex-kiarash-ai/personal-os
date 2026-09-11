@@ -130,8 +130,14 @@ function deliverablesOnDisk() {
 
 function dateFor(file) {
   const m = rel(file).match(/(\d{4}-\d{2}-\d{2})/); // first dated segment in the path
-  if (m) return m[1];
-  return new Date(fs.statSync(file).mtime).toISOString().slice(0, 10);
+  const mtime = new Date(fs.statSync(file).mtime).toISOString().slice(0, 10);
+  if (!m) return mtime;
+  // A15-T-07 (2026-09-11): take the LATER of the folder date and the file's own mtime. The folder
+  // date alone means a file written today into a pre-rule folder is grandfathered as history, which
+  // is a rename away from switching the filename law off for any new deliverable. The folder date
+  // still wins where it is later, because a dated folder is the deliberate statement of when a
+  // deliverable belongs and mtime moves for reasons nobody intended (a copy, a restore, a sync).
+  return m[1] > mtime ? m[1] : mtime;
 }
 
 function projectFor(file) {
@@ -232,7 +238,24 @@ function reconcile() {
 // already-sent history that is never re-sent (the point-in-time convention in vault/me/cv-sources.md),
 // and failing on them would paint C12 permanently red, which is how a real check gets ignored.
 const CV_RULE_FROM = '2026-08-20';
-const CV_FAMILY  = /^shaheen[_-]kiarash/i;
+// A15-T-07 (2026-09-11): TWO holes, both in how the law decides what to look at.
+//
+// (1) This anchored with ^, so only a filename STARTING with his name was ever inspected.
+//     `AI_Engineer_Shaheen_Kiarash.pdf` and `CV_Volvo_2026.pdf` both leak exactly what the law
+//     exists to stop and neither was examined. The name check stays (it is the broad net that
+//     catches a filename with no CV token in it at all) and a second net catches the CV-shaped
+//     names that do not lead with him.
+// (2) See dateFor: the grandfather date came from the FOLDER, so a file written today into a
+//     2026-08-19 folder was treated as pre-rule history and skipped.
+const CV_FAMILY  = /shaheen[_-]kiarash/i;
+// The CV-SHAPED net, scoped to the extensions that actually SHIP. The law's own wording is
+// "the only two shapes that may ship: Shaheen_Kiarash_CV.{pdf,docx}", and the leak it prevents
+// travels WITH the attachment - so an intermediate .txt or .html source that never leaves the
+// machine is not the target. The first draft of this net was unscoped and immediately flagged
+// nine working files (cover-letter.txt, cv-source.html, a .bak), which is how a privacy rule
+// gets a reputation for crying wolf and then gets switched off.
+const CV_SHAPED  = /(^|[_-])(cv|resume|curriculum|lebenslauf|cover[_-]?letter)([_-]|\.|$)/i;
+const CV_SHIPS   = /\.(pdf|docx)$/i;
 const CV_ALLOWED = /^Shaheen_Kiarash_(CV|Cover_?Letter)\.(pdf|docx)$/;
 // Reviewed exceptions to the filename law, by exact repo-relative path (2026-09-10, stress-test
 // A04-T3 follow-on). The law is deliberately matched on HIS NAME rather than on CV-ish words,
@@ -269,7 +292,9 @@ function validate() {
   const badName = [];
   for (const f of deliverablesOnDisk()) {
     const base = path.basename(f);
-    if (!CV_FAMILY.test(base) || CV_ALLOWED.test(base)) continue;
+    const looksLikeHim = CV_FAMILY.test(base);
+    const looksLikeACv = CV_SHAPED.test(base) && CV_SHIPS.test(base);
+    if ((!looksLikeHim && !looksLikeACv) || CV_ALLOWED.test(base)) continue;
     if (dateFor(f) < CV_RULE_FROM) continue;
     if (CV_NAME_EXCEPTIONS.has(rel(f).split(path.sep).join('/'))) continue;
     badName.push(rel(f));
