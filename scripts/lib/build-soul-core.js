@@ -82,6 +82,13 @@ const REQUIRED_HEADINGS = [
 
 const DATED_RE = /^###\s+(?:Harvested\s+)?(\d{4})-(\d{2})-(\d{2})/;
 
+/**
+ * Local calendar date as YYYY-MM-DD. 'sv-SE' is the shortest spelling of ISO-8601 that
+ * toLocaleDateString supports, and it is LOCAL on purpose: toISOString() rolls over at UTC
+ * midnight and would call an evening entry "tomorrow" for part of the year.
+ */
+function todayLocal() { return new Date().toLocaleDateString('sv-SE'); }
+
 function parseSoul(soulText) {
   const lines = soulText.split(/\r?\n/);
 
@@ -99,9 +106,20 @@ function parseSoul(soulText) {
     for (let j = i + 1; j < lines.length; j++) {
       if (/^###?#?\s/.test(lines[j]) && (lines[j].startsWith('## ') || lines[j].startsWith('### '))) { end = j; break; }
     }
+    const date = `${m[1]}-${m[2]}-${m[3]}`;
+    // A02-T-11 (2026-09-11): heading dates were trusted without bound, and the card's recency
+    // slice sorts on them. A "2099" typo, or a planted heading in content that reaches this
+    // file, sits first in the card forever and silently pushes a real entry off the far end.
+    // The newest slice is the part of the corpus the model actually reads, so one bad date
+    // quietly restyles every generated draft. A future date is a mistake or an attack, never
+    // a harvest.
+    if (date > todayLocal()) {
+      throw new Error(`floor: soul.md line ${i + 1} carries a FUTURE-dated entry (${date}, today is ${todayLocal()}). ` +
+        'The recency slice sorts on this, so a future date pins itself to the top of the card and drops a real entry. Fix the heading.');
+    }
     entries.push({
       heading: lines[i],
-      date: `${m[1]}-${m[2]}-${m[3]}`,
+      date,
       startLine: i,
       text: lines.slice(i, end).join('\n').trimEnd(),
     });
@@ -257,23 +275,29 @@ function build({ log = () => {}, outPath = OUT, soulPath = SOUL, pinsPath = PINS
    */
   let budget = 0;
   try { budget = Number(JSON.parse(fs.readFileSync(path.join(REPO, 'system', 'manifest.json'), 'utf8')).meta.vault.soul_core_byte_budget) || 0; } catch (_) { budget = 0; }
-  if (budget > 0 && card.length > budget) {
-    const before = card.length; const beforeN = sel.newest.length;
-    while (card.length > budget && sel.newest.length > MIN_ENTRIES) {
+  // A02-T-10 (2026-09-11): this trimmed on card.length, which is UTF-16 code units, while C27 and
+  // the budget's own name measure BYTES. They were 2 B apart when the audit measured them and the
+  // gap grows with every non-ASCII character - and this corpus carries em-dashes, arrows and
+  // accented words by the hundred. A budget enforced in one unit and checked in another is a
+  // budget that eventually ships an over-cap card past a green trim line.
+  const cardBytes = (c) => Buffer.byteLength(c, 'utf8');
+  if (budget > 0 && cardBytes(card) > budget) {
+    const before = cardBytes(card); const beforeN = sel.newest.length;
+    while (cardBytes(card) > budget && sel.newest.length > MIN_ENTRIES) {
       sel.newest = sel.newest.slice(0, sel.newest.length - 1); // oldest-first: the slice is newest-first
       card = assemble(parsed, sel, soulSha, pinsSha);
     }
-    if (card.length > budget) {
-      log(`  soul-core: OVER BUDGET at the floor - ${card.length} B > ${budget} B with the minimum ${sel.newest.length} entries. Shipping honestly; C27 will amber.`);
+    if (cardBytes(card) > budget) {
+      log(`  soul-core: OVER BUDGET at the floor - ${cardBytes(card)} B > ${budget} B with the minimum ${sel.newest.length} entries. Shipping honestly; C27 will amber.`);
     } else {
-      log(`  soul-core: trimmed to budget - ${before} B (${beforeN} entries) -> ${card.length} B (${sel.newest.length} entries), budget ${budget} B`);
+      log(`  soul-core: trimmed to budget - ${before} B (${beforeN} entries) -> ${cardBytes(card)} B (${sel.newest.length} entries), budget ${budget} B`);
     }
   }
   const warnAt = budget > 0 ? Math.round(budget * WARN_AT_FRACTION) : WARN_BYTES_FALLBACK;
-  if (card.length > warnAt) {
-    const pct = budget > 0 ? ` (${(card.length / budget * 100).toFixed(1)}% of the ${budget} B cap)` : '';
-    const room = budget > 0 ? budget - card.length : 0;
-    log(`  WARN: card is ${card.length} B, past the ${warnAt} B approach line${pct}. ` +
+  if (cardBytes(card) > warnAt) {
+    const pct = budget > 0 ? ` (${(cardBytes(card) / budget * 100).toFixed(1)}% of the ${budget} B cap)` : '';
+    const room = budget > 0 ? budget - cardBytes(card) : 0;
+    log(`  WARN: card is ${cardBytes(card)} B, past the ${warnAt} B approach line${pct}. ` +
       (budget > 0
         ? `${room} B of headroom left, about ${Math.max(0, Math.floor(room / 2800))} more entries before the trim starts dropping the oldest of the ${sel.newest.length}.`
         : 'No budget in meta.vault.soul_core_byte_budget, so nothing is enforcing a cap.'));
@@ -285,9 +309,9 @@ function build({ log = () => {}, outPath = OUT, soulPath = SOUL, pinsPath = PINS
   fs.renameSync(staging, outPath);
   const readBack = fs.readFileSync(outPath, 'utf8');
   if (readBack !== card) throw new Error('read-back verify failed after swap');
-  log(`  soul-core.md written: ${card.length} B (~${Math.round(card.length / 2.93 / 100) / 10}k tok est), ` +
+  log(`  soul-core.md written: ${cardBytes(card)} B (~${Math.round(cardBytes(card) / 2.93 / 100) / 10}k tok est), ` +
     `${sel.newest.length} newest + ${sel.pinned.length} pinned, sha ${soulSha.slice(0, 12)}..`);
-  return { bytes: card.length, entries: sel.newest.length, pinned: sel.pinned.length, sha: soulSha };
+  return { bytes: cardBytes(card), entries: sel.newest.length, pinned: sel.pinned.length, sha: soulSha };
 }
 
 module.exports = { build, parseSoul, selectEntries, assemble, assertIgnored, NEWEST_N, MIN_ENTRIES, OUT };
