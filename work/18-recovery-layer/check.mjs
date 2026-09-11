@@ -568,6 +568,46 @@ try {
     say(`C7c: checked power conditions on ${powerChecked} of ${liveJobs.length} live job(s)`);
   }
 
+  // --- C7d: any scheduled task that RUNS THIS REPO, whatever it is called (A05-T-09 / A05-T-10a) --
+  // Every scheduler check above filters on the `PersonalOS-` prefix, so a task that executes code
+  // from this repo under any other name is invisible to all of them: not in C7's documented-vs-live
+  // diff, not in C7b's trigger comparison, not in C7c's power conditions, not in C31's dead-man
+  // list. One exists right now - `Alex-PortalScanner-ResetReminder`, a one-shot whose target script
+  // was deleted and whose trigger passed on 2026-07-27 - and no check has ever mentioned it.
+  //
+  // The prefix is a NAMING CONVENTION. What actually matters is whether a task can run code out of
+  // this working tree, so this leg asks that question instead, and separately compares each action's
+  // working directory to the repo root: a repo MOVE currently goes unnoticed until the jobs have been
+  // silently failing for days (the 2026-08-28 rewire found 23 dead jobs after two days of silence).
+  if (schedulerReadable) {
+    try {
+      const psq = 'Get-ScheduledTask | ForEach-Object { $n=$_.TaskName; $_.Actions | ForEach-Object { ' +
+        'if ($_.Arguments -like "*personal-os*" -or $_.Execute -like "*personal-os*") { ' +
+        '"{0}|{1}" -f $n, $_.WorkingDirectory } } }';
+      const raw = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', psq],
+        { encoding: 'utf8', timeout: 60000, windowsHide: true });
+      const rows = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+        .map((l) => { const i = l.indexOf('|'); return { name: l.slice(0, i), wd: l.slice(i + 1).trim() }; });
+      const seen = new Set();
+      let offRoot = 0;
+      for (const r of rows) {
+        if (seen.has(r.name)) continue;
+        seen.add(r.name);
+        if (!/^PersonalOS-/.test(r.name)) {
+          addDrift('scheduler-foreign', `scheduled task '${r.name}' runs code from THIS repo but is not PersonalOS-prefixed, so C7, C7b, C7c and C31 all skip it. Either rename it into the convention so it is watched, or unregister it if it is dead (export the XML first).`);
+        }
+        // A working directory that is set and points somewhere else is a repo move waiting to fail.
+        if (r.wd && !r.wd.toLowerCase().startsWith(String(REPO).toLowerCase())) {
+          offRoot++;
+          addDrift('scheduler-foreign', `scheduled task '${r.name}' has WorkingDirectory '${r.wd}', which is not under the repo root '${REPO}'. If the repo moved, this job is running against the wrong tree or not at all.`);
+        }
+      }
+      say(`C7d: ${seen.size} task(s) reference this repo, ${[...seen].filter((n) => !/^PersonalOS-/.test(n)).length} outside the naming convention, ${offRoot} with a working directory off the repo root`);
+    } catch (e) {
+      addDrift('scheduler-foreign', `C7d could not enumerate scheduled tasks by action path (${e.message}) - the "runs this repo under another name" class is unchecked this sweep`);
+    }
+  }
+
   // --- C8 dependent staleness (HASH-based, mtime-immune): spec changed since --init but status.md did NOT ---
   // Was mtime-based, which a mass write (the privacy scrub) or a git clone bumps in BOTH directions ->
   // false positives AND negatives. Hashing status.md + CLAUDE.md against the --init baseline flags only
