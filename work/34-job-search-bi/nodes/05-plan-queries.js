@@ -26,7 +26,7 @@
  * WHAT ONE UNIT IS.
  *   LinkedIn: one per search term x location. The Swedish forms in search_terms_sv go ONLY to the
  *   Sweden queries, which is the entire reason they are a separate key: one merged list would fire
- *   BI-utvecklare at the remote EU boards.
+ *   Swedish-language job titles at the remote EU boards, which do not carry them.
  *   Boards: one per enabled board, whole feed or one page, filtered locally.
  *   Indeed (Bright Data): one per term x location, and it emits NOTHING while its switch is off,
  *   which is the shipped default because it is the only source that bills per record.
@@ -552,12 +552,19 @@ const run = {
   plan: planSummary,
 };
 
+// The whole rule set Stage E decides on, carried on every planned unit. ONE surface, read once by
+// the Filter node. locations and max_scored_per_run joined it in Stage E (2026-09-11): they were in
+// the settings object all along and not on this block, so Stage E would otherwise have had to reach
+// PAST Plan Queries to Parse Settings for two of its six rules, which is how one rule ends up read
+// from two places and the two drift.
 const filters = {
   keep_if_title_has: cfg.keep_if_title_has,
   always_drop: cfg.always_drop,
+  locations: cfg.locations,
   match_rule: cfg.match_rule,
   geo_rule: cfg.geo_rule,
   language_rule: cfg.language_rule,
+  max_scored_per_run: cfg.max_scored_per_run,
 };
 
 let seq = 0;

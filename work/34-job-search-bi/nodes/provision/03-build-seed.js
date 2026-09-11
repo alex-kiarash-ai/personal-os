@@ -11,7 +11,7 @@
  *   A number is plain text.
  *   Decode with:  Number(String(v).trim())
  *
- * Why a pipe and not a comma: 'data & analytics' and 'make.com' are real keep-list items, and the
+ * Why a pipe and not a comma: real keep-list items can contain commas, ampersands and dots, and the
  * lists are full of multi-word titles. A comma separator would split 'data & analytics' the moment
  * anyone wrote it with a comma, and would make every future item with a comma a silent truncation.
  * Nothing in any list contains a pipe.

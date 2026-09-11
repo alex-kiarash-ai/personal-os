@@ -288,9 +288,9 @@ const SPEC_TO_ROW_FIELD = {
 // Build-time assertions. Every one of these runs on this machine before a byte reaches the box.
 // ---------------------------------------------------------------------------------------------
 
-// Token-boundary match, never a plain substring. The lesson is this repo's own: `always_drop`
-// matched as a plain substring, so a short drop term killed "International BI Analyst". The same
-// mistake here would
+// Token-boundary match, never a plain substring. The lesson is this lane's own: matched as plain
+// substrings, short filter terms kill every longer word that merely starts with them, which cost
+// nine real job titles in a measured run of eighteen. The same mistake here would
 // let the field name `id` match inside `candidate_required_location` and pass an assertion that
 // should have failed.
 function mentions(haystack, token) {

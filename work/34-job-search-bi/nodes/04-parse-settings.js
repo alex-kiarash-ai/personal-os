@@ -58,6 +58,13 @@ const LOGIC = `
 // ---------------------------------------------------------------------------
 var INVISIBLE = /[\\u0000-\\u001F\\u007F\\u00A0\\u00AD\\u200B-\\u200F\\u2028\\u2029\\u2060\\uFEFF]/;
 
+// A "word character" for token-boundary matching. Unicode aware on purpose: a plain [a-z0-9] test
+// reads every Swedish ring-a and umlaut as a word BOUNDARY, so a drop term sitting next to one
+// would match a word it is only a prefix of, which is the exact false drop this rule exists to
+// prevent. NO g flag: .test() on a global regex is stateful and would alternate true and false on
+// identical input.
+var WORD_CHAR = /[\\p{L}\\p{N}]/u;
+
 var problems = [];
 function bad(key, msg) { problems.push(key + ': ' + msg); }
 function stop() {
@@ -212,13 +219,35 @@ for (var ti = 0; ti < SCHEMA.text.length; ti++) {
 
 // --- 5. cross field checks ---------------------------------------------------------------------
 
-// (a) DEAD CONFIG. always_drop wins over keep_if_title_has every time, so a keep term that contains
-// a drop term can never match. It is config that looks alive. Same check the encoder ran, so a term
-// that could not be written also cannot be hand typed in.
+// (a) DEAD CONFIG. always_drop wins over keep_if_title_has every time, so a keep term that would
+// itself be killed by a drop term can never match. It is config that looks alive.
+//
+// THE TEST IS TOKEN BOUNDARY, NOT indexOf, AND THAT CHANGED IN STAGE E (2026-09-11). The Filter
+// node matches always_drop on token boundaries, because plain substring matching produced nine
+// false drops in a measured run of eighteen realistic titles for this lane: a short drop term kills
+// every longer word that merely starts with it. This check MODELS that rule, so it has to use the
+// same matcher. Left on indexOf it would refuse perfectly live pairs, namely every keep term whose
+// opening letters happen to spell a drop term, which boundary matching lets through. A validator
+// that disagrees with the rule it is validating is worse than no validator: it teaches people to
+// delete the terms it complains about. The measured cases live in config/test-stage-e.js, which is
+// gitignored, because this folder is tracked and the repo is PUBLIC.
+function dropWouldKill(keepTerm, dropTerm) {
+  if (!dropTerm) return false;
+  var h = String(keepTerm).toLowerCase();
+  var t = String(dropTerm).toLowerCase();
+  var i = h.indexOf(t);
+  while (i !== -1) {
+    var before = i === 0 ? '' : h.charAt(i - 1);
+    var after = (i + t.length >= h.length) ? '' : h.charAt(i + t.length);
+    if (!WORD_CHAR.test(before) && !WORD_CHAR.test(after)) return true;
+    i = h.indexOf(t, i + 1);
+  }
+  return false;
+}
 for (var ki = 0; ki < cfg.keep_if_title_has.length; ki++) {
   for (var di = 0; di < cfg.always_drop.length; di++) {
-    if (cfg.keep_if_title_has[ki].indexOf(cfg.always_drop[di]) !== -1) {
-      bad('keep_if_title_has', 'term "' + cfg.keep_if_title_has[ki] + '" contains always_drop term "' +
+    if (dropWouldKill(cfg.keep_if_title_has[ki], cfg.always_drop[di])) {
+      bad('keep_if_title_has', 'term "' + cfg.keep_if_title_has[ki] + '" is killed by always_drop term "' +
         cfg.always_drop[di] + '" and can never match, because always_drop wins. One of the two is a mistake.');
     }
   }
