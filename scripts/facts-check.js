@@ -298,7 +298,15 @@ function main() {
     try {
       require('../system/recall/lib/harvest-core').runHarvest();
     } catch (e) {
-      console.error(`facts-check: harvest failed (${e.message}); checking against existing facts.db`);
+      // A04-T-13 (2026-09-11): this used to warn and carry on against whatever facts.db already
+      // held. C21's whole job is testing DOCS against GROUND TRUTH, so a failed harvest means the
+      // ground truth is stale by an unknown amount and every "consistent" verdict below is really
+      // "consistent with yesterday". Worse, the mass-drift tripwire ABORTS the harvest on purpose
+      // when something is badly wrong, which is exactly when this check was most confident.
+      // A check that could not refresh its own ground truth has not passed, it has not run.
+      console.error(`facts-check: FAILED - harvest did not complete (${e.message})`);
+      console.error('C21 tests docs against facts.db, so a stale ledger makes every verdict below meaningless. Not reporting a pass.');
+      return 2;
     }
   }
 

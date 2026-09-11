@@ -283,6 +283,25 @@ function main() {
       if (STAGED) console.log('PUBLIC repo: this content would be world-visible at the next push. Unstage it (git restore --staged <path>) or gitignore it BEFORE committing.');
     }
   }
+  // A03-T-12 (2026-09-11): FAIL CLOSED ON AN EMPTY WATCH-LIST. The name half of this scan derives
+  // its watch-list from vault/people/ basenames, which is gitignored and local-only. On a fresh
+  // clone, a machine where the vault has not been restored, or any run where that directory is
+  // missing, the list is EMPTY and every name sails through - and the scan prints CLEAN, because
+  // zero names matched zero names. That is indistinguishable from a repo with no personal data in
+  // it, which is the precise shape this whole layer exists to catch: a guard that passes because
+  // it is testing nothing.
+  //
+  // Staged mode is the commit gate on a PUBLIC repo, so it refuses rather than reassures. The
+  // whole-tree mode keeps warning, because it is a reporting sweep and a fresh clone legitimately
+  // has no vault. ALEX_ALLOW_EMPTY_NAMELIST=1 is the loud, deliberate override, same pattern as
+  // ALEX_ALLOW_NO_GITLEAKS.
+  if (STAGED && (!hadPeople || watchPhrases.length + watchTokens.length === 0) && !process.env.ALEX_ALLOW_EMPTY_NAMELIST) {
+    console.error('personal-data-scan (staged): REFUSING - the name watch-list is EMPTY ' +
+      `(hadPeople=${hadPeople}, ${watchPhrases.length} phrases, ${watchTokens.length} tokens). ` +
+      'Names were not scanned at all, so a CLEAN verdict here would mean nothing. ' +
+      'Restore vault/people/, or set ALEX_ALLOW_EMPTY_NAMELIST=1 to commit with the name half switched off.');
+    process.exit(3);
+  }
   process.exit(clean ? 0 : 2);
 }
 
