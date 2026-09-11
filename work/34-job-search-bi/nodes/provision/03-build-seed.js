@@ -32,21 +32,49 @@
 const { loadSeed } = require('./_seed');
 const seed = loadSeed();
 
-const LOGIC = `
-// ---------------------------------------------------------------------------
-// Token gate. A manual run from the editor skips it, because the editor already
-// required a login. A webhook call must carry the shared token in its body.
-// ---------------------------------------------------------------------------
-const first = $input.first();
-const inJson = (first && first.json) || {};
-const cameFromWebhook = Object.prototype.hasOwnProperty.call(inJson, 'headers');
-if (cameFromWebhook) {
-  const body = inJson.body || {};
-  if (String(body.token || '') !== TOKEN) {
-    throw new Error('provision: bad or missing token. This workflow creates spreadsheets and refuses an unauthenticated caller.');
+// ---------------------------------------------------------------------------------------------
+// BUILD-TIME seed validation (added 2026-09-11 from a code review of this node). Deliberately here
+// and not inside LOGIC: a bad seed should fail before anything is PUT to the box, not halfway
+// through a run that has already created one spreadsheet.
+//
+// The dead-config check is the one that earns its place. always_drop wins over keep_if_title_has,
+// so a keep term that CONTAINS a drop term can never match anything and is silently inert config.
+// It passes today; it exists so a future edit cannot introduce one unnoticed.
+// ---------------------------------------------------------------------------------------------
+const LOWERCASE_LISTS = new Set(['keep_if_title_has', 'always_drop']);
+
+function validateSeed(sd) {
+  for (const laneKey of Object.keys(sd.lanes)) {
+    const settings = sd.lanes[laneKey].settings;
+    const fail = (k, msg) => { throw new Error('seed: ' + laneKey + '.' + k + ' ' + msg); };
+
+    for (const k of Object.keys(settings)) {
+      const v = settings[k];
+      if (!Array.isArray(v)) continue;
+      const seen = new Set();
+      for (const item of v) {
+        const t = String(item);
+        if (t === '') fail(k, 'has an empty item, which the decoder drops.');
+        if (t !== t.trim()) fail(k, 'has an item with edge whitespace the decoder trims: ' + JSON.stringify(t));
+        if (t.includes('|')) fail(k, 'has an item containing the list separator: ' + t);
+        if (LOWERCASE_LISTS.has(k) && t !== t.toLowerCase()) fail(k, 'is matched case insensitively, write it lowercase: ' + t);
+        if (seen.has(t)) fail(k, 'has a duplicate item: ' + t);
+        seen.add(t);
+      }
+    }
+
+    const drop = settings.always_drop || [];
+    for (const keep of settings.keep_if_title_has || []) {
+      const hit = drop.find(d => keep.includes(d));
+      if (hit) fail('keep_if_title_has', 'term "' + keep + '" contains always_drop term "' + hit + '" and can never match.');
+    }
   }
+  return sd;
 }
 
+validateSeed(seed);
+
+const LOGIC = `
 // ---------------------------------------------------------------------------
 // The encoder.
 // ---------------------------------------------------------------------------
@@ -135,7 +163,7 @@ module.exports = {
   type: 'n8n-nodes-base.code',
   typeVersion: 2,
   position: [240, 100],
-  connectFrom: ['Provision Webhook', 'Manual Run'],
+  connectFrom: 'Manual Run',
   parameters: {
     mode: 'runOnceForAllItems',
     jsCode,
