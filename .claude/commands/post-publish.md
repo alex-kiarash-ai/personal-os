@@ -21,4 +21,4 @@ Spec and HARD RULES: work/12-linkedin-series/CLAUDE.md. HARD GATE: only Notion S
 - Keep Morning Brief aware of slot days ("posting day: episode N staged in Drive").
 - Post-run ingestion per work/12 CLAUDE.md.
 - **Alex HQ metrics push** after any staging or published-report run (build #16 contract, work/16-alex-hq/CLAUDE.md). Never let a push failure fail the run; never print or log the token:
-  `curl -s -m 10 -X POST https://n8n.shaheenkiarash.com/webhook/alex-push -H "Content-Type: application/json" -H "X-Alex-Token: $(cat work/16-alex-hq/config/alex-hq-token.txt)" -d '{"project":"linkedin-series","metric_key":"episodes_published","value_num":{published count},"value_text":"{n} published","headline":"{latest state}","status":"green"}' || true`
+  `node scripts/lib/close-out.mjs hq-push --project alex --events '{"project":"linkedin-series","metric_key":"episodes_published","value_num":{published count},"value_text":"{n} published","headline":"{latest state}","status":"green"}' --log outputs/logs/hq-push.log`

@@ -57,7 +57,25 @@ const expandVars = (s) =>
     .replace(/^~(?=$|[\\/])/, os.homedir());
 // Probes are COMMAND NAMES from the tracked schema, never arbitrary strings, so the schema cannot
 // inject shell. shell:false throughout; npm alone needs the .cmd shim on Windows.
-const run = (cmd, args) => spawnSync(cmd, args, { encoding: 'utf8', shell: false });
+// A11-T11 (2026-09-10): on Windows a .cmd shim cannot be spawned directly at all - Node 20+ returns
+// EINVAL, and a bare name returns ENOENT - so the doctor reported the `claude` CLI ABSENT on a
+// machine that has it and holds exit 2 permanently. A doctor that is always red is a doctor nobody
+// reads. It now retries through the .cmd shim, which is the same exception the npm-globals branch
+// below already takes. Probes are COMMAND NAMES from the tracked schema, never arbitrary strings,
+// so widening this cannot inject shell.
+const run = (cmd, args) => {
+  const r = spawnSync(cmd, args, { encoding: 'utf8', shell: false });
+  if (WIN && r.error && (r.error.code === 'ENOENT' || r.error.code === 'EINVAL')) {
+    const viaShim = spawnSync(`${cmd}.cmd`, args, { encoding: 'utf8', shell: true });
+    // ONLY a real success replaces the original result. Through a shell, a MISSING command still
+    // spawns cmd.exe fine, so `error` is undefined and the caller's `!r.error` test reads it as
+    // present: the first version of this fix turned an absent rclone into a PASS whose version
+    // string was "'rclone.cmd' is not recognized as an internal or external command". Falling back
+    // to the original ENOENT keeps an absent tool absent.
+    if (!viaShim.error && viaShim.status === 0) return viaShim;
+  }
+  return r;
+};
 
 try {
   const schema = readJson(path.join(REPO, 'system', 'environment-schema.json'));

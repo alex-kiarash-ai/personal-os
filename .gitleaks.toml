@@ -58,3 +58,34 @@ keywords = ["soul-canary-token", "soul-ok"]
     '''a1b2c3d4e5f6a7b8''',
     '''deadbeefdeadbeef''',
   ]
+
+# --- RECOVERED 2026-09-10 (stress-test A06-T12) ------------------------------------------------
+# The block below was written 2026-08-23 (commit c1d4755) and stranded on an unpushed local branch,
+# so it reached no working tree. The monthly S1 sweep has reported the same three already-remediated
+# findings every run since, which is exactly how a check that is red forever teaches people to stop
+# reading it. Recovered verbatim: the reasoning it carries is the point of the block.
+  # --- Commit pin, added 2026-08-23 ------------------------------------------------------------
+  # The 2026-08-05 leak commit, d723c47. Three matches: scripts/lib/soul-canary.ps1 (x2) and
+  # scripts/tests/test-soul-canary.ps1 (x1). ALREADY REMEDIATED: the token was rotated that day and
+  # the literals redacted at HEAD. Re-verified 2026-08-23 by shape-free measurement, extracting every
+  # 12+ hex run from both files at that commit and comparing against the live value in soul.md; the
+  # live value does not appear there. The exposed value is dead and grants nothing.
+  #
+  # WHY PIN INSTEAD OF PURGE: the commit is PUBLIC history. Rewriting it would need a force-push, and
+  # the 08-05 entry deliberately ruled that out for a non-credential integrity marker that is already
+  # rotated. So the match is permanent and correct, and without this pin S1 goes red on EVERY sweep
+  # forever for a closed finding. A check that is red forever is one nobody reads (the C20/F-14
+  # lesson), so an un-pinned true positive here would quietly disable S1's real alarms.
+  #
+  # SCOPE, DELIBERATELY THE NARROWEST THAT WORKS: commit-scoped AND rule-scoped.
+  #   - NOT a path allowlist. A whole-path exemption is what made test-soul-canary.ps1 the single
+  #     gitleaks-blind file in the repo until 2026-08-05 (see the header note above).
+  #   - NOT a global [allowlist] commits entry. That would blind EVERY rule for this commit, which is
+  #     the same blind-spot trap one level up: a real AWS key in d723c47 would then be invisible too.
+  #   - NOT a regex/value exemption. The dead value must still be caught if it ever reappears in a
+  #     NEW commit, which is exactly what a value allowlist would prevent.
+  # This entry suppresses ONLY alex-soul-canary-token, ONLY in this one commit. Every other rule
+  # still scans d723c47, and this rule still scans every other commit and all staged content.
+  [[rules.allowlists]]
+  description = "Remediated 2026-08-05 canary leak in d723c47 (rotated + redacted; public history, not rewritten)"
+  commits = ["d723c474d143806f4ab39824e2c9a462b509c4e9"]

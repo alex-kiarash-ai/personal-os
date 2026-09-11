@@ -49,8 +49,12 @@ import fs from 'node:fs';
 import https from 'node:https';
 import { spawnSync } from 'node:child_process';
 import { paths, manifest, secret, ROOT } from './lib/paths.mjs';
+import { installExitSignal } from './lib/task-signal.mjs';
 
 const DRY = process.argv.includes('--dry-run');
+// C31 dead-man signal (stress-test S-D3, 2026-09-04): emit one on exit so this daily watcher, a
+// zero-token node task that never sourced common.sh, proves it ran; --dry-run is a test and is skipped.
+installExitSignal(ROOT, 'PersonalOS-n8n-active-check', DRY);
 const N8N_BASE = 'https://n8n.shaheenkiarash.com/api/v1';
 
 fs.mkdirSync(paths.logDir(), { recursive: true });
@@ -159,19 +163,44 @@ async function main() {
     }
 
     // --- LEG 2: execution health (P-02). Config-green is not run-green. -------------------------
-    // One /executions read for the whole set, then per-workflow verdicts. Kept to a single call so a
-    // daily zero-token watcher stays cheap; 250 rows covers every governed lane's recent history.
+    // PER-LANE reads since 2026-09-10 (stress-test A08-T12, FRACTURE High). This used ONE
+    // `/executions?limit=250` page for the whole set, and that page had SATURATED: 250 rows spanned
+    // 8.68 days and the cursor said there was more. Two consequences, both silent.
+    //   (a) Leg 2b's staleness threshold for a Tue/Thu lane is 8 * 2 = 16 days, which CANNOT occur
+    //       inside an 8.7-day window - so the check could never fire for the job engines at all.
+    //   (b) Leg 2a's red EXPIRES with the window: a lane that errors and then stops firing drops out
+    //       of the page after ~9 days and lands on "no executions in the window (not asserted)",
+    //       which is green. A dead pipeline self-heals into a pass.
+    // The window also shrinks as HQ traffic grows (30 rows/day now, 46 on 08-30), so the blind spot
+    // widens on its own. One `?workflowId=<id>&limit=10` per governed lane is 8 cheap calls and gives
+    // each lane its OWN recent history regardless of how loud its neighbours are. Ten rows, not the
+    // three the finding suggested: leg 2b dates the last SUCCESS, and with only three rows a lane
+    // whose last three runs were manually cancelled would read as "no success" while its scheduled
+    // runs were fine. Ten is still cheap and gives that leg room to be right.
     if (checked > 0) {
       try {
-        const ex = await getJson(`${N8N_BASE}/executions?limit=250&includeData=false`, headers, 30000);
-        const exRows = Array.isArray(ex.data) ? ex.data : [];
-        say(`executions read: ${exRows.length}`);
+        let readOk = 0;
         for (const w of expected) {
-          const mine = exRows
-            .filter((r) => r.workflowId === w.id)
-            .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+          let mine = [];
+          try {
+            const ex = await getJson(`${N8N_BASE}/executions?workflowId=${encodeURIComponent(w.id)}&limit=10&includeData=false`, headers, 20000);
+            mine = (Array.isArray(ex.data) ? ex.data : []).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+            readOk++;
+          } catch (e) {
+            // A per-lane read failure is the flag leg's API-outage posture: noted, never a false RED.
+            say(`exec: ${w.label} - executions unreadable this run (${e.message})`);
+            continue;
+          }
           if (mine.length === 0) {
-            say(`exec: ${w.label} - no executions in the window (not asserted)`);
+            // CHANGED 2026-09-10: silence is only innocent for a lane that declares no cadence.
+            // A cron-bearing lane with NO executions at all is the exact silent-death case leg 2b
+            // was built for, and calling it "not asserted" is what let it read green.
+            if (w.cron) {
+              stale.push(`${w.label} has NO executions at all (cron '${w.cron}')`);
+              say(`STALE: ${w.label} declares cron '${w.cron}' but has no executions on record`);
+            } else {
+              say(`exec: ${w.label} - no executions (no n8n_cron declared, cadence not asserted)`);
+            }
             continue;
           }
 
@@ -208,6 +237,7 @@ async function main() {
             say(`ok: ${w.label} last run success, ${ageD}d ago (window ${days * 2}d)`);
           }
         }
+        say(`executions read per lane: ${readOk}/${expected.length} lane(s) answered`);
       } catch (e) {
         // Executions unreadable is NOT drift - same posture as the flag leg's API-outage case.
         say(`executions unreadable this run (leg 2 skipped): ${e.message}`);

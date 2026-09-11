@@ -65,7 +65,7 @@ const REPO = path.join(__dirname, '..');
 // deriving its expectation from prose (the V6 lesson): so V_MAX is declared HERE, once, and
 // generate-alex.js + the recall h-validators harvester + narrative-drift-check.py all read THIS
 // declaration (a structured `const V_MAX = <n>`), never a printed string or a prose claim.
-const V_MAX = 17;
+const V_MAX = 19;
 const SUITE_RANGE = `G1-G4 + V1-V${V_MAX}`;
 
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -784,6 +784,12 @@ function v7StateDriftLint({ stagedDir, manifest }, failures, warnings) {
             if (stateContradicts(word, p.state))
               warnings.push(`WARNING V7: ${rel}:${i + 1} heading says ${word} but system/manifest.json says ${p.name} is ${p.state}`);
         }
+      } else {
+        // A17-T15 (2026-09-10): an absent page was SILENTLY SKIPPED, so a project could declare a
+        // doc in the registry and ship without one. #33 revit-architect did exactly that: `docs`
+        // named 33-revit-architect.md while docs/projects/ went 01..32 with no 33, and nothing in
+        // the suite could say so, because the only assertion was about a file that had loaded.
+        if (p.state !== 'RETIRED') failures.push(`FAILED V7: ${rel} is declared in system/manifest.json (#${p.num} ${p.name}) but does not exist on disk`);
       }
     }
   }
@@ -1072,7 +1078,11 @@ function v10ProtectedFileGuard({ context, changed }, failures, warnings) {
   if (context !== 'pre-commit' || !changed) return; // armed only by the commit hook
   let changeset;
   try { changeset = readStagedChangeset(); }
-  catch (e) { warnings.push(`WARNING V10 SKIPPED: could not read the staged changeset via git - ${e.message}`); return; }
+    // A06-T11 (2026-09-10): this DEGRADED to a warning while the gitleaks leg BLOCKS when it
+    // cannot run. Same situation, opposite posture. A guard that cannot read the changeset has not
+    // checked anything, and on a PUBLIC repo the cost of a wrong pass is unrecoverable while the
+    // cost of a wrong block is one delayed commit. Fail CLOSED, like its neighbour.
+  catch (e) { failures.push(`FAILED V10: could not read the staged changeset via git - ${e.message}`); return; }
   const res = evaluateProtectedChangeset(changeset);
   for (const f of res.failures) failures.push(f);
   for (const w of res.warnings) warnings.push(w);
@@ -1093,7 +1103,8 @@ function v11IgnoredStagedGuard({ context, changed }, failures, warnings) {
     out = execFileSync('git', ['ls-files', '--cached', '--ignored', '--exclude-standard'],
       { cwd: REPO, encoding: 'utf8', maxBuffer: 1 << 24 });
   } catch (e) {
-    warnings.push(`WARNING V11 SKIPPED: could not list tracked-vs-ignored paths via git - ${e.message}`);
+    // A06-T11: same reasoning as V10 above - unable to check is not the same as clean.
+    failures.push(`FAILED V11: could not list tracked-vs-ignored paths via git - ${e.message}`);
     return;
   }
   const paths = out.split('\n').map(s => s.trim()).filter(Boolean);
@@ -1136,7 +1147,31 @@ function v12TrifectaGate({ stagedDir, manifest }, failures, warnings) {
       if (!p.work_dir) { failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but has no work_dir to hold its ## Trifecta line`); continue; }
       const rel = p.work_dir.replace(/\\/g, '/') + '/CLAUDE.md';
       const cm = effective(stagedDir, rel);
-      if (!cm) { failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but ${rel} was not found`); continue; }
+      if (!cm) {
+        /*
+         * A02-T-05 (2026-09-11): a FRESH CLONE of the public repo failed its own validator here.
+         * #33's whole work dir is gitignored by Shaheen's explicit 2026-08-20 decision (the spec
+         * restates his five private protocol files, which he chose to keep off a public repo until
+         * the function proves itself), while the TRACKED manifest still declares its gate. So the
+         * clone sees a gate with no spec and reports drift for a file that is absent on purpose.
+         *
+         * Tracking the spec would override his decision and dropping the gate would lose a real
+         * declaration, so neither is right. A deliberately-ignored work dir is a LOUD SKIP: on the
+         * machine that owns the project the file is there and this check does its job, and on a
+         * clone the absence is by design. Anything else missing is still a failure.
+         */
+        let ignored = false;
+        try {
+          require('child_process').execFileSync('git', ['check-ignore', '-q', rel], { cwd: REPO, stdio: 'ignore' });
+          ignored = true;
+        } catch { /* exit 1 = not ignored, which is the normal case */ }
+        if (ignored) {
+          warnings.push(`WARNING V12 SKIPPED: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" and ${rel} is GITIGNORED by design, so its ## Trifecta line cannot be asserted from a clone. On the owning machine this check runs normally.`);
+        } else {
+          failures.push(`FAILED V12: project ${pad(p.num)} ${p.title} declares gate "${t.gate}" but ${rel} was not found`);
+        }
+        continue;
+      }
       const sec = mdSection(cm.text, /^##\s+Trifecta\b/m);
       if (sec === null) { failures.push(`FAILED V12: ${rel} is missing a "## Trifecta" section (project ${pad(p.num)} declares gate "${t.gate}")`); continue; }
       // The gate must appear on a `Gate:` DECLARATION line, not merely somewhere in the section.
@@ -1391,9 +1426,18 @@ function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
   if (!budget) return; // not armed until the contract exists
   const claude = effective(stagedDir, 'CLAUDE.md');
   if (!claude) return; // G2 already fails a missing CLAUDE.md
-  const bytes = Buffer.byteLength(claude.text);
+  // Measure the CONSTITUTION, not the generated regions inside the same file (stress-test A02-T16 /
+  // A03-T3, 2026-09-04): the routing table and the auto-skills rows are generated from the registry
+  // and grow with every project, and charging them to the budget left 38 B of headroom, so the
+  // next standing-order sentence (or one longer one_liner) would have blocked every commit
+  // including the nightly backup. The note above says the budget guards regrowth of the
+  // rulebook; this is what it now measures.
+  const constitutionOnly = claude.text
+    .replace(/<!-- ROUTING-TABLE:BEGIN[\s\S]*?<!-- ROUTING-TABLE:END -->/, '')
+    .replace(/<!-- ALEX-AUTO-SKILLS:BEGIN[\s\S]*?<!-- ALEX-AUTO-SKILLS:END -->/, '');
+  const bytes = Buffer.byteLength(constitutionOnly);
   if (bytes > budget) {
-    failures.push(`FAILED V16: CLAUDE.md is ${bytes} B against meta.constitution.byte_budget ${budget} B - ` +
+    failures.push(`FAILED V16: CLAUDE.md (constitution only, generated regions excluded) is ${bytes} B against meta.constitution.byte_budget ${budget} B - ` +
       `the constitution is regrowing. Keep the operative sentence here and move the narrative to ` +
       `docs/constitution-annex/ (the 2026-08-16 diet pattern); raise the budget only as a deliberate manifest edit.`);
   }
@@ -1407,6 +1451,92 @@ function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
 //       Compute-and-compare: skill tokens parsed from the Skill(s) CELL of MANDATORY rows only
 //       (kebab-case tokens), each asserted resolvable. ERROR tier.
 // ---------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------
+// V18 - no stray CONTROL CHARACTER in tracked source (2026-09-10).
+// Born from three sightings of one class in a single day, plus an older one already recorded in the
+// technical master. Writing a backslash-b, backslash-f or backslash-zero escape inside a NON-RAW
+// string in a generator script puts a REAL control byte into the output: backspace, formfeed, or an
+// octal escape. The result LOOKS correct in an editor and in a diff, and it silently disables
+// whatever it landed in: a regex that can never match, a path that cannot resolve. Today it shipped
+// a recovery check and a narrative-drift claim that both tested NOTHING while reporting healthy,
+// which is the exact dead-check-green shape this suite exists to catch. (The escape names are
+// spelled out in words here on purpose: the first version of this comment contained the very bytes
+// it describes, and this check could not see them because it was broken in a second way at the
+// same time.)
+// TAB, LF and CR are legal. Every other C0 byte is not, unless the file declares an
+// `ALEX-ALLOW-CONTROL-BYTES: <reason>` marker.
+/*
+ * V19 - the DORMANT/PARKED two-strike rule is representable and enforced (A01-T-05, 2026-09-11).
+ *
+ * meta.states_doc has said this since the states were written: "DORMANT = built, waiting on an
+ * external dependency (name it + revisit date; two unchanged revisits force activate-or-retire).
+ * PARKED = deliberately stopped (resume context + revisit date; same two-strike rule)."
+ *
+ * None of it was checkable. A row carries ONE `revisit` date and no way to record that a revisit
+ * HAPPENED, so "two unchanged revisits" could not be counted, no check read the field at all, and
+ * a lapsed date produced no signal anywhere: #28 chat-gateway was four days from its second lapse
+ * with nothing watching. A rule nothing can represent is a rule the system does not have.
+ *
+ * Three assertions, deliberately split by severity, because the point is a nudge that escalates
+ * rather than a wall that gets waived:
+ *   - a DORMANT/PARKED row with NO revisit date at all -> FAIL (the states_doc requires one)
+ *   - a revisit date in the past                       -> WARNING (it is due, go look)
+ *   - two or more recorded revisits with the state unchanged -> FAIL (activate or retire; that IS
+ *     the two-strike rule, and it is the whole reason the history field exists)
+ */
+function v19RevisitDiscipline({ stagedDir }, failures, warnings) {
+  let manifest;
+  try {
+    const eff = effective(stagedDir, 'system/manifest.json');
+    if (!eff) throw new Error('not found');
+    manifest = JSON.parse(eff.text);
+  } catch (e) {
+    failures.push(`FAILED V19: cannot read system/manifest.json (${e.message})`);
+    return;
+  }
+  const today = new Date().toLocaleDateString('sv-SE');
+  for (const p of manifest.projects || []) {
+    if (!/^(DORMANT|PARKED)$/.test(String(p.state || ''))) continue;
+    const who = `#${p.num} ${p.name} (${p.state})`;
+    if (!p.revisit) {
+      failures.push(`FAILED V19: ${who} carries no revisit date. meta.states_doc requires one for every DORMANT/PARKED row, and without it the two-strike rule can never fire.`);
+      continue;
+    }
+    const hist = Array.isArray(p.revisit_history) ? p.revisit_history : [];
+    const unchanged = hist.filter((h) => h && h.outcome === 'unchanged').length;
+    if (unchanged >= 2) {
+      failures.push(`FAILED V19: ${who} has ${unchanged} revisits recorded with the state unchanged. meta.states_doc: two unchanged revisits force activate-or-retire. Decide it, or the row is permanent by neglect.`);
+    } else if (p.revisit < today) {
+      warnings.push(`WARNING V19: ${who} revisit date ${p.revisit} has passed (today ${today}). Review it and append {date, outcome} to revisit_history: outcome "unchanged" counts a strike, "activated" or "retired" closes it.`);
+    }
+  }
+}
+
+function v18ControlCharacters({ stagedDir }, failures) {
+  const SCAN = ['.js', '.mjs', '.cjs', '.py', '.sh', '.json', '.md'];
+  const BAD = new RegExp('[\u0000-\u0008\u000b\u000c\u000e-\u001f]');
+  let files = [];
+  try {
+    files = require('child_process')
+      .execFileSync('git', ['ls-files'], { cwd: REPO, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
+      .split(String.fromCharCode(10)).map((f) => f.trim()).filter(Boolean);
+  } catch { return; }   // no git = nothing to assert, not a failure
+  for (const rel of files) {
+    if (!SCAN.includes(path.extname(rel))) continue;
+    const eff = effective(stagedDir, rel);
+    if (!eff) continue;
+    // A file may use a control byte ON PURPOSE (a NUL as a composite-key separator, for instance).
+    // It declares that with a reasoned marker, so the exception lives beside the code rather than in
+    // a list somewhere else, and a reader meeting the byte finds the reason immediately.
+    if (/ALEX-ALLOW-CONTROL-BYTES:\s*\S/.test(eff.text)) continue;
+    const m = BAD.exec(eff.text);
+    if (!m) continue;
+    const line = eff.text.slice(0, m.index).split(String.fromCharCode(10)).length;
+    const code = m[0].charCodeAt(0).toString(16).padStart(2, '0');
+    failures.push(`FAILED V18: ${rel}:${line} holds a stray control byte (0x${code}). Almost always an escape written inside a NON-RAW string by a generator script: invisible in an editor, and it silently breaks the regex or path it landed in.`);
+  }
+}
+
 function v17MandatorySkillBindings({ stagedDir }, failures) {
   const claude = effective(stagedDir, 'CLAUDE.md');
   if (!claude) return; // G2 owns a missing CLAUDE.md
@@ -1415,7 +1545,21 @@ function v17MandatorySkillBindings({ stagedDir }, failures) {
   for (const row of rows) {
     const cells = row.split('|').map(c => c.trim());
     if (cells.length < 4) continue;
-    for (const tok of (cells[2].match(/[a-z0-9]+(?:-[a-z0-9]+)+/g) || [])) skills.add(tok);
+    /*
+     * A03-T-10 (2026-09-11): the group carried a `+`, so a token needed AT LEAST ONE HYPHEN to be
+     * seen. Every MANDATORY skill happens to be hyphenated today (n8n-code-javascript,
+     * skill-creator), so the check has always looked like it works - but the moment a MANDATORY row
+     * names a one-word skill (`pptx`, `pdf`, `brand`), V17 silently asserts nothing about it and a
+     * parked or missing binding passes. The failure arrives with the next row somebody adds.
+     *
+     * `*` instead of `+`, with a stoplist: the cell is prose as well as names ("then", "and", "+"),
+     * so widening the match without one turns connectives into phantom skill names and V17 starts
+     * failing on skills that were never claimed.
+     */
+    const STOP = new Set(['then', 'and', 'or', 'via', 'plus', 'the', 'a', 'an', 'with', 'for', 'use', 'first']);
+    for (const tok of (cells[2].match(/[a-z0-9]+(?:-[a-z0-9]+)*/g) || [])) {
+      if (!STOP.has(tok)) skills.add(tok);
+    }
   }
   if (skills.size === 0) return; // no MANDATORY rows = nothing to assert (not an error shape)
   const dead = [];
@@ -1479,11 +1623,21 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   if (manifest) v15CommandHeaders({ stagedDir, manifest }, failures, warnings); // command-file state/trigger headers (WARN-tier for now)
   if (manifest) v16ConstitutionBudget({ stagedDir, manifest }, failures); // constitution byte budget (armed by meta.constitution)
   v17MandatorySkillBindings({ stagedDir }, failures); // MANDATORY skill rows resolve to live junctions (every run)
+  v18ControlCharacters({ stagedDir }, failures);      // no stray control byte in tracked source (every run)
+  v19RevisitDiscipline({ stagedDir }, failures, warnings); // DORMANT/PARKED revisit dates + the two-strike rule (every run)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
-  if (failures.length === 0)
-    console.log(`validate-alex: ${SUITE_RANGE} PASS (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+  if (failures.length === 0) {
+    // A03-T-11 (2026-09-11): the verdict word distinguishes "every check ran and passed" from
+    // "some checks did not run at all". V6 and V8 can SKIP entirely (no live credentials, no
+    // sibling repo) and the summary still read PASS with a warning count beside it, which is the
+    // dead-check-green shape this suite exists to catch, printed by the suite itself. A skip is
+    // not a pass; it is an absence of evidence, and the one-line verdict is what most readers see.
+    const skipped = warnings.filter((w) => /SKIPPED|WAIVED/i.test(w));
+    const verdict = skipped.length ? `PASS-WITH-SKIPS (${skipped.length} check(s) did NOT run)` : 'PASS';
+    console.log(`validate-alex: ${SUITE_RANGE} ${verdict} (context=${context}${warnings.length ? `, ${warnings.length} warning(s) - see above` : ''})`);
+  }
   return { ok: failures.length === 0, failures, warnings, range: SUITE_RANGE };
 }
 
@@ -1495,12 +1649,25 @@ if (require.main === module) {
     console.error(`validate-alex: unknown --context '${context}' (valid: generator, pre-commit)`);
     process.exit(1);
   }
-  const stagedDir = stagedArg ? path.resolve(stagedArg.split('=')[1]) : path.join(REPO, '.staging');
+  // .staging/ is the GENERATOR's preview tree, never the thing a commit ships. Arming it by mere
+  // existence let a CLEAN ghost shadow a BROKEN tree at commit time: `effective()` prefers the staged
+  // copy, so a poisoned CLAUDE.md in the working tree produced no G2 line at all and the commit passed
+  // (P-08 08-05, A03-T8b 09-09; a successful `generate-alex.js --dry-run` leaves .staging behind by
+  // design, so the ghost is the normal state after any dry-run). The preview is only authoritative for
+  // the context that produced it, or when a caller names it outright.
+  const explicitStaged = Boolean(stagedArg);
+  let stagedDir = explicitStaged ? path.resolve(stagedArg.split('=')[1]) : path.join(REPO, '.staging');
+  if (!explicitStaged && context !== 'generator') {
+    if (fs.existsSync(stagedDir)) {
+      console.error(`validate-alex: NOTE .staging/ exists and is IGNORED in context=${context} - the working tree is what a commit ships (pass --staged=<dir> to validate a preview tree deliberately)`);
+    }
+    stagedDir = undefined;
+  }
   const changed = process.argv.includes('--changed'); // arms V10 (pre-commit hook passes it)
   // process.exitCode (not process.exit()): a hard exit right after fetch trips a libuv teardown
   // assertion on Windows (uv async handle still closing). Letting the loop drain is safe and the
   // exit code is identical for the caller.
-  runAll({ stagedDir: fs.existsSync(stagedDir) ? stagedDir : undefined, context, changed })
+  runAll({ stagedDir: stagedDir && fs.existsSync(stagedDir) ? stagedDir : undefined, context, changed })
     .then(({ ok }) => { process.exitCode = ok ? 0 : 1; })
     .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }

@@ -25,7 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
+const { execSync, execFileSync, spawnSync } = require('child_process');
 
 const REPO = path.join(__dirname, '..');
 const CONFIG = path.join(REPO, 'system', 'skills-sources.json');
@@ -36,6 +36,13 @@ const BIND_BEGIN = '<!-- ALEX-AUTO-SKILLS:BEGIN -->';
 const BIND_END = '<!-- ALEX-AUTO-SKILLS:END -->';
 
 const DRY = process.argv.includes('--dry-run');
+
+// A12-T-09 (2026-09-11): re-audit what is ALREADY installed against today's rules. Runs before any
+// lock or network work, because it touches neither. Exits 2 on findings so a weekly caller can act
+// on the code without parsing prose.
+if (process.argv.includes('--reaudit-installed')) {
+  process.exit(reauditInstalled());
+}
 const today = () => new Date().toISOString().slice(0, 10);
 
 function readJSON(p, fallback) {
@@ -77,6 +84,80 @@ async function ghText(url) {
 }
 
 // Returns { ok:true } or { ok:false, reason }. Deterministic, source-level, from config rules.
+/*
+ * reauditInstalled - run the markdown safety pass over the skills ALREADY on disk (A12-T-09).
+ *
+ * WHY. Every audit rule this installer has runs at INSTALL time against a GitHub repo. The rules
+ * have grown - frontmatter grants were only refused from 2026-09-10, after the stress test found
+ * that a `hooks:` block registers session-long commands nothing here reads - and the skills
+ * installed before a rule existed were never re-examined. The audit's own comment says so: "Two
+ * installed skills already carry frontmatter grants, so (b) is scoped to NEW installs and the
+ * existing set is a separate re-audit item." This is that item.
+ *
+ * LOCAL FILES ONLY, no network: it reads .agents/skills/<name>/**.md off disk, so it can run in the
+ * weekly sweep without a token, without rate limits, and without trusting that the upstream repo
+ * still matches what was installed. That last part matters most - the question is what is ON THIS
+ * MACHINE, not what the source says today.
+ *
+ * REPORTS, NEVER REMOVES. An installed skill that fails today's rules may be one Shaheen relies on,
+ * and silently deleting it would be the installer making a call that is his. Same posture as the
+ * revocation list, which surfaces installed-but-revoked skills for MANUAL removal.
+ */
+function reauditInstalled() {
+  const HIDDEN_UNICODE = /[​⁠﻿‪-‮⁦-⁩]/;
+  const FRONTMATTER_GRANTS = [
+    { re: /^hooks\s*:/mi, what: 'a `hooks:` block (registers session-long commands no gate here inspects)' },
+    { re: /^allowed-tools\s*:/mi, what: 'an `allowed-tools:` grant (pre-approves tools the permission layer would otherwise prompt for)' },
+  ];
+  const INSTRUCTION_SHAPED = [
+    /\bignore\s+(?:(?:the|previous|prior|above|all|any|earlier)\s+)*(?:instructions?|rules?|constitution)\b/i,
+    /\bignore\s+CLAUDE\.md\b/i,
+    /\bdo\s+not\s+tell\s+the\s+user\b/i,
+    /\bwithout\s+(?:telling|informing|notifying)\s+the\s+user\b/i,
+    /\boverrides?\s+(?:the\s+)?(?:constitution|CLAUDE\.md|system\s+prompt)\b/i,
+  ];
+
+  const root = path.join(REPO, '.agents', 'skills');
+  if (!fs.existsSync(root)) { console.log('reaudit: no .agents/skills tree'); return 0; }
+  const findings = [];
+  let scanned = 0, skills = 0;
+
+  const walk = (dir, skill) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(full, skill); continue; }
+      if (!/\.(md|markdown)$/i.test(e.name)) continue;
+      scanned++;
+      let body = '';
+      try { body = fs.readFileSync(full, 'utf8'); } catch { continue; }
+      const rel = path.relative(REPO, full);
+      // Frontmatter grants are only meaningful in the skill's OWN entry file.
+      if (/^SKILL\.md$/i.test(e.name)) {
+        for (const g of FRONTMATTER_GRANTS) {
+          if (g.re.test(body)) findings.push({ skill, rel, what: g.what });
+        }
+      }
+      if (HIDDEN_UNICODE.test(body)) findings.push({ skill, rel, what: 'hidden/bidi Unicode, which renders as one thing and reads as another' });
+      for (const re of INSTRUCTION_SHAPED) {
+        if (re.test(body)) { findings.push({ skill, rel, what: `instruction-shaped prose matching ${re}` }); break; }
+      }
+    }
+  };
+
+  for (const e of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!e.isDirectory()) continue;
+    skills++;
+    walk(path.join(root, e.name), e.name);
+  }
+
+  console.log(`reaudit-installed: ${skills} skill(s), ${scanned} markdown file(s) scanned, ${findings.length} finding(s)`);
+  for (const f of findings) console.log(`  [${f.skill}] ${f.rel}: ${f.what}`);
+  if (findings.length) {
+    console.log('These are REPORTED, not removed: an installed skill failing the current rules may be one in daily use, and that call is Shaheen’s.');
+  }
+  return findings.length ? 2 : 0;
+}
+
 async function auditRepo(owner, repo, skillName, cfg) {
   const a = cfg.audit || {};
   const blockPaths = (a.block_repo_paths || []).map(s => s.toLowerCase());
@@ -107,7 +188,12 @@ async function auditRepo(owner, repo, skillName, cfg) {
   // so the audit is scoped to the SKILL'S OWN directory - not the whole repo (that would wrongly block
   // trusted plugin repos like obra/superpowers that ship root hooks). If the skill dir can't be located,
   // fall back to whole-repo (a missing skill dir is itself suspicious).
-  const skillDir = paths.find(p => new RegExp(`(^|/)${skillName}/SKILL\\.md$`, 'i').test(p));
+  // No RegExp here on purpose: skillName is MODEL-AUTHORED (it arrives in the weekly eval's json
+  // block, assembled from skill-market rows). Interpolating it into a pattern made a metachar throw
+  // out of the audit into the caller's catch, which reports 'audit error' instead of a clean refusal
+  // (A12-T11). A plain string compare cannot be broken by any character the name contains.
+  const wantTail = (skillName + '/SKILL.md').toLowerCase();
+  const skillDir = paths.find(p => { const lp = p.toLowerCase(); return lp === wantTail || lp.endsWith('/' + wantTail); });
   const dirPrefix = skillDir ? skillDir.replace(/SKILL\.md$/i, '') : '';
   const inScope = p => (dirPrefix ? p.startsWith(dirPrefix) : true);
 
@@ -166,9 +252,54 @@ async function auditRepo(owner, repo, skillName, cfg) {
     /\bpip3?\s+install\b/i, /\buv\s+tool\s+install\b/i, /\buvx\s+/i,
     /\bnpm\s+(?:i|install)\s+(?:-g|--global)\b/i, /\bpipx\s+install\b/i,
     /--break-system-packages/i,
+    // 2026-09-10 (A12-T6): the 08-23 pass closed the literal graphify verb list and nothing else.
+    /\bcurl\s[^\n]*\|\s*(?:ba)?sh\b/i, /\bwget\s[^\n]*\|\s*(?:ba)?sh\b/i,
+    /\bnpx\s+-y\b/i, /\bpoetry\s+add\b/i, /\bcargo\s+install\b/i, /\bbrew\s+install\b/i,
+    /\bgem\s+install\b/i, /\bgo\s+install\b/i,
   ];
+
+  /*
+   * 2026-09-10, stress-test A12-T6 (FRACTURE High). A synthetic SKILL.md carrying a `hooks:` block,
+   * a `child_process.exec` line, a curl to an external host and an ignore-the-constitution sentence
+   * PASSED this audit singly and all four together. The blind spot was structural: step 3's token and
+   * domain lists are applied to .js/.sh/.py/.ps1 only, and an agent skill's SKILL.md IS the payload -
+   * an agent reading it executes what it says, and no script file has to exist at all.
+   *
+   * Three additions, in the order a payload is most likely to arrive:
+   *   (a) FENCED CODE in markdown is executable content: the same block_if_scripts_touch tokens and
+   *       allowed_outbound_domains that guard real script files now apply inside ``` fences.
+   *   (b) FRONTMATTER GRANTS are refused: `hooks:` registers session-long commands this installer
+   *       never reads, and `allowed-tools:` pre-approves tools the permission layer would otherwise
+   *       prompt for. Both are capability grants arriving with untrusted content (A14-T7).
+   *   (c) INSTRUCTION-SHAPED text aimed at the agent - "ignore the constitution", "do not tell the
+   *       user" - is refused. A deliberately NARROW list of imperatives with no honest use in a skill
+   *       description, NOT a general prompt-injection classifier: a classifier here would false-
+   *       positive on security skills that legitimately DISCUSS injection, and a gate that cries wolf
+   *       gets removed. Two installed skills already carry frontmatter grants (A14-T7), so (b) is
+   *       scoped to NEW installs and the existing set is a separate re-audit item.
+   */
+  const FRONTMATTER_GRANTS = [
+    { re: /^hooks\s*:/mi, what: 'a `hooks:` block, which registers session-long commands this installer never reads and no gate here inspects' },
+    { re: /^allowed-tools\s*:/mi, what: 'an `allowed-tools:` grant, which pre-approves tools the permission layer would otherwise prompt for' },
+  ];
+  const INSTRUCTION_SHAPED = [
+    /\bignore\s+(?:(?:the|previous|prior|above|all|any|earlier)\s+)*(?:instructions?|rules?|constitution)\b/i,
+    /\bignore\s+CLAUDE\.md\b/i,
+    /\bdisregard\s+(?:(?:the|previous|prior|above|all|any|earlier)\s+)*(?:instructions?|rules?|constitution)\b/i,
+    /\bdo\s+not\s+tell\s+the\s+user\b/i,
+    /\bwithout\s+(?:telling|informing|notifying)\s+the\s+user\b/i,
+    /\balways\s+follow\s+this\s+file\s+(?:instead|first)\b/i,
+    /\boverrides?\s+(?:the\s+)?(?:constitution|CLAUDE\.md|system\s+prompt)\b/i,
+  ];
+  const fencedCode = (body) => [...body.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((m) => m[1]).join('\n');
+
   const docs = paths.filter(p => inScope(p) && /\.(md|markdown)$/i.test(p));
-  for (const dp of docs.slice(0, 20)) {
+  // Over the cap = REFUSED, not partly read. The old slice(0, 20) left the rest unexamined, which is
+  // an unbounded hole wearing the costume of a bound.
+  if (docs.length > 20) {
+    return { ok: false, reason: `skill dir carries ${docs.length} markdown files, over the audit cap of 20 - refused rather than partly audited` };
+  }
+  for (const dp of docs) {
     let body = '';
     try { body = await ghText(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${dp}`); }
     catch { continue; }
@@ -178,6 +309,27 @@ async function auditRepo(owner, repo, skillName, cfg) {
     const hitInstall = INSTALL_BY_INSTRUCTION.find(re => re.test(body));
     if (hitInstall) {
       return { ok: false, reason: `doc ${dp} instructs a package install in prose (${hitInstall.source}) - install-by-instruction is invisible to the script-scoped audit and is how a skill self-installs code (the graphify class)` };
+    }
+    const front = /^---\n([\s\S]*?)\n---/.exec(body);
+    if (front) {
+      const grant = FRONTMATTER_GRANTS.find(g => g.re.test(front[1]));
+      if (grant) return { ok: false, reason: `doc ${dp} frontmatter declares ${grant.what} - a capability grant arriving with untrusted content (A12-T6, A14-T7)` };
+    }
+    const code = fencedCode(body);
+    if (code) {
+      const lcCode = code.toLowerCase();
+      const hitCodeTok = blockTokens.find(t => lcCode.includes(String(t).toLowerCase()));
+      if (hitCodeTok) return { ok: false, reason: `doc ${dp} contains fenced code using "${hitCodeTok}" - an agent reading a SKILL.md executes what it says, so fenced code is held to the same rules as a script file` };
+      for (const m of code.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) {
+        const host = m[1].toLowerCase();
+        if (!allowedDomains.some(d => host === d || host.endsWith('.' + d))) {
+          return { ok: false, reason: `doc ${dp} has fenced code calling non-allowlisted host ${host}` };
+        }
+      }
+    }
+    const hitInstr = INSTRUCTION_SHAPED.find(re => re.test(body));
+    if (hitInstr) {
+      return { ok: false, reason: `doc ${dp} contains instruction-shaped text aimed at the agent (${hitInstr.source}) - a skill describes a capability, it does not tell the agent to ignore its constitution or hide its actions` };
     }
   }
 
@@ -303,12 +455,13 @@ function acquireLock() {
 }
 function releaseLock() { if (heldLock) heldLock.release(); }
 
-// --- Class E security preflight (2026-07-21): the auto-install commit uses --no-verify, so the full
-// pre-commit suite (with its live-n8n V6) can't block a headless install - which leaves this the ONE
-// commit path that skips the hook. Run the SECURITY-critical guards here explicitly before committing to
-// the PUBLIC repo: V11 (no gitignored path forced-added, which would push a secret world-visible) + V10
-// (no protected/immutable NEVER-TOUCH file mutated). Throws to abort the commit on any violation; the
-// non-security checks stay skipped by design (that is why --no-verify is used).
+// --- Class E security preflight (2026-07-21; --no-verify dropped 2026-09-11, A16-T-05).
+// This ran because the auto-install commit used to skip the hook entirely. The commit now goes
+// through the full pre-commit suite like every other, so these are no longer the ONLY guards on
+// this path - they are the EARLY ones. Running them here means an unattended weekly install
+// diagnoses its own refusal ("V11 forced-add guard: ...") instead of dying on an opaque hook exit
+// with no operator watching. V11: no gitignored path forced-added, which would push a secret
+// world-visible. V10: no protected/immutable NEVER-TOUCH file mutated. Throws to abort.
 function securityPreflightOrThrow() {
   const v11 = execSync('git ls-files --cached --ignored --exclude-standard', { cwd: REPO }).toString()
     .split('\n').map(s => s.trim()).filter(Boolean);
@@ -318,8 +471,31 @@ function securityPreflightOrThrow() {
   if (res.failures.length) throw new Error(`V10 protected-file guard: ${res.failures.join('; ')}`);
 }
 
+// The two CONTENT scans, run here as well as in the hook (belt and braces since 2026-09-11).
+// gitleaks fail-CLOSED on a found secret; personal-data-scan fail-CLOSED on a blocking hit. Both
+// read the STAGED changeset, exactly as the hook does, so a headless install fails with a named
+// reason rather than an exit code.
+function contentScansOrThrow() {
+  try {
+    execFileSync('gitleaks', ['protect', '--staged', '--no-banner', '--redact'], { cwd: REPO, stdio: 'pipe' });
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      // Absent tool = fail-OPEN, matching the hook's documented posture, but said out loud.
+      console.log('skills-installer: WARNING gitleaks not on PATH - staged secret scan SKIPPED for this commit');
+    } else {
+      throw new Error('gitleaks found a secret in the staged changeset - commit refused (PUBLIC repo)');
+    }
+  }
+  const scan = spawnSync(process.execPath, [path.join(REPO, 'scripts', 'personal-data-scan.js'), '--staged', '--json'], { cwd: REPO, encoding: 'utf8' });
+  if (scan.status === 2) {
+    throw new Error(`personal-data-scan found blocking hits in the staged changeset - commit refused (PUBLIC repo): ${String(scan.stdout || '').slice(0, 300)}`);
+  }
+}
+
 function installSkill(repo, name) {
-  sh(`npx -y skills add ${repo} --skill ${name}`);
+  // execFileSync with an ARRAY, never a shell string: name and repo are model-authored, and a `;`
+  // in either used to reach the shell verbatim (A12-T11).
+  execFileSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['-y', 'skills', 'add', repo, '--skill', name], { cwd: REPO, stdio: 'inherit' });
   // Verify the universal copy exists; ensure the .claude/skills symlink is present (Windows gotcha).
   const universal = path.join(REPO, '.agents', 'skills', name);
   if (!fs.existsSync(universal)) throw new Error(`.agents/skills/${name} missing after add`);
@@ -356,7 +532,12 @@ if (require.main === module) (async () => {
   const lock = readJSON(LOCK, { skills: {} });
   const installed = new Set(Object.keys(lock.skills || {}).map(s => s.toLowerCase()));
   const allow = new Set((cfg.trust_allowlist || []).map(a => a.toLowerCase()));
-  for (const v of Object.values(lock.skills || {})) if (v.source) allow.add(String(v.source).split('/')[0].toLowerCase());
+  // A12-T9 (2026-09-10): this line WIDENED trust automatically. Every owner already present in the
+  // lock was added to the allowlist, so 9 curated owners became 15 effective ones, and each install
+  // enlarged the set that could authorise the next. A trust list that grows by being used is not a
+  // trust list. Trust now widens only by editing `trust_allowlist` in system/skills-sources.json,
+  // which is a decision someone makes on purpose. (Removed, not commented out, so nothing re-adds it
+  // by reflex; the six history-only owners are recoverable from the lock if any is wanted.)
   const cap = cfg.weekly_install_cap || 3;
 
   // Revocation list (2026-08-05, idea 4): system/skills-sources.json `revoked` names a skill or a
@@ -377,7 +558,15 @@ if (require.main === module) (async () => {
     const name = (c.name || '').trim();
     const repo = (c.source_repo || '').trim();
     const label = name || repo || '(unnamed)';
-    if (!name || !/^[\w.-]+\/[\w.-]+$/.test(repo)) { report.flagged.push({ label, reason: 'missing name or valid owner/repo' }); continue; }
+    // A12-T11 / T-03 (2026-09-10): `name` is MODEL-AUTHORED and was checked for truthiness only,
+    // then reached a RegExp and `execSync('npx -y skills add ${repo} --skill ${name}')`. In the
+    // dry-run a name of `zz-shell;echo pwned` passed shape, revoked, watch, dedup and allowlist and
+    // reached a live audit; had that repo scanned clean, the shell line would have run.
+    if (!name || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(name)) {
+      report.flagged.push({ label, reason: `skill name ${JSON.stringify(name)} is not a plain lowercase slug (^[a-z0-9][a-z0-9-]{0,63}$) - a model-authored name reaches a shell, so its shape is enforced first` });
+      continue;
+    }
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { report.flagged.push({ label, reason: 'missing name or valid owner/repo' }); continue; }
     if (isRevoked(name, repo)) { report.flagged.push({ label, reason: 'revoked by policy (system/skills-sources.json `revoked`)' }); continue; }
     // Watch list (P2.3, 2026-08-23): NOT a refusal. A name whose caveat must be READ before install,
     // so a known-ambiguous package name can never be adopted on autopilot. Routes to manual review
@@ -423,11 +612,45 @@ if (require.main === module) (async () => {
       try { sh('node scripts/generate-alex.js --only=claude,docs'); } catch (e) { /* report but keep the install */ }
       let sha = '(commit skipped)';
       try {
-        sh('git add -A');
-        securityPreflightOrThrow();   // Class E: V11 forced-add + V10 protected-file guards before the --no-verify commit
-        sh(`git commit -m "evolution: auto-install ${name} for ${c.target_project} [skills lane #25]" --no-verify`);
+        // A12-T12 / T-04 (2026-09-10): STAGE BY PATH. `git add -A` staged every untracked,
+        // non-ignored file in the tree, so a second session's half-written note or a scratch export
+        // in outputs/ rode into a PUBLIC commit whose message named only the skill - and the
+        // --no-verify (dropped 2026-09-11) meant gitleaks and the personal-data scan never saw it.
+        // Third audit to find this (P-14 08-05, S-H1 08-29, A12-T12 09-09).
+        const stagePaths = [
+          path.join('.agents', 'skills', name),
+          path.join('.claude', 'skills', name),
+          'skills-lock.json',
+          'CLAUDE.md',
+          proj && proj.work_dir ? path.join(proj.work_dir, 'CLAUDE.md') : null,
+          'docs',
+        ].filter(Boolean);
+        for (const rel of stagePaths) {
+          if (fs.existsSync(path.join(REPO, rel))) sh(`git add -- "${rel}"`);
+        }
+        // A16-T-05 (2026-09-11): --no-verify is GONE. It was the one unattended path in the system
+        // that installs third-party files and committed them to a PUBLIC repo with the commit gate
+        // switched off, flagged by three audits running (P-14 08-05, A16-T20, A12-T12).
+        //
+        // The reason it stayed was that the hook's full suite asserts the LIVE n8n API (V6) and a
+        // headless weekly install cannot depend on the network. That reason was already stale: the
+        // hook runs `--context=pre-commit`, and in that context V6 and V2's live halves downgrade
+        // to a LOUD WARNING SKIP instead of failing (validate-alex.js:538, :556). So the flag was
+        // buying an exemption from gitleaks and the personal-data scan and nothing else.
+        //
+        // These two calls stay as the belt to the hook's braces: they run the same content scans
+        // BEFORE the commit is attempted, so a refusal is diagnosed here rather than as an opaque
+        // hook failure inside an unattended run.
+        contentScansOrThrow();
+        securityPreflightOrThrow();   // Class E: V11 forced-add + V10 protected-file guards
+        sh(`git commit -m "evolution: auto-install ${name} for ${c.target_project} [skills lane #25]"`);
         sha = sh('git rev-parse --short HEAD').trim();
-      } catch (e) { sha = `(commit failed: ${e.message.split('\n')[0]})`; }
+      } catch (e) {
+        sha = `(commit failed: ${e.message.split('\n')[0]})`;
+        // A refused commit must not leave the index holding this run's paths for the 21:30 sweep to
+        // pick up and push without any of these gates.
+        try { sh('git reset -q'); } catch { /* best effort */ }
+      }
       report.installed.push({
         label, repo, target: c.target_project, sha, note,
         wiring: `root-binding:${wiredRoot ? 'ok' : 'MISS'} local-skills:${wiredLocal ? 'ok' : 'MISS(' + (proj ? proj.work_dir : 'no project') + ')'}`,

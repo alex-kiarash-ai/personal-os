@@ -8,7 +8,9 @@
  * Rows are POINTER-STYLE: never a person's name, point at the vault page instead.
  *
  * Row shapes:
- *   open row:  {id, what, why_only_shaheen, severity: "critical"|"high"|"medium"|"low", created, due?}
+ *   open row:  {id, what, why_only_shaheen, severity: "critical"|"high"|"medium"|"low", created, due?, origin?, evidence?}
+ *   origin/evidence (2026-09-10): set when a row is raised FROM a metric rather than by Alex. The
+ *   untrusted headline goes in `evidence`, quoted and labelled on render, NEVER inside `what`.
  *   done row:  {id, done: true, done_date}            (append-only close, latest-per-id wins)
  *
  * Commands:
@@ -95,6 +97,14 @@ if (cmd === 'add') {
   const row = { id: arg('id'), what: arg('what'), why_only_shaheen: arg('why'),
     severity: arg('severity') || 'medium', created: arg('created') || today };
   if (arg('due')) row.due = arg('due');
+  // origin + evidence (2026-09-10, stress-test A09-T23 / A13-T15): a row raised FROM a metric carries
+  // text that arrived over the wire. Anyone holding the single HQ push token can POST a red headline,
+  // and the self-heal loop turned that headline into the `what` of a HIGH row - so an attacker's
+  // prose became the sentence Shaheen reads and acts on, indistinguishable from Alex's own words.
+  // `origin` names where a row came from; `evidence` holds the untrusted text, quoted and separate,
+  // never interpolated into `what`. A row with no origin is Alex's own, as every row was before.
+  if (arg('origin')) row.origin = arg('origin');
+  if (arg('evidence')) row.evidence = String(arg('evidence')).slice(0, 500);
   if (!row.id || !row.what) { console.error('add needs --id and --what'); process.exit(1); }
   if (openItems().some(r => r.id === row.id)) { console.error(`open item '${row.id}' already exists`); process.exit(1); }
   append(row);
@@ -116,7 +126,12 @@ if (cmd === 'add') {
   console.log(`Waiting on you (${items.length}):`);
   for (const r of items) {
     const due = r.due ? ` | due ${r.due}` : '';
-    console.log(`- [${r.severity.toUpperCase()}] ${r.id} (${ageDays(r.created)}d): ${r.what}${due}`);
+    // A row raised from wire data is LABELLED and its untrusted text is quoted separately, so the
+    // reader can tell Alex's own words from something a metric pushed (A09-T23).
+    const from = r.origin ? ` [raised automatically from ${r.origin}, text below is UNVERIFIED]` : '';
+    const ev = r.evidence ? `
+    evidence (as received): "${String(r.evidence).replace(/\s+/g, ' ').slice(0, 240)}"` : '';
+    console.log(`- [${r.severity.toUpperCase()}] ${r.id} (${ageDays(r.created)}d)${from}: ${r.what}${due}${ev}`);
   }
   console.log(`Close one with: node scripts/human-actions.js done <id>  (or tell Alex "done: <id>")`);
 } else if (cmd === 'sessionline') {

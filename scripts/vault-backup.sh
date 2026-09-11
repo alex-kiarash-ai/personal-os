@@ -46,8 +46,12 @@ list_file="$work/include.list"
 
 # ALWAYS shred the plaintext tar, the decrypted verify copy, the local .gpg and the list - on SIGINT
 # and SIGTERM too, not only a clean exit (the PowerShell `finally` covered only a normal unwind).
-cleanup() { rm -rf "$work"; }
-trap 'cleanup' EXIT INT TERM HUP
+# A07-T12 (2026-09-10): this trap REPLACES the library's EXIT trap in common.sh, which is what
+# removes $TMPOUT. Overriding it without carrying that line meant every run leaked a temp file; nine
+# were sitting in the temp dir when this was measured. Cleaning up after a script that has just
+# written a multi-gigabyte tar is not optional housekeeping.
+cleanup() { rm -rf "$work"; rm -f "${TMPOUT:-}"; }
+trap '_alex_rc=$?; cleanup; alex_signal_exit "$_alex_rc"' EXIT INT TERM HUP  # signal chains the C31 dead-man switch (stress-test S-D3)
 
 # --- 0. Nightly deterministic aggregates ---------------------------------------------------------
 # All four are BEST-EFFORT and must NEVER block the backup: each output is regenerable, the backup is
@@ -126,6 +130,22 @@ else
     # 2026-08-26. The old `set -e` re-enable here was the second half of that bug: this script is
     # deliberately NOT errexit (header), and re-enabling it made the poisoned parse kill the run
     # before it could log FAILED or push RED - the exact class this script exists to prevent.
+    # 0c. Every LOCAL git ref into one bundle, BEFORE the include set is built so tonight's bundle is
+    # the one that ships. The tar excludes '*/.git' and git-backup.sh pushes only the current branch,
+    # so any commit on another local branch had exactly one copy: 23 of them on 2026-09-09, some
+    # carrying real work (stress-test A06-T17 / M-19). A bundle is a single file, restores with
+    # `git clone all.bundle` or `git fetch all.bundle <ref>`, and needs no remote. Best-effort: a
+    # failed bundle is logged and never blocks the backup, because a missing bundle is a smaller
+    # loss than a missing vault.
+    mkdir -p "$ALEX_ROOT/outputs/git-bundles"
+    if git -C "$ALEX_ROOT" bundle create "$ALEX_ROOT/outputs/git-bundles/all.bundle" --all >> "$LOG" 2>&1; then
+        bundle_refs="$(git -C "$ALEX_ROOT" bundle list-heads "$ALEX_ROOT/outputs/git-bundles/all.bundle" 2>/dev/null | wc -l | tr -d ' ')"
+        bundle_unpushed="$(git -C "$ALEX_ROOT" log --all --not --remotes=origin --oneline 2>/dev/null | wc -l | tr -d ' ')"
+        echo "git bundle: ${bundle_refs:-?} ref(s) bundled, ${bundle_unpushed:-?} commit(s) exist on no origin ref (now covered by this backup)" >> "$LOG"
+    else
+        echo "WARNING git bundle failed - local-only branches are NOT covered by tonight's blob" >> "$LOG"
+    fi
+
     plan="$(node "$ALEX_ROOT/scripts/lib/backup-include.mjs" --list-file "$list_file" 2>>"$LOG")"
     plan_code=$?
     if [ "$plan_code" -ne 0 ]; then
@@ -172,6 +192,7 @@ elif [ -z "$reason" ]; then
     # 2. tar (relative to the repo root), then append the two out-of-repo legs, then encrypt.
     if ! "$TAR" -cf "$tar_file" \
             --exclude='*/.obsidian' --exclude='*/node_modules' --exclude='*/.browser-profile' --exclude='*/.git' \
+            --exclude='*/.next' --exclude='*/venv' --exclude='*/.venv' --exclude='*/__pycache__' \
             -T "$list_file" >> "$LOG" 2>&1; then
         echo "tar reported errors (continuing to the existence check)" >> "$LOG"
     fi
@@ -213,7 +234,18 @@ elif [ -z "$reason" ]; then
 
     # 3. Round-trip verify BEFORE shipping: decrypt + list entries. Never ship a blob we cannot open.
     if [ -z "$reason" ]; then
-        "$GPG" --batch --yes --quiet --passphrase-file "$pass_file" -d -o "$vrf_file" "$gpg_file" >> "$LOG" 2>&1
+        # Exit codes are checked and the decrypted tar is compared BYTE FOR BYTE with the source
+        # (stress-test A07-T3, 2026-09-09): a blob truncated mid-encrypt (disk full, a kill, gpg
+        # half-writing) still decrypts to a tar whose headers list plausibly, so an entry count and
+        # a name grep passed it. gpg's and tar's own exit codes and a cmp against the plaintext tar,
+        # which is still on disk here, are the checks that cannot be fooled by a cut tail.
+        if ! "$GPG" --batch --yes --quiet --passphrase-file "$pass_file" -d -o "$vrf_file" "$gpg_file" >> "$LOG" 2>&1; then
+            reason="verify failed: gpg could not decrypt the blob cleanly (truncated or corrupt)"
+        elif ! cmp -s "$tar_file" "$vrf_file"; then
+            reason="verify failed: decrypted tar differs from the source tar ($(wc -c < "$tar_file" | tr -d ' ') vs $(wc -c < "$vrf_file" | tr -d ' ') bytes)"
+        fi
+    fi
+    if [ -z "$reason" ]; then
         # The listing goes to a FILE and every check reads the file (2026-08-26). It was a shell
         # variable pushed through a fresh printf|grep pipe per assertion, and on Git Bash under
         # parallel-session load those pipes flake: grep saw a short stream and reported a file
@@ -222,9 +254,13 @@ elif [ -z "$reason" ]; then
         # what the one-off debug harness did, which is why the harness kept passing while the
         # script kept failing.
         names_file="$work/verify-names.txt"
-        "$TAR" -tf "$vrf_file" > "$names_file" 2>>"$LOG"
+        if ! "$TAR" -tf "$vrf_file" > "$names_file" 2>>"$LOG"; then
+            reason="verify failed: tar could not list the decrypted archive (truncated or corrupt)"
+        fi
         entries="$(grep -c . "$names_file" 2>/dev/null || true)"
-        if [ "$entries" -lt 50 ]; then
+        if [ -n "$reason" ]; then
+            :
+        elif [ "$entries" -lt 50 ]; then
             reason="verify failed: only $entries entries decrypted"
         else
             # POSITIVE assertion by name (2026-07-25 for the identity docs; extended to the secrets by
@@ -256,8 +292,16 @@ elif [ -z "$reason" ]; then
             reason="scp failed - network or SSH key?"
         else
             remote_size="$(ssh -o BatchMode=yes n8n "stat -c%s /opt/alex-backups/$remote_name" 2>/dev/null | tr -d ' \r')"  # portability-ok: stat -c runs on the REMOTE box, which is Linux
+            # A16-T15 (2026-09-10): this compared the remote size against a 100 KB FLOOR, not against
+            # the file that was sent. A blob truncated anywhere above 100 KB verified as shipped, and
+            # a truncated backup is the one that is discovered during a restore, at the worst possible
+            # moment. Compare the exact byte count instead; the floor is now redundant but kept as the
+            # cheaper first test so an empty/missing file still reports in its own words.
+            local_size="$(wc -c < "$gpg_file" | tr -d ' \r')"
             if [ -z "$remote_size" ] || [ "$remote_size" -lt 100000 ] 2>/dev/null; then
                 reason="remote file missing/truncated (${remote_size:-none} bytes)"
+            elif [ "$remote_size" != "$local_size" ]; then
+                reason="remote copy is ${remote_size} bytes but the local blob is ${local_size} - the ship did not complete"
             else
                 ssh -o BatchMode=yes n8n "cd /opt/alex-backups && ls -1t vault-*.tar.gpg 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -f" >> "$LOG" 2>&1
                 kept="$(ssh -o BatchMode=yes n8n "ls -1 /opt/alex-backups/vault-*.tar.gpg 2>/dev/null | wc -l" | tr -d ' \r')"

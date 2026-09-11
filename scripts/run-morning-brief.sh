@@ -62,6 +62,23 @@ soul_check 'morning-brief' || true
 
 close_out 'morning-brief' "$CODE" "$egress_reason"
 
+# A16-T10 (2026-09-10): the "Waiting on you" ladder says day 0 the morning brief prints the list.
+# That rung lived only as a sentence in the command file, so whether it appeared depended on the
+# model remembering to fetch it, and it usually did not: the queue reached 101 open with the oldest
+# item 60 days old. Writing it here makes the day-0 rung mechanical.
+#
+# Deliberately AFTER close_out, not before. The completion sentinel reads the run output and requires
+# the Close-Out report in its last 400 characters; appending anything ahead of that check would push
+# the verdict out of the endzone and turn every healthy brief RED. The queue goes to the LOG, which is
+# what a human reads after the run, and the model's own output is left untouched.
+if _ha="$(node "$ALEX_ROOT/scripts/human-actions.js" list 2>/dev/null | head -25)" && [ -n "$_ha" ]; then
+    {
+        echo ""
+        echo "=== Waiting on you (written by the wrapper, not the model - the day-0 rung) ==="
+        printf '%s\n' "$_ha"
+    } >> "$LOG"
+fi
+
 # Edit 3 (FIX-01 class, 2026-07-15 /prompting item 6): morning-brief is the day's first token job
 # and is budget_priority 1, so it always runs a real `claude -p`. Reaching this line means that run
 # completed clean (close_out exits non-zero on a limit/fail), so it doubles as the day's free PLAN

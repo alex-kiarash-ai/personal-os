@@ -10,17 +10,29 @@
 //   CLAUDE.md (constitution)       docs/ARCHITECTURE.md
 //   soul.md                        docs/README.md (custom zone preserved verbatim)
 //   brand/config/*                 docs/projects/README.md (marked table region)
-//   templates/*.template.md        <alex-hq repo>/app/tokens.css        (brand tokens, P5; the
+//   templates/*.template.md        .claude/commands/*.md                 (command headers)
+//                                  soul-core.md                          (the injection card)
+//                                  <alex-hq repo>/app/tokens.css        (brand tokens, P5; the
 //                                                                        website split out 2026-08-04)
 //                                  brand/tokens/tokens.json             (brand tokens, P5)
 //                                  n8n writer voice block (idempotent markers)
-//                                  Windows Task Scheduler jobs (create-missing-only)
+//                                  systemd unit PAIRS under systemd/   (see below)
+//
+// SCHEDULER, STATED HONESTLY (A02-T-03, 2026-09-11): this line used to read "Windows Task
+// Scheduler jobs (create-missing-only)" and there is NO schtasks backend in gen-scheduler.js.
+// On win32 `hasSystemd()` is false, the live check SKIPS, and `applyUnits` is systemctl-only,
+// so the generator WRITES unit files for the eventual Linux host and registers nothing on this
+// machine. Live registration here is /cron-setup. V2 can still flag scheduler drift the
+// generator cannot repair, which is correct and is why the claim had to be fixed rather than
+// the behaviour: a generator that says it registers jobs, does not, and reports success is the
+// dead-check-green shape this repo keeps finding.
 //
 // Usage:
 //   node scripts/generate-alex.js --dry-run            stage + validate + report, never swap
 //   node scripts/generate-alex.js                      full run: swap, n8n sync, scheduler
-//   node scripts/generate-alex.js --only=docs          any of: docs, claude, tokens, n8n,
-//                                                      scheduler (comma-separated)
+//   node scripts/generate-alex.js --only=docs          comma-separated; the authoritative list
+//                                                      is VALID_ONLY below and the run ASSERTS
+//                                                      this comment against it (A02-T-14)
 //
 // VALIDATION IS NEVER SCOPED (c7 fix, upgrade P5, 2026-07-12): every run - full, --dry-run, or
 // any --only selection - executes the FULL validation suite (SUITE_RANGE, imported from the
@@ -78,14 +90,14 @@ const want = name => !ONLY || ONLY.includes(name);
     }
 
     // 1. Read all sources into one model. Any read/parse failure aborts before anything is staged.
-    log.step('[1/5] read sources');
+    log.step('[1/6] read sources');
     const model = loadModel();
     log.step(`  sources OK: ${model.manifest.projects.length} projects (+${model.counts.unnumberedCount} unnumbered), ` +
       `${model.schedule.allJobNames.length} documented jobs, ${model.mcpList.length} MCP surfaces, ` +
       `${model.colorTokens.tokens.size} color tokens`);
 
     // 2. Render every selected output into .staging/ (never in place).
-    log.step('[2/5] render to .staging/');
+    log.step('[2/6] render to .staging/');
     aw.reset();
     let stagedClaude = null;
     if (want('claude') || want('docs')) {
@@ -123,10 +135,23 @@ const want = name => !ONLY || ONLY.includes(name);
       // that has personal-os but not the website repo is a legitimate state: say so and carry on,
       // never fabricate the write and never wedge the run.
       if (hqRepo.exists()) {
-        const cssAbs = genTokens.cssAbs();
-        fs.mkdirSync(path.dirname(cssAbs), { recursive: true });
-        fs.writeFileSync(cssAbs, genTokens.tokensCss(model.colorTokens));
-        log.step(`  staged brand tokens: ${genTokens.JSON_REL} + wrote ${genTokens.CSS_LABEL} (${model.colorTokens.tokens.size} tokens from the color law)`);
+        // A02-T-04 (2026-09-11): the bug was that this wrote unconditionally, so `--dry-run`
+        // MUTATED a sibling repo while its own final line promised nothing real was touched.
+        // Guarded on !DRY now, and the dry-run says what it would have done.
+        //
+        // It stays BEFORE validation deliberately, and that is worth recording because the
+        // obvious "fix" is wrong: V8 asserts that <alex-hq>/app/tokens.css EXISTS, so deferring
+        // the write past step 3 makes the validator fail on a file the same run is about to
+        // create. Tried, measured, reverted. The residue is that a validation failure on a real
+        // run leaves this one cross-repo file written with no rollback, because the atomic-swap
+        // machinery is repo-relative by design and never sees it. That is a smaller and louder
+        // problem than a dry-run silently editing another repository.
+        if (!DRY) {
+          const cssAbs = genTokens.cssAbs();
+          fs.mkdirSync(path.dirname(cssAbs), { recursive: true });
+          fs.writeFileSync(cssAbs, genTokens.tokensCss(model.colorTokens));
+        }
+        log.step(`  staged brand tokens: ${genTokens.JSON_REL} + ${DRY ? 'WOULD write (dry-run: not written)' : 'wrote'} ${genTokens.CSS_LABEL} (${model.colorTokens.tokens.size} tokens from the color law)`);
       } else {
         log.step(`  staged brand tokens: ${genTokens.JSON_REL} (${model.colorTokens.tokens.size} tokens from the color law)`);
         log.step(`  SKIPPED ${genTokens.CSS_LABEL}: the alex-hq website repo is not on this machine (${hqRepo.root()}) - clone it, or set ALEX_HQ_REPO / manifest meta.paths.alex_hq_repo, then re-run`);
@@ -136,7 +161,7 @@ const want = name => !ONLY || ONLY.includes(name);
     // 3. Validate the staged set + live systems. The FULL suite (SUITE_RANGE, logged below) runs on EVERY
     //    run regardless of --only (c7 fix, P5): --only limits staging/applying, never checking.
     //    Async since Phase 3 - V6 checks the live n8n API, the live half of V2 queries schtasks.
-    log.step(`[3/5] validate (${SUITE_RANGE}, full suite - never narrowed by --only, context=generator)`);
+    log.step(`[3/6] validate (${SUITE_RANGE}, full suite - never narrowed by --only, context=generator)`);
     const result = await validate({ stagedDir: aw.STAGING });
     if (!result.ok) throw new Error(`validation failed:\n${result.failures.join('\n')}`);
 
@@ -191,28 +216,32 @@ const want = name => !ONLY || ONLY.includes(name);
       }
     } else log.step('  soul-core: skipped (--only)');
 
-    // 4. External integrations. Dry-run reports; full run applies. n8n is idempotent (an unchanged
-    //    soul.md is a verified no-op); the scheduler only ever CREATES missing jobs, never touches
-    //    existing ones (their hand-applied hardening must survive).
+    // 4-5. External integrations. Dry-run reports; full run applies. n8n is idempotent (an
+    //      unchanged soul.md is a verified no-op). The scheduler WRITES systemd unit pairs for
+    //      the eventual Linux host and registers nothing on win32 (A02-T-03): there is no
+    //      schtasks backend, live registration here is /cron-setup, and the create-missing-only
+    //      contract applies on the Linux host where applyUnits actually runs.
+    //      Steps were BOTH labelled [4/5] until 2026-09-11 (A02-T-14), so a reader watching the
+    //      log saw step 4 twice and step 6 never.
     if (want('n8n')) {
-      log.step(`[4/5] n8n voice sync (${DRY ? 'dry-run' : 'apply'})`);
+      log.step(`[4/6] n8n voice sync (${DRY ? 'dry-run' : 'apply'})`);
       await n8nVoice.run({ soul: model.soul, apply: !DRY, log: log.step });
-    } else log.step('[4/5] n8n voice sync skipped (--only)');
+    } else log.step('[4/6] n8n voice sync skipped (--only)');
     if (want('scheduler')) {
-      log.step(`[4/5] scheduler (${DRY ? 'dry-run' : 'apply'})`);
+      log.step(`[5/6] scheduler (${DRY ? 'dry-run' : 'apply'})`);
       await scheduler.run({ schedule: model.schedule, apply: !DRY, log: log.step });
-    } else log.step('[4/5] scheduler skipped (--only)');
+    } else log.step('[5/6] scheduler skipped (--only)');
 
-    // 5. Swap or report.
+    // 6. Swap or report.
     if (DRY) {
-      log.step(`[5/5] DRY-RUN complete - staged output left in .staging/ for review (${aw.stagedFiles().length} file(s)), nothing real touched`);
+      log.step(`[6/6] DRY-RUN complete - staged output left in .staging/ for review (${aw.stagedFiles().length} file(s)), nothing real touched`);
     } else if (aw.stagedFiles().length === 0) {
       // --only selections without file outputs (e.g. --only=n8n) stage nothing; that is not an
       // error - the external integration already ran above. Found by migration test 2 (P3-S2).
-      log.step('[5/5] nothing staged to swap (the --only selection produced no file outputs)');
+      log.step('[6/6] nothing staged to swap (the --only selection produced no file outputs)');
     } else {
       const swapped = aw.swapAll();
-      log.step(`[5/5] swapped ${swapped.length} file(s): ${swapped.join(', ')}`);
+      log.step(`[6/6] swapped ${swapped.length} file(s): ${swapped.join(', ')}`);
     }
     log.flush();
     process.exitCode = 0; // not process.exit(): a hard exit after fetch trips a libuv teardown assertion on Windows

@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-01. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-11. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -7,7 +7,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 ## 1. What you need
 
 - **A paid Claude account** (Max recommended; Pro burns out fast). Alex *is* Claude, no subscription is no brain.
-- **Claude Code** (desktop app / Cowork, or the CLI). **Linux is where Alex runs** (the scheduled job train is systemd user timers); macOS works for development.
+- **Claude Code** (desktop app / Cowork, or the CLI). **This machine is Windows** and the scheduled job train is **Windows Task Scheduler** (`PersonalOS-*` tasks). The `systemd/` unit files are generated for the eventual Linux host and are inert here.
 - **A Google account** (Gmail, Calendar, Drive). **Notion** (free), optional for the base brain but required for the CRM, expenses, and meeting-intel databases (without it Alex degrades to local files, per the Bootstrap rule). **Obsidian** (free, to read the vault).
 - **Optional, only if you want the Alex HQ dashboard's own source:** the `alex-hq` repo. It split out of this one on 2026-08-04 and is expected to sit **beside** `personal-os`, as a sibling folder, not inside it. You do **not** need it to run the Personal Ops System: everything except the dashboard's own build works without it, and the two things that do want it (the brand-token generator and validator check V8) say so plainly and carry on. If you keep it somewhere other than a sibling folder, record that once in `system/manifest.json` → `meta.paths.alex_hq_repo`, or set an `ALEX_HQ_REPO` environment variable. Nothing needs configuring when the sibling layout holds.
 - Base install is about an hour.
@@ -45,7 +45,7 @@ This is the onboarding and operations guide: what you need, how to boot Alex, wh
 
 The registry `system/manifest.json` is the source of truth; this list is generated from it.
 
-- **01 Sprint Tracker** (PARKED; trigger: PAUSED (Shaheen 2026-07-16, until re-enabled)) - Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.
+- **01 Sprint Tracker** (PARKED, revisit 2026-10-01; trigger: PAUSED (Shaheen 2026-07-16, until re-enabled)) - Standup + velocity from a local cached snapshot of the Progress Tracker (cache-mode is the accepted design since 2026-07-18, live Notion board read paused - token not restored); every automation reports Done to it.
 - **02 Morning Brief** (LIVE; trigger: daily 8:00) - The 08:00 brief: inbox, calendar, radar, alerts, life ops, inbox notes, interview flags.
 - **03 Application Engine (BI)** (LIVE; trigger: n8n Tue+Thu 15:00 + watch 8:30) - Job pipeline, Power BI track: source, score, gate, draft, render every Tue & Thu; also an MCP server.
 - **04 Research Team** (ON-DEMAND; trigger: on-demand) - Adaptive multi-agent research squads for EXTERNAL evidence, + an evidence-anchored Adversarial Verification Mode (`verify:` a claim - refuters grounded in external facts, converge to CONFIRMED/REFUTED/UNRESOLVED, never consensus-laundered; the sanctioned way to check an Alex conclusion).
@@ -54,14 +54,14 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **07 Email Triage** (LIVE; trigger: daily 05:00) - Inbox triage once each morning at 05:00 + voice-matched reply drafts; learns from Shaheen's edits.
 - **08 Expense Wrangler** (LIVE; trigger: monthly last day 20:00) - Receipts to the Notion Expenses DB + an all-formula branded monthly Excel.
 - **10 Weekly Exec Report** (LIVE; trigger: Fri 16:00) - The Friday capstone: every automation + mail + calendar into one branded deck + Notion page.
-- **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup); its timer stays DISABLED by design) - Voice-corpus + people harvest. Phase 1 screen-scrape retired (dead end); Phase 2 encrypted iPhone-backup harvest proven 2026-07-10 (feeds CRM last_contact + soul corpus); Phase 3 read-only WAHA gateway built-ready, off until post-offer.
+- **11 WhatsApp Harvest** (ON-DEMAND; trigger: on-demand (iPhone backup); its timer stays DISABLED by design) - Voice-corpus + people + relationship harvest from an encrypted iPhone backup. Phase 1 screen-scrape retired (dead end). Run 2 (2026-09-02) made it a scripted pipeline: deterministic per-chat aggregates over every chat, per-chat digests with card redaction, and local voice-note transcription. Feeds CRM last_contact + circle tiers + the soul corpus; plans and action points become calendar rows Shaheen approves by id, never auto-written. Phase 3 read-only WAHA gateway built-ready, off until post-offer.
 - **12 LinkedIn Series** (LIVE; trigger: on-demand + n8n staging (scheduled)) - Building Alex in public: locked ~150-word template, hard gates, real material; n8n stages text only, Shaheen makes the image and posts. Now memory-fed: /content-agent ranks hooks from what actually landed (the content outcome loop) and logs each post's engagement back so it compounds.
 - **13 Airbnb Host** (LIVE; trigger: monthly 24th 10:00 + brief) - Bookings + income from a local read-only Playwright harvest of his own Airbnb dashboard (Airbnb has no host API; Gmail feed is the FALLBACK, not the primary - corrected 2026-07-28, the command file was right and this line was the stale side); feeds the brief + runway.
 - **14 AI Application Engine** (LIVE; trigger: n8n Tue+Thu 15:30) - Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.
 - **15 Alex AI Radar** (LIVE; trigger: Mon 07:30 + collector 06:00) - The staying-current engine: weekly scored sweep, taste memory, friction-first matching, daily server-side collector + urgent lane.
 - **16 Alex HQ** (LIVE; trigger: always-on + push 8:45) - The glanceable dashboard + two-way note inbox at hq.shaheenkiarash.com; every automation pushes run status here.
 - **17 Health Tracker** (LIVE; trigger: phone 23:59) - Daily Apple Health to the brief + HQ tiles; the Alex Sleep Score (0-100) computed server-side.
-- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 24 checks (C1-C25, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db) + the soul-core injection card + the status/backup rotation caps (S1 Compiled Surfaces).
+- **18 Recovery Layer** (LIVE; trigger: Mon 07:30 + nightly 21:30/21:45 + daily 08:10 n8n-active + 1st-Mon lint + 1st-Mon security sweep 07:20 + Sun auth probe) - Backups (git + encrypted, drills proven), the weekly zero-token drift checker (now 30 checks (C1-C31, C16 retired), docs-vs-facts.db), the daily n8n active-flag watcher, the gated monthly lint, the monthly security sweep, the auth probe. Now also the FIX half: the HQ Self-Heal Loop auto-repairs safe metric drift on every HQ update and proposes the rest. Hosts the Recall Spine fact ledger (system/recall/facts.db) + the soul-core injection card + the status/backup rotation caps (S1 Compiled Surfaces).
 - **19 Venture Sync** (DORMANT, revisit 2026-10-01; trigger: -) - Read-only mirror of venture repos into the vault. Waiting on: the venture repos existing on this machine.
 - **20 Runway** (LIVE; trigger: monthly last day 21:15) - The zero-date model: savings + burn + salary/severance/a-kassa + Airbnb income, all-formula SEK Excel.
 - **21 Interview Copilot** (EVENT; trigger: brief flag + on-demand) - Carries a booked interview to the finish: dossier, prep vs the answer bank, runway-aware negotiation drafts. Never sends.
@@ -77,7 +77,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **31 Portal Scanner** (LIVE; trigger: n8n Tue & Thu 15:13 (scan + bank)) - Standalone company-portal job lane, STAGE 1 of 2: detect each company ATS once, hit its free public JSON, prefilter, and BANK matching jobs to the queue that #32 drains. Split from the engine 2026-07-28 so both workflows carry their own n8n id + cron and come under V6 leg (c) and the daily active-flag watcher.
 - **32 Portal Application Engine** (LIVE; trigger: n8n Tue & Thu 15:43 (drain + draft)) - Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28.
 - **33 Revit Architect** (ON-DEMAND; trigger: on-demand (any Revit job) + the five-file protocol gate before execution) - Runs any Revit job under Shaheen's five-file architect protocol: load File 01 then File 02 always, route to 03/04/05 by task scale, then resolve every HARD GATE question in order from the live model, the supplied source, session state, and only then ASK. Never infers, never defaults, and only an explicit skip bypasses a gate, which forces a stated assumption, a log line, a provisional label and a downgrade to the most conservative action. No compliance verdict without jurisdiction and code edition. Drives the live Revit MCP bridge proven 2026-08-20.
-- **Voice** (DORMANT, revisit 2026-11-05; trigger: every Claude Code session (voice flag + hooks) + Ctrl+Alt+D dictate; v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
+- **Voice** (DORMANT, revisit 2026-11-05; trigger: Ctrl+Alt+D dictate + the native /voice HOLD mode; the Stop/Notification speech hooks are NOT installed (removed 2026-08-05 with the lane); v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 
 **Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand, /port-to-kit.
 
@@ -92,20 +92,30 @@ MCP tools are deferred: load them with `ToolSearch("select:<tool>")` before call
 - Gmail
 - Notion
 
-## 6. Scheduling (systemd user timers)
+## 6. Scheduling (Windows Task Scheduler here, systemd on the Linux target)
 
-Nothing runs until you schedule it. On this machine the scheduler is **systemd user timers**;
-`/cron-setup` builds the jobs from `scheduler/schedule.md`, and `node scripts/generate-alex.js`
-writes the unit files into `systemd/`. The best first schedule is the morning brief, daily 8:00.
+Nothing runs until you schedule it. On THIS machine the scheduler is **Windows Task Scheduler**:
+23 `PersonalOS-*` tasks, each one running `bash.exe -lc "cd <repo> && bash scripts/<name>.sh"`.
+`/cron-setup` builds them from `scheduler/schedule.md`, and `node scripts/generate-alex.js` also
+writes systemd unit files into `systemd/` for the eventual Linux host, where they are the live
+mechanism and here they are an inert target. The best first schedule is the morning brief, daily 8:00.
+
+Three recovery checks keep the documented schedule and the live one in agreement: **C7** compares the
+job NAMES, **C7b** compares the live trigger HOURS, and **C7c** asserts the power conditions that
+decide whether a laptop job runs at all.
 
 - **How a scheduled `claude -p` job works:** the timer fires at a time, runs `claude -p "Run
   /{command}" --dangerously-skip-permissions`, the work happens, the process exits, each run is a
   fresh session. The skip-permissions flag is required because a headless run has no TTY to approve
   prompts (do not carry it into interactive use). The jobs run as your own user and reuse existing
   credentials, so no OAuth token is needed.
-- **Run `loginctl enable-linger $USER` once.** Without it, user timers only fire while you are
-  logged in, so a headless box silently runs nothing at all, with no error anywhere. This is the
-  single easiest thing to forget and the hardest to diagnose after the fact.
+- **On Windows, set the power conditions on every task.** A task left on the schtasks defaults will
+  not start on battery, is stopped when the machine unplugs, and cannot wake the box. It does not
+  FAIL, it never runs, so nothing goes red. That cost the encrypted backup seven of fourteen nights
+  in September 2026. Recovery check C7c asserts the three flags on every `PersonalOS-*` task.
+- **(Linux host only) Run `loginctl enable-linger $USER` once.** Without it, user timers only fire
+  while you are logged in, so a headless box silently runs nothing at all, with no error anywhere.
+  This is the single easiest thing to forget and the hardest to diagnose after the fact.
 - **The real jobs are hardened, not naive one-shots:** the scheduled wrappers are `.sh` scripts that
   detect failure, push a RED/GREEN `run_status` to Alex HQ so a dead run is never silent, and
   self-schedule one-shot retries past the quota reset. When you add a new scheduled automation, wrap
@@ -115,10 +125,11 @@ writes the unit files into `systemd/`. The best first schedule is the morning br
 - **Check a job:** `systemctl --user list-timers --all`, logs in `outputs/logs/{name}.log` plus
   `journalctl --user -u PersonalOS-{name}.service` for anything the wrapper never got to write.
   Pause all: `/cron-setup off`. Pause one: `/cron-setup off {name}`. Resume: `/cron-setup on`.
-- **Set the machine timezone before enabling anything** (`sudo timedatectl set-timezone
-  Europe/Stockholm`): every schedule is wall-clock local time.
-- **On macOS none of this exists**, and that is expected: the dev machine has no systemd, so
-  `systemd/` is inert there and the generator degrades to a loud skip rather than pretending.
+- **Set the machine timezone before enabling anything** (Windows: Settings > Time & language;
+  Linux host: `sudo timedatectl set-timezone Europe/Stockholm`): every schedule is wall-clock local
+  time, and recovery check C18 asserts the machine's zone against the travel state.
+- **On a machine with neither scheduler, `systemd/` is inert** and the generator degrades to a loud
+  skip rather than pretending. A check that cannot run says so; it never reports success.
 
 ### The scheduled jobs (from scheduler/schedule.md)
 

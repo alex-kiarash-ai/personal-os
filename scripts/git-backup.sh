@@ -49,10 +49,36 @@ if [ -z "$reason" ]; then
             }
           } catch (e) { process.exit(3); }
         });' 2>/dev/null)" || {
-        echo "personal-data guard: scan output unparseable, staging left as-is: $scan_raw" >> "$LOG"
-        blocked=""
+        # A07-T13 (2026-09-10): this failed OPEN. An unparseable scan set `blocked=""`, the unstage
+        # block below never ran, and the full `git add -A` set was committed and PUSHED to the PUBLIC
+        # repo. The one moment the guard cannot see is exactly the moment to hold back, and on this
+        # repo .gitignore is the sole barrier, so the cost of a wrong open is unrecoverable while the
+        # cost of a wrong hold is one missed nightly commit. Fail CLOSED on the two residual shapes
+        # the guard exists to catch: a new file at a work/NN root, and anything under scripts/.
+        echo "AMBER personal-data guard: scan output unparseable - failing CLOSED on the residual shapes: $scan_raw" >> "$LOG"
+        blocked="$(git diff --cached --name-only | grep -E '^(work/[^/]+/[^/]+$|scripts/)' || true)"
     }
 fi
+# --- A16-T-02 (2026-09-11): the sweep must never be the thing that PUBLISHES a new file. -------
+# The P2.6 scan above catches personal data it can PATTERN-MATCH: names, numbers, key shapes. A
+# personal document whose sensitivity lives in its PROSE passes it, passes gitleaks, passes V10 and
+# V11, and an unattended `git add -A` puts it on a public repo permanently. No scanner fixes that,
+# because the property being detected is meaning.
+#
+# So the rule is structural rather than semantic: this job commits MODIFICATIONS to files a human
+# already chose to track, and holds every NEW path in the residual-risk space until a session runs
+# `git add` on it deliberately. A file the sweep held is still on disk and still in tonight's
+# encrypted vault blob; only its publication waits for a human. That is the correct side to err on
+# when .gitignore is the sole barrier and a push is permanently cacheable.
+if [ -z "$reason" ]; then
+    new_paths="$(git diff --cached --name-only --diff-filter=A | grep -E '^(work/[^/]+/[^/]+$|scripts/|docs/|brand/)' || true)"
+    if [ -n "$new_paths" ]; then
+        blocked="${blocked:+$blocked
+}$new_paths"
+        echo "AMBER new-path hold: the nightly sweep does not publish new files; a session must git add them deliberately" >> "$LOG"
+    fi
+fi
+
 if [ -n "$blocked" ]; then
     # A blocked file must not hold the whole backup hostage: the rest of the day's work still
     # needs its off-machine copy tonight, so unstage only the flagged paths and say so loudly.
@@ -92,8 +118,39 @@ br="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 [ -n "$br" ] || br="main"
 
 if [ -z "$reason" ] && [ -z "${ALEX_DRY_RUN:-}" ]; then
-    if ! git push origin "$br" >> "$LOG" 2>&1; then
-        reason="git push failed (branch $br) - network or expired PAT?"
+    # A07-T11 (2026-09-10): every push failure reported the same sentence, "network or expired PAT?",
+    # and that string is what reaches the HQ RED headline. A refused protected branch, a detached
+    # HEAD and a dead remote are three different problems with three different fixes, and the one
+    # line a human reads named none of them. Capture the output and say which it was.
+    push_err="$(git push origin "$br" 2>&1)"; push_rc=$?
+    printf '%s\n' "$push_err" >> "$LOG"
+    if [ "$push_rc" -ne 0 ]; then
+        case "$br" in
+            HEAD)  reason="git push failed - detached HEAD, so there is no branch to push (check out a branch)" ;;
+            main)  reason="git push failed - main is branch-protected by design; work belongs on a branch and reaches main by PR" ;;
+            *)
+                case "$push_err" in
+                    *protected*|*"pre-receive hook declined"*) reason="git push failed (branch $br) - refused by branch protection" ;;
+                    *"Authentication failed"*|*"could not read Username"*|*"Invalid username or password"*) reason="git push failed (branch $br) - authentication refused, the PAT is expired or revoked" ;;
+                    *"unqualified destination"*|*"not a full refname"*) reason="git push failed (branch $br) - unqualified destination refspec" ;;
+                    *"Could not resolve host"*|*"Failed to connect"*|*"Connection timed out"*) reason="git push failed (branch $br) - network unreachable" ;;
+                    *) reason="git push failed (branch $br) - see outputs/logs/git-backup.log for git's own message" ;;
+                esac ;;
+        esac
+    fi
+    # A16-T-02, second half: Verify-after-write. A push that exits 0 is not proof the remote moved
+    # (the 07-15 BUG-17 no-op exited 0 and reported GREEN for days). Read the remote ref back and
+    # compare it to what we just pushed.
+    if [ -z "$reason" ]; then
+        local_head="$(git rev-parse HEAD 2>/dev/null || true)"
+        remote_head="$(git ls-remote origin "refs/heads/$br" 2>/dev/null | awk '{print $1}')"
+        if [ -z "$remote_head" ]; then
+            reason="git push reported success but origin/$br does not exist on the remote (read-back found no ref)"
+        elif [ "$remote_head" != "$local_head" ]; then
+            reason="git push reported success but origin/$br is $remote_head, not the pushed $local_head"
+        else
+            echo "push read-back OK: origin/$br = $local_head" >> "$LOG"
+        fi
     fi
 fi
 
@@ -103,6 +160,24 @@ if [ -z "$reason" ]; then
     hq_push 'recovery' 'green' "backup pushed ($changed files changed, branch $br)" 'run_status' 1
 else
     hq_push 'recovery' 'red' "backup FAILED: $reason" 'run_status' 0
+    # --- A05-T-08 (2026-09-11): a LOCAL fallback for the RED. ---------------------------------
+    # The two ways this job reports a failure are the git push and the HQ push, and both go over
+    # the same network. A DNS outage, a dead router or a captive portal takes GitHub and HQ
+    # together, so the single most important failure this system can have - the off-machine backup
+    # did not happen - is reported to nobody and looks exactly like a quiet successful night.
+    # hq_push returns 0 by design (an undeliverable heartbeat must never red a healthy job), so it
+    # cannot be branched on; the row is written unconditionally on the failure path and the next
+    # interactive session flushes it. Cheap, local, and it survives the network being the problem.
+    printf '%s
+' "$(node -e '
+      const fs=require("fs"),p="system/pending-writes.jsonl";
+      const row={ts:new Date().toISOString(),kind:"hq-red",project:"recovery",metric:"run_status",
+        headline:"backup FAILED: "+(process.argv[1]||"unknown"),
+        note:"written locally by git-backup.sh because the HQ push may have failed for the same network reason the git push did"};
+      try{fs.appendFileSync(p,JSON.stringify(row)+"
+","utf8");process.stdout.write("queued a local RED to "+p);}
+      catch(e){process.stdout.write("could not queue the local RED: "+e.message);}
+    ' "$reason")" >> "$LOG" 2>&1 || true
 fi
 
 if [ -z "$reason" ]; then

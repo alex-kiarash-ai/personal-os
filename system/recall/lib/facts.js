@@ -19,7 +19,10 @@
  */
 
 function nowIso() {
-  return new Date().toISOString().replace('T', ' ').slice(0, 19);
+  // UTC-Z, matching the metrics writer in recall-inject.js (P1.2). A11-T18 (2026-09-10): this
+  // stamped naive UTC with the Z dropped, so a 21:35 local harvest wrote 19:35 and every label
+  // around it reads local. Anything computing an age off the bare string was two hours short.
+  return `${new Date().toISOString().slice(0, 19).replace('T', ' ')}Z`;
 }
 
 function getCurrent(db, subject, predicate) {

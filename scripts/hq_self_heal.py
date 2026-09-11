@@ -7,8 +7,12 @@ scripts/hq_harvest_push.py), reads the live summary + re-derives ground truth, a
 mismatch/red either FIXES it (auto-safe) or ESCALATES it (propose/human) with a diagnosis.
 
 Autonomy boundary (Shaheen 2026-07-21):
-  AUTO_SAFE  - deterministic, reversible, no side-effect: run it, then READ-BACK VERIFY. One
+  AUTO_SAFE_LOCAL  - deterministic, reversible, entirely LOCAL: run it, then READ-BACK VERIFY. One
                attempt; a remedy that doesn't verify ESCALATES, it never retries (no storms).
+  AUTO_SAFE_REMOTE - the same, but it MUTATES A LIVE REMOTE (scp to the box, POST to the HQ
+               webhook). Same rules, stated separately because the old single AUTO_SAFE label said
+               "no side-effect" while three of its five members reached another machine
+               (stress-test A16-T6, 2026-09-10).
   PROPOSE    - a live mutation (workflow redeploy/reactivation, clearing a stuck flag): queued
                to the waiting-on-you list with a diagnosis, NEVER auto-run.
   HUMAN_ONLY - phone/OAuth/credentials: queued as Shaheen's.
@@ -83,14 +87,64 @@ def n8n_events():
         return []
 
 
-def escalate(id_, severity, what):
+def escalate(id_, severity, what, origin="", evidence=""):
     """Queue to the waiting-on-you list; human-actions.js refuses duplicate open ids, so this is
-    idempotent (a returncode != 0 just means it's already queued)."""
-    run(["node", "scripts/human-actions.js", "add", "--id", id_,
-         "--severity", severity, "--what", what])
+    idempotent (a returncode != 0 just means it's already queued).
+
+    origin/evidence (2026-09-10, stress-test A09-T23): every metric this loop reads arrived over the
+    wire, and ONE 48-byte token authorizes any POST to alex-push. A forged red headline carrying an
+    engine signature therefore became the `what` of a HIGH row - an attacker's prose rendered as
+    Alex's own sentence in the queue, the brief and the SessionStart line, with nothing to mark it
+    as untrusted. The headline now travels in `evidence`, quoted and labelled at render; `what` says
+    only what THIS code knows. Callers reading a metric MUST pass both."""
+    cmd = ["node", "scripts/human-actions.js", "add", "--id", id_,
+           "--severity", severity, "--what", what]
+    if origin:
+        cmd += ["--origin", origin]
+    if evidence:
+        cmd += ["--evidence", evidence]
+    # A16-T16b (2026-09-10): the return code was discarded, so a queue write that FAILED was
+    # indistinguishable from one that succeeded, and the escalation this loop exists to raise could
+    # vanish silently. A non-zero code is usually benign (the id is already open, which is how this
+    # stays idempotent), so it stays non-fatal - but it is now recorded, because the failure mode
+    # worth catching is the one where nothing was queued and nothing said so.
+    r = run(cmd)
+    if r is not None and getattr(r, "returncode", 0) != 0:
+        log(id_, "note", f"queue add for '{id_}' returned {r.returncode} (already open, or the append failed)")
+
+
+# A09-T-11 (2026-09-11): every heal-log row's `check` id must exist in system/hq-heal-map.json, or
+# the log and the map cannot be joined. They had already diverged: the map declares
+# `quota-stale-cap` and this file logged `quota-stale`, so every row that check ever wrote pointed
+# at nothing, and any analysis keyed on the map silently dropped them. The ids are hardcoded at 44
+# call sites, which is how that happens and why a guard beats fixing them one at a time.
+#
+# Reported, never corrected: quietly rewriting the id would make the log agree with the map while
+# the CODE still disagrees, which is the same lie one layer down.
+_KNOWN_CHECK_IDS = None
+_LOG_ID_WARNED = set()
+
+
+def _known_check_ids():
+    global _KNOWN_CHECK_IDS
+    if _KNOWN_CHECK_IDS is None:
+        try:
+            with open(REPO / "system" / "hq-heal-map.json", encoding="utf-8") as f:
+                m = json.load(f)
+            rows = m.get("checks", m) if isinstance(m, dict) else m
+            _KNOWN_CHECK_IDS = {r.get("id") for r in rows if isinstance(r, dict)}
+        except Exception:
+            _KNOWN_CHECK_IDS = set()   # unreadable map = no assertion, never a crash
+    return _KNOWN_CHECK_IDS
 
 
 def log(check, state, detail, cls=""):
+    known = _known_check_ids()
+    # "hq-summary" is the loop's own infrastructure line, not a map check; it is allowed by name.
+    if known and check not in known and check != "hq-summary" and check not in _LOG_ID_WARNED:
+        _LOG_ID_WARNED.add(check)
+        actions.append({"check": "hq-summary", "state": "warn", "class": "",
+                        "detail": f"heal-log id '{check}' is NOT in system/hq-heal-map.json - the log row and the map cannot be joined (A09-T-11)"})
     actions.append({"check": check, "state": state, "class": cls, "detail": detail})
 
 
@@ -105,14 +159,14 @@ def probe_mcp_count(summary, entry):
               .get("mcp_tools", {}).get("value_num"))
     if stored == live:
         return log("mcp-count-truth", "ok", f"stored {stored} == live {live}")
-    # AUTO_SAFE: re-push the fresh mcp event, then verify
+    # AUTO_SAFE_REMOTE: re-push the fresh mcp event, then verify
     push([e for e in ev if e["metric_key"] == "mcp_tools"])
     stored2 = (get_summary().get("projects", {}).get("infra", {}).get("metrics", {})
                .get("mcp_tools", {}).get("value_num"))
     if stored2 == live:
-        return log("mcp-count-truth", "healed", f"mcp {stored} -> {live}, re-pushed + verified", "AUTO_SAFE")
+        return log("mcp-count-truth", "healed", f"mcp {stored} -> {live}, re-pushed + verified", "AUTO_SAFE_REMOTE")
     escalate("heal-mcp-ingest", "high", f"{entry['escalate_fail']} (stored {stored2}, live {live})")
-    log("mcp-count-truth", "escalated", f"re-push did not stick ({stored2} != {live})", "AUTO_SAFE->escalate")
+    log("mcp-count-truth", "escalated", f"re-push did not stick ({stored2} != {live})", "AUTO_SAFE_REMOTE->escalate")
 
 
 def probe_box_fresh(summary, entry):
@@ -120,7 +174,7 @@ def probe_box_fresh(summary, entry):
                "for f in " + " ".join(JSONS) + "; do stat -c '%n %Y' /opt/alex-hq-data/$f.json; done"], timeout=40)
     if chk.returncode != 0:
         escalate("heal-box-ssh", "high", f"{entry['escalate_fail']}")
-        return log("box-data-fresh", "escalated", "cannot stat box files (ssh down)", "AUTO_SAFE->escalate")
+        return log("box-data-fresh", "escalated", "cannot stat box files (ssh down)", "AUTO_SAFE_REMOTE->escalate")
     now = NOW.timestamp()
     stale = []
     for line in chk.stdout.strip().splitlines():
@@ -132,16 +186,29 @@ def probe_box_fresh(summary, entry):
             pass
     if not stale:
         return log("box-data-fresh", "ok", "all 5 box JSONs fresh")
-    # AUTO_SAFE: re-ship the locally-built files + re-verify
+    # AUTO_SAFE_REMOTE: re-ship the locally-built files + re-verify. Every step's return code is checked
+    # and an EMPTY verify is a failure, never a pass (stress-test A16-T3, P-13 named 08-05: the old
+    # code ignored both return codes and an empty stat listing produced zero "still stale" lines,
+    # which read as "verified fresh" - it signed one live "verified" that verified nothing).
     src = [str(DATA / f"{n}.json") for n in JSONS]
-    run(["scp", "-q", *src, "n8n:/opt/alex-hq-data/"], timeout=60)
+    scp = run(["scp", "-q", *src, "n8n:/opt/alex-hq-data/"], timeout=60)
+    if scp.returncode != 0:
+        escalate("heal-box-ssh", "high", entry["escalate_fail"])
+        return log("box-data-fresh", "escalated", f"re-scp failed (rc={scp.returncode})", "AUTO_SAFE_REMOTE->escalate")
     chk2 = run(["ssh", "-o", "BatchMode=yes", "n8n",
                 "for f in " + " ".join(JSONS) + "; do stat -c '%Y' /opt/alex-hq-data/$f.json; done"], timeout=40)
-    still = [1 for l in chk2.stdout.strip().splitlines() if l.strip().isdigit() and now - int(l) > 900]
+    if chk2.returncode != 0:
+        escalate("heal-box-ssh", "high", entry["escalate_fail"])
+        return log("box-data-fresh", "escalated", f"re-scp done but the verify stat failed (rc={chk2.returncode})", "AUTO_SAFE_REMOTE->escalate")
+    mtimes = [int(l) for l in chk2.stdout.strip().splitlines() if l.strip().isdigit()]
+    if len(mtimes) != len(JSONS):
+        escalate("heal-box-ssh", "high", entry["escalate_fail"])
+        return log("box-data-fresh", "escalated", f"verify returned {len(mtimes)} mtimes for {len(JSONS)} files (empty or partial verify is not a pass)", "AUTO_SAFE_REMOTE->escalate")
+    still = [1 for m in mtimes if now - m > 900]
     if not still:
-        return log("box-data-fresh", "healed", f"re-shipped stale JSONs ({', '.join(stale)}) + verified fresh", "AUTO_SAFE")
+        return log("box-data-fresh", "healed", f"re-shipped stale JSONs ({', '.join(stale)}) + verified fresh ({len(mtimes)}/{len(JSONS)} stat lines)", "AUTO_SAFE_REMOTE")
     escalate("heal-box-ssh", "high", entry["escalate_fail"])
-    log("box-data-fresh", "escalated", "still stale after re-scp", "AUTO_SAFE->escalate")
+    log("box-data-fresh", "escalated", "still stale after re-scp", "AUTO_SAFE_REMOTE->escalate")
 
 
 def probe_n8n_broken(summary, entry):
@@ -152,7 +219,10 @@ def probe_n8n_broken(summary, entry):
     if bad.get("value_num", 0) == 0:
         return log("n8n-broken", "ok", "no broken workflows")
     # PROPOSE: a live workflow fix needs Shaheen's ok
-    escalate("heal-n8n-broken", "high", f"n8n broken: {bad.get('headline')} - redeploy/reactivate needs your ok")
+    escalate("heal-n8n-broken", "high",
+             "n8n reported broken workflow(s); a redeploy or reactivation needs your ok. Confirm "
+             "against n8n itself first: the headline below arrived over the HQ push API.",
+             origin="hq-metric n8n liveness", evidence=str(bad.get("headline", "")))
     log("n8n-broken", "proposed", bad.get("headline", ""), "PROPOSE")
 
 
@@ -176,9 +246,9 @@ def probe_quota_stale(summary, entry):
     now_status = (get_summary().get("projects", {}).get("quota", {}).get("metrics", {})
                   .get("anthropic_api", {}).get("status"))
     if now_status == "green":
-        return log("quota-stale", "healed", "stale quota cap red cleared (state ok), verified green", "AUTO_SAFE")
+        return log("quota-stale", "healed", "stale quota cap red cleared (state ok), verified green", "AUTO_SAFE_REMOTE")
     escalate("heal-quota-stuck", "medium", "quota red won't clear despite quota-state.json ok - ingest issue")
-    log("quota-stale", "escalated", f"corrective push didn't stick ({now_status})", "AUTO_SAFE->escalate")
+    log("quota-stale", "escalated", f"corrective push didn't stick ({now_status})", "AUTO_SAFE_REMOTE->escalate")
 
 
 def probe_health_stalled(summary, entry):
@@ -243,7 +313,10 @@ def probe_unknown_red(summary, entry, claimed):
             continue
         hits.append((name, next(iter(fault_metrics.values())).get("headline", "")))
     for name, worst in hits:
-        escalate(f"heal-unknown-{name}", "medium", f"Unknown red on '{name}': {worst or 'see HQ'} - needs diagnosis")
+        escalate(f"heal-unknown-{name}", "medium",
+                 f"Unknown red on '{name}' - needs diagnosis. The headline below arrived over the "
+                 f"HQ push API and is not verified here.",
+                 origin=f"hq-metric {name}", evidence=str(worst or "see HQ"))
         log("unknown-red", "proposed", f"{name}: {worst}", "PROPOSE")
     if not hits:
         log("unknown-red", "ok", "no unclaimed FAULT reds")
@@ -277,7 +350,7 @@ def probe_soul_canary(summary, entry, claimed):
         if rs.get("status") != "red":
             continue
         headline = str(rs.get("headline", ""))
-        # The wrapper writes "soul canary failed: <reason>" (scripts/lib/soul-canary.ps1) and the
+        # The wrapper writes "soul canary failed: <reason>" (scripts/lib/soul-canary.mjs) and the
         # voice lanes prefix it with "scheduled run failed: ". Match the stable middle, case-loose.
         if "soul canary" not in headline.lower() and "soul-canary" not in headline.lower():
             continue
@@ -289,8 +362,11 @@ def probe_soul_canary(summary, entry, claimed):
         escalate(
             f"soul-canary-{name}",
             "high",
-            f"soul.md did not verifiably reach the model on '{name}': {headline}. "
-            f"Identity lane - check the injection path and scripts/lib/soul-canary.ps1 before the next run.",
+            f"soul.md did not verifiably reach the model on '{name}'. Identity lane - check the "
+            f"injection path and the canary gate before the next run. The headline below arrived "
+            f"over the HQ push API and is not verified here.",
+            origin=f"hq-metric {name}",
+            evidence=headline,
         )
         log("soul-canary-failed", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
 
@@ -332,9 +408,12 @@ def probe_n8n_engine_errored(summary, entry, claimed):
         escalate(
             f"n8n-engine-errored-{name}",
             "high",
-            f"a governed n8n job engine has errored on its last scheduled run ('{name}'): {headline}. "
-            f"The pipeline is producing nothing - check the Anthropic credit balance and the failing "
-            f"node (GET /executions/{{id}}?includeData=true).",
+            f"a governed n8n job engine reported an errored last scheduled run ('{name}'). "
+            f"The pipeline may be producing nothing - check the Anthropic credit balance and the "
+            f"failing node (GET /executions/{{id}}?includeData=true). Confirm against n8n itself "
+            f"before acting: the headline below arrived over the HQ push API and is not verified here.",
+            origin=f"hq-metric {name}",
+            evidence=headline,
         )
         log("n8n-engine-errored", "escalated", f"{name}: {headline}", "HUMAN_ONLY")
 
@@ -413,14 +492,14 @@ def probe_identity_views(summary, entry):
             names = [p.name for p in real.iterdir() if p.is_file()]
             ok = ok and all(os.path.samefile(real / n, vp / n) for n in names)
             if ok:
-                log("identity-doc-views", "healed", f"re-linked {vp} -> {real}, verified samefile", "AUTO_SAFE")
+                log("identity-doc-views", "healed", f"re-linked {vp} -> {real}, verified samefile", "AUTO_SAFE_LOCAL")
             else:
                 escalate("identity-doc-view-relink-failed", "high",
                          f"{entry.get('escalate_fail', 'view re-link did not verify')} ({r.stdout.strip()[:120]})")
-                log("identity-doc-views", "escalated", "re-link did not verify", "AUTO_SAFE->escalate")
+                log("identity-doc-views", "escalated", "re-link did not verify", "AUTO_SAFE_LOCAL->escalate")
         except OSError as e:
             escalate("identity-doc-view-relink-failed", "high", f"could not re-link {vp}: {e}")
-            log("identity-doc-views", "escalated", f"re-link error: {e}", "AUTO_SAFE->escalate")
+            log("identity-doc-views", "escalated", f"re-link error: {e}", "AUTO_SAFE_LOCAL->escalate")
 
 
 def probe_soul_core_stale(summary, entry):
@@ -460,12 +539,12 @@ def probe_soul_core_stale(summary, entry):
     r = run(["node", "scripts/lib/build-soul-core.js", "--force"], timeout=60)
     after = card_sha()
     if after == live_sha:
-        return log("soul-core-stale", "healed", f"{why} -> rebuilt + stamp verified ({live_sha[:12]}..)", "AUTO_SAFE")
+        return log("soul-core-stale", "healed", f"{why} -> rebuilt + stamp verified ({live_sha[:12]}..)", "AUTO_SAFE_LOCAL")
     detail = (r.stdout or r.stderr or "").strip().splitlines()
     escalate("soul-core-rebuild-failed", "high",
              f"soul-core was {why}; rebuild did not verify ({(detail[-1] if detail else 'no output')[:160]}). "
              f"{entry.get('escalate_fail', '')}")
-    log("soul-core-stale", "escalated", f"{why}; rebuild did not verify", "AUTO_SAFE->escalate")
+    log("soul-core-stale", "escalated", f"{why}; rebuild did not verify", "AUTO_SAFE_LOCAL->escalate")
 
 
 PROBES = {

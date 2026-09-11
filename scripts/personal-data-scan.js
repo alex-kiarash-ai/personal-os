@@ -33,7 +33,11 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.join(__dirname, '..');
+// ALEX_SCAN_ROOT is a TEST seam (A06-T6, 2026-09-10): the guards-alive suite needs to hand this
+// scanner a throwaway repo with one planted violation and watch it fire, and without an override it
+// always scanned its own repo, so the test could only ever say "the real tree is clean". Unset in
+// every real invocation, so production behaviour is unchanged.
+const ROOT = process.env.ALEX_SCAN_ROOT || path.join(__dirname, '..');
 const PEOPLE = path.join(ROOT, 'vault', 'people');
 const ALLOWLIST_FILE = path.join(ROOT, 'system', 'personal-data-allowlist.json');
 const JSON_OUT = process.argv.includes('--json');
@@ -120,7 +124,14 @@ function deriveNames() {
       const base = f.replace(/\.md$/, '');
       const phrase = base.replace(/-/g, ' ').trim();
       if (phrase.split(' ').length > 1 && phrase.length >= 5) phrases.add(phrase);
-      for (const tok of base.split('-')) {
+      // A06-T10 (2026-09-10): this took EVERY '-' separated segment of a people-page basename as a
+      // watched name token. The People Intake Protocol names those pages `firstname-context`
+      // (`gabriella-hr`, `someone-istanbul`), so the CONTEXT half became a watched name and every
+      // ordinary mention of a city flagged. All 9 REPORT-tier hits in the tree were one city, which
+      // is worse than noise: a report tier that is permanently 9 is a report tier nobody reads, and a
+      // real name appearing among them would be indistinguishable. Take the first segment only; the
+      // full basename still enters the PHRASE set above, so `someone-istanbul` as a whole is watched.
+      for (const tok of base.split('-').slice(0, 1)) {
         const t = tok.toLowerCase();
         if (t.length >= 4 && /^[a-z]+$/.test(t) && !NAME_STOP.has(t)) tokens.add(t);
       }
@@ -147,7 +158,13 @@ function stagedPaths() {
 // the paths of this commit, so the check answers "does what I am about to publish leak?".
 function gitGrep(re, scopePaths) {
   let out = '';
-  const args = ['grep', '-I', '-n', '-i', '-E'];
+  // A06-T4 (2026-09-10): `-I` tells git grep to SKIP binary files, and it was unconditional, so at
+  // COMMIT time a staged binary was invisible to the privacy scan. That is the wrong way round: a
+  // .docx, a .pdf, a .db or a screenshot is exactly where a name, a phone number or a salary figure
+  // hides, and this repo is public. In staged mode the scan now reads binaries too (`-a`); the
+  // whole-tree mode keeps `-I`, because there the volume is unbounded and the commit gate is what
+  // actually stands between a file and GitHub.
+  const args = ['grep', ...(STAGED ? ['-a'] : ['-I']), '-n', '-i', '-E'];
   if (STAGED) args.push('--cached');
   args.push('-e', re, '--');
   args.push(...(STAGED ? scopePaths : ['.']), ...EXCLUDE);
@@ -265,6 +282,25 @@ function main() {
       console.log('Fix: move the value/name to a gitignored vault page + pointer, OR add a reviewed exception to system/personal-data-allowlist.json.');
       if (STAGED) console.log('PUBLIC repo: this content would be world-visible at the next push. Unstage it (git restore --staged <path>) or gitignore it BEFORE committing.');
     }
+  }
+  // A03-T-12 (2026-09-11): FAIL CLOSED ON AN EMPTY WATCH-LIST. The name half of this scan derives
+  // its watch-list from vault/people/ basenames, which is gitignored and local-only. On a fresh
+  // clone, a machine where the vault has not been restored, or any run where that directory is
+  // missing, the list is EMPTY and every name sails through - and the scan prints CLEAN, because
+  // zero names matched zero names. That is indistinguishable from a repo with no personal data in
+  // it, which is the precise shape this whole layer exists to catch: a guard that passes because
+  // it is testing nothing.
+  //
+  // Staged mode is the commit gate on a PUBLIC repo, so it refuses rather than reassures. The
+  // whole-tree mode keeps warning, because it is a reporting sweep and a fresh clone legitimately
+  // has no vault. ALEX_ALLOW_EMPTY_NAMELIST=1 is the loud, deliberate override, same pattern as
+  // ALEX_ALLOW_NO_GITLEAKS.
+  if (STAGED && (!hadPeople || watchPhrases.length + watchTokens.length === 0) && !process.env.ALEX_ALLOW_EMPTY_NAMELIST) {
+    console.error('personal-data-scan (staged): REFUSING - the name watch-list is EMPTY ' +
+      `(hadPeople=${hadPeople}, ${watchPhrases.length} phrases, ${watchTokens.length} tokens). ` +
+      'Names were not scanned at all, so a CLEAN verdict here would mean nothing. ' +
+      'Restore vault/people/, or set ALEX_ALLOW_EMPTY_NAMELIST=1 to commit with the name half switched off.');
+    process.exit(3);
   }
   process.exit(clean ? 0 : 2);
 }

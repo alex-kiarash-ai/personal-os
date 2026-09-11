@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // security-sweep.mjs - P5 (three-plan validation, 2026-07-17). Alex's monthly, zero-token,
-// detect-never-repair SECURITY conscience, a sibling of check.mjs. Nine assertions (S1-S9).
+// detect-never-repair SECURITY conscience, a sibling of check.mjs. Fourteen assertions (S1-S14; S10 added
+// 2026-09-10 after stress-test A09-T25 found the HQ dashboard snapshot public on a Vercel URL).
 // Ported from security-sweep.ps1 (bash migration Phase 5, 2026-08-05).
 //
 // Exit 0 clean / 2 findings / 1 sweep-error (Terraform -detailed-exitcode convention, same as
@@ -27,15 +28,32 @@ import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { installExitSignal } from '../../scripts/lib/task-signal.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
 process.chdir(REPO);
 
-const { sha } = (await import(`${REPO}/scripts/lib/repo-hash.js`)).default;
-
 const DRY = process.argv.includes('--dry-run');
+// C31 dead-man signal (stress-test S-D3, 2026-09-04): emit one on exit so a security-sweep that never
+// ran (the 08-03 crash class) is visible; --dry-run is a test and is skipped. Installed BEFORE any
+// import that can throw (stress-test A10-T7/T8, 2026-09-09): the dynamic import below used to sit
+// above this line and above the crash handlers, and on Windows it threw ERR_UNSUPPORTED_ESM_URL_SCHEME
+// on a bare `C:\` path, so the sweep died with no signal, no log line and no HQ push on every
+// scheduled run this platform has had. The 995b27c crash handler was dead code here for that reason.
+installExitSignal(REPO, 'PersonalOS-security-sweep', DRY);
+
+// Fail loud on an UNCAUGHT crash (stress-test S-D5, 2026-09-04). The in-sweep try/catch below pushes
+// RED on a logic throw, but a crash during setup or in the report section is outside it and would
+// exit silently on HQ until the Monday C31 sweep noticed the missing signal. Push RED immediately so
+// a crash is loud the same day; installExitSignal (above) still records the failure for C31 too.
+function crashRed(e) { try { if (!DRY) hqPush('red', `security sweep CRASHED: ${(e && e.message) || e}`); } catch { /* best-effort */ } console.error(e && e.stack || e); process.exit(1); }
+process.on('uncaughtException', crashRed);
+process.on('unhandledRejection', crashRed);
+
+// file:// URL, never a bare path: `import('C:\\...')` is a scheme error on Windows (the check.mjs:45 pattern).
+const { sha } = (await import(pathToFileURL(path.join(REPO, 'scripts', 'lib', 'repo-hash.js')).href)).default;
 
 fs.mkdirSync(path.join('outputs', 'logs'), { recursive: true });
 const LOG = path.join(REPO, 'outputs', 'logs', 'security-sweep.log');
@@ -128,6 +146,20 @@ function getJson(url, headers, timeoutMs) {
           }
         });
       }
+    );
+    req.on('timeout', () => req.destroy(new Error(`timed out after ${timeoutMs}ms`)));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+// Status code only, body discarded (S10): what a public surface answers to an unauthenticated GET.
+function headStatus(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request(
+      { hostname: u.hostname, path: u.pathname + u.search, method: 'GET', headers: { 'user-agent': 'alex-security-sweep/S10' }, timeout: timeoutMs },
+      (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); }
     );
     req.on('timeout', () => req.destroy(new Error(`timed out after ${timeoutMs}ms`)));
     req.on('error', reject);
@@ -369,6 +401,206 @@ try {
       }
     }
   }
+
+  // --- S10 public surfaces challenge, never 200 (stress-test A09-T25, 2026-09-10) -------------------
+  // Every internet-facing URL of the HQ surface listed in the gitignored
+  // work/16-alex-hq/config/public-surfaces.json must answer an unauthenticated GET with a challenge
+  // (401/403/redirect). A 200 means whatever it serves is public: on 2026-09-10 the Vercel snapshot of
+  // the whole dashboard was exactly that, named in a tracked doc, and no check looked at it because
+  // every probe read the Caddy door. The list is gitignored on purpose (a public URL list belongs in
+  // no tracked file); an absent list is SETUP-NEEDED, an unreachable surface is a sweep failure (the
+  // network stance above), and nothing here reads a byte of any body.
+  {
+    const cfg = path.join(REPO, 'work', '16-alex-hq', 'config', 'public-surfaces.json');
+    const list = readJson(cfg);
+    if (!list || !Array.isArray(list.surfaces)) {
+      addFinding('SETUP', 'S10', 'work/16-alex-hq/config/public-surfaces.json is missing (gitignored): the list of internet-facing HQ URLs that must challenge. Recreate it as {"_schema":"public-surfaces@1","surfaces":[{"name","url","expect":"challenge","why"}]}.');
+    } else {
+      let open = 0, ok = 0;
+      for (const s of list.surfaces) {
+        let st;
+        try { st = await headStatus(s.url, 15000); }
+        catch (e) { sweepError = `S10: public surface '${s.name}' unreachable (configured live source): ${e.message}`; continue; }
+        if (st >= 200 && st < 300) { open++; addFinding('FINDING', 'S10', `public surface '${s.name}' answers HTTP ${st} to an unauthenticated GET, NO challenge: whatever it serves is public. ${s.why || ''}`); }
+        else if (st === 401 || st === 403 || (st >= 300 && st < 400)) ok++;
+        else addFinding('FINDING', 'S10', `public surface '${s.name}' answered HTTP ${st}; expected a 401/403/redirect challenge.`);
+      }
+      say(`S10 public surfaces: ${list.surfaces.length} probed, ${ok} challenge, ${open} OPEN`);
+    }
+  }
+
+  // --- S11 MCP stdio servers are version-PINNED (stress-test A12-T17, 2026-09-10) -------------------
+  // Three stdio servers executed unpinned registry code at EVERY session start with auto-consent
+  // (`npx -y ...@latest` twice, and a bare `uvx --from flights[mcp]`), on a machine that holds
+  // credentials. The repo's own posture is "zero npm supply-chain surface on a machine that holds
+  // credentials", and that was undone at the CLIENT layer by three fetches per session: whatever the
+  // registry served that morning ran. No S-check or C-check named any MCP version, and S6's
+  // connected-clients baseline has been SETUP-needed since 2026-07-20, so nothing watched this.
+  //
+  // Reads `claude mcp list`, which prints each server's transport and command WITHOUT touching
+  // ~/.claude.json (that file holds OAuth tokens and is deliberately never read here). A stdio
+  // command carrying @latest, or an npx/uvx fetch with no version at all, is a FINDING. A remote
+  // (https) transport runs no local code; a local build path is pinned by the file on disk.
+  {
+    // shell:true on win32 - Node 20+ refuses to spawn a .cmd/.bat directly (EINVAL). The command
+    // and args are fixed literals here, so there is no injection surface in taking a shell.
+    const isWin = process.platform === 'win32';
+    const r = spawnSync(isWin ? 'claude.cmd' : 'claude', ['mcp', 'list'], { encoding: 'utf8', timeout: 120000, windowsHide: true, shell: isWin });
+    // The CLI exits nonzero when ANY server fails its health check and still prints the listing on
+    // stdout, which is what this parses. Only an empty read is a sweep failure.
+    const out = String((r && r.stdout) || '');
+    if (!out.trim()) {
+      sweepError = `S11: could not read 'claude mcp list' (${r && r.error ? r.error.message : `exit ${r ? r.status : 'n/a'}`})`;
+    } else {
+      let stdio = 0;
+      let unpinned = 0;
+      for (const raw of out.split(/\r?\n/)) {
+        const m = /^(.+?):\s+(.+?)\s+-\s+[^-]*$/.exec(raw.trim());
+        if (!m) continue;
+        const name = m[1];
+        const cmd = m[2];
+        if (/^https?:\/\//i.test(cmd)) continue;
+        stdio++;
+        if (!/\bnpx\b|\buvx\b/.test(cmd)) continue;
+        const pinned = /@\d+\.\d+/.test(cmd) || /==\d+\.\d+/.test(cmd);
+        if (/@latest\b/.test(cmd) || !pinned) {
+          unpinned++;
+          addFinding('FINDING', 'S11', `MCP stdio server '${name}' fetches unpinned code at every session start: ${cmd}. Whatever the registry serves that morning executes on a machine holding credentials. Pin it: claude mcp remove ${name} -s <scope>, then claude mcp add ${name} -s <scope> -- <same command with an exact version>`);
+        }
+      }
+      say(`S11 MCP pins: ${stdio} stdio server(s), ${unpinned} unpinned`);
+    }
+  }
+
+  // --- S12 branch protection on main matches the declared posture (A06-T7 / M-24, 2026-09-10) -------
+  // The one mechanical barrier between a bad commit and the public default branch is GitHub's branch
+  // protection, and NOTHING asserted it. It could be relaxed or removed - by a token with admin
+  // scope, or by hand - and every surface here stayed green, because each check tests the repo's
+  // CONTENTS and none tested the rules around them. The machine account owns the repo, authors,
+  // approves by absence and merges its own PRs (5 of 5), and holds the scopes to remove the
+  // protection it is subject to, so this is the check that would notice.
+  //
+  // Contract lives in manifest meta.branch_protection, never in this prose (the V6 anti-pattern).
+  {
+    const GH_REPO = 'alex-kiarash-ai/personal-os';   // same slug S8 reads
+    const mf = readJson(path.join('system', 'manifest.json')) || {};
+    const bp = (mf.meta && mf.meta.branch_protection) || null;
+    if (!bp) {
+      addFinding('SETUP', 'S12', 'system/manifest.json meta.branch_protection is absent - the declared protection posture for the public default branch. Add it, then this leg asserts the live rules against it.');
+    } else {
+      const r = spawnSync(process.platform === 'win32' ? 'gh.exe' : 'gh',
+        ['api', `repos/${GH_REPO}/branches/${bp.branch}/protection`],
+        { encoding: 'utf8', timeout: 60000, windowsHide: true });
+      const body = String((r && r.stdout) || '');
+      if (!body.trim()) {
+        // A CONFIGURED live source that will not answer is a sweep failure, never a silent pass.
+        sweepError = `S12: could not read branch protection for ${GH_REPO}:${bp.branch} (${r && r.error ? r.error.message : `exit ${r ? r.status : 'n/a'}`}) - gh CLI absent or unauthenticated`;
+      } else {
+        let live = null;
+        try { live = JSON.parse(body); } catch { /* handled below */ }
+        if (!live || live.message) {
+          addFinding('FINDING', 'S12', `branch protection on ${bp.branch} is NOT readable as a protection object${live && live.message ? ` (${live.message})` : ''} - on a PUBLIC repo whose sole barrier is this ruleset, that is either missing protection or a token without the scope to see it.`);
+        } else {
+          const liveChecks = ((live.required_status_checks || {}).contexts) || [];
+          for (const want of bp.required_status_checks || []) {
+            if (!liveChecks.includes(want)) addFinding('FINDING', 'S12', `required status check '${want}' is declared but NOT enforced on ${bp.branch} (live: ${liveChecks.join(', ') || 'none'}) - a red CI run would not block a merge.`);
+          }
+          const enforce = Boolean((live.enforce_admins || {}).enabled);
+          if (Boolean(bp.enforce_admins) !== enforce) addFinding('FINDING', 'S12', `enforce_admins is ${enforce} on ${bp.branch}, declared ${bp.enforce_admins} - with it off, the account that owns the repo is exempt from every rule below.`);
+          const force = Boolean((live.allow_force_pushes || {}).enabled);
+          if (force && bp.allow_force_pushes === false) addFinding('FINDING', 'S12', `force pushes are ALLOWED on ${bp.branch}, declared forbidden - history on the public default branch can be rewritten.`);
+          const del = Boolean((live.allow_deletions || {}).enabled);
+          if (del && bp.allow_deletions === false) addFinding('FINDING', 'S12', `branch deletion is ALLOWED on ${bp.branch}, declared forbidden.`);
+          const reviews = ((live.required_pull_request_reviews || {}).required_approving_review_count) || 0;
+          if (reviews < (bp.required_approving_review_count || 0)) addFinding('FINDING', 'S12', `required approving reviews on ${bp.branch} is ${reviews}, declared ${bp.required_approving_review_count}.`);
+          say(`S12 branch protection: ${bp.branch} checks=[${liveChecks.join(',')}] enforce_admins=${enforce} force_push=${force} deletions=${del} reviews=${reviews}`);
+        }
+      }
+    }
+  }
+
+  // --- S13 no known personal-data commit is reachable from main (A06-T2 / S-F2, 2026-09-10) --------
+  // The repo's own rule: personal data off GitHub needs a history PURGE, not a follow-up edit. The
+  // follow-up edit is what happened (78e72db), so every branch TIP reads clean and the only trace
+  // lives in an ancestor commit - which nothing looks at, because personal-data-scan.js reads the
+  // working tree. Merging a carrier branch into main would make a private name permanent history on
+  // a public repo, silently. On 2026-09-10 FOUR remote branches carried the commit (the 09-09 audit
+  // found two) and so did the active fix branch, so the spread grows on its own as branches are cut.
+  //
+  // The carrier list is gitignored (system/history-purge-pending.json): a public file saying "this
+  // commit holds a private name" is a signpost to the thing it protects.
+  {
+    const pend = readJson(path.join('system', 'history-purge-pending.json'));
+    if (!pend || !Array.isArray(pend.commits)) {
+      say('S13 history purge: no pending list (system/history-purge-pending.json absent) - nothing to assert');
+    } else if (!pend.commits.length) {
+      say('S13 history purge: list present and empty - no known personal-data commit outstanding');
+    } else {
+      for (const c of pend.commits) {
+        const sha = String(c.sha || '').trim();
+        if (!sha) continue;
+        const known = spawnSync('git', ['cat-file', '-e', `${sha}^{commit}`], { cwd: REPO, encoding: 'utf8' });
+        if (known.status !== 0) {
+          say(`S13 history purge: ${sha} is not in this clone (purged, or the clone predates it) - not asserted`);
+          continue;
+        }
+        let onMain = 0;
+        for (const ref of ['origin/main', 'main']) {
+          const has = spawnSync('git', ['merge-base', '--is-ancestor', sha, ref], { cwd: REPO, encoding: 'utf8' });
+          if (has.status === 0) {
+            onMain++;
+            addFinding('FINDING', 'S13', `commit ${sha} (${c.what || 'known personal data'}) is an ANCESTOR of ${ref} on the PUBLIC repo - the purge did not happen before the merge. Remedy: ${c.remedy || 'history purge + force-push'}`);
+          }
+        }
+        const carriers = spawnSync('git', ['branch', '-a', '--contains', sha], { cwd: REPO, encoding: 'utf8' });
+        const n = String(carriers.stdout || '').split(/\r?\n/).filter((l) => l.trim()).length;
+        say(`S13 history purge: ${sha} reachable from ${n} ref(s) in this clone; main ${onMain ? 'CARRIES IT (see finding)' : 'clean'}`);
+      }
+    }
+  }
+
+  // --- S14 no credential LITERAL in either settings file (stress-test A14-T-07, 2026-09-11) --------
+  // The n8n API key sat as a plaintext JWT inside a permissions allow row in settings.local.json for
+  // roughly 90 of the 91 days since it was issued. Nothing looked: gitleaks reads the STAGED
+  // changeset and settings.local.json is gitignored, so it was invisible to every gate this repo
+  // owns while being read by every session. A permission rule is a strange place to keep a secret
+  // and an easy one to paste into, which is exactly why it needs its own assertion.
+  //
+  // Shapes, not entropy: a JWT, the provider key prefixes, and a Bearer literal. Only the SHAPE and
+  // the row index are ever reported, never the value - a finding that quotes the secret publishes
+  // it into the sweep log.
+  {
+    const SHAPES = [
+      [/eyJ[A-Za-z0-9_-]{10,}\.\S+/, 'a JWT (n8n API key shape)'],
+      [/sk-[A-Za-z0-9_-]{16,}/, 'an sk- provider key'],
+      [/(?:ghp|gho|ghs|ghu)_[A-Za-z0-9]{20,}/, 'a GitHub token'],
+      [/xox[baprs]-[A-Za-z0-9-]{10,}/, 'a Slack token'],
+      [/AKIA[0-9A-Z]{16}/, 'an AWS access key id'],
+      [/[Bb]earer\s+[A-Za-z0-9._-]{20,}/, 'a Bearer literal'],
+    ];
+    let scanned = 0, found = 0;
+    for (const rel of ['.claude/settings.json', '.claude/settings.local.json']) {
+      const abs = path.join(REPO, rel);
+      if (!fs.existsSync(abs)) continue;
+      scanned++;
+      const lines = fs.readFileSync(abs, 'utf8').split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        for (const [re, what] of SHAPES) {
+          if (re.test(lines[i])) {
+            found++;
+            addFinding('FINDING', 'S14', `${rel}:${i + 1} carries ${what}. A permission file is not a credential store and this one is read by every session; the value must be rotated (it has been readable for as long as it has been there) and moved behind system/credentials-ledger.json.`);
+            break;
+          }
+        }
+      }
+    }
+    if (!scanned) say('S14 settings credentials: neither settings file present - not asserted');
+    else say(`S14 settings credentials: ${scanned} settings file(s) scanned, ${found} credential literal(s)`);
+  }
+
+
+
+
 } catch (e) {
   sweepError = `SWEEP THREW: ${e.stack || e.message}`;
 }

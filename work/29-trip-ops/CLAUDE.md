@@ -14,7 +14,7 @@ A booking confirmation Shaheen forwards becomes: one **trip note** (intelligence
 ## Entry Points
 - **On-demand:** `/trip-ops` (process the `alex-inbox` travel forwards now, or a specific dropped confirmation).
 - **Daily:** rides the **05:00 email lane** (#07). When the deterministic classifier tags a forward as a booking confirmation, it hands it here (until then it lands in `vault/research/travel/_inbox.md`). A forward can wait up to ~24h (the cadence trade-off, MD-6, accepted for v1).
-- **Manual travel override:** `/travel` sets/clears the travel flag by hand (e.g. a trip with no email trail).
+- **Manual travel override:** ask `/trip-ops` to set or clear the travel flag by hand (e.g. a trip with no email trail). **Corrected 2026-09-10 (A13-T9): there is no `/travel` command and there never has been** - `.claude/commands/` holds no such file, so this line sent a reader looking for something that was never built. The flag lives at `system/travel-state.json` and the /trip-ops session writes it.
 
 ## The flow (core-first, deterministic before AI)
 1. **Bank the raw source FIRST** (write-first): the forwarded `.eml`/text to `work/29-trip-ops/state/sources/{trip-slug}/`. A malformed forward still gets banked so nothing is lost (T-P7-2).

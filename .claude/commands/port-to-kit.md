@@ -67,7 +67,7 @@ Run in the Kit, and prove it on a clone rather than on a tree that already has t
 
 - `node scripts/clone-scrub-check.js` -> **CLEAN**. The load-bearing one. It proves no name, no dead
   hostname and no machine path rode along inside the ported text.
-- `node scripts/validate-alex.js` -> G1-G4 + V1-V18 PASS (V2/V9/V14 warnings are normal on an
+- `node scripts/validate-alex.js` -> the validator prints its OWN suite range; expect PASS (V2/V9/V14 warnings are normal on an
   uninstalled template checkout).
 - `node scripts/facts-check.js` -> any count you moved is consistent.
 - Skill counts: `.agents/skills` dirs == lock entries, unparked missing junctions == 0, disk hash

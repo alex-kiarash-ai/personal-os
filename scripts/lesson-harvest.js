@@ -26,6 +26,12 @@ const { upsertLesson, parseLLine } = require('../system/recall/lib/lessons');
 // vault_search.py's freshness-test design) without touching real cursors or the real ledger.
 const LOG_DIR = process.env.ALEX_LOG_DIR || path.join(REPO, 'outputs', 'logs');
 const CURSORS = process.env.ALEX_LESSON_CURSORS || path.join(REPO, 'system', 'recall', 'lesson-cursors.json');
+// The lanes that run with ALEX_UNTRUSTED_LANE set: they read content Alex did not write (inbound
+// mail, fetched pages, skill-market rows) through a permissions-skipped model. Their Close-Out
+// L-line is therefore NOT self-evidence the way an interactive session's is, and it is quarantined
+// on arrival rather than trusted (A13-T7, 2026-09-10). Keyed by LOG FILE because the wrapper's env
+// var is not recorded in the log, and the filename already identifies the lane exactly.
+const UNTRUSTED_LOGS = new Set(['email-triage.log', 'morning-brief.log', 'landscape-eval.log']);
 const PROMOTIONS = process.env.ALEX_LESSON_PROMOTIONS || path.join(REPO, 'system', 'recall', 'lesson-promotions.jsonl');
 const HARVEST_LOG = path.join(LOG_DIR, 'lesson-harvest.log');
 
@@ -48,7 +54,8 @@ function main() {
 
   const cursors = loadCursors();
   const db = openDb();
-  let processed = 0; let inserted = 0; let bumped = 0; let promoted = 0;
+  let processed = 0; let inserted = 0; let bumped = 0; let promoted = 0; let backfilled = 0;
+  const NL = String.fromCharCode(10); // named, because an inline escape kept arriving as a real newline
   let merged = 0; let quarantined = 0;
 
   const files = fs.readdirSync(LOG_DIR).filter((f) => f.endsWith('.log'));
@@ -98,14 +105,21 @@ function main() {
       const parsed = parseLLine(line.trim());
       if (!parsed) continue; // `L: none` or malformed
       processed++;
-      const trusted = (li - lastCloseOut) <= CTX;
+      // A13-T7 (2026-09-10): the ONLY trust test was "is this L-line inside a Close-Out report".
+      // The lanes that read untrusted content (inbound mail, web pages, skill-market rows) also
+      // print a Close-Out report, so their L-lines scored trusted and reached recall injection,
+      // where they are read as lessons in Alex's own voice. A lesson dictated by an email is the
+      // cleanest injection path this system has: it survives the session, is deduped, hit-counted,
+      // and at enough hits queues a constitution change. Those lanes are named by their log file, so
+      // the harvester can tell without any wrapper change.
+      const trusted = (li - lastCloseOut) <= CTX && !UNTRUSTED_LOGS.has(f);
       if (!trusted) quarantined++;
       try {
         const res = upsertLesson(db, {
           cls: parsed.cls, lesson: parsed.lesson, evidence: parsed.evidence, source_runid: f,
           quarantined: trusted ? 0 : 1,
           source_file: f, source_line: li + 1,
-          origin: trusted ? 'close-out' : 'log-context-unverified',
+          origin: trusted ? 'close-out' : (UNTRUSTED_LOGS.has(f) ? 'untrusted-lane' : 'log-context-unverified'),
         });
         if (res.action === 'insert') inserted++;
         else if (res.action === 'merge') { bumped++; merged++; }
@@ -133,6 +147,29 @@ function main() {
     else log(`cursor HELD for ${f} - a failed upsert must not skip those lines next run`);
   }
 
+  // A11-T-06 (2026-09-11): a BACKFILL sweep, because promotion only ever fired on a row the current
+  // run happened to touch. A lesson that reached two hits and was then never repeated sat above the
+  // line forever with promoted_at NULL and never reached the human gate - the threshold was met and
+  // the queue stayed empty, which looks exactly like a system with nothing to promote. Same query as
+  // the inline promotion, run once over the whole table rather than per touched row.
+  try {
+    const due = db.prepare(
+      'SELECT id, class, lesson, evidence, hits FROM lessons ' +
+      'WHERE hits >= 2 AND promoted_at IS NULL AND quarantined = 0 AND t_invalid IS NULL'
+    ).all();
+    for (const row of due) {
+      try {
+        fs.appendFileSync(PROMOTIONS, JSON.stringify({
+          ts: stamp, class: row.class, lesson: row.lesson, hits: row.hits, evidence: row.evidence,
+          source_file: '(backfill)', source_line: 0, merged_by: 'backfill',
+        }) + NL, 'utf8');
+        db.prepare('UPDATE lessons SET promoted_at=? WHERE id=?').run(stamp, row.id);
+        promoted++;
+        backfilled++;
+      } catch (e) { log(`backfill promotion failed for lesson ${row.id}: ${e.message}`); }
+    }
+  } catch (e) { log(`backfill sweep failed: ${e.message}`); }
+
   // P1.7* HEARTBEAT: "no promotions" and "promotions are impossible" looked identical for the whole
   // life of this loop (92 lessons, zero promotions, an unreachable threshold, and a nightly OK).
   // Reporting how close the table actually gets makes an unreachable trigger look different from a
@@ -146,7 +183,7 @@ function main() {
 
   db.close();
   saveCursors(cursors);
-  log(`processed=${processed} inserted=${inserted} bumped=${bumped} merged=${merged} quarantined=${quarantined} promoted=${promoted}`);
+  log(`processed=${processed} inserted=${inserted} bumped=${bumped} merged=${merged} quarantined=${quarantined} promoted=${promoted} backfilled=${backfilled}`);
   log(`heartbeat: ${hb}`);
   log('OK');
   return 0;

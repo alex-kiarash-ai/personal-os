@@ -12,6 +12,26 @@
 
 PD="${CLAUDE_PROJECT_DIR:-.}"
 
+# A14-T8 (2026-09-10): a session started in a SUBFOLDER loads no .claude/settings.json, so no hooks,
+# no permission rules, no allow list, no commands and no constitution - and the failure is silent,
+# because the thing that would have announced it is one of the things that did not load. If this hook
+# IS running we can still be useful: compare where the session started against the repo root and say
+# so. Never fatal, and never a reason to stop the boot.
+# Compare RESOLVED physical paths, never the raw strings. On this machine git reports
+# `C:/Users/...` while the hook receives the MSYS form `/c/Users/...`; those are the same directory
+# and a string compare called every healthy session a mismatch, which would have been worse than the
+# bug being fixed. Both sides go through `cd && pwd -P`.
+TOP_RAW="$(git -C "$PD" rev-parse --show-toplevel 2>/dev/null || true)"
+TOP="$(cd "$TOP_RAW" 2>/dev/null && pwd -P || true)"
+PD_ABS="$(cd "$PD" 2>/dev/null && pwd -P || true)"
+if [ -n "$TOP" ] && [ -n "$PD_ABS" ] && [ "$TOP" != "$PD_ABS" ]; then
+    echo "SESSION-ROOT: MISMATCH - this session started in '$PD_ABS' but the repo root is '$TOP'. The constitution, the commands and the permission rules are NOT loaded. Close this session and open the repo root instead."
+fi
+
+# One breadcrumb per session so C29 can tell a hook that stopped firing from a quiet week
+# (A14-T9). Appended to the same lifecycle ledger PreCompact/SessionEnd already use.
+printf '{"ts":"%s","event":"sessionstart"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$PD/system/lifecycle.jsonl" 2>/dev/null || true
+
 # --- Identity (P3.2) --------------------------------------------------------------------------
 # The card is delivered by CLAUDE.md's `@soul-core.md` import, NOT here; this is only the fallback
 # for when the card is missing. That fallback used to `cat soul.md` - 229KB into a pipe the harness
@@ -21,11 +41,30 @@ PD="${CLAUDE_PROJECT_DIR:-.}"
 #
 # SOUL-PATH is machine-greppable on purpose: the canary proves identity was injected, this proves
 # WHICH path delivered it. Every headless log now answers that question for free.
-if [ -f "$PD/soul-core.md" ]; then
+# A01-T10 (2026-09-10): EXISTENCE was the whole test, so a 0-byte or truncated card booted as
+# "SOUL-PATH: card" and the session ran with no identity while every surface said the card path was
+# taken. The card carries its own integrity marker (a SOUL-CORE-STAMP tail written by the builder)
+# and nothing read it. Three conditions now: the file exists, it is bigger than a floor no real card
+# is under, and it ends in its stamp. A card that fails any of them falls back LOUDLY and says so in
+# different words from a missing one, because "truncated" and "absent" have different causes.
+# A02-T-01 (2026-09-11): a FOURTH condition, and the one that actually delivers the card. The three
+# above test the FILE. None of them tests whether anything IMPORTS it. The card reaches the model
+# through a single line in CLAUDE.md, `@soul-core.md`, and if that line is deleted or renamed the
+# file on disk stays perfectly valid while every session runs with no identity at all - and this
+# hook cheerfully prints "SOUL-PATH: card", because the card is right there. Existence of the
+# delivery mechanism is not delivery.
+soul_imported=0
+grep -qx '@soul-core.md' "$PD/CLAUDE.md" 2>/dev/null && soul_imported=1
+if [ -f "$PD/soul-core.md" ]    && [ "$(wc -c < "$PD/soul-core.md" 2>/dev/null || echo 0)" -gt 4000 ]    && tail -c 400 "$PD/soul-core.md" 2>/dev/null | grep -q "SOUL-CORE-STAMP: source-sha256=" && [ "$soul_imported" = "1" ]; then
   echo "SOUL-PATH: card"
 else
   echo "SOUL-PATH: fallback-bounded"
-  echo "SOUL-FALLBACK: soul-core.md is MISSING, so only the first 8000 bytes of soul.md are injected below. This is a PARTIAL identity. Read soul.md in full before writing anything in Shaheen's voice, and rebuild the card with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
+  if [ -f "$PD/soul-core.md" ] && [ "$soul_imported" != "1" ]; then
+    echo "SOUL-FALLBACK: soul-core.md is present and valid but CLAUDE.md does NOT carry the '@soul-core.md' import line, so nothing delivers it. Restore that line (it belongs directly under the title) or the card is a file nobody reads."
+  elif [ -f "$PD/soul-core.md" ]; then
+    echo "SOUL-FALLBACK: soul-core.md EXISTS but is INVALID (empty, truncated, or missing its SOUL-CORE-STAMP tail), so it was NOT used. Rebuild it with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
+  fi
+  echo "SOUL-FALLBACK: the compiled card was not usable, so only the first 8000 bytes of soul.md are injected below. This is a PARTIAL identity. Read soul.md in full before writing anything in Shaheen's voice, and rebuild the card with: node -e \"require('./scripts/lib/build-soul-core').build({force:true})\""
   if [ -f "$PD/soul.md" ]; then
     head -c 8000 "$PD/soul.md" 2>/dev/null
     echo ""

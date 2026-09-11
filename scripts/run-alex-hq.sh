@@ -20,7 +20,12 @@ parse_common_flags "$@"
 log_init "alex-hq"
 
 # No connector preflight needed: /alex-hq uses local files, ssh and curl only.
-quota_gate 'alex-hq' || exit 0
+#
+# The quota gate sits BELOW the two zero-token halves (stress-test A08-T3, 2026-09-04/09): the harvest
+# and the self-heal loop cost no plan tokens, and the self-heal loop is where a dead job engine
+# becomes a HUMAN_ONLY row (eef0013). With the gate up here, a capped plan skipped the whole run,
+# which is exactly the state that accompanies an exhausted API account, so the escalation for a
+# dead pipeline never fired live. Only the model narration is gated now.
 
 set +e
 harvest="$(python3 "$ALEX_ROOT/scripts/hq_harvest_push.py" 2>&1)"
@@ -39,6 +44,21 @@ printf '%s\n' "$heal" >> "$LOG"
 
 # Model: Haiku (cost cut, Shaheen 2026-07-16). Numbers are already pushed above; the model only
 # files HQ notes + presents. The 'status' argument means skip push, fetch + present + inbox check.
+# Plan capped = skip ONLY this narration; the deterministic halves above have already run and the
+# harvest's own exit code still decides the run's health below.
+if ! quota_gate 'alex-hq'; then
+    OUT="=== hq_harvest_push (deterministic) ===
+$harvest
+
+=== hq_self_heal ===
+$heal
+
+(narration skipped: plan capped, quota gate)"
+    CODE=0
+    if [ "$harvest_code" -ne 0 ]; then CODE=$harvest_code; fi
+    close_out '' "$CODE"
+    exit 0
+fi
 alex_claude --model claude-haiku-4-5-20251001 \
     -p "Run /alex-hq status. $(alex_verdict_instruction)" \
     --dangerously-skip-permissions

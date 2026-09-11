@@ -7,6 +7,8 @@
 // from it, newest first. Files NEVER move; the ledger records where they already are.
 //
 //   node scripts/outputs-ledger.js add --project X --path outputs/... --desc "..." [--link a.md,b]  one row (Close-Out A6 lane)
+//     identity-carrying deliverables (.pdf/.docx/.pptx/.png/.jpg/.svg/.html) also need
+//     --grader PASS|FAIL|SKIPPED (+ --grader-note for FAIL/SKIPPED) - Close-Out C, A01-T-06
 //   node scripts/outputs-ledger.js update-desc --path outputs/... [--desc "..."] [--link ...]  supersede a row's
 //                                                     desc/links (append-only; render shows latest-per-path). The
 //                                                     enrichment lane for skeletal backfill rows. (upgrade P11)
@@ -48,7 +50,11 @@ const STREAM_DIRS = ['logs', 'voice', 'typed'];
 //   name its folder after - which is exactly what C12 flagged on 2026-07-25 (stress-test F-12). Its
 //   artifacts ARE deliverables and DO get ledger rows; only the folder-name assertion needed the
 //   exemption. If the lane ever earns a /new registry slot, drop this entry and use the manifest key.
-const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex', 'prompting-scheduled', 'explainer'];
+// git-bundles = the nightly `git bundle create --all` written by vault-backup.sh (2026-09-10,
+//   stress-test A06-T17): one file holding every LOCAL git ref so a branch that was never pushed is
+//   not one disk failure from gone. It is infrastructure for the backup, not a deliverable, so it is
+//   exempt from the folder-naming assertion and gets no ledger row. Gitignored by the outputs/ rule.
+const EXEMPT_DIRS = [...STREAM_DIRS, 'cv', 'reports', 'brand', 'sessions', 'architecture', 'building-alex', 'prompting-scheduled', 'explainer', 'git-bundles'];
 const SKIP_FILES = new Set(['ledger.jsonl', 'INDEX.md', '.gitkeep', 'desktop.ini', 'Thumbs.db', '.platform']);
 const SKIP_EXT = new Set(['.log', '.tmp', '.lock']);
 // Multi-file bundle formats: internals are components of ONE deliverable, never rows themselves
@@ -124,8 +130,14 @@ function deliverablesOnDisk() {
 
 function dateFor(file) {
   const m = rel(file).match(/(\d{4}-\d{2}-\d{2})/); // first dated segment in the path
-  if (m) return m[1];
-  return new Date(fs.statSync(file).mtime).toISOString().slice(0, 10);
+  const mtime = new Date(fs.statSync(file).mtime).toISOString().slice(0, 10);
+  if (!m) return mtime;
+  // A15-T-07 (2026-09-11): take the LATER of the folder date and the file's own mtime. The folder
+  // date alone means a file written today into a pre-rule folder is grandfathered as history, which
+  // is a rename away from switching the filename law off for any new deliverable. The folder date
+  // still wins where it is later, because a dated folder is the deliberate statement of when a
+  // deliverable belongs and mtime moves for reasons nobody intended (a copy, a restore, a sync).
+  return m[1] > mtime ? m[1] : mtime;
 }
 
 function projectFor(file) {
@@ -226,8 +238,36 @@ function reconcile() {
 // already-sent history that is never re-sent (the point-in-time convention in vault/me/cv-sources.md),
 // and failing on them would paint C12 permanently red, which is how a real check gets ignored.
 const CV_RULE_FROM = '2026-08-20';
-const CV_FAMILY  = /^shaheen[_-]kiarash/i;
+// A15-T-07 (2026-09-11): TWO holes, both in how the law decides what to look at.
+//
+// (1) This anchored with ^, so only a filename STARTING with his name was ever inspected.
+//     `AI_Engineer_Shaheen_Kiarash.pdf` and `CV_Volvo_2026.pdf` both leak exactly what the law
+//     exists to stop and neither was examined. The name check stays (it is the broad net that
+//     catches a filename with no CV token in it at all) and a second net catches the CV-shaped
+//     names that do not lead with him.
+// (2) See dateFor: the grandfather date came from the FOLDER, so a file written today into a
+//     2026-08-19 folder was treated as pre-rule history and skipped.
+const CV_FAMILY  = /shaheen[_-]kiarash/i;
+// The CV-SHAPED net, scoped to the extensions that actually SHIP. The law's own wording is
+// "the only two shapes that may ship: Shaheen_Kiarash_CV.{pdf,docx}", and the leak it prevents
+// travels WITH the attachment - so an intermediate .txt or .html source that never leaves the
+// machine is not the target. The first draft of this net was unscoped and immediately flagged
+// nine working files (cover-letter.txt, cv-source.html, a .bak), which is how a privacy rule
+// gets a reputation for crying wolf and then gets switched off.
+const CV_SHAPED  = /(^|[_-])(cv|resume|curriculum|lebenslauf|cover[_-]?letter)([_-]|\.|$)/i;
+const CV_SHIPS   = /\.(pdf|docx)$/i;
 const CV_ALLOWED = /^Shaheen_Kiarash_(CV|Cover_?Letter)\.(pdf|docx)$/;
+// Reviewed exceptions to the filename law, by exact repo-relative path (2026-09-10, stress-test
+// A04-T3 follow-on). The law is deliberately matched on HIS NAME rather than on CV-ish words,
+// because the leak it prevents is `Shaheen_Kiarash_AI_Engineer_<Company>.pdf` - a filename with no
+// CV token in it at all. Narrowing the pattern to catch only files that LOOK like a CV would open
+// exactly the hole the law exists to close, so the pattern stays broad and a genuine non-application
+// document is exempted here ONE PATH AT A TIME with its reason, the same shape as the gitleaks and
+// personal-data allowlists. An entry here is a claim that this file is never sent to a recruiter.
+const CV_NAME_EXCEPTIONS = new Map([
+  ['outputs/sessions/2026-08-25-istvan-action-plan/Shaheen_Kiarash_Action_Plan.pdf',
+   'a personal career action plan from a coaching session, never an application attachment; it is not a CV or a cover letter and carries no company or role in its name'],
+]);
 
 function validate() {
   let failed = false;
@@ -252,8 +292,11 @@ function validate() {
   const badName = [];
   for (const f of deliverablesOnDisk()) {
     const base = path.basename(f);
-    if (!CV_FAMILY.test(base) || CV_ALLOWED.test(base)) continue;
+    const looksLikeHim = CV_FAMILY.test(base);
+    const looksLikeACv = CV_SHAPED.test(base) && CV_SHIPS.test(base);
+    if ((!looksLikeHim && !looksLikeACv) || CV_ALLOWED.test(base)) continue;
     if (dateFor(f) < CV_RULE_FROM) continue;
+    if (CV_NAME_EXCEPTIONS.has(rel(f).split(path.sep).join('/'))) continue;
     badName.push(rel(f));
   }
   if (badName.length) {
@@ -282,7 +325,40 @@ function add(args) {
   if (!fs.existsSync(full)) { console.error(`add: file not found: ${p}`); process.exit(1); }
   const relP = rel(full);
   if (readLedger().some(r => r.path === relP)) { console.log(`add: already ledgered: ${relP} (use update-desc to revise)`); render(); return; }
+  /*
+   * A01-T-06 (2026-09-11): IDENTITY-CARRYING deliverables must record a grader verdict.
+   *
+   * Close-Out C says a shipped visual or piece of prose in Shaheen's voice gets a blind grader - a
+   * fresh subagent that sees only the artifact and the rubric, never this session's reasoning,
+   * because the 2026-07-03 brand incident shipped past a session grading its own work. The grader
+   * is ADVISORY by Shaheen's choice, and advisory turned out to mean it fired on 2 of 11 identity
+   * days: a rule with no mechanism decays to the rate at which someone remembers it.
+   *
+   * This does not force the grader to RUN, which would make an advisory step blocking against his
+   * decision. It forces the row to SAY, so "not graded" becomes a recorded fact instead of an
+   * absence nobody can see afterwards. `--grader PASS|FAIL|SKIPPED` with a reason for the last two.
+   * Non-identity deliverables (.md, .json, .csv) are unaffected.
+   */
+  const IDENTITY_EXT = /\.(pdf|docx|pptx|png|jpg|jpeg|svg|html)$/i;
+  let grader = get('grader');
+  if (IDENTITY_EXT.test(relP)) {
+    const VALID = ['PASS', 'FAIL', 'SKIPPED'];
+    if (!grader || !VALID.includes(String(grader).toUpperCase())) {
+      console.error(`add: ${relP} is an identity-carrying deliverable, so it needs --grader ${VALID.join('|')}.`);
+      console.error('  Close-Out C: a shipped visual or prose-in-his-voice gets a blind grader (work/23-self-review/close-out-grader/).');
+      console.error('  The grader stays ADVISORY - this only requires the row to SAY what happened, so "not graded" is recorded rather than invisible.');
+      console.error('  SKIPPED is a legitimate answer: add --grader SKIPPED --grader-note "why".');
+      process.exit(1);
+    }
+    grader = String(grader).toUpperCase();
+    if (grader !== 'PASS' && !get('grader-note')) {
+      console.error(`add: --grader ${grader} needs --grader-note "<why>" - a FAIL or a SKIP without a reason is the thing a reader cannot act on later.`);
+      process.exit(1);
+    }
+  }
+
   const row = { ...skeletonRow(full, 'manual'), project, desc, ...runStamp() };
+  if (grader) { row.grader = grader; const gn = get('grader-note'); if (gn) row.grader_note = gn; }
   const links = parseLinks(get);
   if (links.length) row.links = links;
   appendRows([row]);

@@ -51,7 +51,10 @@ async function run({ schedule, apply, log }) {
   if (!systemd.hasSystemd()) {
     log(
       `  scheduler: LIVE CHECK SKIPPED - no systemd on this machine (platform=${process.platform}). ` +
-        `${documented.length} jobs documented, ${gen.written.length} unit pairs written to systemd/. ` +
+        // A02-T-08: say how many were actually TOUCHED. "23 written" on a run that changed nothing
+        // is the same class of untrue-but-green line as a check reporting a pass it never made.
+        `${documented.length} jobs documented, ${gen.written.length} unit pairs rendered to systemd/ ` +
+        `(${(gen.unchanged || []).length} already byte-identical, ${gen.written.length - (gen.unchanged || []).length} updated). ` +
         'This is expected on a dev box without systemd (ruling C: dev here, run on Linux); on the Linux ' +
         'host it means systemd is unreachable and the scheduler is UNVERIFIED.'
     );

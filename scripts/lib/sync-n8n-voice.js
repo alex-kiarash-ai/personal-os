@@ -25,16 +25,34 @@ const BACKUP_DIR = path.join(REPO, 'scripts', 'n8n-backups');
 // Only the WRITER produces human-facing prose (model-routing rule). Match/scoring nodes are
 // reasoning and are deliberately NOT touched. The eval reuses the writer node verbatim, so it is
 // a sync target too (keeps the regression harness testing the CURRENT injected prompt).
-const TARGETS = [
-  { id: '9XuIEfxS71DEetVR', name: 'Application Engine (BI)' },
-  { id: '9x9M3EnEEeX3O8dy', name: 'AI Application Engine' },
-  { id: 'grMqmGzzbTXTEdKr', name: 'Writer Voice Eval (regression)' },
-  // Added 2026-07-27. Build #31's pipeline is a clone of #03 and carries its own COPY of the
-  // writer node, so without this it keeps whatever voice block it was cloned with and silently
-  // drifts the next time soul.md changes: three lanes updated, one quietly stale, and the drift
-  // surfaces in a cover letter a recruiter reads rather than anywhere a check would catch it.
-  { id: 'sxEYRyeHH7i1mHzb', name: 'Portal Application Engine' },
-];
+/*
+ * A08-T-08 (2026-09-11): TARGETS is DERIVED from the manifest, not written here.
+ *
+ * It used to be a hardcoded array, and it drifted exactly once in the way that costs something:
+ * #31/#32's pipeline is a clone of #03 and carries its own COPY of the writer node, so it kept
+ * whatever voice block it was cloned with while the other three were re-synced. Three lanes
+ * updated, one quietly stale, and the drift surfaces in a cover letter a recruiter reads rather
+ * than anywhere a check looks. Someone noticed on 2026-07-27, by hand.
+ *
+ * A lane now enrols by carrying `voice_sync: true` on its manifest row, which is the same
+ * expectations-live-as-data rule V6 follows for model routing. The eval harness has no project row,
+ * so it is declared once in `meta.voice_sync.extra` rather than being the one hardcoded exception
+ * that teaches the next person to add theirs here too.
+ */
+function loadTargets() {
+  const mf = JSON.parse(fs.readFileSync(path.join(REPO, 'system', 'manifest.json'), 'utf8'));
+  const out = (mf.projects || [])
+    .filter((p) => p.voice_sync === true && p.n8n)
+    .map((p) => ({ id: p.n8n, name: p.title || p.name }));
+  for (const e of ((mf.meta || {}).voice_sync || {}).extra || []) {
+    if (e && e.id) out.push({ id: e.id, name: e.name || e.id });
+  }
+  if (!out.length) {
+    throw new Error('sync-n8n-voice: no voice_sync targets in system/manifest.json - refusing to sync nothing silently');
+  }
+  return out;
+}
+const TARGETS = loadTargets();
 const NODE = 'Build Writer Request';
 const START = '<<<SOUL_VOICE_START';
 const END = '<<<SOUL_VOICE_END>>>';
@@ -53,8 +71,33 @@ function buildVoiceBlock(soul) {
   if (!vr) throw new Error('sync-n8n-voice: could not find Voice Rules section in soul.md');
   const rules = vr[0].trim();
   const mw = soul.slice(soul.indexOf('## My Words'));
-  const samples = (mw.match(/^- "[^"]+"/gm) || []).slice(0, 8).join('\n');
-  if (samples.length === 0) throw new Error('sync-n8n-voice: no My Words samples found in soul.md');
+
+  /*
+   * A08-T-09 (2026-09-11): NOT EVERY CORPUS ENTRY MAY LEAVE THIS MACHINE.
+   *
+   * This block is sent to Anthropic on every writer call. The samples were "the first 8 quoted
+   * lines under ## My Words", which is the NEWEST entries - and the newest entry is whatever was
+   * harvested last. The 2026-09-03 VOICE entry came from WhatsApp voice notes: real conversations
+   * with named people, harvested locally with the audio deleted on purpose. Nothing stopped those
+   * lines being the top 8 on the next generator run, at which point private conversation with
+   * third parties ships into a third-party API as "texture".
+   *
+   * Samples are taken per ENTRY now, skipping any whose heading marks it private-source. The rule
+   * is SOURCE-based rather than content-based deliberately: judging a line for sensitivity is
+   * exactly the call a regex cannot make, and the heading already records where it came from.
+   */
+  const PRIVATE_SOURCE = /whats\s*app|voice note|(^|[^a-z])private([^a-z]|$)/i;
+  const picked = [];
+  for (const block of mw.split(/\n(?=###\s)/)) {
+    const heading = (block.match(/^###[^\n]*/) || [''])[0];
+    if (PRIVATE_SOURCE.test(heading)) continue;
+    for (const line of block.match(/^- "[^"]+"/gm) || []) {
+      if (picked.length < 8) picked.push(line);
+    }
+    if (picked.length >= 8) break;
+  }
+  const samples = picked.join('\n');
+  if (samples.length === 0) throw new Error('sync-n8n-voice: no shippable My Words samples in soul.md (is every recent entry private-source?)');
   const day = new Date().toISOString().slice(0, 10);
   return [
     `${START} synced ${day} from soul.md - do not edit by hand, re-run the generator (scripts/generate-alex.js)>>>`,
@@ -79,6 +122,34 @@ function stablePart(blockText) {
 
 // Inject/refresh the block inside the node's SYSTEM string literal (idempotent, same as standalone).
 // Returns { code, changed, noop, reason }.
+/*
+ * extractLiveBlock - the voice block as it actually sits in a node, or a reason it is not there.
+ *
+ * Exported 2026-09-11 (A15-T-06) because the drift checker's first draft searched the RAW node code
+ * for the markers and compared what it found. That is wrong in a way that reports total drift: the
+ * SYSTEM literal is JSON-ENCODED in the node source, so every newline inside it is a two-character
+ * escape sequence, and `stablePart` (which strips up to the first real newline) strips nothing. All four lanes
+ * read as drifted while the generator had just verified all four as in sync.
+ *
+ * The literal must be JSON.parse'd first, which is exactly what injectIntoSystem does below. One
+ * function, used by both, so the writer and the checker can never disagree about where the block is.
+ */
+function extractLiveBlock(code) {
+  // Built, not written inline: an escaped newline kept reaching disk as a real one.
+  const TERM = ';' + String.fromCharCode(10) + 'const TONE';
+  const head = 'const SYSTEM = ';
+  const i = code.indexOf(head);
+  if (i < 0) return { err: 'no SYSTEM const' };
+  const j = code.indexOf(TERM, i);
+  if (j < 0) return { err: 'no SYSTEM terminator' };
+  let sys;
+  try { sys = JSON.parse(code.slice(i + head.length, j).trim()); }
+  catch (e) { return { err: 'SYSTEM literal not JSON-parseable: ' + e.message }; }
+  const s = sys.indexOf(START), e = sys.indexOf(END);
+  if (s < 0 || e <= s) return { err: 'no SOUL_VOICE markers inside SYSTEM' };
+  return { block: sys.slice(s, e + END.length) };
+}
+
 function injectIntoSystem(code, blockText) {
   const head = 'const SYSTEM = ';
   const i = code.indexOf(head);
@@ -173,4 +244,6 @@ async function run({ soul, apply, log }) {
   return results;
 }
 
-module.exports = { run, buildVoiceBlock, injectIntoSystem, TARGETS, NODE, START, END };
+// stablePart exported 2026-09-11 (A15-T-06): the drift checker must compare with the SAME
+// function the sync writes with, or the two slowly disagree about what "unchanged" means.
+module.exports = { run, buildVoiceBlock, stablePart, extractLiveBlock, injectIntoSystem, TARGETS, NODE, START, END };

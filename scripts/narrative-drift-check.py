@@ -58,6 +58,27 @@ def live_check_count():
     return len(set(int(m) for m in re.findall(r'(?m)^\s*(?:#|//)\s*---\s*C(\d+)\b', txt)))
 
 
+def live_hook_events():
+    """The hook EVENT names actually wired, read from .claude/settings.json (structured, not prose)."""
+    f = REPO / ".claude" / "settings.json"
+    if not f.exists():
+        return None
+    try:
+        return set(json.loads(f.read_text(encoding="utf-8")).get("hooks", {}).keys())
+    except Exception:
+        return None
+
+
+def live_s_count():
+    """The security sweep's assertion count, from its own `// --- S<n>` block headers."""
+    f = REPO / "work" / "18-recovery-layer" / "security-sweep.mjs"
+    if not f.exists():
+        return None
+    txt = f.read_text(encoding="utf-8", errors="replace")
+    ids = set(int(m) for m in re.findall(r'(?m)^\s*//\s*---\s*S(\d+)', txt))
+    return max(ids) if ids else None
+
+
 def live_v_count():
     """The validator suite size, read from its ONE structured declaration.
 
@@ -285,12 +306,12 @@ def main():
             if v != live_v:
                 findings.append(f"master claims 'V1-V{v}' but validate-alex.js runs V1-V{live_v}")
 
-    # claim 3: non-retired project count - "~N automations" (approximate register: flag only gross drift, >3 off)
+    # claim 3: non-retired project count - "~N automations" (approximate register, but the band was >3 and the doc sat at 29 against a live 32 for weeks, passing at exactly the edge; tightened to >1 on 2026-09-10, A17-T13)
     live_p = live_project_count(mani)
     for m in re.finditer(r'~?\s*(\d+)\s+automations', text):
         v = int(m.group(1))
-        if abs(v - live_p) > 3:
-            findings.append(f"master claims '{v} automations' but the manifest has {live_p} non-retired (>3 off)")
+        if abs(v - live_p) > 1:
+            findings.append(f"master claims '{v} automations' but the manifest has {live_p} non-retired (>1 off)")
 
     # claim 4: escrow attestation date - "C14 attested <date>"
     esc = live_escrow_date()
@@ -298,6 +319,61 @@ def main():
         for m in re.finditer(r'C14 attested\s+(\d{4}-\d{2}-\d{2})', text):
             if m.group(1) != esc:
                 findings.append(f"master cites 'C14 attested {m.group(1)}' but state/passphrase-attested.txt says {esc}")
+
+    # claim 5: the hook table must name the hooks that actually run (A17-T11, 2026-09-10).
+    # The table carried Stop and Notification for 36 days after both keys were unwired with the voice
+    # lane, and omitted five real events. A hook table naming hooks that do not run, and missing hooks
+    # that do, is exactly the document someone checks when a hook seems dead.
+    live_hooks = live_hook_events()
+    if live_hooks is not None:
+        table = re.search(r'^### Hooks.*?(?=^\*\*|\Z)', text, re.M | re.S)
+        if table:
+            named = set(re.findall(r'(?m)^\|\s*([A-Za-z][A-Za-z0-9]*)\s*\|', table.group(0))) - {'Hook'}
+            for h in sorted(named - live_hooks):
+                findings.append(f"master hook table lists '{h}', which is NOT a live hook event in .claude/settings.json")
+            for h in sorted(live_hooks - named):
+                findings.append(f"master hook table is MISSING live hook event '{h}'")
+
+    # claim 6: the security sweep's assertion count (A17-T12). It moved from 10 to 13 on 2026-09-10
+    # and the master was not moved with it, in the same session that added the three.
+    live_s = live_s_count()
+    if live_s is not None:
+        for m in re.finditer(r'(\d+)\s+assertions', text):
+            if int(m.group(1)) != live_s:
+                findings.append(f"master claims '{m.group(1)} assertions' but security-sweep.mjs declares S1-S{live_s}")
+
+    # claim 7: no TRACKED doc may restate the validator's suite range (A03-T4/T6, 2026-09-10).
+    # The range is declared once, in validate-alex.js, and the validator prints it itself. A restated
+    # copy is a number that can only rot: port-to-kit.md carried "V1-V18", a range that has never
+    # existed in any version of the suite. outputs/ is excluded because a delivered artifact is a
+    # dated record of what was true when it shipped.
+    live_v2 = live_v_count()
+    if live_v2 is not None:
+        import subprocess
+        try:
+            tracked = subprocess.run(["git", "ls-files", "*.md"], cwd=str(REPO),
+                                     capture_output=True, text=True, timeout=30).stdout.split()
+        except Exception:
+            tracked = []
+        for rel in tracked:
+            if rel.startswith("outputs/") or rel.startswith("docs/constitution-annex/"):
+                continue
+            f = REPO / rel
+            try:
+                body = f.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            # A file that declares itself a DATED RECORD is history by its own statement, and this
+            # repo keeps those intact on purpose (ALEX-REFACTOR-SPEC-FOR-CLAUDE-CODE.md says so in
+            # its own header). Policing a number inside one would ask it to lie about its date.
+            if re.search(r"DATED RECORD", body[:4000], re.I):
+                continue
+            for m in re.finditer(r"V1[-–]V(\d+)", body):
+                if int(m.group(1)) != live_v2:
+                    findings.append(
+                        f"{rel} restates the validator range as V1-V{m.group(1)} but validate-alex.js declares V1-V{live_v2}; "
+                        f"the range is declared once and the validator prints its own"
+                    )
 
     if findings:
         for f in findings:

@@ -29,7 +29,21 @@ const path = require('path');
 const REPO = path.join(__dirname, '..');
 const MANIFEST = path.join(REPO, 'system', 'manifest.json');
 const JOURNAL = path.join(REPO, 'system', 'status-rotate-journal.jsonl');
-const DRY = process.argv.includes('--dry');
+// 2026-09-11: accept BOTH spellings, and refuse anything else. This took `--dry` while
+// generate-alex.js takes `--dry-run`, so an operator reaching for the wrong one got a LIVE
+// rotation that moved blocks between files and reported it as if asked. Unknown flags are now a
+// hard refusal rather than silence, because the failure mode of a silently-ignored safety flag is
+// exactly the mutation the flag was meant to prevent. (Found by doing it: this session ran
+// `--dry-run` here and rotated four blocks for real.)
+const DRY = process.argv.includes('--dry') || process.argv.includes('--dry-run');
+{
+  const KNOWN = new Set(['--dry', '--dry-run', '--force']);
+  const unknown = process.argv.slice(2).filter((a) => a.startsWith('--') && !KNOWN.has(a));
+  if (unknown.length) {
+    console.error(`status-rotate: unknown flag(s) ${unknown.join(', ')}. Refusing: a mistyped safety flag must never read as "go ahead". Known: ${[...KNOWN].join(', ')}`);
+    process.exit(2);
+  }
+}
 const onlyArg = process.argv.find(a => a.startsWith('--project='));
 const ONLY = onlyArg ? onlyArg.split('=')[1] : null;
 

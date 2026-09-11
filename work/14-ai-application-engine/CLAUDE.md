@@ -26,7 +26,7 @@ handling for `max_tokens` and `refusal`. `max_tokens` stays 16384: on this famil
 gate as a parse error - an outage that looks like a model fault. The parse filters `type === 'text'` and joins.
 
 **Prompt caching is back and it is the cost story:** system prompt + master CV is ~9.3K chars of identical prefix
-per job, and Moonshot had no cache-write tier. From the second call in a run that prefix bills at ~0.1x (live probe:
+per job, and Moonshot had no cache-write tier (that was the kimi-k3 period; the lane is on Anthropic since 2026-08-07). From the second call in a run that prefix bills at ~0.1x (live probe:
 2277 cache-write tokens, 12 uncached input). opus-5 $5/$25 per M, sonnet-5 $3/$15 ($2/$10 intro to 2026-08-31).
 
 **Proven, not asserted:** both credentials probed live on 4 candidate models (200 OK); the exact generated body
@@ -65,9 +65,14 @@ can adapt it to the job add but using the same words and the same tens."*
 - **Never write an AI CV from memory, from an older CV, or from a rendered PDF.** Read the master that session.
 - **Tailoring = SELECT, REORDER, keyword-mirror.** Same words, same tense, same voice. A gap the master does not
   cover is bridged honestly as "ready to", in his register, never by rewriting his sentences into new prose.
-- **Its punctuation is frozen.** The master carries 4 em-dashes and 3 en-dashes; the no-dash rule does NOT apply to
-  master text, only to prose the writer composes. Known deviation: the Parse Writer sanitizer turns em-dash into
-  comma, so a reused master sentence comes out with a comma in a pipeline draft.
+- **NO DASHES, master text included.** Corrected 2026-09-11 (stress-test A08-T-07): this said the master
+  "carries 4 em-dashes and 3 en-dashes" and that the no-dash rule "does NOT apply to master text". That was the
+  2026-08-19 carve-out, and Shaheen REVERSED it on 2026-08-20 in his own words: *"you have use this [en-dash] in
+  both versions PDF and Word, you already have this role, NEVER AGAIN use it."* The carve-out is exactly what let
+  a CV ship with his dashes intact. Both characters were removed from both masters AT SOURCE, so verbatim reuse is
+  dash-free by construction; `scripts/build-cv-master.py` refuses to rebuild the mirror if either reappears in the
+  frozen docx, and both are NEGATIVE marks in the resync checker across all three live engines. Leaving the
+  superseded rule here for three weeks meant the spec for this lane still described the behaviour that burned.
 - **Nobody edits the .docx UNILATERALLY.** Two paths only: a new file from Shaheen, or a surgical correction he
   explicitly authorises (first one 2026-08-19, TypeScript removed). Back up into `vault/me/cv/ai/_amendments/`,
   rebuild the mirror with `python scripts/build-cv-master.py`, re-sync, and log it in the amendment log.
@@ -138,7 +143,7 @@ Applied in lockstep with #03 (both engines 41 -> 49 nodes, active throughout). E
 
 ## Credentials (n8n) - ALL REUSED, no new OAuth
 - `Bright Data Header Auth` - exists, validated
-- `Kimi K3 (Moonshot header)` (httpHeaderAuth, id `OffvMkWR01zcpqxo`) - the model credential since 2026-07-27; the `Claude Match+Research` + `Claude Writer` nodes call Moonshot through it.
+- `Kimi K3 (Moonshot header)` (httpHeaderAuth, id `OffvMkWR01zcpqxo`) - **was** the model credential from 2026-07-27 until 2026-08-07, when the lane moved back to Anthropic (`claude-opus-5` Match + `claude-sonnet-5` Writer); the `Claude Match+Research` + `Claude Writer` nodes call Moonshot through it.
 - `Anthropic account 2 (AI engine, split 2026-07-06)` - exists, NO LONGER USED by the model nodes (kept for rollback).
 - `Google Sheets account` (OAuth2) - exists (created for the BI pipeline)
 - `Google Drive account` (OAuth2) - exists

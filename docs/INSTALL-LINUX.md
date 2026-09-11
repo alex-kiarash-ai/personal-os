@@ -107,7 +107,7 @@ the only barrier between personal data and the internet:
 
 | What | Where | Mode |
 |---|---|---|
-| **Secrets** (HQ token, n8n API key, gpg passphrase, qra token) | `~/.config/alex/secrets/` | dir `700`, files `600` |
+| **Secrets** (HQ token, n8n API key, gpg passphrase, qra token) | `~/.config/alex/secrets/` | dir `700`, files `600`. This is the layout for the Linux host this document describes; the current Windows box still keeps them at in-repo gitignored paths declared in `system/credentials-ledger.json`, and the resolver handles both. |
 | **Identity docs** (`ALEX-OS-master.md`, `Alex-Plain-English-Guide.docx`) | `~/Documents/alex-project/story-and-guides/` | normal |
 
 ```bash

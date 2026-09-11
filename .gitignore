@@ -1,9 +1,15 @@
 # === SECRETS - never commit; if one is ever staged/pushed, rotate it immediately ===
-# KEPT AS A SAFETY NET (bash migration ruling A, 2026-08-05): the four real credentials now live
-# OUTSIDE the repo at ~/.config/alex/secrets/ (mode 600), resolved through
-# system/credentials-ledger.json, so no code names a credential path any more. These entries are
-# DELIBERATELY not deleted - a stale ignore rule costs nothing and still catches a file recreated in
-# the old location by an un-migrated script or an old runbook.
+# CORRECTED 2026-09-11 (A10-T-06). This block used to say the four real credentials "now live
+# OUTSIDE the repo at ~/.config/alex/secrets/" and described these entries as a stale safety net.
+# That is the TARGET state, not this machine: that directory does not exist here, and every live
+# credential is still at the in-repo gitignored path listed below, declared in
+# system/credentials-ledger.json. The nightly vault-backup has been saying so out loud every night
+# ("still at a PRE-MIGRATION in-repo path").
+#
+# So these are LOAD-BEARING rules, not a safety net, and the distinction matters: a reader who
+# believed the old comment would think deleting them was harmless housekeeping. The resolver
+# (scripts/lib/paths.mjs) is correct under both layouts, which is why ruling A can land later
+# without touching any caller.
 work/03-application-engine/config/n8n-api-key.txt
 work/03-application-engine/config/brightdata-api-key.dpapi
 work/16-alex-hq/config/alex-hq-token.txt
@@ -17,6 +23,7 @@ work/16-alex-hq/config/hq-basic-auth.txt
 # Agent-skills symlink layer (machine-local). Canonical skill content is committed under
 # .agents/skills/. Rebuild on restore, per pair:
 #   ln -s ../../.agents/skills/<name> .claude/skills/<name>
+# (the links on disk are ABSOLUTE, which is what `skills-installer.js` creates and what a restore reproduces; the relative form works too and is what this recipe writes by hand. Either resolves, so C17 passes on both, but do not read the recipe as a description of what is there, A12-T12)
 # (Before the 2026-08-05 Linux move these were NTFS junctions, because core.symlinks=false on
 # Windows would have duplicated the content. On Linux they are ordinary symlinks and recovery
 # check C17 also catches a BROKEN one, which the old check could not distinguish from healthy.)
@@ -242,6 +249,17 @@ system/heal-log.jsonl
 soul.md.*
 soul-*.md
 soul.*.md
+# Widened 2026-09-10 (stress-test A15-T4, A15-T13). The three patterns above cover a dated
+# variant and a .bak, and missed three real shapes, each of which is a FULL identity file on a
+# PUBLIC repo where .gitignore is the only barrier:
+#   soul-core.md.staging  - the atomic-write temp the card builder renames from. A crash between
+#                           write and rename leaves it on disk, and the nightly `git add -A` in the
+#                           skills installer would have staged it.
+#   soul_2026.md          - an underscore instead of a dot or dash. One keystroke from covered.
+#   soul copy.md          - what Windows Explorer names a duplicate.
+*.md.staging
+soul_*.md
+soul *.md
 
 # --- 3. system/ DEFAULT-DENY (was: every personal queue named individually) ---
 # A new queue/state file under system/ was open until someone remembered it. Now the
@@ -318,3 +336,54 @@ system/mail-channels.json
 # app/public/data/ are now redundant but kept, so the reason survives if the dir ever returns.
 # If the app is ever brought back into this repo, un-ignore it with a reviewed `!` line.
 work/16-alex-hq/app/
+system/history-purge-pending.json
+
+# --- A06-T5 sibling shapes (added 2026-09-10) ---------------------------------------------------
+# The audit probed 25 filenames a NEW file could plausibly take on this machine and found 23 that no
+# rule covered. None of these exist today; that is the point. On a PUBLIC repo where .gitignore is
+# the sole barrier, a shape is either covered before the file exists or it is covered after the file
+# is world-visible, and there is no third option. Each line below is a shape that would carry
+# personal data, credentials or exported vault content if it were ever created.
+#
+# The narrow rules these widen are kept above rather than replaced, so the reasons recorded there
+# survive. `docs/n8n/*/workflow.json` named ONE filename; a second export beside it was tracked.
+docs/n8n/*/*.json
+!docs/n8n/*/README.md
+
+# Credentials and key material, anywhere in the tree.
+.env*
+.envrc
+*.pem
+*.p12
+*.pfx
+# A10-T-04 (2026-09-11): the BASENAME shapes, which the 09-10 pass missed because it widened by
+# DIRECTORY. `work/*/config/n8n-api-key.txt` was covered by name; the identical file one folder
+# over, or under scripts/, or at a project root, was not. These are the names this system actually
+# gives its secrets, so the rule follows the name rather than the place. Verified below that no
+# tracked file becomes ignored by adding them.
+*-token.txt
+*-token.json
+*_token.txt
+*-api-key.txt
+*-api-key.json
+*-apikey.txt
+*.key
+*.keyfile
+*-credentials.json
+*-secret.txt
+*-secrets.txt
+*.dpapi
+*.gpg-pass
+# `.env*` matches a file whose name STARTS with .env; `secrets.env` starts with 's'.
+*.env
+
+# Data shapes under a project folder: a database, a spreadsheet of people, a jsonl ledger, a scratch
+# export directory. `work/*/CLAUDE.md` and the tracked specs stay tracked because they are named
+# explicitly by the rules above this block.
+work/*/*.db
+work/*/*.sqlite*
+work/*/*.csv
+work/*/exports/
+work/*/backup/
+work/*/tmp/
+work/*/private/

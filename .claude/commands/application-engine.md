@@ -6,7 +6,7 @@
 > *State and trigger above are GENERATED from the registry. Do not restate a schedule elsewhere in this file; point at the registry instead.*
 <!-- ALEX:CMD-HEADER:END -->
 
-Spec + runbook: work/03-application-engine/CLAUDE.md. Design source of truth: job_pipeline_documentation.md (Desktop\Job Search\Job Applications\CV\LinkdIn Automation (1)\), keep its changelog current.
+Spec + runbook: work/03-application-engine/CLAUDE.md. Design source of truth: job_pipeline_documentation.md (Desktop\02 Job Search\Job Applications\CV\LinkdIn Automation (1)\ - the "02 " prefix arrived with the 2026-08-21 Desktop reorg; path corrected 2026-09-09), keep its changelog current.
 
 This command does NOT run the pipeline. n8n on Hetzner runs it on the schedule declared in
 `system/manifest.json` (#03 `trigger` + `n8n_cron`, asserted against the live workflow by validator V6

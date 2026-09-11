@@ -80,6 +80,51 @@ const ASSERTIONS = [
     why: 'the skills-store count said 29/30 for 11 days while three owner-approved packs had taken it to 82',
   },
   {
+    // A04-T-07 (2026-09-11): the recovery-check count is restated in EIGHT or more prose places
+    // and only four were guarded. The 09-10 fix corrected the owners the editor happened to look
+    // at; these two are the ones a human reads when the sweep is what they are asking about, and
+    // both carried "21" from July while the code ran 30.
+    name: 'recovery-status-check-count',
+    doc: 'vault/projects/recovery/status.md',
+    regex: /\*\*(\d+) checks \(C1-C/,
+    subject: 'recovery-checker', predicate: 'check_count', mode: 'equals',
+    why: 'the recovery status page is what a human reads when asking what the sweep covers; it said 21 for two months',
+  },
+  {
+    name: 'schedule-recovery-check-count',
+    doc: 'scheduler/schedule.md',
+    regex: /\((\d+) checks, C1-C/,
+    subject: 'recovery-checker', predicate: 'check_count', mode: 'equals',
+    why: 'the schedule entry describes what the Monday job does; a wrong count there misdescribes the job itself',
+  },
+  {
+    // A11-T-03 (2026-09-11): section 4 named its MCP servers by hand and nothing compared that to
+    // the machine. A USER-scope server lives outside the repo, so a restore that does not re-add
+    // it comes back silently short a capability and nobody finds out until something needs it.
+    // A17-T-19 (2026-09-11): the deployed n8n version is restated in three owner docs and was
+    // verifiable by nobody - no read-only path re-derived it, so all three could drift together and
+    // go on agreeing with each other. The landscape-monitor's deployed probe already ssh's to the
+    // box daily and writes the version to the landscape log; h-n8n now lifts it into facts.db, so
+    // these assertions cost no new box call.
+    //
+    // The ledger also carries `n8n/version_probed`. If that date is old the probe has gone blind
+    // (its own finding, A08-T-05, which escalates past 7 days) and these checks are comparing docs
+    // against a number that was true once. Agreeing with a stale fact is not the same as being right,
+    // and the date is in the ledger so a reader can tell the difference.
+    name: 'claude-md-n8n-version',
+    doc: 'CLAUDE.md',
+    regex: /Runs pinned in docker-compose \(Postgres 16\), ([\d.]+) since/,
+    subject: 'n8n', predicate: 'deployed_version', mode: 'equals',
+    why: 'the constitution states the deployed n8n version; nothing could re-derive it until the probe result reached the ledger',
+  },
+  {
+    name: 'identity-mcp-user-scope-count',
+    doc: 'vault/identity.md',
+    regex: /\*\*(\d+) MCP servers at user scope\*\*/,
+    subject: 'mcp', predicate: 'user_scope_count', mode: 'equals',
+    why: 'a restore has to re-add every user-scope MCP by hand; a wrong count here means a connector is quietly never rebuilt',
+  },
+  {
     name: 'identity-escrow-attested',
     doc: 'vault/identity.md',
     regex: /escrow drill re-passed (\d{4}-\d{2}-\d{2})/,
@@ -140,7 +185,10 @@ function readDoc(p) {
 // name states in history lines, in comparisons to other projects, and in superseded notes, so any
 // regex broad enough to catch a real drift also fires on correct prose, and a checker with false
 // positives gets ignored, which is worse than no checker.
-const FOREIGN_PROVIDERS = /\b(openai|gpt-[0-9o]|gpt4|chatgpt|gemini|llama|mistral|cohere|deepseek|grok)\b/i;
+const FOREIGN_PROVIDERS = /\b(openai|gpt-[0-9o]|gpt4|chatgpt|gemini|llama|mistral|cohere|deepseek|grok|moonshot|kimi(?:-k[0-9])?)\b/i;
+// moonshot|kimi added 2026-09-10 (A17-T5): they were the ACTUAL provider from 2026-07-27 to 08-07,
+// so a doc still claiming them is the most likely routing lie this repo can tell, and the pattern
+// could not see it. Proven by a negative test that did not fire until this line changed.
 // A mention only counts as a ROUTING CLAIM if it reads like one. Feed/source references are excluded:
 // #15 alex-radar legitimately reads the OpenAI news RSS, and that is data ingestion, not model routing.
 const ROUTING_CONTEXT = /\b(model|runs on|run on|prose|writer|voice block|routing|fed from|node runs|call(?:s|ed)? )\b/i;
@@ -155,15 +203,36 @@ const SOURCE_CONTEXT = /\b(rss|feed|changelog|atom|\.xml|news|blog|releases?|lan
 //     true; specs are allowed to remember.
 const PKG_NAME = /openai[-_]whisper/i;
 const DENIAL = /\bno\s+\w*\s?(?:openai|gpt)\b|\bnot\b[^.]{0,40}\b(?:openai|gpt)\b|\bnever\s+(?:carried|ran|run|applied|has)\b|\bno\s+\w+\s+has\s+ever\b/i;
-const HISTORY = /\bFirst run \(|\bPrior state\b|\bhistorical\b|\bat that time\b|\bthe old\b|\bused to\b|\bpreviously\b/i;
+const HISTORY = /\bFirst run \(|\bPrior state\b|\bhistorical\b|\bat that time\b|\bthe old\b|\bused to\b|\bpreviously\b|\bSUPERSEDE[SD]?\b|\bwas\b|\bswap(?:ped)?\b|\bhas read\b|\bwent through\b|\bno longer\b|\bolder notes\b|\b(?:429|outage|overloaded|refusing|blocked by)\b|\(20\d{2}-\d{2}-\d{2}[,)]|\bperiod\b|\[20\d{2}-\d{2}-\d{2}\]|\bExec \d+ \(|\b20\d{2}-\d{2}-\d{2}\b.*\b(?:to|until|through)\b/i;
+// A DATED record - a `[2026-07-27]` bulletin, an `Exec 3670 (08-06 ...)` incident line, a date range -
+// states what was true THEN. Those are the shape the supersession convention asks for, not drift.
+// Supersession phrasing added 2026-09-10: a doc that records what a value USED to be, in the same
+// sentence as the correction, is doing exactly what the convention asks for and must not be flagged.
 // The repo's OWN supersession convention is the biggest false-positive source: corrections are written
 // INLINE and quote the value they replace (`*(Corrected 2026-07-29 ... this said "OpenAI" ...)*`), so a
 // naive prose scan flags every correctly-corrected file. Strip those spans before scanning, and the
 // checker reads only the live claim - which is exactly what it is supposed to police.
+// A11-T14 / A17-T17 (2026-09-10): the second replace consumed everything from the marker to the end
+// of the LINE, including any live claim written after the correction on that same line. A false
+// claim wrapped behind a supersession note was therefore invisible to C21, the one checker that
+// exists to catch a doc lying about the system. It now stops at the correction's own closing bold
+// marker, so the correction is removed and the text after it stays scannable.
+/*
+ * A04-T-10 (2026-09-11): this blanked a LAZY [\s\S]*? span, which crosses paragraphs. A long or
+ * unterminated correction note therefore erased the text AROUND it, and any live claim sitting in
+ * that stretch became invisible to C21 - a doc could drift inside a blanked region and read clean
+ * forever. The point of stripping is to ignore the QUOTED OLD VALUE inside a supersession note, not
+ * to stop reading the document.
+ *
+ * Bounded three ways: the span may not cross a blank line (a correction note is one paragraph), it
+ * is capped at 600 characters, and an unterminated marker is left ALONE rather than swallowing the
+ * rest of the file. Whitespace is preserved in the replacement so line numbers in findings stay true.
+ */
 function stripCorrections(text) {
+  const blank = (m) => m.replace(/[^\n]/g, ' ');   // keep newlines, so reported line numbers do not shift
   return text
-    .replace(/\*\((?:Corrected|Correction|Superseded)[\s\S]*?\)\*/gi, ' ')
-    .replace(/\*\*Superseded[^\n]*/gi, ' ');
+    .replace(/\*\((?:Corrected|Correction|Superseded)(?:(?!\n\s*\n)[\s\S]){0,600}?\)\*/gi, blank)
+    .replace(/\*\*Superseded[^*\n]*(?:\*\*)?/gi, blank);
 }
 
 function sweepProjectSpecs(manifest, findings) {
@@ -232,6 +301,41 @@ function sweepProjectSpecs(manifest, findings) {
       );
     }
   }
+
+  // --- A2. the SAME model-provider scan over the live n8n mirrors (A17-T5, 2026-09-10) -----------
+  // docs/n8n/<workflow>/README.md is the human-readable mirror of what is deployed, and it is the
+  // page a person reads before touching a live workflow. Four of them named `kimi-k3` and
+  // `claude-opus-4-8` for 34 days after the 2026-08-07 move to opus-5/sonnet-5, including in
+  // node-by-node prose asserting the engines call api.moonshot.ai, which they have not since. The
+  // spec sweep above never looked here because it iterates manifest projects. Same rules, same
+  // allowed set, same history/denial carve-outs, so a mirror can record what WAS true.
+  const mirrorRoot = path.join(REPO, 'docs', 'n8n');
+  if (fs.existsSync(mirrorRoot)) {
+    for (const d of fs.readdirSync(mirrorRoot, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      const rel = `docs/n8n/${d.name}/README.md`;
+      const raw = readDoc(rel);
+      if (!raw) continue;
+      const text = stripCorrections(raw);
+      swept++;
+      for (const line of text.split(/\r?\n/)) {
+        const m = line.match(FOREIGN_PROVIDERS);
+        if (!m) continue;
+        if (!ROUTING_CONTEXT.test(line)) continue;
+        if (SOURCE_CONTEXT.test(line)) continue;
+        if (PKG_NAME.test(line)) continue;
+        if (DENIAL.test(line)) continue;
+        if (HISTORY.test(line)) continue;
+        if (/OpenAI-(format|compatible)|OpenAI `?messages`?/i.test(line)) continue;
+        const token = m[1].toLowerCase();
+        if (allowed.has(token)) continue;
+        findings.push(
+          `${rel}: n8n mirror names model provider "${m[1]}" in a routing claim, but ` +
+          `meta.model_routing carries only [${[...allowed].join(', ')}]. Line: "${line.trim().slice(0, 140)}"`
+        );
+      }
+    }
+  }
   return swept;
 }
 
@@ -241,7 +345,15 @@ function main() {
     try {
       require('../system/recall/lib/harvest-core').runHarvest();
     } catch (e) {
-      console.error(`facts-check: harvest failed (${e.message}); checking against existing facts.db`);
+      // A04-T-13 (2026-09-11): this used to warn and carry on against whatever facts.db already
+      // held. C21's whole job is testing DOCS against GROUND TRUTH, so a failed harvest means the
+      // ground truth is stale by an unknown amount and every "consistent" verdict below is really
+      // "consistent with yesterday". Worse, the mass-drift tripwire ABORTS the harvest on purpose
+      // when something is badly wrong, which is exactly when this check was most confident.
+      // A check that could not refresh its own ground truth has not passed, it has not run.
+      console.error(`facts-check: FAILED - harvest did not complete (${e.message})`);
+      console.error('C21 tests docs against facts.db, so a stale ledger makes every verdict below meaningless. Not reporting a pass.');
+      return 2;
     }
   }
 
@@ -250,6 +362,23 @@ function main() {
     console.error(`facts-check: cannot open facts.db (${e.message}) - run the harvest first`);
     return 1;
   }
+
+  // A11-T13 (2026-09-10): C21 tests standing doc claims AGAINST facts.db, so a ledger that stopped
+  // refreshing turns this check into a comparison of two stale things that agree with each other.
+  // That is worse than no check: it reports consistency. The harvest runs nightly, so anything past
+  // 48h means the chain is down and this run cannot make a truthful statement.
+  try {
+    const mx = db.prepare('SELECT MAX(t_valid) m FROM facts').get().m;
+    if (mx) {
+      const iso = String(mx).replace(' ', 'T');
+      const ms = Date.parse(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}Z`);
+      const ageH = (Date.now() - ms) / 3.6e6;
+      if (Number.isFinite(ageH) && ageH > 48) {
+        console.error(`facts-check: facts.db newest fact is ${ageH.toFixed(0)}h old (over the 48h bar) - the harvest chain is not running, so every doc claim below would be tested against a stale ledger. Not asserting.`);
+        return 2;
+      }
+    }
+  } catch { /* a ledger without a facts table is the openDb error above, not this */ }
 
   const findings = [];
   for (const a of ASSERTIONS) {

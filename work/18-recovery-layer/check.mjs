@@ -31,6 +31,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { installExitSignal } from '../../scripts/lib/task-signal.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Derive the repo root from the script's own location. A RECOVERY tool must survive a restore to
@@ -46,8 +47,29 @@ const { paths, manifest: loadManifest } = await import(libUrl('scripts/lib/paths
 const { sha, sameHash } = (await import(libUrl('scripts/lib/repo-hash.js'))).default;
 const { liveJobs: systemdJobs, hasSystemd } = await import(libUrl('scripts/lib/gen-systemd.js')).then((m) => m.default || m);
 
-const INIT = process.argv.includes('--init');
+/*
+ * A04-T-08 (2026-09-11): --init was an all-or-nothing union of THREE unrelated baselines - the
+ * per-project spec hashes (C8), the vault-log high-water (C9) and the accepted user-scope skill
+ * inventory (C28). The reason anyone actually runs it is "I propagated a spec change, accept it",
+ * and doing that also silently accepted any user-scope skill that had appeared since. C28 exists
+ * precisely to make a skill installed outside every gate VISIBLE, so the routine command for an
+ * unrelated task was switching off the check most likely to matter.
+ *
+ * Split. `--init` still does all three, because that is the documented command and breaking it
+ * would strand every runbook, but it now NAMES the skill set it accepted; the narrow flags exist
+ * for the case that actually comes up.
+ */
+const INIT_HASHES = process.argv.includes('--init-hashes');
+const INIT_LOG = process.argv.includes('--init-log-highwater');
+const INIT_SKILLS = process.argv.includes('--init-user-skills');
+const INIT_ALL = process.argv.includes('--init');
+const INIT = INIT_ALL || INIT_HASHES || INIT_LOG || INIT_SKILLS;
 const DRY = process.argv.includes('--dry-run');
+// C31 dead-man signal (stress-test S-D3, 2026-09-04): this task never sourced common.sh, so C31 red
+// it every week for want of a completion signal. Emit one on exit; a --dry-run/--init is a test, not
+// a real scheduled run, so it is skipped. This run's signal lands AFTER the sweep read the ledger, so
+// recovery-check's own freshness is proven on the NEXT cycle, which is honest and sufficient.
+installExitSignal(REPO, 'PersonalOS-recovery-check', DRY || INIT);
 
 const STATE_DIR = path.join(HERE, 'state');
 fs.mkdirSync(STATE_DIR, { recursive: true });
@@ -88,12 +110,18 @@ const readText = (p) => {
     return null;
   }
 };
+// A UTF-8 BOM is stripped before the parse and a file that STILL does not parse is a drift row,
+// never a silent null (stress-test A04-T17, 2026-09-04: two state files carried a BOM from the
+// PowerShell era, `JSON.parse` threw, this returned null, and C8 read "no baseline" for two weeks
+// while C28 inverted; nine stale-status findings sat hidden behind a green line).
+const corruptJson = [];
 const readJson = (p) => {
   const t = readText(p);
   if (t === null) return null;
   try {
-    return JSON.parse(t);
-  } catch {
+    return JSON.parse(t.charCodeAt(0) === 0xFEFF ? t.slice(1) : t);
+  } catch (e) {
+    corruptJson.push({ p, msg: (e && e.message) || String(e) });
     return null;
   }
 };
@@ -144,12 +172,21 @@ function pushCheckerError(err) {
   hqPush({ valueNum: -1, headline: `checker ERROR: ${err}`, status: 'red' });
 }
 
+// A04-T20 (2026-09-10): a check that took a silent branch and asserted NOTHING used to be
+// indistinguishable in the report from a check that ran and passed. On a fresh clone that made the
+// whole sweep read as a clean bill of health for a system it had barely inspected. `noState` records
+// the branch; the report footer lists them, so "30 checks, 0 drift" can be read against how many of
+// those 30 actually looked at anything.
+const noState = [];
+const recordNoState = (check, why) => { noState.push({ check, why }); say(`${check}: NO ASSERTION this run - ${why}`); };
+
+let hqPushFailed = null;   // set by hqPush; surfaced in the report footer (A04-T18, P-25 4th sighting)
 function hqPush({ valueNum, headline, status }) {
   if (DRY) {
     say(`DRYRUN, would push: integrity=${valueNum} ${status} - ${headline}`);
     return;
   }
-  spawnSync(
+  const res = spawnSync(
     process.execPath,
     [
       path.join(REPO, 'scripts', 'lib', 'close-out.mjs'), 'hq-push',
@@ -160,8 +197,18 @@ function hqPush({ valueNum, headline, status }) {
       '--value', String(valueNum),
       '--headline', headline,
     ],
-    { cwd: REPO, stdio: 'ignore' }
+    { cwd: REPO, stdio: 'pipe', encoding: 'utf8' }
   );
+  // P-25, FOURTH sighting (A04-T18): the push result was discarded, so a sweep whose HQ write
+  // failed looked identical to one that succeeded, and the dashboard silently kept yesterday's
+  // integrity tile. Best-effort stays best-effort - a bad token or a dead network must never change
+  // the sweep's exit code, that is the 2026-07-04 hardening - but it is now SAID, and the report
+  // footer carries it so a human reading last-sweep.md can see the tile is stale.
+  if (res && res.status !== 0) {
+    const why = res.error ? res.error.message : `exit ${res.status}`;
+    hqPushFailed = why;
+    say(`HQ push FAILED (${why}) - the integrity tile still shows the PREVIOUS run; the sweep result below is unaffected`);
+  }
 }
 
 let manifest;
@@ -174,30 +221,60 @@ try {
 
 // ---------------------------------------------------------------- --init: baseline desired state
 if (INIT) {
-  const hashes = {};
-  const statusHashes = {};
-  for (const p of manifest.projects) {
-    hashes[String(p.num)] = sha(path.join(p.work_dir, 'CLAUDE.md'));
-    statusHashes[String(p.num)] = sha(p.status_md); // baseline status.md too, for the hash-based C8
+  const did = [];
+  if (INIT_ALL || INIT_HASHES) {
+    const hashes = {};
+    const statusHashes = {};
+    for (const p of manifest.projects) {
+      hashes[String(p.num)] = sha(path.join(p.work_dir, 'CLAUDE.md'));
+      statusHashes[String(p.num)] = sha(p.status_md); // baseline status.md too, for the hash-based C8
+    }
+    fs.writeFileSync(
+      BASELINE_FILE,
+      JSON.stringify({ hashes, status_hashes: statusHashes, last_init: fmt(now()) }, null, 2) + '\n'
+    );
+    did.push(`${manifest.projects.length} spec + status hashes`);
   }
-  fs.writeFileSync(
-    BASELINE_FILE,
-    JSON.stringify({ hashes, status_hashes: statusHashes, last_init: fmt(now()) }, null, 2) + '\n'
-  );
-  const logLines = lineCount(paths.vaultLog());
-  fs.writeFileSync(HW_FILE, JSON.stringify({ lines: logLines, updated: fmt(now()) }, null, 2) + '\n');
+  // A11-T15 (2026-09-10): --init wrote the CURRENT count, so re-baselining after a truncation would
+  // record the truncated length as the new floor and C9 could never see the loss. The sweep path has
+  // always used Math.max, and so has the soul high-water; only --init did not. A high-water mark that
+  // a routine command can lower is not a high-water mark. Re-baselining accepts a SPEC change, never
+  // a shorter history.
+  if (INIT_ALL || INIT_LOG) {
+    const logLines = lineCount(paths.vaultLog());
+    const prevInitHw = exists(HW_FILE) ? Number((readJson(HW_FILE) || {}).lines) || 0 : 0;
+    const keptHw = Math.max(logLines, prevInitHw);
+    if (logLines < prevInitHw) {
+      console.log(`  NOTE: vault/log.md is ${logLines} lines, BELOW the recorded high-water ${prevInitHw}. Keeping ${prevInitHw}: --init accepts a spec change, not a shorter history. If the log was deliberately archived, delete the high-water file and re-run.`);
+    }
+    fs.writeFileSync(HW_FILE, JSON.stringify({ lines: keptHw, updated: fmt(now()) }, null, 2) + '\n');
+    did.push(`log high-water ${keptHw} lines`);
+  }
   // C28 (2026-08-23): record the ACCEPTED user-scope skill set. Deliberately a name inventory, not
   // hashes: the point is "what is installed outside every gate", and a name arriving or vanishing is
   // the signal. Hashing user-scope content would imply this repo governs it, which it does not.
-  const usDir = path.join(os.homedir(), '.claude', 'skills');
-  const usList = listDirs(usDir).sort();
-  fs.writeFileSync(
-    path.join(STATE_DIR, 'user-skills-baseline.json'),
-    JSON.stringify({ skills: usList, updated: fmt(now()) }, null, 2) + '\n'
-  );
-  console.log(
-    `Baselined: ${manifest.projects.length} CLAUDE.md hashes + log high-water ${logLines} lines + ${usList.length} user-scope skill(s) -> ${STATE_DIR}`
-  );
+  //
+  // A04-T-08: this is the leg that must never ride along silently. The usual reason to run --init is
+  // "I propagated a spec change", and accepting an unreviewed user-scope skill in the same breath
+  // switches off the check that exists to notice code installed outside every gate. It still runs
+  // under the plain --init (that is the documented command), but it now names what it accepted.
+  if (INIT_ALL || INIT_SKILLS) {
+    const usDir = path.join(os.homedir(), '.claude', 'skills');
+    const usList = listDirs(usDir).sort();
+    const prev = (readJson(path.join(STATE_DIR, 'user-skills-baseline.json')) || {}).skills || [];
+    const added = usList.filter((x) => !prev.includes(x));
+    const gone = prev.filter((x) => !usList.includes(x));
+    fs.writeFileSync(
+      path.join(STATE_DIR, 'user-skills-baseline.json'),
+      JSON.stringify({ skills: usList, updated: fmt(now()) }, null, 2) + '\n'
+    );
+    did.push(`${usList.length} user-scope skill(s)`);
+    if (added.length || gone.length) {
+      console.log(`  ACCEPTING a changed user-scope skill set: ${added.length ? `+${added.join(', ')}` : ''}${added.length && gone.length ? ' ' : ''}${gone.length ? `-${gone.join(', ')}` : ''}`);
+      console.log('  These live OUTSIDE every gate in this repo. If you only meant to accept a spec change, use --init-hashes instead.');
+    }
+  }
+  console.log(`Baselined: ${did.join(' + ') || '(nothing - no init flag matched)'} -> ${STATE_DIR}`);
   process.exit(0);
 }
 
@@ -364,6 +441,12 @@ try {
   // every run. The residual gap is real but different: this drift class is only ever checked on the
   // Linux host, so nothing catches scheduler drift during development here.
   let liveJobs = [];
+  // A04-T-02 (2026-09-11): presence in the scheduler is NOT the same as being armed. A PARKED
+  // project (#01 sprint-tracker, #11 whatsapp-harvest) correctly carries enabled:false in the
+  // registry AND keeps a DISABLED task in Task Scheduler, and comparing on presence alone called
+  // that pair drift twice over. schtasks' third CSV column is the Status ("Ready", "Disabled",
+  // "Running"), so the registry is compared against what is actually armed.
+  const liveDisabled = new Set();
   let schedulerReadable = false;
   if (!hasSystemd() && process.platform === 'win32') {
     // 2026-08-28: C7 no longer skips on Windows. It skipped because there was no scheduler to diff
@@ -381,6 +464,7 @@ try {
         const nm = cells[0].replace(/"/g, '').replace(/^\\/, '');
         if (!nm.startsWith('PersonalOS-') || nm.startsWith('PersonalOS-retry-')) continue;
         seen.add(nm); // keep the PersonalOS- prefix: docJobs is parsed WITH it (line ~355)
+        if (/^disabled$/i.test(cells[2].replace(/"/g, '').trim())) liveDisabled.add(nm);
       }
       liveJobs = [...seen];
       schedulerReadable = true;
@@ -446,20 +530,117 @@ try {
         if (liveJobs.includes(guess) && !jobDocTime.has(guess)) jobDocTime.set(guess, docTime);
       }
     }
+    // 2026-09-10 (A05-T17): the reader is per-platform and an unreadable time is DRIFT, never a
+    // skip. This leg asked systemd for the times on a box whose scheduler is Task Scheduler, got
+    // ENOENT, and `continue`d on all 23 jobs for 12 days while the sweep header claimed coverage.
+    const { triggerTimeDrift } = await import(pathToFileURL(path.join(HERE, 'lib', 'trigger-times.mjs')).href);
+    const readTaskXml = (job) => {
+      if (process.platform === 'win32') {
+        try {
+          return { xml: execFileSync('schtasks', ['/query', '/tn', job, '/xml', 'ONE'], { encoding: 'utf8', timeout: 15000, windowsHide: true }) };
+        } catch (e) { return { xml: null, readError: `schtasks: ${String(e.message).split('\n')[0]}` }; }
+      }
+      // systemd reports the calendar spec as: TimersCalendar={ OnCalendar=*-*-* 08:00:00 ; ... }
+      const res = spawnSync('systemctl', ['--user', 'show', `${job}.timer`, '-p', 'TimersCalendar'], { encoding: 'utf8' });
+      if (res.error || res.status !== 0) return { xml: null, readError: `systemctl: ${res.error ? res.error.message : `exit ${res.status}`}` };
+      // Re-shape OnCalendar lines into the one form the comparer reads, so both platforms share it.
+      const times = [...String(res.stdout || '').matchAll(/OnCalendar=([^;}]+)/g)]
+        .map((m) => /(\d{1,2}):(\d{2})(?::\d{2})?\s*$/.exec(m[1].trim()))
+        .filter(Boolean)
+        .map((t) => `<StartBoundary>2000-01-01T${String(parseInt(t[1], 10)).padStart(2, '0')}:${t[2]}:00</StartBoundary>`);
+      return { xml: times.length ? times.join('\n') : '' };
+    };
+    let compared = 0;
     for (const job of liveJobs) {
       if (!jobDocTime.has(job)) continue; // no documented clock time
       const want = jobDocTime.get(job);
-      // systemd reports the calendar spec as: TimersCalendar={ OnCalendar=*-*-* 08:00:00 ; ... }
-      const res = spawnSync('systemctl', ['--user', 'show', `${job}.timer`, '-p', 'TimersCalendar'], { encoding: 'utf8' });
-      const liveTimes = [];
-      for (const m of String(res.stdout || '').matchAll(/OnCalendar=([^;}]+)/g)) {
-        const t = /(\d{1,2}):(\d{2})(?::\d{2})?\s*$/.exec(m[1].trim());
-        if (t) liveTimes.push(`${String(parseInt(t[1], 10)).padStart(2, '0')}:${t[2]}`);
+      const { xml, readError } = readTaskXml(job);
+      compared++;
+      const msg = triggerTimeDrift({ job, want, xml, readError });
+      if (msg) addDrift('scheduler-time', msg);
+    }
+    // Said out loud so a zero is visible: "0 findings" and "0 jobs compared" printed identically
+    // before, and that is precisely how this leg's death went unnoticed for 12 days.
+    say(`C7b: compared live trigger times for ${compared} of ${liveJobs.length} live job(s) (${jobDocTime.size} carry a documented clock in scheduler/schedule.md)`);
+  }
+
+  // C7c POWER CONDITIONS (added 2026-09-10, stress-test A07-T8 FAIL High). A laptop job that cannot
+  // start on battery, or is stopped when the machine unplugs, or cannot wake the box, does not fail:
+  // it never runs, and a job that never ran pushes no RED. Measured 09-09: vault-backup ran on 7 of
+  // 14 nights, the three nights it alone missed were the three the machine sat on battery at 21:45,
+  // and both catch-up runs started 2 SECONDS after AC came back. Longest gap with no off-machine
+  // copy: 4 days 5 hours. schedule.md:265 records this exact lesson applied to alex-radar and
+  // sprint-tracker on 2026-07-03 and never to these tasks - a per-task fix for a per-task defect
+  // class, which is why it recurred. This leg asserts the flags on EVERY PersonalOS-* task so the
+  // 07-03 lesson cannot be missed one task at a time again.
+  //
+  // The 09-10 survey found FOUR unhardened, not the one the audit measured: vault-backup,
+  // n8n-active-check, and - the ones that matter most - recovery-check and security-sweep, the two
+  // guard jobs. A watchdog that silently skips whenever the laptop is unplugged is the same
+  // dead-check-green shape this layer exists to kill, one level up.
+  if (process.platform === 'win32' && schedulerReadable) {
+    let powerChecked = 0;
+    for (const job of liveJobs) {
+      let xml;
+      try {
+        xml = execFileSync('schtasks', ['/query', '/tn', job, '/xml', 'ONE'], { encoding: 'utf8', timeout: 15000, windowsHide: true });
+      } catch (e) {
+        addDrift('scheduler-power', `'${job}' power conditions could NOT be read (${String(e.message).split('\n')[0]}) - unreadable is drift, not a skip`);
+        continue;
       }
-      if (liveTimes.length === 0) continue; // nothing comparable
-      if (!liveTimes.includes(want)) {
-        addDrift('scheduler-time', `'${job}' fires at ${liveTimes.join('/')} but scheduler/schedule.md documents ${want} (retime the timer, or correct the doc - a wrong hour runs the job at the wrong time silently)`);
+      powerChecked++;
+      const flag = (tag) => new RegExp(`<${tag}>\s*(true|false)\s*</${tag}>`, 'i').exec(xml);
+      // Task Scheduler DEFAULTS both battery keys to true when the element is absent, so a missing
+      // element is the unhardened state, not an unknown one. Read it that way.
+      const disallowStart = !flag('DisallowStartIfOnBatteries') || /true/i.test(flag('DisallowStartIfOnBatteries')[1]);
+      const stopOnBattery = !flag('StopIfGoingOnBatteries') || /true/i.test(flag('StopIfGoingOnBatteries')[1]);
+      const bad = [];
+      if (disallowStart) bad.push('will NOT START on battery');
+      if (stopOnBattery) bad.push('is STOPPED when the machine goes on battery');
+      if (bad.length) {
+        addDrift('scheduler-power', `'${job}' ${bad.join(' and ')} - on a laptop that is a silent miss, not a failure, so nothing goes red (A07-T8: 7 of 14 nights had no off-machine copy this way). Fix: Set-ScheduledTask -TaskName ${job} -Settings (a settings object with DisallowStartIfOnBatteries=$false, StopIfGoingOnBatteries=$false, WakeToRun=$true)`);
       }
+    }
+    say(`C7c: checked power conditions on ${powerChecked} of ${liveJobs.length} live job(s)`);
+  }
+
+  // --- C7d: any scheduled task that RUNS THIS REPO, whatever it is called (A05-T-09 / A05-T-10a) --
+  // Every scheduler check above filters on the `PersonalOS-` prefix, so a task that executes code
+  // from this repo under any other name is invisible to all of them: not in C7's documented-vs-live
+  // diff, not in C7b's trigger comparison, not in C7c's power conditions, not in C31's dead-man
+  // list. One exists right now - `Alex-PortalScanner-ResetReminder`, a one-shot whose target script
+  // was deleted and whose trigger passed on 2026-07-27 - and no check has ever mentioned it.
+  //
+  // The prefix is a NAMING CONVENTION. What actually matters is whether a task can run code out of
+  // this working tree, so this leg asks that question instead, and separately compares each action's
+  // working directory to the repo root: a repo MOVE currently goes unnoticed until the jobs have been
+  // silently failing for days (the 2026-08-28 rewire found 23 dead jobs after two days of silence).
+  if (schedulerReadable) {
+    try {
+      const psq = 'Get-ScheduledTask | ForEach-Object { $n=$_.TaskName; $_.Actions | ForEach-Object { ' +
+        'if ($_.Arguments -like "*personal-os*" -or $_.Execute -like "*personal-os*") { ' +
+        '"{0}|{1}" -f $n, $_.WorkingDirectory } } }';
+      const raw = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', psq],
+        { encoding: 'utf8', timeout: 60000, windowsHide: true });
+      const rows = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+        .map((l) => { const i = l.indexOf('|'); return { name: l.slice(0, i), wd: l.slice(i + 1).trim() }; });
+      const seen = new Set();
+      let offRoot = 0;
+      for (const r of rows) {
+        if (seen.has(r.name)) continue;
+        seen.add(r.name);
+        if (!/^PersonalOS-/.test(r.name)) {
+          addDrift('scheduler-foreign', `scheduled task '${r.name}' runs code from THIS repo but is not PersonalOS-prefixed, so C7, C7b, C7c and C31 all skip it. Either rename it into the convention so it is watched, or unregister it if it is dead (export the XML first).`);
+        }
+        // A working directory that is set and points somewhere else is a repo move waiting to fail.
+        if (r.wd && !r.wd.toLowerCase().startsWith(String(REPO).toLowerCase())) {
+          offRoot++;
+          addDrift('scheduler-foreign', `scheduled task '${r.name}' has WorkingDirectory '${r.wd}', which is not under the repo root '${REPO}'. If the repo moved, this job is running against the wrong tree or not at all.`);
+        }
+      }
+      say(`C7d: ${seen.size} task(s) reference this repo, ${[...seen].filter((n) => !/^PersonalOS-/.test(n)).length} outside the naming convention, ${offRoot} with a working directory off the repo root`);
+    } catch (e) {
+      addDrift('scheduler-foreign', `C7d could not enumerate scheduled tasks by action path (${e.message}) - the "runs this repo under another name" class is unchecked this sweep`);
     }
   }
 
@@ -479,6 +660,8 @@ try {
         addDrift('stale-status', `#${p.num} ${p.name}: CLAUDE.md changed since last --init but status.md did not (propagate into status.md, then re-run --init)`);
       }
     }
+  } else {
+    recordNoState('C8 dependent staleness', `no status_hashes in ${path.relative(REPO, BASELINE_FILE)} - run check.mjs --init to seed it; until then a spec change with an unpropagated status.md cannot be detected`);
   }
 
   // --- C9 log monotonicity: vault/log.md line count must never drop (append-only history) ---
@@ -530,8 +713,16 @@ try {
   // validator instead of duplicating it). Detect-only here; the nightly reconcile is the healing lane.
   {
     const lv = spawnSync(process.execPath, [path.join('scripts', 'outputs-ledger.js'), 'validate'], { encoding: 'utf8', cwd: REPO });
-    const out = `${lv.stdout || ''}${lv.stderr || ''}`.split(/\r?\n/)[0] || '';
-    if (lv.status === 2) addDrift('outputs-naming', out);
+    // Report EVERY failing leg, not stdout line 1 (A04-T3). The validator prints leg 1's verdict
+    // first, clean or not, so a leg-1 PASS beside a leg-2 FAILURE was reported as leg 1's clean
+    // line. A real leg-2 failure sat behind that for weeks: a CV-filename false positive kept C12
+    // red while the drift row said something else entirely.
+    const outLines = `${lv.stdout || ''}${lv.stderr || ''}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const fails = outLines.filter((l) => /^VALIDATE FAIL/.test(l));
+    if (lv.status === 2) {
+      if (fails.length) for (const f of fails) addDrift('outputs-naming', f);
+      else addDrift('outputs-naming', outLines[0] || 'outputs-ledger validate reported drift with no VALIDATE FAIL line');
+    }
     else if (lv.status !== 0) addDrift('outputs-naming', `outputs-ledger validate errored (exit ${lv.status})`);
   }
 
@@ -650,6 +841,80 @@ try {
     }
   }
 
+  // --- C17b installed skills re-audited against TODAY's rules (A12-T-09, 2026-09-11) -------------
+  // SPLIT_LINES is built rather than written as a literal: an inline newline escape kept reaching
+  // disk as a real newline through this session's tooling, which breaks the regex silently.
+  const SPLIT_LINES = new RegExp(String.fromCharCode(92) + 'r?' + String.fromCharCode(92) + 'n');
+  // Every audit rule the installer has runs at INSTALL time. The rules have grown - frontmatter
+  // grants were only refused from 2026-09-10, after the stress test found that a `hooks:` block
+  // registers session-long commands nothing here reads - and the skills installed before a rule
+  // existed were never re-examined. The installer's own comment conceded it: "the existing set is a
+  // separate re-audit item". This is the weekly half of that item, and it asks what is ON DISK
+  // rather than what the upstream repo says today, which is the question that actually matters for
+  // a machine holding credentials.
+  {
+    try {
+      const out = execFileSync(process.execPath,
+        [path.join(REPO, 'scripts', 'skills-installer.js'), '--reaudit-installed'],
+        { encoding: 'utf8', timeout: 120000, windowsHide: true, cwd: REPO });
+      const lines = out.split(SPLIT_LINES).filter((l) => l.trim().startsWith('['));
+      for (const l of lines) addDrift('skills-audit', `installed skill fails the current audit rules: ${l.trim()}`);
+      const head = (out.split(SPLIT_LINES)[0] || '').trim();
+      say(`C17b ${head}`);
+    } catch (e) {
+      // exit 2 = findings, and execFileSync throws on any nonzero. Read the output either way.
+      const out = String((e && e.stdout) || '');
+      if (out) {
+        for (const l of out.split(SPLIT_LINES).filter((x) => x.trim().startsWith('['))) {
+          addDrift('skills-audit', `installed skill fails the current audit rules: ${l.trim()}`);
+        }
+        say(`C17b ${(out.split(SPLIT_LINES)[0] || '').trim()}`);
+      } else {
+        addDrift('skills-audit', `C17b could not re-audit the installed skills (${e.message}) - the "installed before the rule existed" class is unchecked this sweep`);
+      }
+    }
+  }
+
+  // --- C17c live n8n writer voice vs soul.md (A15-T-06, 2026-09-11) -----------------------------
+  // The generator injects the voice block into the four `Build Writer Request` nodes and verifies
+  // it. The gap is BETWEEN generator runs: the re-sync trigger is "whenever soul.md changes, run
+  // the generator", which is a rule a session has to remember, and nothing ever asked the live
+  // workflows whether they still match. A soul.md edit that never got a generator run leaves every
+  // cover letter and LinkedIn draft the engines produce in a stale register, and nothing looks
+  // broken, because a wrong-but-fluent voice is exactly as fluent as the right one.
+  //
+  // GET-only. Repair is the generator's job; the 07-10 silent-deactivation lesson is why a checker
+  // does not get to PUT. No credential = NOT ASSERTED and said out loud, never a silent pass.
+  {
+    try {
+      const out = execFileSync(process.execPath, [path.join(REPO, 'scripts', 'voice-sync-check.js'), '--json'],
+        { encoding: 'utf8', timeout: 120000, windowsHide: true, cwd: REPO });
+      const r = JSON.parse(out.trim().split(SPLIT_LINES).pop() || '{}');
+      if (!r.asserted) {
+        recordNoState('C17c writer voice', `the live n8n voice block was NOT compared this sweep (${r.reason || 'no result'})`);
+      } else {
+        for (const row of (r.rows || [])) {
+          if (row.ok === false) addDrift('voice-sync', `n8n lane '${row.name}' carries a voice block that does NOT match soul.md (${row.why}) - every draft it writes is in a stale register. Fix: node scripts/generate-alex.js`);
+          if (row.ok === null) addDrift('voice-sync', `n8n lane '${row.name}' unreachable (${row.why}) - its voice block is unverified this sweep`);
+        }
+        say(`C17c writer voice: ${r.checked} lane(s), ${r.drift} drifted, ${r.unknown} unreachable`);
+      }
+    } catch (e) {
+      const out = String((e && e.stdout) || '');
+      let handled = false;
+      try {
+        const r = JSON.parse(out.trim().split(SPLIT_LINES).pop() || '{}');
+        if (r.rows) {
+          for (const row of r.rows) {
+            if (row.ok === false) addDrift('voice-sync', `n8n lane '${row.name}' carries a voice block that does NOT match soul.md - every draft it writes is in a stale register. Fix: node scripts/generate-alex.js`);
+          }
+          handled = true;
+        }
+      } catch { /* fall through */ }
+      if (!handled) addDrift('voice-sync', `C17c could not compare the live writer voice blocks (${e.message}) - the stale-register class is unchecked this sweep`);
+    }
+  }
+
   // --- C18 machine timezone vs travel-state expectation (P8 scheduler TZ audit, 2026-07-17). Detect-only.
   // Every systemd OnCalendar= fires at the machine's wall clock, so if the machine tz drifts from where
   // Alex expects Shaheen to be, follows-Shaheen jobs (brief/triage) OR must-anchor jobs (server-
@@ -702,6 +967,35 @@ try {
     } else if (nd.status !== 0) {
       addDrift('narrative-drift', `narrative-drift-check errored (exit ${nd.status}): ${out.split(/\r?\n/)[0] || ''}`);
     }
+  }
+
+  // --- C19b restore-doc paths resolve (stress-test S-G1 08-29 Critical, M-14 09-04, A11-T1 / A17-T1
+  // 09-09: the same dead paths on three audits, and the check the 08-29 fix proposed never existed).
+  // Every BACKTICKED repo path in the restore-first doc, the recovery runbooks and the technical
+  // master must exist on disk; history goes in plain text (lib/doc-paths.mjs states the convention).
+  // Zero-token, no network, derived from the filesystem, never from prose.
+  {
+    const { deadRepoPaths } = await import(pathToFileURL(path.join(HERE, 'lib', 'doc-paths.mjs')).href);
+    // The restore-first doc, the RUNBOOKS (not the dated lint-*.md reports, which name missing pages
+    // by design), and the master's STANDING sections (everything above its running-changes log, which
+    // is an append-only history and keeps its old names).
+    const docs = [path.join(REPO, 'vault', 'identity.md')];
+    const rbDir = path.join(REPO, 'vault', 'projects', 'recovery');
+    if (exists(rbDir)) for (const f of fs.readdirSync(rbDir)) if (f.endsWith('.md') && !/^lint-/.test(f)) docs.push(path.join(rbDir, f));
+    const masterRaw = manifest.meta && manifest.meta.paths && manifest.meta.paths.master_reference_md;
+    const master = masterRaw ? masterRaw.replace(/%USERPROFILE%|^~/, process.env.USERPROFILE || process.env.HOME || '') : null;
+    if (master && exists(master)) docs.push(master);
+    let checked = 0, deadTotal = 0, read = 0;
+    for (const d of docs) {
+      let t = readText(d);
+      if (t === null) continue;
+      if (d === master) t = t.split(/^## 11\. Running changes/m)[0];
+      read++;
+      const r = deadRepoPaths(t, REPO);
+      checked += r.checked; deadTotal += r.dead.length;
+      if (r.dead.length) addDrift('restore-doc-dead-path', `${path.relative(REPO, d) || d} names ${r.dead.length} repo path(s) that do not exist: ${r.dead.slice(0, 6).join(', ')}${r.dead.length > 6 ? ', ...' : ''}. A restore follows these lines; repoint the live claim or move the history out of backticks.`);
+    }
+    say(`C19b restore-doc paths: ${read} doc(s), ${checked} path claim(s), ${deadTotal} dead`);
   }
 
   // --- C20 backup destinations (F1, 2026-07-25): >=2 INDEPENDENT off-machine destinations must each
@@ -779,6 +1073,33 @@ try {
       if (soulLines < prevSoulLn) {
         addDrift('soul-shrink', `soul.md shrank from ${prevSoulLn} to ${soulLines} lines (entries ${prevEntries} -> ${soulEntries}) - check for a truncating write`);
       }
+      // A15-T-11 (2026-09-11): ORDERING, which nothing guarded. soul.md's own ordering rule says
+      // entries run newest-first and a new one goes at the TOP, and says in the same breath why: the
+      // corpus HAD drifted into six out-of-order runs, with the six most recent entries sitting past
+      // the June ones near the end of the file, and because the first stretch read cleanly
+      // newest-first the file LOOKED sorted. A reader who stopped scrolling early was not reading a
+      // shorter corpus, they were reading one with the newest entries selectively missing.
+      //
+      // That is the least detectable quality loss this system can suffer: the nightly card takes the
+      // 20 NEWEST by parsed heading date, so a misplaced entry silently stales the register in every
+      // generated draft and nothing looks broken. The rule ended with "nothing guards ordering, so
+      // this rule is the mechanism". A rule is not a mechanism. This is.
+      {
+        const dates = (soulText.match(/^###\s+(?:Harvested\s+)?(\d{4}-\d{2}-\d{2})/gm) || [])
+          .map((h) => h.match(/(\d{4}-\d{2}-\d{2})/)[1]);
+        if (dates.length > 1) {
+          const newest = dates.reduce((a, b) => (b > a ? b : a), dates[0]);
+          if (dates[0] !== newest) {
+            addDrift('soul-order', `soul.md My Words is OUT OF ORDER: the first dated entry is ${dates[0]} but the newest in the file is ${newest}. The nightly card takes the 20 newest by date, so a misplaced entry quietly stales the register in every generated draft while the file still looks sorted. Move it to the top of the dated list.`);
+          }
+          let inversions = 0;
+          for (let i = 1; i < dates.length; i++) if (dates[i] > dates[i - 1]) inversions++;
+          if (inversions > 0 && dates[0] === newest) {
+            addDrift('soul-order', `soul.md My Words has ${inversions} out-of-order entr${inversions === 1 ? 'y' : 'ies'} below the top (the newest IS first, so this reads as sorted until you scroll). Reverse-chronological is the rule; the card's recency slice depends on it.`);
+          }
+        }
+      }
+
       fs.writeFileSync(
         SOUL_HW_FILE,
         JSON.stringify({ entries: Math.max(soulEntries, prevEntries), lines: Math.max(soulLines, prevSoulLn), updated: fmt(now()) }, null, 2) + '\n'
@@ -801,6 +1122,15 @@ try {
     const soulP = paths.soulMd();
     const corePath = path.join(REPO, 'soul-core.md');
     if (exists(soulP)) {
+      // A02-T-01 (2026-09-11): the card reaches the model through ONE line in CLAUDE.md. Every
+      // other check here tests the FILE - present, big enough, correctly stamped, fresh against
+      // soul.md - and all four pass perfectly while nothing imports it. Delivery, not existence.
+      {
+        const claudeMd = readText(path.join(REPO, 'CLAUDE.md')) || '';
+        if (!/^@soul-core\.md\s*$/m.test(claudeMd)) {
+          addDrift('soul-core', "CLAUDE.md does not carry the '@soul-core.md' import line, so the compiled identity card is delivered to NOTHING. Every session runs on the bounded soul.md fallback while the card itself stays valid and fresh. Restore the line directly under the title.");
+        }
+      }
       if (!exists(corePath)) {
         addDrift('soul-core', 'soul-core.md MISSING - sessions run on the truncated full-soul fallback (~2KB reaches the model). Rebuild: node scripts/lib/build-soul-core.js --force');
       } else {
@@ -812,6 +1142,27 @@ try {
           const liveSha = String(sha(soulP) || '').toLowerCase();
           if (liveSha !== stampM[1]) {
             addDrift('soul-core', `soul-core.md STALE: card built from sha ${stampM[1].slice(0, 12)}.. but soul.md is now ${liveSha.slice(0, 12)}.. - the nightly rebuild missed; node scripts/lib/build-soul-core.js --force`);
+          }
+        }
+        // A01-T-12 (2026-09-11): THE CANARY TOKEN MUST BE ONE VALUE ACROSS BOTH FILES, and until
+        // now nothing on this machine checked. The token is how a scheduled run PROVES the identity
+        // was really injected rather than assumed; soul.md carries it twice (top and bottom, the
+        // 08-05 anchoring fix) and the card copies both. The unit test that compares the two blocks
+        // SKIPS in public CI because soul.md is gitignored and never present there, so the only
+        // place this could run was here, and here never looked.
+        //
+        // A drifted token does not look like a failure. Every scheduled run either reports a failed
+        // canary forever, or validates against a stale value and reports success, which is the
+        // injection check checking nothing.
+        {
+          const tok = (t) => [...String(t).matchAll(/SOUL-CANARY-TOKEN:\s*(\S+)/g)].map((m) => m[1].trim());
+          const soulToks = tok(readText(soulP) || '');
+          const coreToks = tok(readText(corePath) || '');
+          const all = new Set([...soulToks, ...coreToks]);
+          if (soulToks.length === 0) {
+            addDrift('soul-core', 'soul.md carries NO SOUL-CANARY-TOKEN line - the headless injection check cannot prove identity reached any scheduled run.');
+          } else if (all.size !== 1) {
+            addDrift('soul-core', `SOUL-CANARY-TOKEN disagrees across the identity files: ${all.size} distinct values (soul.md x${soulToks.length}, soul-core.md x${coreToks.length}). Every scheduled run's injection proof compares against one of these; rotating means changing BOTH blocks in soul.md and rebuilding the card.`);
           }
         }
       }
@@ -883,6 +1234,9 @@ try {
   // N/A when the map has never been built (an absent optional index is not drift); AMBER when it exists
   // and the newest source file is more than 7 days newer than it. Shells out C12-style so this file's
   // "no network except the one HQ push" contract holds and the freshness logic has ONE home.
+  if (!exists(path.join(REPO, 'system', 'code-graph.json'))) {
+    recordNoState('C30 code-map freshness', 'system/code-graph.json has never been built (an absent optional index is not drift) - build it with node scripts/code-index.js');
+  }
   if (exists(path.join(REPO, 'system', 'code-graph.json'))) {
     const cg = spawnSync(process.execPath, [path.join('scripts', 'code-index.js'), '--stale'], { encoding: 'utf8', cwd: REPO });
     if (cg.status === 2) {
@@ -903,21 +1257,48 @@ try {
     const today = fmt(now()).slice(0, 10);
     const hookProbes = [
       { name: 'UserPromptSubmit/recall-inject', p: path.join('system', 'recall', 'recall-metrics.jsonl'), days: 3 },
-      { name: 'UserPromptSubmit/capture-typed', p: path.join('outputs', 'typed', 'transcripts', `${today}.md`), days: 3, todayOnly: true },
+      // A04-T14 (2026-09-10): this probed TODAY's transcript by name and, when it was absent, took
+      // the `todayOnly` silent skip. But the day a dead hook is dead is exactly a day with no
+      // today-file, so the probe could only ever be silent about the failure it exists to catch. It
+      // now reads the NEWEST transcript in the directory and ages that, which is the question worth
+      // asking: when did this hook last write anything at all?
+      { name: 'UserPromptSubmit/capture-typed', p: path.join('outputs', 'typed', 'transcripts'), days: 3, newestIn: /^\d{4}-\d{2}-\d{2}\.md$/ },
       { name: 'PreCompact|SessionEnd|ToolFail', p: path.join('system', 'lifecycle.jsonl'), days: 14 },
+      // A13-T11 (2026-09-10): the egress guard's only artifact was a DENY row, so a guard that had
+      // stopped running looked exactly like a lane with nothing to block. It now writes one
+      // heartbeat per lane per day on the ALLOW path, which is the thing to age. 7 days because the
+      // armed lanes are daily and a week of silence is unambiguous.
+      { name: 'PreToolUse/untrusted-lane-guard', p: path.join('outputs', 'logs', 'untrusted-lane-heartbeat.jsonl'), days: 7 },
+      // A14-T9 (2026-09-10): the last two unprobed hooks. SessionStart now writes a lifecycle
+      // breadcrumb of its own, so the existing lifecycle probe above covers it; PostToolUse/Skill
+      // has always written system/skill-usage.jsonl and nothing aged it. 14 days because skills fire
+      // in bursts and a fortnight of total silence is the signal, not a quiet week.
+      { name: 'PostToolUse/skill-usage', p: path.join('system', 'skill-usage.jsonl'), days: 14 },
     ];
     for (const hp of hookProbes) {
-      const hpFull = path.join(REPO, hp.p);
-      if (!exists(hpFull)) {
-        // Never-fired: state it as such. For the per-day transcript this is normal on a quiet day.
-        if (!hp.todayOnly) {
-          addDrift('hook-liveness', `${hp.name}: no evidence file yet at ${hp.p} - NEVER FIRED (not stale). Expected once the hook runs for the first time; if it stays empty past a few sessions the wiring in .claude/settings.json is dead.`);
+      let hpFull = path.join(REPO, hp.p);
+      let shownPath = hp.p;
+      if (hp.newestIn) {
+        // Directory probe: age the NEWEST matching file, so "the hook stopped writing" is visible
+        // rather than indistinguishable from "today was quiet".
+        if (!exists(hpFull)) {
+          addDrift('hook-liveness', `${hp.name}: the evidence directory ${hp.p} does not exist - NEVER FIRED (not stale). Check the wiring in .claude/settings.json.`);
+          continue;
         }
+        const names = fs.readdirSync(hpFull).filter((f) => hp.newestIn.test(f)).sort();
+        if (!names.length) {
+          addDrift('hook-liveness', `${hp.name}: ${hp.p} exists but holds no transcript at all - NEVER FIRED (not stale).`);
+          continue;
+        }
+        shownPath = path.join(hp.p, names[names.length - 1]);
+        hpFull = path.join(REPO, shownPath);
+      } else if (!exists(hpFull)) {
+        addDrift('hook-liveness', `${hp.name}: no evidence file yet at ${hp.p} - NEVER FIRED (not stale). Expected once the hook runs for the first time; if it stays empty past a few sessions the wiring in .claude/settings.json is dead.`);
         continue;
       }
       const ageDays = days(now() - fs.statSync(hpFull).mtime);
       if (ageDays > hp.days) {
-        addDrift('hook-liveness', `${hp.name}: last evidence ${Math.round(ageDays * 10) / 10}d ago in ${hp.p}, window is ${hp.days}d - the hook went QUIET. Check .claude/settings.json wiring and the script's own log.`);
+        addDrift('hook-liveness', `${hp.name}: last evidence ${Math.round(ageDays * 10) / 10}d ago in ${shownPath}, window is ${hp.days}d - the hook went QUIET. Check .claude/settings.json wiring and the script's own log.`);
       }
     }
   }
@@ -965,6 +1346,17 @@ try {
       const scLen = fs.statSync(scPath).size;
       if (scLen > scBudget) {
         addDrift('soul-core-budget', `soul-core.md is ${scLen} B against the ${scBudget} B budget - the builder's trim hit its MIN_ENTRIES floor, so this needs a human call: raise meta.vault.soul_core_byte_budget deliberately, or prune the My Words corpus`);
+      }
+      // A15-T2 (2026-09-10): the check above fires only AFTER the trim has already dropped entries
+      // and still could not fit, so the interesting moment - the first entry silently leaving the
+      // recency slice - passed unreported. The builder stamps `entries=N` and NOTHING read it. A
+      // shortfall means the byte trim is dropping his newest words, which is the least visible way
+      // this corpus loses register: every prose surface keeps working, it just stops sounding like him.
+      const scStamp = readText(scPath) || '';
+      const em = /entries=(\d+)/.exec(scStamp.slice(-400));
+      const wantEntries = Number(manifest.meta?.vault?.soul_core_newest_entries) || 20;
+      if (em && Number(em[1]) < wantEntries) {
+        addDrift('soul-core-budget', `soul-core.md ships ${em[1]} of the ${wantEntries} newest My Words entries - the byte trim dropped ${wantEntries - Number(em[1])}. His most recent phrasing is what every voice-matched draft is built from; raise meta.vault.soul_core_byte_budget or prune older entries deliberately.`);
       }
     }
   }
@@ -1028,7 +1420,7 @@ try {
     if (!exists(regPath)) {
       // Gitignored by design (it names this machine's tasks and their timing, and the repo is public),
       // so a fresh clone legitimately has none. Absent registry is not-yet-configured, not drift.
-      say('C31 task-completion: SKIP (no system/task-registry.json yet - gitignored, so a fresh clone starts without one)');
+      recordNoState('C31 task-completion', 'no system/task-registry.json yet (gitignored, so a fresh clone starts without one) - no scheduled job is being watched for silence');
     } else {
       const reg = readJson(regPath);
       if (!reg || reg.schema !== 'task-registry@1') {
@@ -1049,6 +1441,55 @@ try {
         addDrift('task-signals', `system/task-signals.jsonl carries ${badLines} unparseable line(s). The ledger is append-only with exactly one writer role, so a malformed line means a partial write or a second writer.`);
       }
       const nowMs = now().getTime();
+      // A05-T6 (2026-09-10): a signal naming a task the registry does not carry means someone or
+      // something wrote to a ledger this check treats as ground truth. Two `PersonalOS-STRESSTEST-*`
+      // rows from the 2026-09-04 audit are the live proof. The rows are NOT deleted - this repo
+      // baselines history rather than rewriting it to satisfy a checker (the C26 ruling), and they
+      // are inert because C31 asks about registered tasks and never about these. What was missing was
+      // any way to notice a NEW one, so the window is 7 days: recent means someone is writing now.
+      {
+        const regNames = new Set((reg.tasks || []).map((t) => t && t.name).filter(Boolean));
+        const recentCutoff = nowMs - 7 * 24 * 3600000;
+        const strays = new Map();
+        for (const sg of signals) {
+          const nm = String(sg.task || '');
+          if (!nm || regNames.has(nm)) continue;
+          const w = Date.parse(sg.at || sg.when || '');
+          if (Number.isNaN(w) || w < recentCutoff) continue;
+          strays.set(nm, Math.max(strays.get(nm) || 0, w));
+        }
+        for (const [nm, w] of strays) {
+          addDrift('task-signals', `signal ledger carries a row for '${nm}', which is NOT in system/task-registry.json, written ${Math.round(days(nowMs - w) * 10) / 10}d ago. Either the task is real and unregistered (so nothing watches it for silence), or something is writing test rows into the ledger C31 trusts.`);
+        }
+      }
+      // A04-T-02 (2026-09-11): the registry is HAND-GENERATED and nothing ever diffed it against
+      // the live scheduler. `git-backup` sat at enabled:false while running every night and
+      // returning 0, so C31 was not watching the one job whose silence would mean the off-machine
+      // backup had stopped. A dead-man switch with an unchecked list of who to watch is a dead-man
+      // switch for whoever happens to be on the list.
+      //
+      // Guarded on schedulerReadable: an unreadable scheduler is C7's finding to report, and
+      // inventing registry drift from an empty live list would bury it under 23 false rows.
+      if (schedulerReadable) {
+        const liveSet = new Set(liveJobs.filter((j) => !liveDisabled.has(j)));
+        const allReg = (reg.tasks || []).filter((t) => t && t.name);
+        for (const t of allReg) {
+          const live = liveSet.has(t.name);
+          if (t.enabled !== false && !live) {
+            addDrift('registry-drift', `system/task-registry.json watches '${t.name}' for silence, but no such task is registered in the live scheduler. Either the task was renamed or removed and the registry row is stale, or the task is genuinely gone and its silence will never be noticed.`);
+          } else if (t.enabled === false && live) {
+            addDrift('registry-drift', `system/task-registry.json has '${t.name}' at enabled:false, but the task IS live in the scheduler. Nothing is watching a job that runs. This is the exact shape that hid git-backup for weeks.`);
+          }
+        }
+        const regAll = new Set(allReg.map((t) => t.name));
+        for (const j of liveJobs) {
+          if (!/^PersonalOS-/.test(j) || liveDisabled.has(j)) continue;
+          if (!regAll.has(j)) {
+            addDrift('registry-drift', `live scheduled task '${j}' has no row in system/task-registry.json, so C31 will never notice if it stops firing.`);
+          }
+        }
+      }
+
       let missing = 0, wentWrong = 0, green = 0;
       for (const t of regTasks) {
         const windowH = Number(t.interval_hours || 24) + Number(t.grace_hours || 4);
@@ -1064,6 +1505,12 @@ try {
           missing++;
           const age = latestWhen ? `${Math.round(days(nowMs - latestWhen))}d old` : 'never signalled';
           addDrift('task-missing', `${t.name}: no completion signal inside its ${windowH}h window (${age}). It never ran, died mid-run, or was never wired. This is the class that hid the 2026-08-25 outage for two days.`);
+        } else if (latestCode === 2 && t.exit2_is_findings === true) {
+          // Terraform-style detailed exit code (stress-test A04-T5, 2026-09-04): this checker and the
+          // security sweep exit 2 when they FIND something, which is a clean run with a report, not a
+          // failure. Only a registry row that declares it earns the mapping; every other task's 2 is
+          // still WENT-WRONG.
+          green++;
         } else if (latestCode !== 0) {
           wentWrong++;
           addDrift('task-failed', `${t.name}: ran and reported its OWN failure (exit ${latestCode}). It is alive and something inside it broke, which is a different problem from MISSING.`);
@@ -1072,6 +1519,10 @@ try {
         }
       }
       say(`C31 task-completion: ${regTasks.length} enabled, ${green} green, ${wentWrong} went-wrong, ${missing} missing, ${signals.length} signal(s) on file`);
+      // Every JSON file any check read this sweep that failed to parse (BOM stripped first) is drift.
+      for (const c of corruptJson) {
+        addDrift('state-corrupt', `${path.relative(REPO, c.p)} does not parse as JSON (${c.msg.slice(0, 80)}). Every check that reads it saw "absent" and took its silent branch; fix the file, do not re-init around it.`);
+      }
     }
   }
 
@@ -1108,6 +1559,21 @@ try {
     vrLine = `${vr.stdout || ''}${vr.stderr || ''}`.split(/\r?\n/)[0] || 'vault-read report unavailable';
   }
   report.push(`**Vault-read health (informational, not drift):** ${vrLine}`);
+
+  // A04-T20 footer: which checks asserted NOTHING this run, and whether the HQ tile was actually
+  // written. Without these two lines "N drift items" reads as a verdict on the whole system, when it
+  // is only a verdict on the checks that had state to work with.
+  report.push('');
+  if (noState.length) {
+    report.push(`**Checks that made NO assertion this run (${noState.length}):** each took a silent branch because the state it reads is absent. A clean sweep is only clean for the checks that ran.`);
+    for (const r of noState) report.push(`- **${r.check}** - ${r.why}`);
+  } else {
+    report.push('**Checks that made no assertion this run:** none - every check had the state it needed.');
+  }
+  if (hqPushFailed) {
+    report.push('');
+    report.push(`**HQ push FAILED this run** (${hqPushFailed}) - the integrity tile on the dashboard still shows the PREVIOUS sweep. The findings above are unaffected; only their delivery failed.`);
+  }
 
   const lastSweep = path.join(REPO, 'vault', 'projects', 'recovery', 'last-sweep.md');
   fs.mkdirSync(path.dirname(lastSweep), { recursive: true });

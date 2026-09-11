@@ -49,15 +49,33 @@ ROOT="$(git rev-parse --show-toplevel)" || exit 1
 # degraded to fail-open. On a PUBLIC repo where .gitignore is the sole barrier, a scanner that quietly
 # skips is worse than one that blocks: a pushed secret must be ROTATED, not just deleted. So the lookup
 # is now broad (env override -> PATH -> WinGet -> the usual unix bindirs) and absence FAILS CLOSED.
+# A12-T10 (2026-09-10): PATH was consulted BEFORE the known install locations, so anything named
+# `gitleaks` on PATH became the secret scanner - including a stub that exits 0, which passes the leg
+# as "clean" without reading a byte. The order is now: explicit override, then the trusted install
+# locations, then PATH as the last resort. And whatever resolves must answer `version`, so a binary
+# that cannot even identify itself blocks instead of silently approving.
 GITLEAKS=""
 if [ -n "${ALEX_GITLEAKS:-}" ] && [ -x "${ALEX_GITLEAKS}" ]; then
   GITLEAKS="$ALEX_GITLEAKS"
-elif command -v gitleaks >/dev/null 2>&1; then
-  GITLEAKS="gitleaks"
 else
   for _gl in /c/Users/*/AppData/Local/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_*/gitleaks.exe /usr/local/bin/gitleaks /usr/bin/gitleaks /opt/homebrew/bin/gitleaks "$HOME/go/bin/gitleaks"; do
     [ -x "$_gl" ] && { GITLEAKS="$_gl"; break; }
   done
+  if [ -z "$GITLEAKS" ] && command -v gitleaks >/dev/null 2>&1; then
+    GITLEAKS="gitleaks"
+  fi
+fi
+if [ -n "$GITLEAKS" ]; then
+  # It must PRINT a version, not merely exit 0. A stub that exits 0 for every argument answers
+  # `version` successfully and scans nothing, which is the whole shape of this finding; requiring a
+  # digit.digit in the output is what separates a real binary from a rubber stamp.
+  _glv="$("$GITLEAKS" version 2>&1 | head -1)"
+  case "$_glv" in
+    *[0-9].[0-9]*) : ;;
+    *)
+      echo "pre-commit: BLOCKED - the resolved gitleaks ('$GITLEAKS') did not print a version (got: '${_glv:-nothing}'), so it cannot be trusted to scan staged content. Fix the install, or point ALEX_GITLEAKS at a real binary." >&2
+      exit 1 ;;
+  esac
 fi
 if [ -n "$GITLEAKS" ]; then
   "$GITLEAKS" git --staged --no-banner --redact --config "$ROOT/.gitleaks.toml" --exit-code 9 "$ROOT"
@@ -137,5 +155,23 @@ if [ $STATUS -ne 0 ]; then
   echo "pre-commit: BLOCKED - validation failed (see FAILED lines above)." >&2
   echo "pre-commit: fix the named drift (usually: edit the source, run 'node scripts/generate-alex.js')." >&2
   exit $STATUS
+fi
+
+# --- Prompt regression, only when this commit touches a prompt surface (A03-T-07, 2026-09-11) ----
+# The checker existed and ran in exactly one place: inside generate-alex.js, advisory. So editing a
+# slash command and committing it - the single most common way a production prompt changes - never
+# ran the thing that pins that prompt's shape, unless someone happened to regenerate afterwards.
+# A checker wired only into the tool you forgot to run is a checker you do not have.
+#
+# ADVISORY here, deliberately. It asserts string SHAPES in prose, which is exactly the kind of
+# assertion that goes stale against a legitimate rewrite, and a hard block would teach people to
+# reach for --no-verify on a commit that is fine. It prints, loudly, and the weekly surface stays
+# authoritative.
+PROMPT_TOUCHED="$(git diff --cached --name-only | grep -E '^(\.claude/commands/|work/26-prompting/)' || true)"
+if [ -n "$PROMPT_TOUCHED" ]; then
+  # grep -c, not wc -l: a single path with no trailing newline counts as 0 lines, and the first
+  # run of this printed "0 file(s)" while correctly running on one.
+  echo "pre-commit: prompt surface touched ($(printf '%s' "$PROMPT_TOUCHED" | grep -c . ) file(s)) - running the prompt regression checker (advisory)."
+  "$NODE" "$ROOT/scripts/prompt-regression-check.js" --advisory || true
 fi
 exit 0
