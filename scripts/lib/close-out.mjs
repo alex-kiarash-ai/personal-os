@@ -96,7 +96,47 @@ function hqToken() {
   }
 }
 
-function hqPush(body, timeoutMs = 10000) {
+/*
+ * hqGet - the READ half, added 2026-09-11 (A10-T-09). hqPush kept the token inside Node from the
+ * start, but the slash-command files still fetched the inbox and the summary with
+ * `curl -H "X-Alex-Token: $(cat ...)"`, which puts the credential in argv where `ps` can read it
+ * for the life of the call. Same defect, opposite direction, and it survived the fix that named it.
+ * Prints the body to stdout so a command file can pipe it exactly as it piped curl.
+ */
+function hqGet(url, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const token = hqToken();
+    if (!token) {
+      reject(new Error('token file missing'));
+      return;
+    }
+    const u = new URL(url);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        method: 'GET',
+        headers: { 'X-Alex-Token': token },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        let out = '';
+        res.setEncoding('utf8');
+        res.on('data', (d) => { out += d; });
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) resolve(out);
+          else reject(new Error(`HTTP ${res.statusCode}`));
+        });
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error(`timed out after ${timeoutMs}ms`)));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function hqPush(body, timeoutMs = 10000, url = HQ_PUSH_URL) {
   return new Promise((resolve, reject) => {
     const token = hqToken();
     if (!token) {
@@ -104,7 +144,7 @@ function hqPush(body, timeoutMs = 10000) {
       return;
     }
     const payload = JSON.stringify(body);
-    const u = new URL(HQ_PUSH_URL);
+    const u = new URL(url);
     const req = https.request(
       {
         hostname: u.hostname,
@@ -721,14 +761,38 @@ async function main() {
     // never a failed run.
     case 'hq-push': {
       const status = a.status || 'green';
-      const body = {
-        project: project,
-        metric_key: a.metric || 'run_status',
-        value_num: a.value !== undefined ? Number(a.value) : status === 'green' ? 1 : 0,
-        headline: a.headline || '',
-        status,
-      };
-      if (!project) {
+      // A10-T-09 (2026-09-11): `--events` takes the multi-metric array shape the slash-command
+      // files were building by hand. They each ran a raw curl with
+      // `-H "X-Alex-Token: $(cat ...)"`, which puts the credential in argv where `ps` can read it
+      // for the life of the call - the exact thing this subcommand was written to stop, fixed in
+      // the eight PowerShell wrappers and never in the command files. The events JSON carries no
+      // secret, so passing it as an argument is fine; the token still never leaves Node.
+      let body;
+      if (a.events) {
+        try {
+          const parsed = JSON.parse(a.events);
+          // A bare array is the metric-event shape; an object is passed through verbatim, which is
+          // how the inbox-mark webhook's {"marks":[...]} body reaches its own endpoint.
+          if (Array.isArray(parsed)) {
+            if (!parsed.length) throw new Error('events must be a non-empty array');
+            body = { events: parsed };
+          } else if (parsed && typeof parsed === 'object') {
+            body = parsed;
+          } else throw new Error('events must be an array or an object');
+        } catch (e) {
+          logLine(log, `HQ push skipped: --events is not valid JSON (${e.message})`);
+          return 0;
+        }
+      } else {
+        body = {
+          project: project,
+          metric_key: a.metric || 'run_status',
+          value_num: a.value !== undefined ? Number(a.value) : status === 'green' ? 1 : 0,
+          headline: a.headline || '',
+          status,
+        };
+      }
+      if (!project && !a.events) {
         logLine(log, 'HQ push skipped: no project key given');
         return 0;
       }
@@ -740,13 +804,48 @@ async function main() {
         logLine(log, 'HQ push skipped: token file missing');
         return 0;
       }
+      // --url lets a caller target a sibling HQ webhook (alex-inbox-mark), validated against the
+      // same shape hq-get enforces so neither can become a general poster that attaches the
+      // credential to an arbitrary host.
+      const pushUrl = a.url || undefined;
+      if (pushUrl && !/^https:\/\/n8n\.shaheenkiarash\.com\/webhook\/[A-Za-z0-9._-]+$/.test(pushUrl)) {
+        logLine(log, `HQ push skipped: --url refused, not an HQ webhook: ${pushUrl}`);
+        return 0;
+      }
       try {
-        await hqPush(body);
-        logLine(log, `HQ ${status} push sent (project=${project}, ${body.metric_key})`);
+        await hqPush(body, 10000, pushUrl);
+        logLine(log, body.events
+          ? `HQ push sent (${body.events.length} event(s))`
+          : `HQ ${status} push sent (project=${project}, ${body.metric_key})`);
       } catch (e) {
         logLine(log, `HQ push failed: ${e.message}`);
       }
       return 0;
+    }
+
+    // The READ half of hq-push: fetch an HQ webhook with the token held inside Node and print the
+    // body. `--url` must be an HQ webhook on the known host; anything else is refused, so this can
+    // never be turned into a general fetcher that attaches the credential to an arbitrary target.
+    case 'hq-get': {
+      const NL = String.fromCharCode(10);
+      // Shared shape with hq-push's --url below: an HQ webhook on the known host, nothing else.
+
+      const url = a.url || '';
+      if (!/^https:\/\/n8n\.shaheenkiarash\.com\/webhook\/[A-Za-z0-9._-]+$/.test(url)) {
+        process.stderr.write(`hq-get: refused, not an HQ webhook URL: ${url}` + NL);
+        return 2;
+      }
+      if (!hqToken()) {
+        process.stderr.write('hq-get: token file missing' + NL);
+        return 2;
+      }
+      try {
+        process.stdout.write(await hqGet(url));
+        return 0;
+      } catch (e) {
+        process.stderr.write(`hq-get failed: ${e.message}` + NL);
+        return 2;
+      }
     }
 
     // Prints the reason an OPTIONAL pass degraded, or nothing at all when it was healthy. Always

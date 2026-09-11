@@ -54,7 +54,7 @@ Spec: work/16-alex-hq/CLAUDE.md (read it first). Status + IDs: vault/projects/al
    Home: recovery-layer (#18), the FIX half of the detect-only checker.
 2. **(covered by step 1)** The push + the read-back verify are inside the script. NEVER print the token.
 3. **Fetch + present.** GET `https://n8n.shaheenkiarash.com/webhook/alex-hq-summary` (header
-   `X-Alex-Token: $(cat work/16-alex-hq/config/alex-hq-token.txt)`) and present the summary in Alex
+   `node scripts/lib/close-out.mjs hq-get --url <webhook>`, which keeps the token inside Node) and present the summary in Alex
    voice: per-project status colors, stale projects (last_ts older than its cadence), red/amber first.
 3a. **Quota mirror (upgrade P3, 2026-07-12):** if the summary carries `projects.quota.metrics.anthropic_api` with status red and a ts newer than `system/quota-state.json`'s anthropic_api.detected, update quota-state.json (state=capped, detected=that ts, keep/derive reset_date = first of next month). This is how an n8n-side cap detection reaches the local wrapper gate without a new channel.
 3b. **HQ inbox check (two-way notes; full runbook = work/16-alex-hq/CLAUDE.md "Inbox Contract").** GET `/webhook/alex-inbox` (same token header). If `count_new` > 0: voice notes get scp'd from n8n:/opt/alex-inbox-audio/ + transcribed with local Whisper; every note filed per the standing vault protocols; then POST `/webhook/alex-inbox-mark` (`{"marks":[{"id":N,"filed_to":"...","note":"<final text - REQUIRED>"}]}`); remote+local audio deleted after a voice mark. Report "HQ notes: N filed → destinations". Unreachable → one line, continue.

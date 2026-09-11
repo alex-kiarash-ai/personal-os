@@ -39,4 +39,4 @@ One engine, three taps, sequenced. Stream B (tools) ships first; content tap sec
 - Refresh status.md snapshot + outcome metric. vault/index.md only for new page types.
 - NEVER build, install, deploy, spend, or advance a row past Interesting without an explicit yes.
 - **Alex HQ metrics push** (build #16 contract, work/16-alex-hq/CLAUDE.md). Never let a push failure fail the run; never print or log the token:
-  `curl -s -m 10 -X POST https://n8n.shaheenkiarash.com/webhook/alex-push -H "Content-Type: application/json" -H "X-Alex-Token: $(cat work/16-alex-hq/config/alex-hq-token.txt)" -d '{"project":"radar","metric_key":"shipped_30d","value_num":{outcome metric},"headline":"{today's ONE item, or: nothing cleared the bar}","status":"green"}' || true`
+  `node scripts/lib/close-out.mjs hq-push --project alex --events '{"project":"radar","metric_key":"shipped_30d","value_num":{outcome metric},"headline":"{today' --log outputs/logs/hq-push.logs ONE item, or: nothing cleared the bar}","status":"green"}' || true`
