@@ -144,6 +144,18 @@ const HARD_MAX_TOTAL_CALLS = 60;
       '  jobs would skip this stage, skip Budget Gate, and lose every source report with them.'
     );
   }
+  // The row cap upstream is sized by THIS stage's budget since 2026-09-12, and this stage checks the
+  // two agree at run time. That check is only a check while Remove Known actually publishes the
+  // number; without the block it would silently pass on every run.
+  if (rkCode.indexOf('coupling: {') === -1 || rkCode.indexOf('detail_budget: detailBudget,') === -1) {
+    throw new Error(
+      'Detail Gate: 22-remove-known.js no longer publishes cap.coupling.detail_budget.\n' +
+      '  That node caps how many rows the run keeps by the budget THIS node computes, and this node\n' +
+      '  cross-checks the two at run time. With the block gone the cross-check has nothing to compare\n' +
+      '  against, so it would report agreement on every run including the runs where the two have\n' +
+      '  drifted apart, which is worse than not checking at all.'
+    );
+  }
   const parseSettings = require('./04-parse-settings.js');
   if (parseSettings.name !== 'Parse Settings') {
     throw new Error('Detail Gate: node 04 is named ' + JSON.stringify(parseSettings.name) + ' and this node reads $(\'Parse Settings\') for the source switch. Rename both in the same edit.');
@@ -272,6 +284,35 @@ if (searchReport && typeof searchReport.calls_made === 'number' && isFinite(sear
 
 const remainingTotal = Math.max(0, totalCap.value - searchCalls);
 const detailBudget = Math.min(detailCap.value, remainingTotal);
+
+// --- 3b. the cross-check against the node that sized the row cap ------------
+// Since 2026-09-12 Remove Known caps its row count by THIS number, computed independently from the
+// same three inputs. Two nodes computing the same budget is a drift risk, so they are compared here
+// rather than trusted: if they disagree, the run kept a number of rows that does not match the
+// number of descriptions this stage can buy, which is exactly the starve the coupling exists to
+// remove and it would otherwise be invisible. Comparing beats reading its value, because a bug in
+// either node then has to be a bug in BOTH to pass silently.
+let couplingMismatch = null;
+const rkReport = all.filter(function (j) { return j && j._kind === 'stage_report' && j.stage === 'remove_known'; })[0] || null;
+const rkCoupling = (rkReport && rkReport.cap && rkReport.cap.coupling) || null;
+if (rkCoupling && typeof rkCoupling.detail_budget === 'number' && rkCoupling.detail_budget !== detailBudget) {
+  couplingMismatch = {
+    remove_known_detail_budget: rkCoupling.detail_budget,
+    this_stage_detail_budget: detailBudget,
+    remove_known_search_calls: rkCoupling.search_calls_already_made,
+    this_stage_search_calls: searchCalls,
+    remove_known_total: rkCoupling.whole_run_linkedin_calls,
+    this_stage_total: totalCap.value,
+    remove_known_per_stage: rkCoupling.per_stage_cap,
+    this_stage_per_stage: detailCap.value,
+  };
+}
+// A MISSING block is a different thing from a wrong number and is treated differently. The build
+// refuses a Remove Known that does not publish one, so at run time an absent block means this stage
+// is looking at a stream that did not come through the built graph. It is said out loud and it does
+// NOT degrade the verdict, because nothing about this run's own work is wrong.
+const couplingUnchecked = rkCoupling ? null
+  : (rkReport ? 'the remove_known stage report carried no cap.coupling block' : 'no remove_known stage report reached this stage at all');
 
 // --- 4. the decision ---------------------------------------------------------
 function idOf(row) {
@@ -414,6 +455,27 @@ if (stoppedByStageCap > 0 || stoppedByTotal > 0) {
     '20 calls in a run.'
   );
 }
+if (couplingMismatch !== null) {
+  verdict = verdict === 'ok' ? 'degraded' : verdict;
+  statusToken = statusToken || 'stage_drift:linkedin_detail_budget';
+  warnings.push(
+    'THE ROW CAP AND THIS STAGE DISAGREE ABOUT THE LINKEDIN DETAIL BUDGET: ' + JSON.stringify(couplingMismatch) + '. ' +
+    'Remove Known caps how many rows the run keeps by exactly this number, so a disagreement means the run kept a ' +
+    'count of rows that does not match the count of descriptions this stage can buy. Both nodes compute it from the ' +
+    'same three inputs (the two caps on the plan and calls_made on the search source_report), so they can only differ ' +
+    'if one of them changed, or if one of them read a different stream. Nothing is lost this run: every row is still ' +
+    'emitted and the budget still binds. What is lost is the guarantee that a kept row can be described.'
+  );
+}
+if (couplingUnchecked !== null) {
+  warnings.push(
+    'THE ROW CAP WAS NOT CROSS-CHECKED AGAINST THIS BUDGET: ' + couplingUnchecked + '. Remove Known is supposed to cap ' +
+    'how many rows the run keeps by the ' + detailBudget + ' description(s) this stage can buy, and to publish the ' +
+    'arithmetic so it can be compared here. The build refuses a Remove Known that does not, so seeing this at run time ' +
+    'means this stage is reading a stream that did not come through the built graph. Nothing about this run is wrong; ' +
+    'the guarantee that a kept row can be described is simply unproven on it.'
+  );
+}
 if (searchCallsFrom && searchCallsFrom.indexOf('ASSUMED') === 0) {
   warnings.push(
     'NO USABLE calls_made REACHED THIS NODE from the ' + SEARCH_KEY + ' source_report, so the search leg was priced at ' +
@@ -459,6 +521,9 @@ const report = {
     hard_clamp_total_calls: HARD_MAX_TOTAL_CALLS,
     clamped: clamped,
     worst_case_linkedin_calls_this_run: searchCalls + admitted,
+    row_cap_agrees: couplingUnchecked !== null ? null : couplingMismatch === null,
+    row_cap_mismatch: couplingMismatch,
+    row_cap_unchecked: couplingUnchecked,
     why_a_total: 'the search leg and this leg hit the same host from the same IP and LinkedIn counts the sum, so a per-stage cap that lets the total run away is not a cap.',
   },
   rows: {

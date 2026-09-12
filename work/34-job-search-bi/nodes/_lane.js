@@ -149,6 +149,17 @@ const NUMBER_KEYS = ['score_threshold', 'max_scored_per_run', 'max_cost_per_run_
 //     On a normal 24h window the search leg spends 10 to 14 and there are 1 to 7 new rows, so the
 //     total lands around 12 to 21 and this never bites. On the 168h first run the search leg spends
 //     its whole 20, the detail leg gets 5 of 20 rows, and the report says so in those words.
+//
+// THE DEMAND MULTIPLE (added 2026-09-12 after execution 5182 measured the starve).
+//   linkedin_page_demand_multiple  how much RAW LinkedIn supply the run wants in hand before it
+//     stops asking for more pages, as a multiple of the rows it can actually keep AND describe.
+//     It exists because a search call and a detail call come out of the same whole-run budget, so
+//     an extra page of results is bought with a description. Measured on execution 5182: page 1 of
+//     the 11 base queries returned 50 DISTINCT posting ids and 26 of them survived the title filter
+//     (52%); across both pages 40 of 88 survived (45%). A multiple of 3 therefore stops paging with
+//     roughly 1.35x the cap in expected survivors, which is a 35% margin over filling the cap. It is
+//     deliberately conservative because the two directions fail differently: too high just spends
+//     calls, too low leaves a full page unfollowed that nothing will ever come back for.
 // ---------------------------------------------------------------------------------------------
 const PAGING_DEFAULTS = {
   linkedin_max_calls_per_run: 20,
@@ -156,6 +167,7 @@ const PAGING_DEFAULTS = {
   himalayas_max_pages_per_run: 12,
   linkedin_detail_max_calls_per_run: 10,
   linkedin_total_max_calls_per_run: 25,
+  linkedin_page_demand_multiple: 3,
 };
 // Optional settings rows. NOT in SCHEMA.keys, on purpose: a key in that list is REQUIRED and Parse
 // Settings throws when it is missing, which would break every existing sheet. These are decoded when

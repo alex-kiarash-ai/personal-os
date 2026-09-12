@@ -103,6 +103,20 @@ pattern continues per stage through `test-stage-e*`, and `config/test-depth.js` 
 paging loops, including a simulator that runs each loop pass by pass and a negative-test section
 that removes each cap from a COPY of the shipped code and proves the same scenario then runs away.
 
+**A fifth rule, added 2026-09-12 after execution 5182: NEVER KEEP MORE JOBS THAN YOU CAN DESCRIBE.**
+The LinkedIn search leg and the LinkedIn detail leg spend the same whole-run budget, so an extra page
+of search results is bought with a description. On 5182 the search leg took 20 of the 25 calls, the
+detail stage got 5, and 15 of the 20 rows the run kept were scored on their titles alone, permanently,
+because a written row is deleted as known next run. A row held back instead costs a day and nothing
+else. So `Remove Known` (22) caps its row count at the lesser of `max_scored_per_run` and what the
+detail budget can enrich, and `LinkedIn Page Guard` (23) stops paging once the run holds more unique
+postings than that cap. THREE files have to agree about one number: the clamps are read out of
+`33-detail-gate.js` at build time rather than retyped, 22 publishes its arithmetic on its stage report,
+and 33 cross-checks its own against it at run time. The exception that keeps the lane alive: when
+NOTHING can be described the coupling switches off and the ceiling applies, because a cap of zero would
+write no rows, bite every run and hold the window forever. Measured before and after on 5182's own
+bodies: 25 calls / 20 kept / 5 described becomes 21 calls / 10 kept / 10 described.
+
 **A fourth rule, added with the paging loops: a cap that a human can edit needs a second cap that a
 human cannot.** Both page guards read their limits from the settings tab, then `config/lane.json`,
 then a shipped default, so Shaheen can tune them from his phone. That makes the number hand editable,

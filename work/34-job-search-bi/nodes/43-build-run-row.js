@@ -383,6 +383,28 @@ const scored = scoreR && scoreR.counts ? Number(scoreR.counts.scored) : 0;
 const heldBack = scoreR && scoreR.for_stage_f ? Number(scoreR.for_stage_f.rows_held_back) : 0;
 const capBit = !!(removeKnownR && removeKnownR.cap && removeKnownR.cap.bit);
 const cappedRows = removeKnownR && removeKnownR.cap ? Number(removeKnownR.cap.dropped_by_cap) || 0 : 0;
+
+// THE EFFECTIVE CAP AND WHY IT IS WHAT IT IS (2026-09-12). Since Remove Known couples the row cap to
+// what the LinkedIn detail budget can describe, the number of rows a run keeps can be BELOW
+// max_scored_per_run for a reason that is nowhere on the row unless it is put there. Shaheen must
+// never see a smaller number with no reason attached, so the cap, the ceiling, the binding limit and
+// the count deferred for want of a description all go in the note, not just in a report nobody opens.
+const rkCap = (removeKnownR && removeKnownR.cap) || null;
+const capMax = rkCap && isFinite(Number(rkCap.max_scored_per_run)) ? Number(rkCap.max_scored_per_run) : null;
+const capEffective = rkCap && isFinite(Number(rkCap.effective_cap)) ? Number(rkCap.effective_cap) : null;
+const capFrom = rkCap && rkCap.effective_cap_from ? String(rkCap.effective_cap_from) : null;
+const capCut = capMax !== null && capEffective !== null && capEffective < capMax;
+const deferredNoDescription = rkCap && isFinite(Number(rkCap.dropped_for_no_description)) ? Number(rkCap.dropped_for_no_description) : 0;
+// The other half of the same trade, from the other end of the run: pages the guard did not ask for
+// because the run already held more supply than it could keep. Unlike a capped row these are NOT
+// deferred, so the count belongs on the row next to the one that is.
+let pagesSkippedOnDemand = 0;
+for (const r of sourceReports) {
+  const p = r.paging || (r.stage && r.stage.paging) || null;
+  if (p && p.demand && isFinite(Number(p.demand.pages_not_followed_on_demand))) {
+    pagesSkippedOnDemand += Number(p.demand.pages_not_followed_on_demand);
+  }
+}
 const costCapRows = budgetR && budgetR.budget ? Number(budgetR.budget.stopped_by_cost) || 0 : 0;
 const countCapRows = budgetR && budgetR.budget ? Number(budgetR.budget.stopped_by_count) || 0 : 0;
 const noDecisionRows = rowsR ? Number(rowsR.rows_without_a_write_decision) || 0 : 0;
@@ -459,6 +481,9 @@ noteParts.push('wrote ' + rowsWritten + '/' + intendedRows.length + ' to ' + WRI
 if (rowsOut !== null) noteParts.push('survived ' + rowsOut);
 if (heldBack) noteParts.push('held ' + heldBack);
 if (cappedRows) noteParts.push('cap dropped ' + cappedRows);
+if (capCut) noteParts.push('cap ' + capEffective + '/' + capMax + ' (' + capFrom + ')');
+if (deferredNoDescription) noteParts.push('deferred for no description ' + deferredNoDescription);
+if (pagesSkippedOnDemand) noteParts.push('pages skipped on demand ' + pagesSkippedOnDemand);
 if (costCapRows) noteParts.push('cost cap ' + costCapRows);
 if (noDecisionRows) noteParts.push('no write decision ' + noDecisionRows);
 noteParts.push('scored ' + scored + '/' + (scoreR && scoreR.counts ? scoreR.counts.admitted : 0));
@@ -532,6 +557,23 @@ if (WRITE_IS_TEST_TAB) {
     'Known has nothing to dedupe against, so a second test run writes the same rows again.'
   );
 }
+if (capCut) {
+  warnings.push(
+    'THIS RUN KEPT AT MOST ' + capEffective + ' ROW(S), NOT THE ' + capMax + ' IN max_scored_per_run, and the binding limit was ' +
+    capFrom + '. The row cap is the lesser of that ceiling and what the LinkedIn detail budget can describe, because a row ' +
+    'kept with no description is scored on its title once and never enriched, while a row held back is collected properly ' +
+    'next run. ' + (deferredNoDescription ? deferredNoDescription + ' row(s) were deferred for exactly that reason and the window is held, so none of them is lost. ' : '') +
+    'Full arithmetic is in the remove_known report under cap.coupling.'
+  );
+}
+if (pagesSkippedOnDemand) {
+  warnings.push(
+    pagesSkippedOnDemand + ' full LinkedIn page(s) were NOT asked for because the run already held more unique postings than ' +
+    'it could keep and describe. Unlike a capped row these are not deferred: nothing comes back for them once the window ' +
+    'advances. That is the price of spending the shared LinkedIn budget on descriptions instead of on volume, and it is ' +
+    'here so it can be argued with rather than discovered. Lower linkedin_page_demand_multiple to page more.'
+  );
+}
 if (idle.length) warnings.push('idle source(s): ' + idle.join(', ') + '. Nothing was asked of them this run, which is not the same as finding nothing and not the same as being switched off.');
 if (verdict === 'no_new_jobs') warnings.push('no new rows and nothing wrong anywhere: a genuinely quiet run. Every source that ran delivered, nothing was held back, and the window advanced.');
 
@@ -556,6 +598,12 @@ const report = {
     written_and_verified: rowsWritten,
     held_back_by_scoring: heldBack,
     dropped_by_row_cap: cappedRows,
+    row_cap: capEffective,
+    row_cap_ceiling: capMax,
+    row_cap_from: capFrom,
+    row_cap_was_cut: capCut,
+    deferred_for_no_description: deferredNoDescription,
+    pages_not_followed_on_demand: pagesSkippedOnDemand,
     unscored_by_cost_cap: costCapRows,
     unscored_by_count_cap: countCapRows,
     without_a_write_decision: noDecisionRows,
