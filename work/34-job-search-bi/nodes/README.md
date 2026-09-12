@@ -6,6 +6,8 @@ One file per n8n node: `NN-<name>.js`.
 are in wiring order. The two paging loops added five nodes that belong in the MIDDLE of the graph:
 23 and 24 sit between 07 and 08, and 25, 26 and 27 sit between 17 and 18. Then the scoring stage took
 28 to 32, and the LinkedIn detail stage took 33 to 37 while sitting BEFORE it, between 22 and 28.
+The output and telemetry stage took 38 to 49 and is the one band whose numbers ARE its wiring order,
+because it is the tail of the graph and nothing will ever be inserted before it.
 Renumbering thirty two files to make room would have churned every test, every card and every handoff
 line that names one, for a number that n8n never reads. The order in the `nodes` array does not affect
 the workflow: connections are assembled by node NAME. Each out-of-order file carries its place in the
@@ -35,7 +37,29 @@ Extract LinkedIn / Extract Indeed Jobs / Extract Board Jobs -> Combine (19) -> F
        [out0 true] -> Score Job (30) -> Score Results (31) [input 0]
        [out1 false] ------------------> Score Results (31) [input 1]
                                         Score Results -> Parse Score (32)
+
+  -> Build Rows (38) -> Write Route (39)
+       [out0 true, the sheet rows]   -> Write Jobs (40) -> Write Results (41) [input 0]
+       [out1 false, EVERY report]    ---------------------> Write Results (41) [input 1]
+                                        Write Results -> Read Back Jobs (42) -> Build Run Row (43)
+       -> Write Run (44) -> Update Last Run (45) -> Read Back Writes (46) -> Check Writes (47)
+       -> Push HQ (48) -> Assert Writes (49)
 ```
+
+**The output band, in one paragraph.** Build Rows turns a scored row into exactly the fifteen sheet
+columns plus one routing boolean, and everything else rides the carry branch. The IF and the Merge
+exist for the reason they exist twice already: a run with nothing to write is ordinary here, and an
+n8n node with an empty input is SKIPPED, so without them the ledger row and the HQ push would be
+skipped on exactly the run that needed them. Every DATA write is read back before it is believed,
+which is the two `Read Back` nodes and the two comparators. `Assert Writes` is the terminal node and
+the only one allowed to throw; it runs AFTER the push on purpose, because throwing earlier would
+suppress the message that says why.
+
+**Two numbers in the output band are decisions rather than defaults.** `Write Jobs` sets
+`cellFormat: RAW` because the node's own default at this typeVersion is `USER_ENTERED`, which turns a
+job ad beginning with `=` into a live formula in Shaheen's spreadsheet. And it uses `defineBelow`
+rather than auto-mapping because auto-mapping sends every unmatched key through `handlingExtraData`,
+whose default is `insertInNewColumn`: the provenance keys would each become a column nobody chose.
 
 **Read the detail band's true branch carefully, because it is not what it looks like.** An n8n HTTP
 node replaces its input item with its own response, so a job row routed into the fetch branch does
