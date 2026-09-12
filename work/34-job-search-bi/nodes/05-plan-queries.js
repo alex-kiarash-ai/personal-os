@@ -580,12 +580,37 @@ const paging = {
 };
 
 // --- warnings that belong in the run report, not in a comment ---------------
-if (linkedinUnits.length > LINKEDIN_SOFT_CALL_LIMIT) {
+// THE RATE-LIMIT WARNING MEASURES WHAT THE RUN CAN SPEND, NOT WHAT THE BASE PLAN NAMES.
+// Corrected 2026-09-12, and the correction was forced by Shaheen narrowing the search terms.
+//
+// This used to read "linkedinUnits.length > LINKEDIN_SOFT_CALL_LIMIT", which was right when it was
+// written: paging did not exist, so the base plan WAS the run. Adaptive paging arrived and the
+// condition was never revisited. The BI base plan then went from 12 calls to exactly 10, the
+// condition became 10 > 10, and the entire rate-limit signal disappeared from a run that can still
+// make twenty calls. Nothing failed. The warning simply stopped appearing, which is the quietest
+// way a report can lose a fact.
+//
+// So the comparison is now against the CEILING this run can actually reach. Math.max, not the raw
+// cap, because a ceiling at or below the base plan buys zero extra pages and cancels nothing: the
+// run still makes every base call. See the block immediately below, which says the same thing from
+// the other side.
+//
+// The 10 itself is a DOCUMENTED figure, not a measured one, and it is now known to be conservative:
+// execution 5154 made 20 LinkedIn calls from this box, verdict ok, source_down false, no 429 and no
+// 999. The warning stays because one clean run is not a rate limit that has been disproven, only one
+// that has not bitten yet. Raising the number is a settings-level judgement and is Shaheen's.
+const linkedinPagingEnabled = !!(linkedinUnits.length && LINKEDIN_PAGE.verified);
+const linkedinCallCeiling = linkedinPagingEnabled
+  ? Math.max(linkedinUnits.length, paging.caps.linkedin_max_calls_per_run)
+  : linkedinUnits.length;
+if (linkedinCallCeiling > LINKEDIN_SOFT_CALL_LIMIT) {
+  const extra = linkedinCallCeiling - linkedinUnits.length;
   warnings.push(
-    'this plan emits ' + linkedinUnits.length + ' base LinkedIn calls, above the ' + LINKEDIN_SOFT_CALL_LIMIT +
+    'this run can make up to ' + linkedinCallCeiling + ' LinkedIn calls (' + linkedinUnits.length + ' base' +
+    (extra > 0 ? ' plus up to ' + extra + ' adaptive page(s)' : '') + '), above the ' + LINKEDIN_SOFT_CALL_LIMIT +
     ' that a datacenter IP is reported to tolerate before 429 or 999, and the box is a datacenter IP. ' +
-    'Adaptive paging can add up to ' + Math.max(0, paging.caps.linkedin_max_calls_per_run - linkedinUnits.length) +
-    ' more, to a hard ceiling of ' + paging.caps.linkedin_max_calls_per_run + ' calls per run (D20). ' +
+    'Hard ceiling ' + paging.caps.linkedin_max_calls_per_run + ' calls per run (D20). One live run has already made ' +
+    '20 from this box with no refusal, so the ' + LINKEDIN_SOFT_CALL_LIMIT + ' is documented rather than measured. ' +
     'Stage B paces them and reports a 429 or a 999 as a DEGRADED source with a named reason, never as an empty result.'
   );
 }
