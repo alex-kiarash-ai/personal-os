@@ -4,11 +4,12 @@ One file per n8n node: `NN-<name>.js`.
 
 **THE NUMBERS STOPPED BEING WIRING ORDER AT 23 (2026-09-12), and that is deliberate.** Files 01 to 22
 are in wiring order. The two paging loops added five nodes that belong in the MIDDLE of the graph:
-23 and 24 sit between 07 and 08, and 25, 26 and 27 sit between 17 and 18. Renumbering twenty two
-files to make room would have churned every test, every card and every handoff line that names one,
-for a number that n8n never reads. The order in the `nodes` array does not affect the workflow:
-connections are assembled by node NAME. Each of the five carries its place in the graph in its own
-header, and the map is:
+23 and 24 sit between 07 and 08, and 25, 26 and 27 sit between 17 and 18. Then the scoring stage took
+28 to 32, and the LinkedIn detail stage took 33 to 37 while sitting BEFORE it, between 22 and 28.
+Renumbering thirty two files to make room would have churned every test, every card and every handoff
+line that names one, for a number that n8n never reads. The order in the `nodes` array does not affect
+the workflow: connections are assembled by node NAME. Each out-of-order file carries its place in the
+graph in its own header, and the map is:
 
 ```
 Plan Queries -> LinkedIn Units Only [out0] -> Search LinkedIn (07) -> LinkedIn Page Guard (23)
@@ -24,7 +25,24 @@ LinkedIn Units Only [out1] -> Indeed Units Only [out0] -> the Indeed poll loop (
                                                                                 [out1] -> Extract Board Jobs (18)
 Extract LinkedIn / Extract Indeed Jobs / Extract Board Jobs -> Combine (19) -> Filter (20)
   -> Read Known Jobs (21) -> Remove Known (22)
+
+  -> Detail Gate (33) -> Detail Route (34)
+       [out0 true, the fetch REQUESTS] -> Get LinkedIn Detail (35) -> Detail Results (36) [input 0]
+       [out1 false, EVERY row and report] --------------------------> Detail Results (36) [input 1]
+                                                                      Detail Results -> Attach Detail (37)
+
+  -> Budget Gate (28) -> Score Route (29)
+       [out0 true] -> Score Job (30) -> Score Results (31) [input 0]
+       [out1 false] ------------------> Score Results (31) [input 1]
+                                        Score Results -> Parse Score (32)
 ```
+
+**Read the detail band's true branch carefully, because it is not what it looks like.** An n8n HTTP
+node replaces its input item with its own response, so a job row routed into the fetch branch does
+not come out of the other side. Detail Gate therefore emits an admitted row TWICE: the row itself on
+the carry branch, and a separate scaffolding REQUEST item carrying only a url and a job id. Every row
+and every report travels output 1. That is why the detail stage can attach nothing at all, including
+when its own gate is unreachable, and still emit every row.
 
 Each file exports the node definition and how it connects. `config/build.js --add nodes/NN-name.js`
 appends exactly one of them to the live workflow, backing up first and reading back after.

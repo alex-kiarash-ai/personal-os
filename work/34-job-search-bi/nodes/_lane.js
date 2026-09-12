@@ -131,11 +131,31 @@ const NUMBER_KEYS = ['score_threshold', 'max_scored_per_run', 'max_cost_per_run_
 //     16 minutes, a batch-import cluster), so a 24h window is on the order of 5 pages and a 168h
 //     first run is on the order of 35. 12 covers the daily case with headroom and truncates the
 //     first run honestly, with the oldest pubDate reached named in the report.
+//
+// THE TWO DETAIL CAPS (added 2026-09-12 with the LinkedIn detail fetch), and the second one is a
+// different KIND of cap from everything above it.
+//   linkedin_detail_max_calls_per_run  one GET per new LinkedIn row that survived dedupe. The row
+//     cap upstream is max_scored_per_run, which is 20 on both live sheets, so a naive detail fetch
+//     adds up to 20 calls on top of a search leg that is already allowed 20. That is about 40
+//     LinkedIn calls in a run, against a documented refusal threshold of roughly ten (D20) and a
+//     single measured data point of 20 calls from the box with no refusal (execution 5154). 10 is
+//     half the only number anyone has ever measured as safe, spent on the rows the run is actually
+//     going to score.
+//   linkedin_total_max_calls_per_run  THE ONE THAT MATTERS. A per-stage cap that lets the total run
+//     away is not a cap: the search leg and the detail leg hit the SAME host from the SAME IP, and
+//     LinkedIn counts the sum. So this is a whole-run budget across search plus paging plus detail,
+//     and the detail leg gets what the search leg did not spend. 25 is the measured-safe 20 plus a
+//     deliberate margin of 5, and nothing raises it except a hand edit that the clamp still bounds.
+//     On a normal 24h window the search leg spends 10 to 14 and there are 1 to 7 new rows, so the
+//     total lands around 12 to 21 and this never bites. On the 168h first run the search leg spends
+//     its whole 20, the detail leg gets 5 of 20 rows, and the report says so in those words.
 // ---------------------------------------------------------------------------------------------
 const PAGING_DEFAULTS = {
   linkedin_max_calls_per_run: 20,
   linkedin_max_pages_per_query: 5,
   himalayas_max_pages_per_run: 12,
+  linkedin_detail_max_calls_per_run: 10,
+  linkedin_total_max_calls_per_run: 25,
 };
 // Optional settings rows. NOT in SCHEMA.keys, on purpose: a key in that list is REQUIRED and Parse
 // Settings throws when it is missing, which would break every existing sheet. These are decoded when

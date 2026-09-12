@@ -17,9 +17,12 @@
  * ---------------------------------------------------------------------------------------------
  * 2. EVERY ITEM PASSES THROUGH. THAT IS WHY THIS IS NOT A FILTER.
  * ---------------------------------------------------------------------------------------------
- * IN: everything Remove Known emitted. Job rows, up to eight `source_report` items and two
- * `stage_report` items, and the reports are NOT jobs: they are never scored, never counted against
- * the budget, and they carry the run verdict Stage F writes.
+ * IN: everything the LinkedIn detail stage emitted, which is everything Remove Known emitted plus
+ * an excerpt on the enriched rows plus one more source_report. Job rows, up to NINE `source_report`
+ * items and three `stage_report` items, and the reports are NOT jobs: they are never scored, never
+ * counted against the budget, and they carry the run verdict Stage F writes. (Eight and two until
+ * 2026-09-12; the detail stage added `linkedin_guest_detail` as a reporting source and
+ * `linkedin_detail_gate` as a stage. Both counts are ceilings, not expectations.)
  * OUT: every one of those items, untouched except for `_score_now`, plus this node's own stage
  * report. Nothing is ever removed here.
  *
@@ -85,9 +88,17 @@ const USER_EXCERPT_MAX = 2000;
 
 (function assertAgainstUpstream() {
   // The node this one reads its rows from, by name, asserted rather than remembered.
+  // REWIRED 2026-09-12: the LinkedIn detail stage now sits between Remove Known and this node, so
+  // the rows arrive already carrying an excerpt where one could be fetched. The row SHAPE did not
+  // change and neither did anything in this file's logic: Attach Detail emits exactly what Remove
+  // Known emitted, plus excerpt on the enriched rows, plus one more source_report.
+  const attach = require('./37-attach-detail.js');
+  if (attach.name !== 'Attach Detail') {
+    throw new Error('Budget Gate: node 37 is named ' + JSON.stringify(attach.name) + ' and this node connects from "Attach Detail". Node names are the wiring key; rename both in the same edit.');
+  }
   const removeKnown = require('./22-remove-known.js');
   if (removeKnown.name !== 'Remove Known') {
-    throw new Error('Budget Gate: node 22 is named ' + JSON.stringify(removeKnown.name) + ' and this node connects from "Remove Known". Node names are the wiring key; rename both in the same edit.');
+    throw new Error('Budget Gate: node 22 is named ' + JSON.stringify(removeKnown.name) + ' and the detail stage this node now reads through connects from "Remove Known". Node names are the wiring key; rename both in the same edit.');
   }
   const parseSettings = require('./04-parse-settings.js');
   if (parseSettings.name !== 'Parse Settings') {
@@ -361,8 +372,10 @@ if (noDescription > 0) {
     noDescription + ' of ' + jobs.length + ' row(s) carry NO description at all, so they are scored on ' +
     'title, company and location alone. This is not a fault in the scorer. The LinkedIn guest search ' +
     'endpoint returns cards and a card has no description on it, and LinkedIn is the whole Sweden ' +
-    'channel. The fix is to wire linkedin_guest_detail, which the settings already switch ON and ' +
-    'which no node calls today.'
+    'channel. The linkedin_guest_detail stage is wired as of 2026-09-12 and fills that gap, so a row ' +
+    'reaching here without a description carries a detail_status saying which of disabled, budget, ' +
+    'refused, error, empty or markup_changed applied. Read the linkedin_guest_detail source_report ' +
+    'and the linkedin_detail_gate stage report beside this one for the run-level reason.'
   );
 }
 if (noContent > 0) {
@@ -452,7 +465,7 @@ module.exports = {
   type: 'n8n-nodes-base.code',
   typeVersion: 2,
   position: [4420, 160],
-  connectFrom: 'Remove Known',
+  connectFrom: 'Attach Detail',
   notes: 'Decides which rows get a paid Anthropic call, on scoring_enabled, max_scored_per_run and a pessimistic cost estimate against max_cost_per_run_usd. Drops nothing: a refused row is stamped budget_hit and written unscored. Builds the whole request body per row, with the system block assembled once so the prompt cache actually forms.',
   parameters: {
     mode: 'runOnceForAllItems',
