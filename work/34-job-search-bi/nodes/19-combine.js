@@ -35,11 +35,56 @@
  * carrying `inputIndex`. Plain strings are untouched and every earlier node file builds byte for
  * byte the same. The change is negative-tested in config/test-stage-e-guards.js.
  *
- * numberOfInputs: 3 IS LOAD BEARING. It defaults to 2. With three wires and the default, the third
- * source connects to an input slot the node does not have and its items are dropped silently, which
- * on this lane means every board row disappearing with a green run report. It is asserted at build
- * time here and it must be READ BACK off the box after the apply, because the n8n node
- * configuration skill records that this field name has shifted across n8n versions.
+ * THE PARAMETER IS `numberInputs`. NOT `numberOfInputs`. THAT ONE WORD COST THE FIRST LIVE RUN.
+ *
+ * This file shipped `numberOfInputs: 3` and the comment above it warned, correctly, that the count
+ * is load bearing. The warning was right and the spelling was wrong, and the spelling is the part
+ * n8n reads. Execution 5154 (2026-09-11, 23:44:58Z, `status: success`) is what it cost: `Extract
+ * Board Jobs` emitted 754 items, Combine emitted 201, and 748 job rows plus all six board source
+ * reports were gone with a green tick on the run.
+ *
+ * THE MECHANISM, read out of the n8n source and not inferred from the symptom:
+ *   1. Merge v3's real property is `numberInputs` (nodes/Merge/v3/helpers/descriptions.ts,
+ *      `numberInputsProperty`, `name: 'numberInputs'`, `default: 2`). `numberOfInputs` is not a
+ *      property of this node at all.
+ *   2. n8n normalises a node against its schema on save, and drops TWO kinds of key: one it does
+ *      not declare, silently and with no error, and one whose value equals the schema default.
+ *      Both happened here, so `GET /workflows/oSVDR2WjkZnjovCP` returns `"parameters": {}` for this
+ *      node. Nothing. The execution snapshot then hydrates the defaults back, which is why
+ *      execution 5154 reads `{"mode":"append","numberInputs":2}`: that 2 was never sent by anyone,
+ *      it is the default filling the hole. The PUT returned 200 and the read-back passed, because
+ *      the read-back compared node names, connections and settings and never a parameter.
+ *   3. `configuredInputs` (Merge/v3/helpers/utils.ts) builds the node's input list from
+ *      `parameters.numberInputs || 2`, so the node DECLARED two inputs.
+ *   4. The ENGINE still waited on three, because it counts CONNECTIONS, not declared inputs
+ *      (workflow-execute.ts, `connectionsByDestinationNode[node].main.length`). It handed the node
+ *      a `main` array of length 3.
+ *   5. `getNodeInputsData` (same utils.ts) loops `i < inputs.length`, where `inputs` is the node's
+ *      DECLARED inputs. Two. It called `getInputData(0)` and `getInputData(1)` and NEVER READ
+ *      INPUT 2. The board branch's 754 items were never fetched by the node.
+ *
+ * WHAT WAS NOT THE CAUSE, because the obvious reading of the run data is wrong. The recorded source
+ * array is `[Extract LinkedIn, null, Extract Board Jobs]`, and the null at index 1 is real: Indeed
+ * is switched off so that branch never ran. It is also IRRELEVANT. `append.execute` iterates the
+ * whole `inputsData` array and appends every element including empty ones; an empty input appends
+ * nothing and truncates nothing. The engine's own flush path is explicit about it: "For the inputs
+ * for which never any data got received set it to an empty array". So an empty middle input is a
+ * supported case, and with `numberInputs: 3` inputs 0 and 2 both survive it. The output happening
+ * to equal input 0's count exactly was a coincidence of Indeed being the empty one. Had Indeed been
+ * full, the boards would still have vanished.
+ *
+ * THE ONE EMPTY-INPUT EDGE THAT IS REAL, stated so nobody has to rediscover it: if EVERY input is
+ * empty the engine does not run the node at all (`taskDataMain.filter(d => d.length).length !== 0`).
+ * That cannot happen on this lane, because Plan Queries throws on an empty plan and each collector
+ * emits one source_report unconditionally, so at least one input always carries at least one item.
+ *
+ * THE COUNT IS NOW GUARDED IN THREE PLACES, because a comment is what failed last time:
+ *   - build.js refuses to build a node wired into input N that does not DECLARE at least N+1
+ *     inputs under the exact parameter name, and refuses `numberOfInputs` and its cousins by name.
+ *   - build.js's read-back re-derives the LIVE effective count (absent means the default) and
+ *     fails if it does not cover every wired input.
+ *   - config/test-combine-merge.js replays n8n's real Merge semantics over this file's parameters,
+ *     including the exact execution-5154 shape.
  */
 
 const { sources } = require('./_lane');
@@ -77,10 +122,13 @@ module.exports = {
   typeVersion: 3,
   position: [3380, 160],
   connectFrom: INPUTS.map((i) => ({ node: i.node, inputIndex: i.inputIndex })),
-  notes: 'Append mode, three inputs: LinkedIn, Indeed, boards. A branch whose source is switched off never runs and its input stays empty, which Merge handles; Stage F reads disabled_sources from Plan Queries to tell that apart from a source that ran and found nothing.',
+  notes: 'Append mode, three inputs: LinkedIn, Indeed, boards. The parameter is numberInputs, not numberOfInputs: the wrong spelling is dropped on save, leaves the count at its default 2, and the third input is never read (execution 5154 lost 748 board rows that way). A branch whose source is switched off never runs and its input arrives as an empty array, which append handles; the Filter emits a disabled source_report for it so Stage F can tell that apart from a source that ran and found nothing.',
   parameters: {
+    // `numberInputs` is the real Merge v3 property. See the header: `numberOfInputs` is not a
+    // property of this node, n8n drops it on save, and the count falls back to 2. `options` is gone
+    // for the same reason: append mode declares no `options` property, so sending one was noise
+    // that the box stripped anyway.
     mode: 'append',
-    numberOfInputs: INPUTS.length,
-    options: {},
+    numberInputs: INPUTS.length,
   },
 };

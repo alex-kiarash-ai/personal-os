@@ -102,7 +102,12 @@
  * 5. THE STREAM CONTRACT.
  * ---------------------------------------------------------------------------------------------
  * IN:  `_kind: 'job'` rows and `_kind: 'source_report'` items, from all three collectors via Merge.
- * OUT: the surviving jobs, EVERY source_report untouched, and one `_kind: 'stage_report'`.
+ * OUT: the surviving jobs, EVERY source_report untouched, one synthesised `source_report` per
+ *      SWITCHED-OFF source (verdict `disabled`, reported_by Filter), and one `_kind: 'stage_report'`.
+ *      The disabled rows close the gap Stage B flagged and Stages C and D restated: a source whose
+ *      branch never runs has no collector to speak for it, so without them Stage F cannot tell "off"
+ *      from "ran and found nothing". This node is the first one downstream that always executes and
+ *      it already holds the plan's disabled list, so it is the cheapest honest place to say it.
  * The reports pass through for two reasons. Stage F needs every one of them to write the run
  * verdict, and they are also what guarantees this node and the two after it have input at all: a
  * run where every job is filtered out still carries the reports, and an n8n node with empty input
@@ -435,6 +440,58 @@ for (const it of items) {
   else strays.push(j);
 }
 
+// --- the sources that were never asked to run -------------------------------
+// A SWITCHED-OFF SOURCE HAS NO COLLECTOR TO REPORT FOR IT, and until now it produced no report at
+// all. That gap was flagged in Stage B, restated in Extract Indeed Jobs and again in Extract Board
+// Jobs, and it is a real one: with no row of its own, "switched off" and "ran and found nothing"
+// look identical to Stage F, and the second of those is a fault while the first is a decision.
+//
+// The report is synthesised HERE and not in a collector, deliberately. A disabled source's branch
+// never executes, so no node on that branch can speak for it. This node always runs: Plan Queries
+// refuses an empty plan, every collector emits one source_report unconditionally, so Combine always
+// carries at least one item and this node is always reached. It also already holds the run block,
+// which carries the whole disabled list, so nothing new has to be fetched or wired to produce it.
+//
+// The verdict is its own word, 'disabled', never 'ok' with zero rows and never 'down'. It is not
+// down, nobody called it. reported_by says Filter so a reader is never misled into thinking a
+// collector ran. source_down is false and status_token null on purpose: an off switch must not
+// page anyone.
+const disabledSources = (run.plan && run.plan.disabled_sources) || [];
+const reportedSources = {};
+for (const r of reports) reportedSources[((r && r.json) || {}).source] = true;
+const disabledReports = [];
+for (const d of disabledSources) {
+  const key = d && d.source;
+  if (!key) continue;
+  // A source that somehow reported for itself keeps its own report. Two reports for one source
+  // would make every per-source count in Stage F double.
+  if (reportedSources[key]) continue;
+  reportedSources[key] = true;
+  disabledReports.push({
+    json: {
+      _kind: 'source_report',
+      source: key,
+      lane: LANE_NUMBER,
+      reported_by: 'Filter',
+      run_started_at: run.run_started_at || null,
+      window_start: run.window_start || null,
+      window_end: run.window_end || null,
+      verdict: 'disabled',
+      source_down: false,
+      status_token: null,
+      reason: (d && d.reason) || 'switched off in the settings tab',
+      planned_queries: 0,
+      planned_calls: 0,
+      calls_made: 0,
+      responses_received: 0,
+      rows_emitted: 0,
+      warnings: [],
+      note: 'This source was switched OFF for this run and cost zero calls. Its branch never executed, so no collector could report for it and this row is synthesised from the plan. Zero rows here is a decision, not a fault, and it is NOT the same as a source that ran and found nothing.',
+    },
+    pairedItem: { item: 0 },
+  });
+}
+
 const ACTIVE_GEO_KEYS = [];
 for (const loc of F.locations) {
   if (!GEO_TARGETS[loc]) {
@@ -619,6 +676,11 @@ const stageReport = {
   per_source_in: perSourceIn,
   per_source_kept: perSourceKept,
   reports_passed_through: reports.length,
+  // Synthesised here, one per source that was switched off, so Stage F can tell an off switch from
+  // a source that ran and found nothing. Counted separately from the ones a collector produced,
+  // because conflating them would hide the difference this row exists to make visible.
+  disabled_reports_added: disabledReports.length,
+  disabled_sources: disabledReports.map((r) => r.json.source),
   strays_dropped: strays.length,
   title: {
     rule: F.match_rule || null,
@@ -669,7 +731,7 @@ const stageReport = {
 // The reports ride through untouched, and they always go, even on a run where nothing survived.
 // A Code node returning [] ends the branch, which would take Read Known Jobs and Remove Known with
 // it and delete the evidence of exactly the run that most needs explaining.
-return kept.concat(reports, [{ json: stageReport, pairedItem: { item: 0 } }]);
+return kept.concat(reports, disabledReports, [{ json: stageReport, pairedItem: { item: 0 } }]);
 `;
 
 const jsCode = [
