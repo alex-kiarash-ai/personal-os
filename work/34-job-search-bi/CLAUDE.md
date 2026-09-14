@@ -199,9 +199,11 @@ Anthropic call returns credit-exhausted, an unscored row is never written, so th
 zero rows and the window is held. Restoring credits is what turns this lane on, and per Shaheen's
 sequence that comes after #34 and #35 are both finished and #03/#14/#32 are off.
 
-**The current build has never executed.** The row-cap coupling (commit `546bbd5`) shipped to the box at
-2026-09-12 19:02, after 5182 ran. It was replayed offline against 5182's own bodies and no live run has
-exercised it.
+**The row-cap coupling is now proven LIVE (execution 5240, 2026-09-14).** It shipped 2026-09-12 19:02,
+after 5182, and had only been replayed offline. 5240 reproduced the prediction: LinkedIn search spent 11
+calls instead of 20, the run held 10 rows instead of 20, all 10 carried a real description instead of 5,
+and ZERO rows were scored on a title alone against 15 before. `cap dropped 15`, `deferred for no
+description 10`, `pages skipped on demand 11`, all named on its own stage report.
 
 NOT YET RUN: `config/free-slots.js`, which waits on Shaheen's explicit go, and which activation needs.
 KNOWN BROKEN: the HQ push, see error-log 2026-09-14. `Push HQ` cannot use the `Alex HQ Token` credential
