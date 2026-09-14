@@ -33,6 +33,20 @@ Three rules about that file:
 
 Field names, endpoints and params are deliberately absent from this spec. They live in the contract.
 
+**Collection scopes, and where a new one actually lands (added 2026-09-14 with the UK scope).** A scope
+is one entry in the settings tab's `locations` list, and adding one touches FOUR places that must move
+together: `config/seed.json` (the list itself, then the sync-settings workflow writes it to both
+sheets), the contract's `linkedin_guest_search.geo_ids.verified` (the proven geoId, which the node
+reads), `LINKEDIN_TARGETS` in `nodes/05-plan-queries.js` (what the scope means to LinkedIn), and
+`GEO_TARGETS` in `nodes/20-filter.js` (the token list that decides whether a collected row survives).
+The last one is the one that gets forgotten and it is the one that matters: only LinkedIn and Jobicy
+take a request-side geo param at all, so for six of the eight live sources a scope exists ONLY as a
+token list in the Filter node, and a row it cannot name is dropped. Measured when the UK scope was
+added: 25 of 100 rows on the live Jobicy europe page already named the UK and 19 of those 25 were being
+dropped, so the jobs were arriving and being thrown away before anyone asked for the scope. The two
+node files assert at build time that their key sets are identical, which catches three of the four.
+The contract's `geo_scope` block records what each source needs, per source, measured.
+
 ## Entry Points
 - **Scheduled:** n8n Schedule Trigger, weekdays 06:30, declared in `system/manifest.json` as
   `n8n_cron: "30 6 * * 1-5"`.
@@ -143,8 +157,18 @@ Carried from Agent 1's discrepancy table in the contract. Each one is a case whe
 - **Anthropic credits are exhausted** (human-action `anthropic-api-credits-run89`, open since 2026-08-08).
   Stage F will 4xx until Shaheen closes it. Stages A to E run regardless, and that is the reason the
   scoring call is the LAST stage rather than an early one.
-- **Sweden and European Union LinkedIn geoIds are unresolved.** Only Stockholm `100907646` is confirmed.
-  A geoId nobody verified returns results for the wrong place and looks perfectly healthy.
+- ~~**Sweden and European Union LinkedIn geoIds are unresolved.** Only Stockholm `100907646` is confirmed.
+  A geoId nobody verified returns results for the wrong place and looks perfectly healthy.~~
+  **CLOSED 2026-09-14 (seat 1 of the #36 relay), and the sentence above stays because it is still the
+  rule.** The ids were not guessed into existence, they were resolved: LinkedIn publishes an
+  unauthenticated name-to-id endpoint on the same guest surface
+  (`/jobs-guest/api/typeaheadHits?query=<text>&typeaheadType=GEO&geoTypes=COUNTRY_REGION`), and each id
+  it returned was then proven against the SEARCH endpoint with a deliberately wrong location string.
+  That second leg is the whole proof: `geoId` overrides `location`, so a correct result obtained with a
+  correct location string tells you nothing about the id. Sweden `105117694`, European Union
+  `91000000`, United Kingdom `101165590`. The evidence sits in the contract under
+  `linkedin_guest_search.geo_ids`, which `nodes/05-plan-queries.js` READS, and the node refuses to
+  build if an id in that map carries no probe evidence.
 - **Four boards make attribution a condition of API access** (RemoteOK, Remotive, Jobicy, Arbeitnow). Any
   human readable surface this lane produces carries the source name and the original link. The list is in
   the contract's `attribution_obligations`.

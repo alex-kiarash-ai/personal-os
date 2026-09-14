@@ -127,16 +127,59 @@ const BOARD_PLAN = {
 // know, rather than dropping it, because a location added to the sheet and quietly ignored is
 // invisible in every run report.
 //
-// geo_id is null for both, and that is deliberate, not an oversight: the contract's `unproven`
-// list says only Stockholm 100907646 is confirmed and the Sweden and European Union ids are NOT
-// resolved. A geoId nobody verified returns results for the wrong place and looks perfectly
-// healthy, so the query goes out with the location STRING and no geoId, and carries
-// geo_unresolved so the run report can say which calls ran less precisely than they could.
+// THE geo_id IS READ FROM THE CONTRACT, never typed here (changed 2026-09-14 with the UK scope).
+// It used to be a hardcoded null for both live targets, with the correct reason attached: the
+// contract's `unproven` list said only Stockholm was confirmed, and a geoId nobody verified returns
+// results for the wrong place and looks perfectly healthy. That reason has not weakened, the ids
+// have been PROVEN. sources.json now carries linkedin_guest_search.geo_ids.verified, where each id
+// is backed by a two leg probe, and geoLookup below reads it by the LinkedIn location NAME.
+//
+// Reading rather than restating is the point. A hardcoded id would be a second copy of a fact the
+// contract already owns, and the day LinkedIn renumbers a geo there would be two places to fix and
+// only one of them would get fixed. An id the contract does not carry still resolves to null here,
+// so the query goes out with the location STRING alone and carries geo_unresolved, which is the
+// same honest degradation as before.
+const CONTRACT_GEO_IDS = (function readGeoIds() {
+  const block = SRC.linkedin_guest_search.geo_ids;
+  if (!block || typeof block !== 'object') {
+    throw new Error(
+      'Plan Queries: the contract has no linkedin_guest_search.geo_ids block.\n' +
+      '  That block is where a PROVEN LinkedIn geo id lives, and this node reads every geoId from it.\n' +
+      '  Without it the node cannot tell a missing id from an unproven one, and those are different.'
+    );
+  }
+  const v = block.verified;
+  if (!v || typeof v !== 'object' || !Object.keys(v).length) {
+    throw new Error('Plan Queries: linkedin_guest_search.geo_ids carries no `verified` map, so there is no id to read and nothing to say about why.');
+  }
+  for (const name of Object.keys(v)) {
+    const row = v[name];
+    if (!row || typeof row.geo_id !== 'string' || !/^\d+$/.test(row.geo_id)) {
+      throw new Error('Plan Queries: geo_ids.verified[' + JSON.stringify(name) + '].geo_id is ' + JSON.stringify(row && row.geo_id) + ', which is not a numeric id string.');
+    }
+    // A verified id with no evidence is a typed id wearing the word verified, which is the exact
+    // failure the geo_ids block exists to prevent. Refuse it rather than trusting it.
+    if (typeof row.what_the_cards_said !== 'string' || row.what_the_cards_said.length < 40) {
+      throw new Error(
+        'Plan Queries: geo_ids.verified[' + JSON.stringify(name) + '] carries no readable `what_the_cards_said` evidence.\n' +
+        '  An id in the verified map with nothing recorded about what the probe actually returned is indistinguishable\n' +
+        '  from a guess, and this node would then send it as if it were a measurement.'
+      );
+    }
+  }
+  return v;
+}());
+
+function geoLookup(linkedInLocationName) {
+  const row = CONTRACT_GEO_IDS[linkedInLocationName];
+  return row ? row.geo_id : null;
+}
+
 const LINKEDIN_TARGETS = {
   'Sweden': {
     linkedin: true,
     location: 'Sweden',
-    geo_id: null,
+    geo_id: geoLookup('Sweden'),
     work_type: null, // onsite is fine in Sweden, per his geo_rule, so no work type filter
     country: 'SE',
     swedish_terms: true,
@@ -144,10 +187,29 @@ const LINKEDIN_TARGETS = {
   'Remote EU': {
     linkedin: true,
     location: 'European Union',
-    geo_id: null,
+    geo_id: geoLookup('European Union'),
     work_type: '2', // 2 = remote
     country: null,
     swedish_terms: false,
+  },
+  // Added 2026-09-14 on Shaheen's words, "I want also to add UK remote positions to the plan".
+  // REMOTE ONLY, work_type 2, which is the whole difference from the Sweden target: he has no UK
+  // right to work, so an onsite London job is not a job he can take, and collecting it would put a
+  // row in front of him that costs him a read and can never become an application. Sweden is the
+  // one place onsite is allowed, per his geo_rule, and that stays true.
+  //
+  // country is 'GB' rather than null and that is load bearing for exactly one source: Bright Data
+  // Indeed REQUIRES a country and therefore cannot serve Remote EU, which has none. It can serve
+  // this one. The source is still off by default in both lanes and its output shape is unobserved,
+  // so nothing turns on here; the field is correct so that the day it is turned on, this scope is
+  // not silently skipped for a reason that does not apply to it.
+  'Remote UK': {
+    linkedin: true,
+    location: 'United Kingdom',
+    geo_id: geoLookup('United Kingdom'),
+    work_type: '2', // 2 = remote. Not optional here, see above.
+    country: 'GB',
+    swedish_terms: false, // a Swedish language job title in a UK search would return nothing
   },
   'Remote EMEA': {
     linkedin: false,
@@ -155,6 +217,21 @@ const LINKEDIN_TARGETS = {
     swedish_terms: false,
   },
 };
+
+// The UK target is the first one to ship with a geoId, so assert here that the read actually
+// landed. A target that silently fell back to null would still run, would still return jobs for
+// roughly the right place because the location string alone works, and would be indistinguishable
+// from a working geoId on every report. That is the failure mode this whole block was built for.
+(function assertUkGeoResolved() {
+  const uk = LINKEDIN_TARGETS['Remote UK'];
+  if (uk.geo_id === null) {
+    throw new Error(
+      'Plan Queries: the Remote UK target resolved to a null geoId.\n' +
+      '  sources.json linkedin_guest_search.geo_ids.verified has no "United Kingdom" entry, or its geo_id is missing.\n' +
+      '  The query would still run on the location string alone and would look healthy, which is why this throws instead.'
+    );
+  }
+}());
 
 const LINKEDIN_VALUE_KEYS = ['keywords', 'location', 'geoId', 'tpr', 'worktype', 'start'];
 

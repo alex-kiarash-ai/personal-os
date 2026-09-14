@@ -160,6 +160,38 @@ const GEO_TARGETS = {
       'cet', 'cest', 'central european', 'central european time',
     ],
   },
+  // Added 2026-09-14 with the UK scope, and this entry is the half of that change that actually
+  // delivers jobs. UK rows already ARRIVE at this lane every weekday and are thrown away here:
+  // measured on the live Jobicy europe page that morning, 25 of 100 rows named the UK in jobGeo
+  // and 19 of those 25 were dropped, because no list above holds uk, united kingdom, england,
+  // scotland or wales. The shipped classifier also dropped all ten LinkedIn UK cards from the
+  // geoId probe. So the collector side was never the bottleneck.
+  //
+  // WHY THE NATIONS AND NOT THE CITIES. Board feeds name countries and regions; LinkedIn names
+  // towns. The four nations plus the obvious UK spellings cover every string seen on a real
+  // response, and a London or Manchester row still matches on the "united kingdom" tail that
+  // LinkedIn always appends. The Sweden list keeps its town names because his home market is the
+  // one place onsite is allowed and a Swedish town string is therefore a KEEP signal on its own.
+  // Here every kept row is remote by the query (f_WT=2) or by the board being remote only, so a
+  // town name adds nothing a nation name does not already say.
+  //
+  // THREE THINGS ARE DELIBERATELY ABSENT and each one was considered rather than forgotten.
+  // 'gb'      two letters, matched on token boundaries, and it collides with initialisms in the
+  //           free text location fields two boards publish. 'uk' is short too, but it is the string
+  //           the boards actually print, 25 times on one Jobicy page, so it earns the risk.
+  // 'gmt'     the Remote EU list carries 'cet' on the reasoning that two boards state a timezone
+  //           instead of a region, so the shape is established. It is refused HERE because 'gmt+2'
+  //           and 'gmt+3' are Eastern Europe and Africa and they match on a token boundary, so the
+  //           token would quietly widen a UK scope into an EMEA one. 'bst' is refused with it.
+  // 'english' a language, not a place, and "English speaking" is a real value in a free text
+  //           location field. It would keep a worldwide English speaking role as if it were British.
+  'Remote UK': {
+    why: 'his own addition, 2026-09-14. REMOTE only: he has no UK right to work, so an onsite London job is not a job he can take. Collection enforces that with f_WT=2 on the LinkedIn side and by every board here being remote only; this list is the geography half.',
+    tokens: [
+      'uk', 'u.k.', 'united kingdom', 'great britain', 'britain',
+      'england', 'scotland', 'wales', 'northern ireland',
+    ],
+  },
   'Remote EMEA': {
     why: 'his own words in the locations list. EMEA is Europe, the Middle East and Africa, so a job scoped to any of the three is inside the scope he asked for, and the scorer ranks it.',
     tokens: ['emea', 'europe', 'european', 'middle east', 'africa', 'african'],
