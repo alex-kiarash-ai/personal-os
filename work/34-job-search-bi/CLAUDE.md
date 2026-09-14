@@ -226,5 +226,9 @@ dependency, and the row flips back to LIVE the day the workflow is activated.
 
 NOT YET RUN: `config/free-slots.js`, which waits on Shaheen's explicit go, and which activation needs.
 HQ PUSH: **FIXED 2026-09-14, proven both sides (execution 5245).** Shaheen created a separate outgoing credential `Alex HQ Token (outgoing)` (`XXcugYBfR0JUXGGQ`, httpHeaderAuth, header `X-Alex-Token`), both lanes were rebuilt onto it and read back. Run 5245's `Push HQ` returned 200 `{"ok":true}`, and the receiving side was checked SEPARATELY: `Alex HQ - Metrics Ingest (16)` execution 5246 carries the actual payload (project job-search-bi, run_status scoring_down, searched 860, new 0, scored 0, status red). A 200 alone would not have proved delivery, which is why the ingest side was checked rather than assumed. **The lesson stands even though the bug is gone: a credential has a DIRECTION.** The webhook credential verifies calls arriving; it cannot authenticate calls leaving.
-WRITES ARE STILL DIVERTED to `jobs_test` by `sheet.jobs_write_tab`; while that key is present the lane
-refuses to advance `last_run_at`, which is the point of it.
+WRITES ARE REPOINTED to the real `jobs` tab (2026-09-14). `sheet.jobs_write_tab` is deleted, verified by
+reading the live workflow back: `jobs_test` appears nowhere in it, and Write Jobs, Read Known Jobs and
+Read Back Jobs all target `jobs`. The key existed until one clean manual run had written AND read back
+rows; execution 5247 is that run (10/10 written, 10/10 verified). The 10 rows sitting in `jobs_test`
+are neither lost nor a duplication risk: Remove Known reads `sheet.tab`, so it has never seen them, and
+the next run re-collects them and writes them to the real tab.
