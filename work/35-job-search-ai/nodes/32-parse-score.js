@@ -195,7 +195,7 @@ function extractJson(text) {
   if (!t) return { ok: false, why: 'the response carried no text block at all' };
   const tries = [];
   tries.push(t);
-  const fence = t.match(/\\\`\\\`\\\`(?:json)?\\s*([\\s\\S]*?)\\\`\\\`\\\`/i);
+  const fence = t.match(/\\\\\\\\\(?:json)?\\s*([\\s\\S]*?)\\\\\\\\\/i);
   if (fence) tries.push(fence[1].trim());
   // The first balanced { ... } in the string, scanned with string awareness so a brace inside a
   // quoted reason cannot end the object early.
@@ -433,7 +433,22 @@ for (let i = 0; i < admitted.length; i += 1) {
   let workModeCoerced = false;
   if (WORK_MODES.indexOf(workMode) === -1) { workMode = 'unclear'; workModeCoerced = true; coercedWorkMode += 1; }
 
-  const extraKeys = Object.keys(ans).filter((k) => ['fit_score', 'fit_reasons', 'work_mode', 'red_flags'].indexOf(k) === -1);
+  // The model REPORTS the language; this node decides what it means. The mapping is deliberately NOT
+  // a vocabulary check, and the first version of it was, which is the bug this comment exists for.
+  // The rubric asks for "other", but a model naming the actual language ("german", "polish") is at
+  // least as likely, and coercing every unrecognised string to 'unknown' made those KEPT, silently
+  // re-creating the exact problem the gate was built to fix. So: an ABSENT or unreadable answer is
+  // 'unknown' and is kept, because that is a fact about the answer. A NAMED language that is not one
+  // he reads is 'other' and is dropped, whatever name it arrives under.
+  const AD_ALLOWED = ['english', 'swedish', 'arabic'];
+  const rawLang = typeof ans.posting_language === 'string' ? ans.posting_language.trim().toLowerCase() : '';
+  let postingLanguage;
+  if (rawLang === '' || rawLang === 'unknown') postingLanguage = 'unknown';
+  else if (AD_ALLOWED.indexOf(rawLang) !== -1) postingLanguage = rawLang;
+  else postingLanguage = 'other';
+  const postingLanguageRaw = rawLang;
+
+  const extraKeys = Object.keys(ans).filter((k) => ['fit_score', 'fit_reasons', 'work_mode', 'red_flags', 'posting_language'].indexOf(k) === -1);
 
   const threshold = (src._score && src._score.budget && src._score.budget.score_threshold);
   row.score_status = 'scored';
@@ -451,6 +466,9 @@ for (let i = 0; i < admitted.length; i += 1) {
     red_flags: flags.list,
     work_mode: workMode,
     work_mode_coerced: workModeCoerced,
+    posting_language: postingLanguage,
+    posting_language_reported: postingLanguageRaw,
+    ad_language_allowed: ALLOWED_AD_LANGUAGES.indexOf(postingLanguage) !== -1 || postingLanguage === 'unknown',
     extra_keys_ignored: extraKeys,
     // THE THRESHOLD MARKS. IT NEVER DELETES. Nothing downstream may read this as a filter.
     above_threshold: isFinite(Number(threshold)) ? score >= Number(threshold) : null,
@@ -488,6 +506,33 @@ for (const row of allJobs) {
       ? 'scored, write it'
       : 'write it unscored and visibly: ' + (row.score_error_kind ? 'the model answered and the answer would not parse (' + row.score_error_kind + '), which will not fix itself by waiting' : row.score_status));
   if (hb) held += 1;
+}
+
+// --- 4b. the ad-language gate, AFTER the write decisions and deliberately outside held --------
+// A row the model reports as written in a language Shaheen cannot read is dropped: not written, and
+// not held. Dropping is permanent by design, so it must not touch held, which exists to stop the
+// window advancing past rows that still have to come back. unknown is kept, because the only way a
+// row goes unknown is that our own detail budget never fetched its description.
+let languageDropped = 0;
+const languageDroppedBy = {};
+for (const row of allJobs) {
+  if (row.score_status !== 'scored') continue;          // never drop a row nobody read
+  const lang = (row._score && row._score.posting_language) || 'unknown';
+  if (lang === 'unknown') continue;                      // Shaheen 2026-09-14: keep, do not guess
+  if (ALLOWED_AD_LANGUAGES.indexOf(lang) !== -1) continue;
+  // The DECISION normalises a named language to 'other'. What Shaheen READS must not: a row saying
+  // it was dropped for being written in 'other' tells him nothing, and the whole point of this gate
+  // is that he can see why a job he might have wanted never reached him. So the reason and the
+  // counts use the language the model actually named, and fall back to the normalised value only
+  // when there was no name to use.
+  const shown = (row._score && row._score.posting_language_reported) || lang;
+  row.write_to_sheet = false;
+  row.write_to_sheet_why = 'DROPPED: the posting is written in ' + shown + ', which is not one of '
+    + ALLOWED_AD_LANGUAGES.join(', ') + '. He cannot work in it, so the skills fit does not matter. '
+    + 'This is a permanent drop and it does NOT hold the window: the row is not coming back.';
+  row.score_status = 'dropped_language';
+  languageDropped += 1;
+  languageDroppedBy[shown] = (languageDroppedBy[shown] || 0) + 1;
 }
 
 // --- 5. the stage report ------------------------------------------------------
@@ -602,6 +647,13 @@ const report = {
     answers_needing_a_fence_or_wrapper_strip: fencedAnswers,
     formula_prefixes_stripped: formulaPrefixesStripped,
   },
+  ad_language: {
+    allowed: ALLOWED_AD_LANGUAGES,
+    dropped: languageDropped,
+    dropped_by_language: languageDroppedBy,
+    kept_unknown: allJobs.filter((j) => j._score && j._score.posting_language === 'unknown').length,
+    rule: 'the model REPORTS the language, this node DECIDES. A drop is permanent and is deliberately NOT counted in rows_held_back, because held exists to stop last_run_at advancing past rows that must come back and a dropped row never comes back. unknown is KEPT: it means our own detail budget never fetched a description, which is a fact about the run and not about the job.',
+  },
   for_stage_f: {
     rows_to_write: allJobs.filter((j) => j.write_to_sheet).length,
     rows_held_back: held,
@@ -630,6 +682,22 @@ const carriedItems = carried.map((j) => ({ json: strip(j), pairedItem: { item: 0
 return jobItems.concat(carriedItems, [{ json: report, pairedItem: { item: 0 } }]);
 `;
 
+// THE AD-LANGUAGE GATE (Shaheen, 2026-09-14). He can read English, Swedish and Arabic. A posting
+// published in any other language is not a job he can take, however well it scores on skills: the
+// first scored run returned ten strong in-lane roles and the three he opened were in languages he
+// does not speak. The MODEL only REPORTS the language; this node decides. That split is deliberate
+// and it is the same one the rest of the lane uses: a model that both judged and dropped could be
+// argued out of the drop by the posting itself.
+//
+// NOT counted in `held`, and that is the load-bearing detail. `held` blocks last_run_at from
+// advancing because a held row must come back next run. A language drop is PERMANENT, so counting
+// it as held would hold the window open forever on rows we never intend to fetch again.
+//
+// `unknown` is KEPT (Shaheen's call, same day). A row is unknown when the description never arrived
+// because our own LinkedIn detail budget ran out. That is a fact about this run, not about the job,
+// and dropping on it would bin real Swedish and English roles silently.
+const ALLOWED_AD_LANGUAGES = ['english', 'swedish', 'arabic'];
+
 const jsCode = [
   '// GENERATED at build time from work/34-job-search-bi/nodes/32-parse-score.js.',
   '// Edit that file and re-run build.js. Editing this node in the n8n editor loses the change.',
@@ -639,6 +707,7 @@ const jsCode = [
   `const CACHE_WRITE_MULT = ${JSON.stringify(PRICE.cache_write_mult)};`,
   `const CACHE_READ_MULT = ${JSON.stringify(PRICE.cache_read_mult)};`,
   `const WORK_MODES = ${JSON.stringify(S.WORK_MODES)};`,
+  `const ALLOWED_AD_LANGUAGES = ${JSON.stringify(ALLOWED_AD_LANGUAGES)};`,
   `const SYSTEMIC_KINDS = ${JSON.stringify(SYSTEMIC_KINDS)};`,
   `const REASON_MAX_CHARS = ${JSON.stringify(REASON_MAX_CHARS)};`,
   `const FLAG_MAX_CHARS = ${JSON.stringify(FLAG_MAX_CHARS)};`,
