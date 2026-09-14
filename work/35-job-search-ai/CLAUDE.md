@@ -156,7 +156,13 @@ lane. So validator **V20** asserts the two trees byte-identical on every run, bo
 rather than warns. **A change to #34's nodes is not finished until it is copied here and BOTH workflows
 are rebuilt.**
 
-NOT YET PROVISIONED: the `jobs_test` tab in this lane's spreadsheet. `sheet.jobs_write_tab` is set for
-parity with #34, so the window-holding protection is active, but the tab itself does not exist. It cannot
-be reached before scoring works; create it in the same session credits are restored.
+`jobs_test` EXISTS in this lane's spreadsheet, verified 2026-09-14 by reading the sheet: five tabs, two
+of them carrying the identical fifteen-column job header. `sheet.jobs_write_tab` is set for parity with
+#34, so the window-holding protection is active and the write has somewhere to land.
+**Corrected 2026-09-14, and the error is worth keeping.** This block said NOT YET PROVISIONED for most of
+that day. Nobody had read the sheet: the claim was inferred from Agent 3 having provisioned four tabs,
+written into `config/lane.json` as a note, and then re-read as if the note were evidence. Shaheen had
+already created the tab. A claim about an external system that was never checked against that system is
+a guess wearing the clothes of a finding, and this file is exactly where such a guess goes to look
+official.
 INHERITED DEFECT: the HQ push fails the same way as #34's, same credential, same node shape.
