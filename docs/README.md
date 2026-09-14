@@ -32,7 +32,7 @@ then type `/setup`. Full walkthrough in section 2 of GETTING-STARTED.md.
 - **The projects, in plain language:** [projects/README.md](projects/README.md) - one page per automation.
 - **The live n8n workflows:** [n8n/](n8n/) - node-by-node explanations of what runs on the server.
 
-Right now the registry holds **34 non-retired automations** (18 LIVE). The source of truth is `system/manifest.json`; every table and count in these docs is generated from it by `scripts/generate-alex.js`, then validated. Edit sources, not views.
+Right now the registry holds **34 non-retired automations** (15 LIVE). The source of truth is `system/manifest.json`; every table and count in these docs is generated from it by `scripts/generate-alex.js`, then validated. Edit sources, not views.
 
 ## License
 
