@@ -262,6 +262,12 @@ const BOARD_PAGINATION = (function readBoardPagination() {
 // the input field names for the Indeed dataset are UNVERIFIED and the first real call is a probe,
 // not a collection run.
 const INDEED_LIMIT_PER_INPUT = 10;
+// The Indeed host Bright Data should search. Their Indeed dataset REQUIRES this field; it is not
+// optional and the request is rejected without it. Starting at the global host rather than a country
+// one (se.indeed.com) because the country is already carried separately and sending both narrowing
+// keys risks an empty result that looks like a broken integration. If a probe shows the global host
+// ignores `country`, this is the knob to turn.
+const INDEED_DOMAIN = 'indeed.com';
 
 // --- build-time assertions --------------------------------------------------------------------
 // These run on this machine, before anything reaches the box.
@@ -527,6 +533,23 @@ if (!isOn('brightdata_indeed')) {
       skipped.push({ what: 'brightdata_indeed for location "' + locSetting + '"', reason: 'no resolvable place for this location setting' });
       continue;
     }
+    // BRIGHT DATA'S INDEED DATASET REQUIRES A COUNTRY, measured 2026-09-14 on execution 5261:
+    // ["country", "Required field"] on the one unit whose target has none. The Sweden units passed
+    // validation in that same request; only "European Union" failed, because the EU is a scope and
+    // not a country, so the target carries country null and the builder omits an empty value rather
+    // than sending it blank. This is NOT a naming bug like the keyword/keyword_search one: Indeed is
+    // country-scoped by design, so a location setting with no country cannot be served by this
+    // source at all. Skipped explicitly and reported, rather than dropped silently or faked with an
+    // arbitrary country that would return the wrong jobs and look perfectly healthy.
+    if (!target.country) {
+      skipped.push({
+        what: 'brightdata_indeed for location "' + locSetting + '"',
+        reason: 'the Bright Data Indeed dataset requires a country and this location resolves to none (' +
+          target.location + ' is a scope, not a country). Measured on execution 5261. The free remote boards ' +
+          'cover this scope instead, which is what they are for.',
+      });
+      continue;
+    }
     for (const term of cfg.search_terms) {
       indeedUnits.push({
         unit: 'indeed',
@@ -537,6 +560,15 @@ if (!isOn('brightdata_indeed')) {
         location_setting: locSetting,
         location: target.location,
         country: target.country,
+        // THE BRIGHT DATA INDEED INPUT SET, corrected 2026-09-14 from Bright Data's own rejection.
+        // The dataset refuses a 'keyword' field outright and requires 'domain' and 'keyword_search'.
+        // Those are the LINKEDIN dataset's names that were carried across as a labelled guess when
+        // the original probe could not run: the key was unreadable on this machine and the agent was
+        // forbidden from building a node on the box, so it shipped the guess rather than invent one.
+        // The 400 response echoed its full schema back with our values merged in, which is where
+        // date_posted, posted_by and location_radius come from; empty values are omitted by the
+        // builder rather than sent blank, so they cost nothing by being named here.
+        domain: INDEED_DOMAIN,
         limit_per_input: INDEED_LIMIT_PER_INPUT,
         billed_per_record: true,
         input_shape_unverified: true,
@@ -756,6 +788,7 @@ const jsCode = [
   `const LINKEDIN_PAGE = ${JSON.stringify(LINKEDIN_PAGE)};`,
   `const BOARD_PAGINATION = ${JSON.stringify(BOARD_PAGINATION)};`,
   `const INDEED_LIMIT_PER_INPUT = ${JSON.stringify(INDEED_LIMIT_PER_INPUT)};`,
+  `const INDEED_DOMAIN = ${JSON.stringify(INDEED_DOMAIN)};`,
   `const LANE_NUMBER = ${JSON.stringify(String(L.lane))};`,
   LOGIC,
 ].join('\n');
