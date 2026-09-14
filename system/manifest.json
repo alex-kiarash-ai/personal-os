@@ -1328,9 +1328,9 @@
         "external_comm": false,
         "gate": "draft-only"
       },
-      "first_fire": null,
-      "first_fire_kind": null,
-      "n8n": null,
+      "first_fire": "2026-09-11",
+      "first_fire_kind": "drill",
+      "n8n": "oSVDR2WjkZnjovCP",
       "n8n_cron": "30 6 * * 1-5"
     },
     {
@@ -1360,7 +1360,7 @@
       },
       "first_fire": null,
       "first_fire_kind": null,
-      "n8n": null,
+      "n8n": "TNvg3zbOzd3rGr9T",
       "n8n_cron": "45 6 * * 1-5"
     }
   ]
