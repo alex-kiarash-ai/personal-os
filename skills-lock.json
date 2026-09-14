@@ -370,12 +370,13 @@
       "rehashedAt": "2026-09-10T02:55:00Z"
     },
     "linkedin-profile-optimizer": {
-      "source": "davila7/claude-code-templates",
+      "source": "sergebulaev/linkedin-skills",
       "sourceType": "github",
-      "skillPath": "cli-tool/components/skills/career/linkedin-profile-optimizer/SKILL.md",
-      "computedHash": "fd55f8965cc91e726beb4235aee2d5bce0b213b2d55b1a9ec3755e1b0b42881c",
-      "sourceCommitBackfilled": "5d313282459163258ea54d98a463d1d735814bfa",
-      "backfilledAt": "2026-08-23T15:09:54Z"
+      "skillPath": "skills/linkedin-profile-optimizer/SKILL.md",
+      "computedHash": "60806fb0f397556fc5975fb395666f44d04308a24edc55535866bc79986e278d",
+      "sourceCommit": "e59dd61bd62c72d9950b3629eedb7cf787872d0b",
+      "installedAt": "2026-09-14",
+      "note": "REPLACED the davila7/claude-code-templates version (blob 709f87cc965d8d72a7b65b87879653bb43504ab4, recoverable via git show). DATA install: 6 markdown files, script-free, zero install hooks. computedHash INTENTIONALLY differs from upstream: 59 em/en dashes removed at source + an Alex-local SCOPE GUARD block + a curated frontmatter description. Precedent: agent-reach, no-ai-slop, the 9 curated rewrites. The other 11 skills in the bundle and its Publora/Apify/Pixfaro backends are NOT installed."
     },
     "marketing-council": {
       "source": "coreyhaines31/marketingskills",
