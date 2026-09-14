@@ -9,7 +9,7 @@ To activate these schedules: run `/cron-setup`, or `node scripts/generate-alex.j
 
 ## Active Schedules
 
-**Activated 2026-06-11. This machine is Windows and runs these jobs under Windows Task Scheduler.** The `systemd/` units generated from this file are the eventual Linux host's target and are **inert here** (no `systemctl`); the "migrated to systemd 2026-08-05" note described that Linux target, not this box. It began with three jobs (`PersonalOS-sprint-tracker` weekdays 9:00, `PersonalOS-morning-brief` daily 8:00, `PersonalOS-application-engine` daily 8:30); **there are now 23 registered `PersonalOS-*` tasks, 21 enabled and 2 disabled by design** (sprint-tracker, paused 2026-07-16; whatsapp-harvest, whose retired Phase-1 02:30 trigger must never be re-armed), plus 8 n8n crons on the box listed further down. *(Corrected 2026-07-29, architecture review: this paragraph still named only the original three as if they were the whole system; count 25->23 and platform systemd->Windows corrected 2026-09-04, stress-test S-E1, since the systemd framing was fiction on this box. Do not hardcode the count when it moves; verify with the check command below.)* Each runs `scripts/run-{name}.sh` → headless `claude -p "Run /{name}"` → log in `outputs/logs/{name}.log`. On Windows the task action invokes `bash.exe -lc "cd <repo> && bash scripts/<name>.sh"` (rewired 2026-08-28). No OAuth token needed; tasks run as the logged-in user and reuse existing credentials. **Check: PowerShell `Get-ScheduledTask -TaskName 'PersonalOS-*'`** (or `schtasks /query`). On the eventual Linux host, `loginctl enable-linger $USER` is mandatory and the check is `systemctl --user list-timers --all`.
+**Activated 2026-06-11. This machine is Windows and runs these jobs under Windows Task Scheduler.** The `systemd/` units generated from this file are the eventual Linux host's target and are **inert here** (no `systemctl`); the "migrated to systemd 2026-08-05" note described that Linux target, not this box. It began with three jobs (`PersonalOS-sprint-tracker` weekdays 9:00, `PersonalOS-morning-brief` daily 8:00, `PersonalOS-application-engine` daily 8:30); **there are now 23 registered `PersonalOS-*` tasks, 21 enabled and 2 disabled by design** (sprint-tracker, paused 2026-07-16; whatsapp-harvest, whose retired Phase-1 02:30 trigger must never be re-armed), plus 8 n8n crons firing on the box, listed further down, and (since 2026-09-14) 2 more DECLARED there and not armed, the job-search lanes #34 and #35, whose workflows are inactive. *(Corrected 2026-07-29, architecture review: this paragraph still named only the original three as if they were the whole system; count 25->23 and platform systemd->Windows corrected 2026-09-04, stress-test S-E1, since the systemd framing was fiction on this box. Do not hardcode the count when it moves; verify with the check command below.)* Each runs `scripts/run-{name}.sh` → headless `claude -p "Run /{name}"` → log in `outputs/logs/{name}.log`. On Windows the task action invokes `bash.exe -lc "cd <repo> && bash scripts/<name>.sh"` (rewired 2026-08-28). No OAuth token needed; tasks run as the logged-in user and reuse existing credentials. **Check: PowerShell `Get-ScheduledTask -TaskName 'PersonalOS-*'`** (or `schtasks /query`). On the eventual Linux host, `loginctl enable-linger $USER` is mandatory and the check is `systemctl --user list-timers --all`.
 
 <!-- Agent adds entries here when user requests a schedule -->
 <!-- Format: -->
@@ -193,13 +193,17 @@ To activate these schedules: run `/cron-setup`, or `node scripts/generate-alex.j
 *(Removed 2026-08-03: the two Modeling jobs, the casting radar (every 2nd day 06:45) and the weekly Scout's Eye (Mon 09:30). The #30 modeling lane was retired whole that day with no successor; both jobs were unregistered in the same change, and their Windows-era XML definitions are archived under `vault/archive/modeling/task-xml/` as a historical record (they predate the systemd move and would need re-expressing as units, not re-importing). The replacement #30, portfolio-site, deploys through GitHub Actions on push to main and has NO local job by design - if a Phase-4 uptime monitor ever lands locally, it gets a fresh entry here alongside its wrapper and its model-routing pin.*
 *Deliberately worded without the literal job-name tokens: `parseScheduleJobs` harvests every `PersonalOS-*` string anywhere in this file, prose included, so naming a REMOVED job here would re-register it as documented and fail validator V2 against the live timers. The archived XMLs carry the exact names.)*
 
-**n8n box crons (added 2026-07-29).** The five entries below run on the Hetzner box under n8n's own
+**n8n box crons (added 2026-07-29; two more entries added 2026-09-14).** The seven entries below live on the Hetzner box under n8n's own
 `scheduleTrigger`, so they never appear in `systemctl --user list-timers` and are invisible to a local-timer-only reading
 of this file. Every one was live and correct the whole time; this file simply had no entry. *(Added
 2026-07-29, architecture review, which verified each cron against a live read-only `GET /workflows`.
 Four of the five were undocumented here, and #31/#32 had been running a full day with no entry anywhere
 in this file after the 07-28 portal split.)* The engines #03/#14 are covered above (`0 15 * * 2,4` and
-`30 15 * * 2,4`).
+`30 15 * * 2,4`). *(2026-09-14: the last two entries, the job-search lanes, are DECLARED and NOT ARMED.
+Their workflows are inactive, so neither cron has ever fired. They are written down anyway because the
+declared string is what validator V6 leg (c) asserts against the live Schedule Trigger, and because a
+cron nobody documented is how the 07-28 portal split ran for a day with no entry anywhere in this file.
+The count of crons actually firing on the box is unchanged by them.)*
 
 ### Portal Scanner (#31) - box-side n8n cron, NOT a local timer
 - Command: n8n workflow `5tPXbhdpp6PfF56V` (no local wrapper, no claude call, zero local tokens)
@@ -224,6 +228,20 @@ in this file after the 07-28 portal split.)* The engines #03/#14 are covered abo
 - Frequency: **daily 07:50 Stockholm** (`50 7 * * *`), active.
 - Description: Recomputes the dashboard's job-pipeline tiles. **Do not confuse this with the local `PersonalOS-landscape-eval`, which also runs at 07:50 but on Mondays, on the laptop, for #25.** Two machines, two jobs, one shared wall-clock minute; that collision is why this entry spells it out.
 - Added: 2026-07-29 (documented; cron itself older)
+
+### Job Search BI (#34) - box-side n8n cron, NOT a local timer
+- Command: n8n workflow `oSVDR2WjkZnjovCP` (no local wrapper, no claude call, zero local tokens)
+- Frequency: **weekdays 06:30 Stockholm** (`30 6 * * 1-5`), **declared, not armed**. The workflow is inactive, so this cron has never fired and cannot fire until someone activates it.
+- Status: **DORMANT** (revisit 2026-10-15). Built and proven as far as scoring allows. Waiting on Anthropic credits plus Shaheen's explicit go to free an n8n slot.
+- Description: Collects every Power BI shaped posting from the last 24 hours across the LinkedIn guest endpoints and six free public remote boards, folds them into one deduped row shape, scores each against the BI profile, and writes a Google Sheet Shaheen opens in the morning. It collects and scores, it never applies. **The declared cron stays load-bearing while the lane is off:** V6 leg (c) compares this exact string to the live trigger on every validate run, so a hand edit in the n8n editor is caught even with nothing running. The 08:10 active-flag watcher does NOT govern this lane while the registry row is DORMANT, and that is the point of the flip: the watcher takes every row in the LIVE state carrying an n8n id, with no carve-out for a workflow that is off on purpose.
+- Added: 2026-09-14 (workflow built 2026-09-11, cron never armed)
+
+### Job Search AI (#35) - box-side n8n cron, NOT a local timer
+- Command: n8n workflow `TNvg3zbOzd3rGr9T` (no local wrapper, no claude call, zero local tokens)
+- Frequency: **weekdays 06:45 Stockholm** (`45 6 * * 1-5`), **declared, not armed**. The workflow is inactive and has never executed at all, not even by hand.
+- Status: **DORMANT** (revisit 2026-10-15). Same dependency and same revisit as #34.
+- Description: The AI Automation twin of #34. Same sources, same row shape, byte-identical node tree; different keyword set, scoring profile and spreadsheet. **The fifteen minute gap is the whole reason the two lanes carry separate crons:** both hit the same public boards from the same server IP, four of those boards ask to be polled politely, and 06:45 keeps the two from arriving together. Ordering is not load-bearing here the way it is for #31 into #32, the lanes are independent.
+- Added: 2026-09-14 (workflow built 2026-09-14, cron never armed)
 
 ### Alex Radar collector (#15) - box-side n8n cron, NOT a local timer
 - Command: n8n workflow `PYePT4Al6aPZi56M` (+ manual `GET /webhook/radar-collect`)

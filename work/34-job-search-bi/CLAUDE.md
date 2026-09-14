@@ -80,8 +80,10 @@ Carried from Agent 1's discrepancy table in the contract. Each one is a case whe
 ## Infrastructure, inline
 - **n8n:** `https://n8n.shaheenkiarash.com/api/v1`, header `X-N8N-API-KEY`, key file
   `work/03-application-engine/config/n8n-api-key.txt` (gitignored, read at runtime, never inlined).
-- **Workflow id:** not yet created. `config/lane.json` holds it once Stage A lands, and the same id goes
-  into `system/manifest.json` `n8n` in the same session.
+- **Workflow id:** `oSVDR2WjkZnjovCP`, created 2026-09-11. `config/lane.json` holds it and the same id is
+  in `system/manifest.json` `n8n`, stamped 2026-09-14. *(This line read "not yet created" for three days,
+  three sections above the Status block naming the id. A spec that contradicts itself sends the next
+  reader to build a workflow that already exists.)*
 - **Credentials by id, reused, never recreated:** Google Sheets `UhK77WK48hRv85bo`, Google Drive
   `l8z5y3cnlg79EInK`, Anthropic `XWuMgzQP0bY1hHuF` (this lane), Bright Data header auth
   `1bRmstvfhvDLNE7h` (phase 2 only).
@@ -177,10 +179,17 @@ Beyond the universal list:
   per source status (ok, degraded with the reason, or zero), rows collected, rows after dedupe, rows after
   the relevance filter, rows scored. A source that returned 200 and zero rows is written as a zero WITH
   its reason, never folded into a total.
-- **(b) The HQ push.** One `run_status` push per run. GREEN only when every source either delivered or
-  reported a named degradation. A source that failed silently is AMBER, not GREEN. The heartbeat push is
-  the one named exemption from the Verify-after-write order, per the root constitution; every other
-  external write in this lane reads back.
+- **(b) The HQ push. CURRENTLY BROKEN, so the extra is to say so, not to tick it.** The design is one
+  `run_status` push per run, GREEN only when every source either delivered or reported a named
+  degradation, a silent failure AMBER rather than GREEN. What actually happens is that `Push HQ` returns
+  `This credential is configured to prevent use within an HTTP Request or GraphQL node` and the run
+  reports success anyway, because the node continues on error and `Assert Writes` does not throw on a
+  heartbeat. Proven in executions 5182 and 5240. Until the credential is replaced, a close-out on this
+  lane records the HQ push as FAILED with that reason rather than N/A: an exit that cannot report itself
+  is the one that has to be reported by hand. See error-log 2026-09-14 and human-action
+  `hq-push-credential-job-lanes`. The heartbeat push is the one named exemption from the
+  Verify-after-write order, per the root constitution; every other external write in this lane reads
+  back, and this defect is the argument for reading the heartbeat back too.
 - **(c) The source contract.** If a run discovered that a field name, a param or a page size changed, the
   contract is updated in the same session and the change is noted in the status page. A discovery that
   lives only in a run report is a discovery that gets re-made.
@@ -190,9 +199,10 @@ Beyond the universal list:
 `oSVDR2WjkZnjovCP`, inactive. `n8n` and `first_fire` are now written into `system/manifest.json`, so
 V6 leg (c) asserts the declared cron and V9 no longer ages this lane.
 
-Two real manual executions: 5154 (2026-09-11, whose twenty surviving rows are the eval fixture) and
-5182 (2026-09-12: searched 950, filtered 102, held 20, scored 0/20, wrote 0 rows, `last_run_at` HELD,
-verdict `scoring_down budget_hit degraded:himalayas`).
+Three real manual executions, all `mode: manual`, all `success`: 5154 (2026-09-11, whose twenty
+surviving rows are the eval fixture), 5182 (2026-09-12: searched 950, filtered 102, held 20, scored
+0/20, wrote 0 rows, `last_run_at` HELD, verdict `scoring_down budget_hit degraded:himalayas`) and 5240
+(2026-09-14, the first run of the current build, same verdict). No cron has ever fired.
 
 **The lane has never written a job row, and that is correct behaviour rather than a defect.** Every
 Anthropic call returns credit-exhausted, an unscored row is never written, so the write branch receives
@@ -204,6 +214,15 @@ after 5182, and had only been replayed offline. 5240 reproduced the prediction: 
 calls instead of 20, the run held 10 rows instead of 20, all 10 carried a real description instead of 5,
 and ZERO rows were scored on a title alone against 15 before. `cap dropped 15`, `deferred for no
 description 10`, `pages skipped on demand 11`, all named on its own stage report.
+
+**The registry row is DORMANT as of 2026-09-14, revisit 2026-10-15.** It read LIVE while the workflow
+was deliberately inactive, and `scripts/n8n-active-check.mjs:139` governs every LIVE row carrying an
+n8n id with no carve-out for a lane that is off on purpose. From 08:10 the next morning that watcher
+would have reported `OFF: #34; #35` as the day's HQ headline, and because the script reports ONE reason
+with `inactive` outranking `failed` (`:240`), the three genuinely failing engines (#03, #14, #32, all
+errored 2026-09-10) would have vanished from the message. So this is the lifecycle vocabulary working,
+not a downgrade: DORMANT is `meta.states_doc`'s word for built and waiting on a named external
+dependency, and the row flips back to LIVE the day the workflow is activated.
 
 NOT YET RUN: `config/free-slots.js`, which waits on Shaheen's explicit go, and which activation needs.
 KNOWN BROKEN: the HQ push, see error-log 2026-09-14. `Push HQ` cannot use the `Alex HQ Token` credential

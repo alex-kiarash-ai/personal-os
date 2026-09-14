@@ -168,6 +168,8 @@ decide whether a laptop job runs at all.
 | Portal Application Engine (#32) - box-side n8n cron, NOT a local timer | n8n workflow `sxEYRyeHH7i1mHzb` | **Tuesday & Thursday 15:43 Stockholm** (`43 15 * * 2,4`), active. |
 | LinkedIn Series staging (#12) - box-side n8n cron, NOT a local timer | n8n workflow `v1GbDYganOz9EGpM` | **Tuesday & Thursday 08:00 Stockholm** (`0 8 * * 2,4`), active. |
 | Alex HQ Pipeline Stats (#16) - box-side n8n cron, NOT a local timer | n8n workflow `y5YbDZu8TT38XZ9r` (+ manual `GET /webhook/alex-hq-stats-run`) | **daily 07:50 Stockholm** (`50 7 * * *`), active. |
+| Job Search BI (#34) - box-side n8n cron, NOT a local timer | n8n workflow `oSVDR2WjkZnjovCP` (no local wrapper, no claude call, zero local tokens) | **weekdays 06:30 Stockholm** (`30 6 * * 1-5`), **declared, not armed**. The workflow is inactive, so this cron has never fired and cannot fire until someone activates it. |
+| Job Search AI (#35) - box-side n8n cron, NOT a local timer | n8n workflow `TNvg3zbOzd3rGr9T` (no local wrapper, no claude call, zero local tokens) | **weekdays 06:45 Stockholm** (`45 6 * * 1-5`), **declared, not armed**. The workflow is inactive and has never executed at all, not even by hand. |
 | Alex Radar collector (#15) - box-side n8n cron, NOT a local timer | n8n workflow `PYePT4Al6aPZi56M` (+ manual `GET /webhook/radar-collect`) | **daily 06:00**, active. |
 
 ## 7. Backup and recovery, in one paragraph

@@ -58,8 +58,9 @@ probe once and writes the answer into the contract. This lane reads it.
 ## Infrastructure, inline
 - **n8n:** `https://n8n.shaheenkiarash.com/api/v1`, header `X-N8N-API-KEY`, key file
   `work/03-application-engine/config/n8n-api-key.txt` (gitignored, read at runtime, never inlined).
-- **Workflow id:** not yet created. `config/lane.json` holds it once Stage A lands, and the same id goes
-  into `system/manifest.json` `n8n` in the same session.
+- **Workflow id:** `TNvg3zbOzd3rGr9T`, created 2026-09-14 and read back after create. `config/lane.json`
+  holds it and the same id is in `system/manifest.json` `n8n`. *(This line read "not yet created" on
+  both lanes' specs after both workflows existed; corrected 2026-09-14.)*
 - **Credentials by id:** Google Sheets `UhK77WK48hRv85bo`, Google Drive `l8z5y3cnlg79EInK`, Anthropic
   `GlSYkcT1yOArFWIR`.
 - **Shared error workflow:** `QlGy1BFzdKF852uR`.
@@ -122,9 +123,13 @@ Beyond the universal list:
 - **(a) The runs row.** One row per run in this lane's run ledger tab: run timestamp, per source status
   (ok, degraded with the reason, or zero), rows collected, rows after dedupe, rows after the relevance
   filter, rows scored. A 200 that returned zero rows is written as a zero WITH its reason.
-- **(b) The HQ push.** One `run_status` push per run. GREEN only when every source either delivered or
-  reported a named degradation. A silent failure is AMBER, not GREEN. The heartbeat push is the one named
-  exemption from Verify-after-write; every other external write in this lane reads back.
+- **(b) The HQ push. BROKEN ON ARRIVAL, inherited from #34, so the extra is to say so rather than tick
+  it.** The design is one `run_status` push per run, GREEN only when every source either delivered or
+  reported a named degradation, a silent failure AMBER rather than GREEN. The node cannot make the call:
+  n8n refuses the `Alex HQ Token` webhook-auth credential inside an HTTP Request node, proven twice on
+  #34 (executions 5182 and 5240), and this lane carries the identical node. A close-out here records the
+  HQ push as FAILED with that reason, never N/A. Error-log 2026-09-14, human-action
+  `hq-push-credential-job-lanes`.
 - **(c) Contract parity.** If this lane discovered a source change, the fix goes into the SHARED contract
   and #34's status page says so too. A contract edit that only one lane's paperwork records is a contract
   edit the other lane will re-discover the hard way.
@@ -137,6 +142,12 @@ own Anthropic credential, no #34 value anywhere in the body. `n8n` is written in
 Nothing has executed here, so every claim about this lane's behaviour is inherited from #34's runs rather
 than observed. One manual run is what this lane needs next, and it will land in the same `scoring_down`
 state #34 sits in until Anthropic credits exist.
+
+**The registry row is DORMANT as of 2026-09-14, revisit 2026-10-15**, flipped the same day and for the
+same reason as #34: a LIVE row carrying an n8n id enlists the lane in the 08:10 active-flag watcher
+whether or not the workflow is meant to be running, and two deliberately inactive scaffolds would have
+displaced three genuinely failing engines from the daily HQ red. DORMANT is `meta.states_doc`'s word for
+built and waiting on a named external dependency. The row flips back to LIVE on activation.
 
 **The node tree is a byte-identical copy of #34's and that is enforced, not trusted.** A require-wrapper
 cannot work: `_lane.js` resolves `LANE_DIR` from `__dirname`, so a file required out of #34's folder reads

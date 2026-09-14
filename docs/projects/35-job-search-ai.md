@@ -44,4 +44,13 @@ first, twice, to make sure it actually catches the problem instead of just claim
 
 The rule that comes with it: changing one lane is not finished until the other one is changed too.
 
+In the project list it is marked dormant, the same as #34 and for the same reason on the same day:
+finished, switched off, waiting on the Anthropic top-up and your go-ahead. It goes back to live when it
+is switched on.
+
+It also carries one broken part, inherited from #34 rather than discovered here. The step that tells
+your dashboard how a run went cannot use the password it was given, because that password is for letting
+messages in, not for sending them out. Nobody has run this lane yet, so it has never had the chance to
+fail, but the step is identical to the one that failed twice on #34.
+
 It is waiting on the same things #34 is waiting on, plus one manual run of its own.

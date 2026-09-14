@@ -35,8 +35,15 @@ The AI Automation one is #35, and the two are built as twins on purpose.
   write applications. This one finds and scores postings.
 
 ## Status
-Built. The workflow is on the server with all 49 steps in place, and it has run twice by hand, on 11 and
-12 September. It is switched off, on purpose.
+Built. The workflow is on the server with all 49 steps in place, and it has run three times by hand, on
+11, 12 and 14 September. It is switched off, on purpose.
+
+In the project list it is now marked dormant rather than live. That is not a demotion. Dormant is the
+word this system uses for something that is finished and waiting on one named thing outside itself, and
+here that thing is the Anthropic top-up plus your go-ahead to free a slot on the server. It was marked
+live while it was switched off, and the daily check that watches for workflows going dark would have
+spent tomorrow morning shouting about these two instead of the three older engines that really are
+failing. It goes back to live the day it is switched on.
 
 It has never written a job into the sheet, and that is not a fault in the lane. Every scoring call comes
 back saying the Anthropic account is out of credit, and the lane will not write a job it could not score.
@@ -44,7 +51,9 @@ So it collects, it filters, it holds the row, and it refuses to move its own clo
 matters: if it moved the clock, the jobs it skipped today would never be looked at again.
 
 The run on 12 September found 950 postings, kept 102 after filtering, held 20, scored none of them, and
-said so plainly in its own report.
+said so plainly in its own report. The run on 14 September was the first one on the newest version: 860
+postings, 66 kept, 10 held, and every one of those 10 carried a real job description instead of a bare
+title. That was the point of the last fix.
 
 One thing is quietly broken. The step that tells your dashboard how the run went cannot use the password
 it was given, because that password is for letting messages IN, not for sending them OUT. The run still
