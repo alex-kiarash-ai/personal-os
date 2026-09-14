@@ -2,7 +2,8 @@
 
 ## Type
 Automation. One n8n workflow on the Hetzner box, weekdays 06:30 Europe/Stockholm. Scaffolded 2026-09-11
-by the job-search-lanes relay. NOT BUILT YET: this file is the contract the build follows, see `## Status`.
+by the job-search-lanes relay, BUILT 2026-09-11 and 2026-09-12. Workflow `oSVDR2WjkZnjovCP`, 49 nodes,
+inactive. This file is the contract the build followed; current state is in the Status section below.
 
 ## Purpose
 Collect every Power BI shaped job posted in the last 24 hours from the sources that answer without a
@@ -185,7 +186,26 @@ Beyond the universal list:
   lives only in a run report is a discovery that gets re-made.
 
 ## Status
-**SCAFFOLD ONLY (2026-09-11).** Registered #34 in `system/manifest.json`, spec written, source contract
-frozen by Agent 1, build tooling written. NOT YET BUILT: every node. NOT YET CREATED: the n8n workflow,
-so the `n8n` field is null and V6 leg (c) does not assert the declared cron yet. NOT YET RUN:
-`config/free-slots.js`, which waits on Shaheen's explicit go.
+**BUILT AND PROVEN AS FAR AS SCORING ALLOWS (2026-09-14).** All 49 nodes live on the box as
+`oSVDR2WjkZnjovCP`, inactive. `n8n` and `first_fire` are now written into `system/manifest.json`, so
+V6 leg (c) asserts the declared cron and V9 no longer ages this lane.
+
+Two real manual executions: 5154 (2026-09-11, whose twenty surviving rows are the eval fixture) and
+5182 (2026-09-12: searched 950, filtered 102, held 20, scored 0/20, wrote 0 rows, `last_run_at` HELD,
+verdict `scoring_down budget_hit degraded:himalayas`).
+
+**The lane has never written a job row, and that is correct behaviour rather than a defect.** Every
+Anthropic call returns credit-exhausted, an unscored row is never written, so the write branch receives
+zero rows and the window is held. Restoring credits is what turns this lane on, and per Shaheen's
+sequence that comes after #34 and #35 are both finished and #03/#14/#32 are off.
+
+**The current build has never executed.** The row-cap coupling (commit `546bbd5`) shipped to the box at
+2026-09-12 19:02, after 5182 ran. It was replayed offline against 5182's own bodies and no live run has
+exercised it.
+
+NOT YET RUN: `config/free-slots.js`, which waits on Shaheen's explicit go, and which activation needs.
+KNOWN BROKEN: the HQ push, see error-log 2026-09-14. `Push HQ` cannot use the `Alex HQ Token` credential
+because n8n refuses a webhook-auth credential inside an HTTP Request node, so the run reported success
+while its telemetry never left the box.
+WRITES ARE STILL DIVERTED to `jobs_test` by `sheet.jobs_write_tab`; while that key is present the lane
+refuses to advance `last_run_at`, which is the point of it.

@@ -2,7 +2,8 @@
 
 ## Type
 Automation. One n8n workflow on the Hetzner box, weekdays 06:45 Europe/Stockholm. Scaffolded 2026-09-11
-by the job-search-lanes relay. NOT BUILT YET: this file is the contract the build follows, see `## Status`.
+by the job-search-lanes relay. PORTED 2026-09-14. Workflow `TNvg3zbOzd3rGr9T`, 49 nodes, inactive,
+never executed. This file is the contract the build followed; current state is in the Status section below.
 
 ## Purpose
 The AI Automation half of the job-search pair. Same sources, same row shape, same build path as
@@ -129,7 +130,22 @@ Beyond the universal list:
   edit the other lane will re-discover the hard way.
 
 ## Status
-**SCAFFOLD ONLY (2026-09-11).** Registered #35 in `system/manifest.json`, spec written, contract shared
-with #34, build tooling written. NOT YET BUILT: every node. NOT YET CREATED: the n8n workflow, so the
-`n8n` field is null and V6 leg (c) does not assert the declared cron yet. NOT YET RUN:
-`work/34-job-search-bi/config/free-slots.js`, which waits on Shaheen's explicit go.
+**BUILT, NEVER RUN (2026-09-14).** All 49 nodes ported and the workflow created as `TNvg3zbOzd3rGr9T`,
+inactive, read back after create: 49 nodes, 48 connection sources, 06:45 cron, its own spreadsheet, its
+own Anthropic credential, no #34 value anywhere in the body. `n8n` is written into the manifest.
+
+Nothing has executed here, so every claim about this lane's behaviour is inherited from #34's runs rather
+than observed. One manual run is what this lane needs next, and it will land in the same `scoring_down`
+state #34 sits in until Anthropic credits exist.
+
+**The node tree is a byte-identical copy of #34's and that is enforced, not trusted.** A require-wrapper
+cannot work: `_lane.js` resolves `LANE_DIR` from `__dirname`, so a file required out of #34's folder reads
+#34's config and would build the BI spreadsheet, cron and credential into this workflow. Location is the
+lane. So validator **V20** asserts the two trees byte-identical on every run, both directions, and fails
+rather than warns. **A change to #34's nodes is not finished until it is copied here and BOTH workflows
+are rebuilt.**
+
+NOT YET PROVISIONED: the `jobs_test` tab in this lane's spreadsheet. `sheet.jobs_write_tab` is set for
+parity with #34, so the window-holding protection is active, but the tab itself does not exist. It cannot
+be reached before scoring works; create it in the same session credits are restored.
+INHERITED DEFECT: the HQ push fails the same way as #34's, same credential, same node shape.

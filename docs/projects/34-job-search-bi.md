@@ -35,7 +35,21 @@ The AI Automation one is #35, and the two are built as twins on purpose.
   write applications. This one finds and scores postings.
 
 ## Status
-Scaffolded 11 September 2026. Registered, spec written, the source list tested live and frozen, the build
-tool written. Nothing has been built on the server yet: no workflow, no schedule, no first run. Two things
-have to happen before it can run for real, and both need you: three free slots on the n8n server, and the
-Anthropic credit top-up that the scoring step waits on.
+Built. The workflow is on the server with all 49 steps in place, and it has run twice by hand, on 11 and
+12 September. It is switched off, on purpose.
+
+It has never written a job into the sheet, and that is not a fault in the lane. Every scoring call comes
+back saying the Anthropic account is out of credit, and the lane will not write a job it could not score.
+So it collects, it filters, it holds the row, and it refuses to move its own clock forward. That last part
+matters: if it moved the clock, the jobs it skipped today would never be looked at again.
+
+The run on 12 September found 950 postings, kept 102 after filtering, held 20, scored none of them, and
+said so plainly in its own report.
+
+One thing is quietly broken. The step that tells your dashboard how the run went cannot use the password
+it was given, because that password is for letting messages IN, not for sending them OUT. The run still
+says it succeeded, because the only thing that failed was the part that reports. It is on your list now.
+
+Two things still need you: the Anthropic top-up, which you have deliberately held back until these lanes
+are finished and the old engines are off, and the go-ahead to check for free space on the server before
+anything gets switched on.

@@ -31,6 +31,17 @@ question once and writes the answer into the shared file. This lane reads it.
 - **The application engines (#03, #14, #31, #32):** separate jobs, deliberately not wired together.
 
 ## Status
-Scaffolded 11 September 2026. Registered, spec written, sharing #34's source list and build tool. Nothing
-built on the server yet: no workflow, no schedule, no first run. Waiting on the same two things #34 is
-waiting on, three free slots on the n8n server and the Anthropic credit top-up.
+Built on 14 September. The workflow is on the server with all 49 steps, switched off, and it has never
+run. Not once, not even by hand. So everything we know about how it behaves, we know from watching #34.
+
+The two lanes now run the exact same steps, file for file. That is how it was designed, and it carries an
+obvious risk: fix something in one lane, forget the other, and they drift apart without anyone noticing.
+You would not see it. You would just get a slightly shorter list one day and have no reason to question it.
+
+So the copy is now checked by the system itself. Every time the checks run, they compare the two lanes
+file by file, and they stop the work if the two ever differ. It was tested by breaking it on purpose
+first, twice, to make sure it actually catches the problem instead of just claiming to.
+
+The rule that comes with it: changing one lane is not finished until the other one is changed too.
+
+It is waiting on the same things #34 is waiting on, plus one manual run of its own.
