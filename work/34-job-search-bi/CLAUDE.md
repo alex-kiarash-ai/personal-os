@@ -225,8 +225,6 @@ not a downgrade: DORMANT is `meta.states_doc`'s word for built and waiting on a 
 dependency, and the row flips back to LIVE the day the workflow is activated.
 
 NOT YET RUN: `config/free-slots.js`, which waits on Shaheen's explicit go, and which activation needs.
-KNOWN BROKEN: the HQ push, see error-log 2026-09-14. `Push HQ` cannot use the `Alex HQ Token` credential
-because n8n refuses a webhook-auth credential inside an HTTP Request node, so the run reported success
-while its telemetry never left the box.
+HQ PUSH: **FIXED 2026-09-14, proven both sides (execution 5245).** Shaheen created a separate outgoing credential `Alex HQ Token (outgoing)` (`XXcugYBfR0JUXGGQ`, httpHeaderAuth, header `X-Alex-Token`), both lanes were rebuilt onto it and read back. Run 5245's `Push HQ` returned 200 `{"ok":true}`, and the receiving side was checked SEPARATELY: `Alex HQ - Metrics Ingest (16)` execution 5246 carries the actual payload (project job-search-bi, run_status scoring_down, searched 860, new 0, scored 0, status red). A 200 alone would not have proved delivery, which is why the ingest side was checked rather than assumed. **The lesson stands even though the bug is gone: a credential has a DIRECTION.** The webhook credential verifies calls arriving; it cannot authenticate calls leaving.
 WRITES ARE STILL DIVERTED to `jobs_test` by `sheet.jobs_write_tab`; while that key is present the lane
 refuses to advance `last_run_at`, which is the point of it.

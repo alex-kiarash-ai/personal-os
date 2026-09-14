@@ -50,12 +50,16 @@ its own credential, and nothing belonging to #34 anywhere inside it.
 It has never run. Not on the schedule, not by hand. So everything above about how it behaves is
 borrowed from watching #34, and one manual run is the next thing it needs.
 
-Two things it is waiting on, both shared with #34: the Anthropic credit top-up that scoring needs, and
-the same broken dashboard-reporting step, which it inherited along with everything else.
+One thing it is waiting on, shared with #34: the Anthropic credit top-up that scoring needs.
 
-One thing it owns alone: the test tab it is set to write into does not exist in its spreadsheet yet.
-That cannot bite until scoring works, because a job that was not scored is never written, but the tab
-has to be created before the first job is ever saved.
+The broken dashboard-reporting step it inherited was fixed on 14 September and this lane was rebuilt
+onto the working version at the same time. But #34 is where that fix was watched working. Nothing has
+been observed here, because this lane has still never run.
+
+This page said the test tab it writes into did not exist in its spreadsheet. That was wrong, and it
+was never checked. Shaheen had already made the tab. The claim came from assuming what the setup step
+had created rather than opening the sheet and looking, and it then got repeated as if it were a
+finding. The tab is there.
 
 ## Getting it back if the server dies
 

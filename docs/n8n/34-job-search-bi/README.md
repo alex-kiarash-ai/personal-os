@@ -94,10 +94,14 @@ A line to the dashboard saying how it went, then a final check that throws an er
 written wrongly. That order is deliberate: the error comes last so that it cannot suppress the
 message explaining what went wrong.
 
-**The reporting step is currently broken.** It was given the password that lets messages IN to the
-dashboard, and the server refuses to use an incoming password for an outgoing call. So the run
-finishes, says it succeeded, and tells nobody. That is the one kind of failure that cannot announce
+**The reporting step was broken and is now fixed.** It had been given the password that lets messages
+IN to the dashboard, and the server refuses to use an incoming password for an outgoing call. So the
+run finished, said it succeeded, and told nobody. That is the one kind of failure that cannot announce
 itself, which is why it sat unnoticed for two days.
+
+Shaheen made a second password for sending out, and the run on 14 September proved it. Not by the
+message saying it was delivered, which is what the broken version also said, but by going and looking
+at the dashboard's own records and finding this run's numbers sitting in them.
 
 ## What has actually happened so far
 
