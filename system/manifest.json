@@ -251,6 +251,10 @@
           "name": "Writer Voice Eval (regression)"
         }
       ]
+    },
+    "n8n": {
+      "doc": "The n8n REST base URL as SSOT (added 2026-09-14). It is a PUBLIC hostname, never a credential, so it belongs here and not in a secrets file. Five scripts used to carry it (or the API key path) as a hardcoded literal; they now resolve both through scripts/lib/n8n-creds.js, which reads this field and gets the KEY through the sanctioned secret-env door. Same principle as meta.paths: a checker reads the value from here, never a literal.",
+      "api_base": "https://n8n.shaheenkiarash.com/api/v1"
     }
   },
   "projects": [

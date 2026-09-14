@@ -58,10 +58,10 @@ const START = '<<<SOUL_VOICE_START';
 const END = '<<<SOUL_VOICE_END>>>';
 
 function env() {
-  const base = process.env.N8N_API_URL;
-  const key = process.env.N8N_API_KEY;
+  const { n8nCreds } = require('./n8n-creds');
+  const { base, key, missing } = n8nCreds();
   if (!base || !key)
-    throw new Error('sync-n8n-voice: N8N_API_URL and/or N8N_API_KEY env vars are missing - refusing to run (credentials never live in code)');
+    throw new Error(`sync-n8n-voice: n8n credentials did not resolve - refusing to run (${missing})`);
   return { base: base.replace(/\/$/, ''), hdrs: { 'X-N8N-API-KEY': key, 'Content-Type': 'application/json' } };
 }
 

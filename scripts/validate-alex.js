@@ -532,9 +532,11 @@ async function v6ModelRouting({ manifest, context }, failures, warnings) {
     return set;
   };
 
-  const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
+  const { n8nCreds } = require('./lib/n8n-creds');
+  const creds = n8nCreds();
+  const base = creds.base, key = creds.key;
   if (!base || !key) {
-    const msg = 'V6: N8N_API_URL and/or N8N_API_KEY env vars missing - the live model-routing check cannot run (credentials never live in code)';
+    const msg = `V6: n8n credentials did not resolve, so the live model-routing check cannot run (${creds.missing})`;
     if (context === 'pre-commit') { warnings.push(`WARNING V6 SKIPPED (pre-commit): ${msg}`); return; }
     failures.push(`FAILED ${msg}`);
     return;
