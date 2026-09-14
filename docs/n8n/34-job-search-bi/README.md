@@ -1,6 +1,6 @@
 # Job Search BI (34)
 
-**Workflow id:** `oSVDR2WjkZnjovCP` · **Runs:** weekdays 06:30 Stockholm time · **Currently:** switched off
+**Workflow id:** `oSVDR2WjkZnjovCP` · **Runs:** weekdays 06:30 Stockholm time · **Currently:** switched off, and marked dormant in the project list since 14 September so the daily off-workflow alarm stops counting it
 **Twin:** [35-job-search-ai](../35-job-search-ai/) runs the identical 49 steps against different keywords.
 
 ## What it is for
@@ -105,11 +105,14 @@ itself, which is why it sat unnoticed for two days.
 |---|---|
 | 11 September | First full run. Its results became the test fixture. |
 | 12 September | Found 950 postings, kept 102, held 20, scored none, wrote none, held its clock. |
+| 14 September | The first run of the current version. Found 860, kept 66, held 10, and every one of the 10 came with a real job description instead of a bare title. Scored none, wrote none, held its clock. |
 
-Both were started by hand. The workflow is switched off, so nothing has run on the schedule.
+All three were started by hand. The workflow is switched off, so nothing has run on the schedule.
 
-The current version has never run at all. The last fix, the one that stops it keeping more jobs than
-it can read, was tested against the recorded results of the 12 September run rather than live.
+The 14 September run is what proved the last fix. That fix stops the workflow keeping more jobs than
+it can afford to read properly, and until that morning it had only been tested against the recorded
+results of the 12 September run. Now it has been watched doing it for real: 11 calls to LinkedIn
+instead of 20, and nothing scored on a job title alone.
 
 ## Getting it back if the server dies
 

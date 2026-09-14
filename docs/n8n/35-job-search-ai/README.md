@@ -1,6 +1,6 @@
 # Job Search AI (35)
 
-**Workflow id:** `TNvg3zbOzd3rGr9T` · **Runs:** weekdays 06:45 Stockholm time · **Currently:** switched off, never run
+**Workflow id:** `TNvg3zbOzd3rGr9T` · **Runs:** weekdays 06:45 Stockholm time · **Currently:** switched off, never run, and marked dormant in the project list since 14 September for the same reason as #34
 **Twin:** [34-job-search-bi](../34-job-search-bi/) is the canonical one. **Read that README first.**
 
 ## What is different here, and it is a short list
