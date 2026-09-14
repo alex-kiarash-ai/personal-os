@@ -165,7 +165,15 @@ const PAGING_DEFAULTS = {
   linkedin_max_calls_per_run: 20,
   linkedin_max_pages_per_query: 5,
   himalayas_max_pages_per_run: 12,
-  linkedin_detail_max_calls_per_run: 10,
+  // 10 -> 14 on 2026-09-14, Shaheen's call, and the reason is the ad-language gate rather than
+  // appetite. He chose 10 that morning when 10 described meant 10 usable rows in his sheet. The
+  // gate now drops the postings written in languages he cannot read, AFTER scoring and without
+  // reaching back for replacements, so 10 described had become roughly 3 usable. 14 restores the
+  // list without moving the ceiling: the whole-run budget below is still 25, which is what
+  // actually bounds LinkedIn exposure, and run 5247 spent 11 on search, so 11 + 14 lands exactly
+  // on it. The hard clamp in 33-detail-gate.js (30) is untouched and still the thing a hand
+  // edited settings cell cannot get past.
+  linkedin_detail_max_calls_per_run: 14,
   linkedin_total_max_calls_per_run: 25,
   linkedin_page_demand_multiple: 3,
 };
