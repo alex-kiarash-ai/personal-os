@@ -175,20 +175,74 @@ function geoLookup(linkedInLocationName) {
   return row ? row.geo_id : null;
 }
 
+// A scope can be MORE THAN ONE PLACE, and that is why every target carries a LIST (2026-09-15).
+//
+// Shaheen asked for "the gulf and non EU europe" as two scopes, and neither is one thing LinkedIn
+// resolves. The Gulf is three countries and non-EU Europe is two. LinkedIn takes exactly ONE geoId
+// per query, which was MEASURED rather than assumed, and both ways of asking for more than one fail
+// SILENTLY, which is the reason this is a list here instead of a cleverer url:
+//   geoId=<uae>&geoId=<qatar>   HTTP 200, 10 real cards, ALL Qatar. The first id is dropped without
+//                               a word, so half the scope vanishes and the run looks perfectly well.
+//   geoId=<uae>,<qatar>         HTTP 200, 10 real cards, ALL UNITED STATES (Missouri, Virginia,
+//                               Illinois and so on). The joined value is not a geo id, so LinkedIn
+//                               falls back to a default scope on the other side of the planet and
+//                               still answers 200.
+// Both were run on 2026-09-15 against a single-id control that returned the right country. A lane
+// that shipped either one would collect the wrong continent and report a healthy number, so the
+// only honest shape is one call per id, and the cost of that is the call budget below.
+//
+// Each entry is {name, id}: `name` is the key in the contract's verified map and `id` is what it
+// resolved to. Keeping the name next to the id is what lets the assertion below say WHICH place
+// failed to resolve rather than just that something did.
+function geoSet(names) {
+  return names.map((n) => ({ name: n, id: geoLookup(n) }));
+}
+
+// HOW MANY SEARCH TERMS A SCOPE FIRES, and it is a CALL BUDGET knob, never a targeting one.
+//
+// Base LinkedIn calls are (scopes x terms x geo ids), and that product is the whole problem. With
+// the settings tab as it will read after the queued sync, the two lanes measure 15 base calls each
+// against a per-run ceiling of 20. Five new ids taking the full term list would be BI 15 + 12 + 8 =
+// 35 and AI 15 + 15 + 10 = 40, so the ceiling would cancel paging outright and Stage B would spend
+// the run refusing work.
+//
+// So a target may cap how many of cfg.search_terms it fires. `null` means all of them, which is
+// what every pre-existing scope keeps. The two new scopes take 1.
+//
+// THE MEASUREMENT THAT SAYS WHAT THIS COSTS, because the obvious defence of a 1-term cap is that
+// the broadest term is a superset of the narrow ones, and that is FALSE. Measured 2026-09-15
+// against the UAE id over one window, comparing page-1 job ids returned by the BI lane's own four
+// terms. Against the broadest of the four, the other three each returned 4, 6 and 7 job ids out of
+// ten that the broad term's page 1 did not carry at all. (The terms themselves are NOT written here:
+// this file is tracked and the repo is public, and his targeting lives in the gitignored settings.)
+// LinkedIn re-ranks per query and only returns ten rows a page, so a narrower term surfaces
+// DIFFERENT rows rather than a subset. A 1-term scope therefore collects genuinely less than a
+// 4-term one would, and that is a real cost, not a rounding error. It is accepted here because the
+// alternative is not "more rows", it is a plan the ceiling refuses to run. The run report names the
+// trim with its reason so the cost is visible every single run rather than argued once in a comment.
+//
+// WHICH term the cap keeps is HIS ordering: the first entries of the search_terms cell. Reordering
+// that cell is the control, and it is a settings edit rather than a code change.
+const ALL_TERMS = null;
+
 const LINKEDIN_TARGETS = {
   'Sweden': {
     linkedin: true,
     location: 'Sweden',
-    geo_id: geoLookup('Sweden'),
+    geo_ids: geoSet(['Sweden']),
     work_type: null, // onsite is fine in Sweden, per his geo_rule, so no work type filter
+    work_types_accepted: 'any',
+    max_terms: ALL_TERMS,
     country: 'SE',
     swedish_terms: true,
   },
   'Remote EU': {
     linkedin: true,
     location: 'European Union',
-    geo_id: geoLookup('European Union'),
+    geo_ids: geoSet(['European Union']),
     work_type: '2', // 2 = remote
+    work_types_accepted: 'remote_only',
+    max_terms: ALL_TERMS,
     country: null,
     swedish_terms: false,
   },
@@ -206,30 +260,152 @@ const LINKEDIN_TARGETS = {
   'Remote UK': {
     linkedin: true,
     location: 'United Kingdom',
-    geo_id: geoLookup('United Kingdom'),
+    geo_ids: geoSet(['United Kingdom']),
     work_type: '2', // 2 = remote. Not optional here, see above.
+    work_types_accepted: 'remote_only',
+    max_terms: ALL_TERMS,
     country: 'GB',
     swedish_terms: false, // a Swedish language job title in a UK search would return nothing
   },
+  // Added 2026-09-15 on Shaheen's words, "Make it like this Sweden and EMEA (hybrid, onsite,
+  // remote), Euorope and UK ( remote only)" and then, answering which EMEA markets he meant,
+  // "the gulf and non EU europe, and stop dropping them".
+  //
+  // ALL WORK TYPES, which is the first scope other than Sweden to allow onsite, and the entire
+  // point of it. work_type stays null so no f_WT is sent and the result set is mixed. "stop
+  // dropping them" is the instruction that produced the work-type rule in 20-filter.js; this is
+  // the half that makes the rows EXIST in the first place, because no board here can serve an
+  // onsite job and LinkedIn is the only source that can.
+  //
+  // WHY THREE COUNTRY IDS AND NOT THE REGION ID, decided on a probe rather than on taste. LinkedIn
+  // does publish a Middle East region id (91000001, the same curated 91-series as European Union),
+  // and one id would have cost one call instead of three. It was measured on 2026-09-15 and
+  // REJECTED: its ten cards were UAE, Egypt, Turkiye and Jordan, with ZERO Qatar and ZERO Saudi
+  // Arabia. The region is much wider than the Gulf, so the markets he actually named get crowded
+  // out of the only page the guest surface returns, by markets he did not ask for. A cheaper call
+  // that answers a different question is not a saving.
+  //
+  // WHY COUNTRIES AND NOT CITIES, though his own 2026-06-16 config named Dubai, Doha and Riyadh.
+  // The country ids were probed and they are not noisy: the UAE id returned Dubai and Abu Dhabi,
+  // the Saudi id returned Riyadh and Jeddah, and Qatar is effectively one city anyway. A city id
+  // would LOSE those second cities, and Abu Dhabi was 3 of 10 UAE rows and Jeddah 2 of 10 Saudi
+  // rows, so the cost is measurable and one-directional. The city typeahead is also genuinely
+  // dangerous: "Dubai" resolves to five Indian villages before it resolves to anything useful.
+  'Gulf': {
+    linkedin: true,
+    location: 'United Arab Emirates', // the string is cosmetic, the id decides, proven below
+    geo_ids: geoSet(['United Arab Emirates', 'Qatar', 'Saudi Arabia']),
+    work_type: null, // onsite, hybrid and remote, all three. His words: stop dropping them.
+    work_types_accepted: 'any',
+    max_terms: 1,
+    // NULL, and not 'AE', deliberately. Bright Data Indeed requires exactly one country, and this
+    // scope is three. Naming one of them here would make an Indeed run for "Gulf" quietly mean the
+    // UAE alone, with Qatar and Saudi Arabia dropped and nothing on the report saying so. A null
+    // sends it down the existing explicit skip instead, which names the scope and the reason.
+    country: null,
+    swedish_terms: false,
+  },
+  // The second half of the same instruction. NON-EU EUROPE is genuinely new and has no prior
+  // record anywhere in the vault, so the market list is a PROPOSAL and is named as one.
+  //
+  // INCLUDED: Switzerland and Norway. Both are real tech markets with real demand in both lanes,
+  // both are outside the EU so they are not already covered by the Remote EU scope, both
+  // are reachable from Stockholm, and Norway is Nordic so the cultural and working-hours fit is the
+  // closest thing to his home market that is not in it.
+  // EXCLUDED, each for a stated reason rather than by omission:
+  //   United Kingdom  also non-EU, but he named it SEPARATELY and as remote only, so it keeps its
+  //                   own scope and its own f_WT=2. Folding it in here would silently grant it
+  //                   onsite, which is the one thing his UK rule refuses.
+  //   Iceland         tiny market, and the volume does not justify a call out of a budget this tight.
+  //   Serbia, Ukraine, Moldova, the Balkans   real outsourcing volume, but the pay bands are far
+  //                   below his Stockholm number, so the rows would cost him a read and never
+  //                   become an application.
+  //   Turkiye         sits in the Middle East region id, not in a European one, and it is not a
+  //                   market he has ever named.
+  //   Russia, Belarus sanctions and payment reality make them unworkable regardless of listings.
+  'Non-EU Europe': {
+    linkedin: true,
+    location: 'Switzerland', // cosmetic, as above
+    geo_ids: geoSet(['Switzerland', 'Norway']),
+    work_type: null, // onsite, hybrid and remote
+    work_types_accepted: 'any',
+    max_terms: 1,
+    country: null, // two countries, same reason as the Gulf scope above
+    swedish_terms: false,
+  },
   'Remote EMEA': {
     linkedin: false,
-    reason: 'EMEA is a work scope, not a place LinkedIn resolves, and no geoId for it has ever been verified. Searching it would return whatever LinkedIn guesses and look perfectly healthy. The remote boards cover this scope instead, which is what they are for.',
+    reason: 'EMEA is a work scope, not a place this lane searches. LinkedIn DOES resolve an id for it (91000007, probed 2026-09-15 and it returns a real EMEA spread), and it is deliberately not used: EMEA contains the EU, so an EMEA query carrying no f_WT would return onsite EU jobs and re-admit through one scope exactly what the Remote EU rule exists to refuse. The concrete markets he named inside EMEA are the Gulf and non-EU Europe, and those have their own targets above with their own ids. The remote boards cover the rest of the scope, which is what they are for.',
+    work_types_accepted: 'any',
     swedish_terms: false,
   },
 };
 
-// The UK target is the first one to ship with a geoId, so assert here that the read actually
-// landed. A target that silently fell back to null would still run, would still return jobs for
-// roughly the right place because the location string alone works, and would be indistinguishable
-// from a working geoId on every report. That is the failure mode this whole block was built for.
-(function assertUkGeoResolved() {
-  const uk = LINKEDIN_TARGETS['Remote UK'];
-  if (uk.geo_id === null) {
+// EVERY geoId a target declares must have resolved. This was written for the UK target alone and is
+// now general, which is the point: the UK was the first scope to ship with an id and the Gulf and
+// non-EU Europe bring five more, so a check that names one scope would pass while four silently
+// fell back to a location string.
+//
+// A null id is not a crash, it is the WORST kind of working: the query still runs, the location
+// string alone still returns roughly the right country, and nothing on any report distinguishes it
+// from a precise one. For the two new scopes it is worse still, because their location strings are
+// COSMETIC by design (one string cannot stand for three countries), so a fallback would quietly
+// collapse the whole Gulf onto the UAE and the whole of non-EU Europe onto Switzerland.
+(function assertEveryGeoResolved() {
+  const bad = [];
+  for (const key of Object.keys(LINKEDIN_TARGETS)) {
+    const t = LINKEDIN_TARGETS[key];
+    if (!t.linkedin) continue;
+    if (!Array.isArray(t.geo_ids) || !t.geo_ids.length) {
+      bad.push(key + ': declares linkedin:true and carries no geo_ids list at all');
+      continue;
+    }
+    for (const g of t.geo_ids) {
+      if (g.id === null || g.id === undefined) {
+        bad.push(key + ': "' + g.name + '" resolved to no geoId');
+      }
+    }
+  }
+  if (bad.length) {
     throw new Error(
-      'Plan Queries: the Remote UK target resolved to a null geoId.\n' +
-      '  sources.json linkedin_guest_search.geo_ids.verified has no "United Kingdom" entry, or its geo_id is missing.\n' +
-      '  The query would still run on the location string alone and would look healthy, which is why this throws instead.'
+      'Plan Queries: ' + bad.length + ' LinkedIn target geoId(s) did not resolve.\n' +
+      '  - ' + bad.join('\n  - ') + '\n' +
+      '  Each name above is looked up in sources.json linkedin_guest_search.geo_ids.verified and was\n' +
+      '  not found there, or was found with no numeric id. The query would still run on the location\n' +
+      '  string alone and would look perfectly healthy, which is exactly why this throws instead.\n' +
+      '  Prove the id with the two-leg probe the contract documents, write it into `verified` with its\n' +
+      '  evidence, and build again. Do not type a number in to make this pass.'
     );
+  }
+}());
+
+// A target that accepts any work type must NOT be sending an f_WT, and a remote-only one must be.
+// The two fields say the same thing from opposite ends, one to LinkedIn and one to the Filter, and
+// the failure they guard against is silent in both directions: a remote-only scope with no f_WT
+// collects onsite jobs he cannot take, and an any-work-type scope that still sends f_WT=2 collects
+// nothing but remote and looks exactly like a market with no onsite work in it.
+(function assertWorkTypeAgrees() {
+  for (const key of Object.keys(LINKEDIN_TARGETS)) {
+    const t = LINKEDIN_TARGETS[key];
+    if (!t.linkedin) continue;
+    const sendsFilter = t.work_type !== null && t.work_type !== undefined;
+    const wants = t.work_types_accepted;
+    if (wants !== 'any' && wants !== 'remote_only') {
+      throw new Error('Plan Queries: target "' + key + '" declares work_types_accepted ' + JSON.stringify(wants) + '. It must be "any" or "remote_only"; the Filter switches on exactly those two words.');
+    }
+    if (wants === 'remote_only' && !sendsFilter) {
+      throw new Error(
+        'Plan Queries: target "' + key + '" accepts remote work ONLY and sends no f_WT, so LinkedIn would\n' +
+        '  return a mixed result set and the scope would collect onsite jobs he cannot take.'
+      );
+    }
+    if (wants === 'any' && sendsFilter) {
+      throw new Error(
+        'Plan Queries: target "' + key + '" accepts ANY work type and still sends f_WT=' + t.work_type + ', so\n' +
+        '  LinkedIn would filter the onsite and hybrid rows out at the source. The scope would then report\n' +
+        '  zero onsite work in that market, which is indistinguishable from there being none.'
+      );
+    }
   }
 }());
 
@@ -496,6 +672,10 @@ const disabled = [];
 const skipped = [];
 const warnings = [];
 const probeSet = {};
+// Every scope that fired fewer search terms than the settings tab holds, with what was left out.
+// This rides into the plan summary and into a warning: a trim nobody can see is the under-collection
+// this whole stage refuses to do.
+const termTrims = [];
 const addProbe = (id) => { probeSet[id] = true; };
 
 const isOn = (sourceKey) => cfg['source_' + sourceKey] === true;
@@ -528,19 +708,46 @@ if (!isOn('linkedin_guest_search')) {
       skipped.push({ what: 'linkedin_guest_search for location "' + locSetting + '"', reason: target.reason });
       continue;
     }
-    const terms = cfg.search_terms.map((t) => ({ term: t, lang: 'en' }));
+    // THE TERM CAP, applied here and REPORTED, never applied quietly. A scope may fire fewer than
+    // the full search_terms list to keep the base plan under the per-run ceiling; which terms it
+    // keeps is Shaheen's own ordering of that cell, taken from the front.
+    const allEnglish = cfg.search_terms.slice();
+    const cap = (target.max_terms === null || target.max_terms === undefined)
+      ? allEnglish.length
+      : Math.max(1, Math.min(target.max_terms, allEnglish.length));
+    const usedEnglish = allEnglish.slice(0, cap);
+    if (usedEnglish.length < allEnglish.length) {
+      const dropped = allEnglish.slice(cap);
+      termTrims.push({
+        location_setting: locSetting,
+        terms_fired: usedEnglish.slice(),
+        terms_not_fired: dropped,
+        geo_ids: target.geo_ids.length,
+        reason: 'base LinkedIn calls are scopes x terms x geo ids, and this scope carries ' + target.geo_ids.length +
+          ' geo id(s). Firing all ' + allEnglish.length + ' term(s) here would cost ' + (allEnglish.length * target.geo_ids.length) +
+          ' calls out of a per-run ceiling of ' + ((cfg._paging_caps && cfg._paging_caps.linkedin_max_calls_per_run) || 'the per-run ceiling') + '. A narrower term is NOT a subset of a broader one on this ' +
+          'endpoint (measured 2026-09-15: 4 to 7 of every 10 ids a narrow term returns are absent from the broad ' +
+          'term page 1), so this trim genuinely collects less and is named here rather than absorbed.',
+      });
+    }
+    const terms = usedEnglish.map((t) => ({ term: t, lang: 'en' }));
     if (target.swedish_terms) {
       for (const t of cfg.search_terms_sv) terms.push({ term: t, lang: 'sv' });
     }
+    // ONE UNIT PER TERM PER GEO ID. A scope that is more than one country is more than one call,
+    // because LinkedIn takes a single geoId per query and both multi-id url shapes fail silently
+    // (the repeated param keeps only the last, the comma-joined value falls back to the United
+    // States). Measured 2026-09-15, see the note on LINKEDIN_TARGETS.
     for (const t of terms) {
+      for (const g of target.geo_ids) {
       linkedinUnits.push({
         unit: 'linkedin',
         source: 'linkedin_guest_search',
         method: CONTRACT.linkedin_guest_search.method,
         url: fillUrl(CONTRACT.linkedin_guest_search.endpoint, {
           keywords: t.term,
-          location: target.location,
-          geoId: target.geo_id,
+          location: g.name,
+          geoId: g.id,
           tpr: 'r' + windowSeconds,
           worktype: target.work_type,
           start: '0',
@@ -548,10 +755,12 @@ if (!isOn('linkedin_guest_search')) {
         term: t.term,
         term_language: t.lang,
         location_setting: locSetting,
-        location: target.location,
-        geo_id: target.geo_id,
-        geo_unresolved: target.geo_id === null,
+        location: g.name,
+        geo_id: g.id,
+        geo_unresolved: g.id === null,
+        geo_ids_in_scope: target.geo_ids.length,
         work_type: target.work_type,
+        work_types_accepted: target.work_types_accepted,
         f_tpr: 'r' + windowSeconds,
         start: 0,
         window_filtered_server_side: true,
@@ -567,6 +776,7 @@ if (!isOn('linkedin_guest_search')) {
         probe_required: LINKEDIN_PAGE.verified ? [] : ['D2'],
       });
       if (!LINKEDIN_PAGE.verified) addProbe('D2');
+      }
     }
   }
 }
@@ -760,9 +970,20 @@ if (pagedBoards.length) {
 const unresolvedGeo = linkedinUnits.filter((u) => u.geo_unresolved).length;
 if (unresolvedGeo) {
   warnings.push(
-    unresolvedGeo + ' LinkedIn call(s) run with a location string and no geoId, because only Stockholm ' +
-    '100907646 is confirmed and the Sweden and European Union ids are unresolved. The results are less ' +
-    'precise than they could be and that is a known gap, not a fault.'
+    unresolvedGeo + ' LinkedIn call(s) run with a location string and no geoId. Every shipped target ' +
+    'resolves its ids at BUILD time and the build refuses a null one, so reaching this at run time means ' +
+    'the built plan and the contract have come apart. Those calls are less precise than they look, and for ' +
+    'a multi-country scope they collapse onto whichever single country the location string names.'
+  );
+}
+// THE TERM TRIM, said out loud every run it happens. Stage A refused to trim search terms to fit
+// under a number and that refusal still stands for the scopes that were here before: nothing is
+// dropped from Sweden, Remote EU or Remote UK to make room. What IS capped is a scope that was
+// added knowing the ceiling, and the difference between the two is that this one is reported.
+for (const t of termTrims) {
+  warnings.push(
+    'TERM TRIM on "' + t.location_setting + '": fired ' + JSON.stringify(t.terms_fired) + ' and did NOT fire ' +
+    JSON.stringify(t.terms_not_fired) + '. ' + t.reason
   );
 }
 if (!firstRun && windowHours > cfg.first_run_window_hours) {
@@ -795,6 +1016,19 @@ const planSummary = {
   indeed: indeedUnits.length,
   disabled_sources: disabled,
   skipped: skipped,
+  // Per-scope LinkedIn call counts, so a reader can see where the base plan went without counting
+  // units by hand, and can see a multi-country scope costing more than one call per term.
+  linkedin_by_scope: (function () {
+    const out = {};
+    for (const u of linkedinUnits) {
+      const k = u.location_setting;
+      if (!out[k]) out[k] = { calls: 0, geo_ids: [], work_type: u.work_type, work_types_accepted: u.work_types_accepted };
+      out[k].calls += 1;
+      if (out[k].geo_ids.indexOf(u.geo_id) === -1) out[k].geo_ids.push(u.geo_id);
+    }
+    return out;
+  }()),
+  term_trims: termTrims,
   probes_outstanding: Object.keys(probeSet).sort(),
   warnings: warnings,
 };

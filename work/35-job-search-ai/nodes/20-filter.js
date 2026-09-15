@@ -2,9 +2,14 @@
 /*
  * 20-filter.js - "Filter". The node that decides what Shaheen ever sees.
  *
- * Four rules, in this order, first failure wins: always_drop on the title, keep_if_title_has on the
- * title, geography, freshness. Plus one thing that is not a rule: posted_at is normalised here, in
- * the one node that sees all three branches, so the sheet column holds one format.
+ * FIVE rules, in this order, first failure wins: always_drop on the title, keep_if_title_has on the
+ * title, geography, WORK TYPE, freshness. Plus one thing that is not a rule: posted_at is normalised
+ * here, in the one node that sees all three branches, so the sheet column holds one format.
+ *
+ * Work type joined the list on 2026-09-15, on Shaheen's "the gulf and non EU europe, and stop
+ * dropping them". Until that day nothing in this lane dropped a row for being onsite: every
+ * arrangement word sat in NO_INFO_TOKENS and was STRIPPED as "how the work is done, not where"
+ * before the geography test ran. The concept did not exist. Section 3b below is the whole of it.
  *
  * THE RULES COME FROM THE SETTINGS TAB. Every list, the location set and the per-run cap arrive on
  * `filters`, which Plan Queries stamps onto every planned unit out of the validated config object.
@@ -83,9 +88,29 @@
  *   - a LinkedIn row carries `_collect.location_setting`, which means the SEARCH was already aimed
  *     at one of his locations, so it skips the geography rule the same way it skips the window.
  *
+ * Geography also RESOLVES THE SCOPE a row sits in, which is new and is what rule 3b needs. Scopes
+ * nest (the Gulf is inside EMEA, the EU is inside Europe is inside EMEA), so a row can match more
+ * than one and the answer has to be chosen rather than stumbled into. GEO_PRECEDENCE declares the
+ * order and it is MOST SPECIFIC FIRST. It used to be the order of the settings cell, which meant a
+ * rule's outcome depended on how somebody typed a list.
+ *
  * geo_rule and language_rule prose from the settings tab is carried into the report and is NOT
  * interpreted here. Language is never a filter, by his own rule: a Swedish-fluency requirement is a
  * red flag for the scorer, not a reason to drop.
+ *
+ * ---------------------------------------------------------------------------------------------
+ * 3b. WORK TYPE, AND THE BURDEN OF PROOF SITS ON THE DROP.
+ * ---------------------------------------------------------------------------------------------
+ * Each scope declares whether it takes any work type or remote only:
+ *   Sweden, Gulf, Non-EU Europe, Remote EMEA   onsite, hybrid and remote
+ *   Remote EU, Remote UK                       remote only
+ * A remote-only scope drops a row ONLY on evidence that it is genuinely not remote, and an absent
+ * work type is never that evidence. The sources are the reason: six boards hardcode remote:true and
+ * can never say otherwise, Arbeitnow is the only one that measures it per row, and LinkedIn has no
+ * remote field at all so the value is inferred from the request and is null whenever the query sent
+ * no f_WT. The new Gulf and non-EU Europe queries send no f_WT by design, so every row they collect
+ * arrives with remote null. Treating null as onsite would throw all of them away and the run report
+ * would show a healthy collection and an empty sheet.
  *
  * ---------------------------------------------------------------------------------------------
  * 4. THE CAP IS NOT IN THIS NODE, AND THE BRIEF SAID IT WOULD BE.
@@ -140,7 +165,8 @@ const REQUIRED_FILTER_KEYS = [
 // ---------------------------------------------------------------------------------------------
 const GEO_TARGETS = {
   'Sweden': {
-    why: 'his home market. Onsite is fine here and nowhere else, per his geo_rule.',
+    why: 'his home market. Onsite has always been fine here. It is no longer the ONLY place: as of 2026-09-15 the Gulf and non-EU Europe accept it too, on his instruction.',
+    work_types: 'any',
     tokens: [
       'sweden', 'sverige', 'swedish', 'svensk', 'nordic', 'nordics', 'norden', 'scandinavia',
       'scandinavian', 'skandinavien',
@@ -155,8 +181,14 @@ const GEO_TARGETS = {
   },
   'Remote EU': {
     why: 'a remote job open to the EU is open to him. CET is included because two boards state the timezone instead of the region.',
+    work_types: 'remote_only',
+    // 'emea' REMOVED 2026-09-15. It was in BOTH this list and the Remote EMEA list, and while that
+    // was true the sentence "EU is remote only but EMEA takes any work type" could not be expressed
+    // at all: whichever key happened to iterate first decided the work type rule for a row that
+    // matched both, and the iteration order came from the order of a spreadsheet cell. The two lists
+    // are now disjoint and the order is declared in GEO_PRECEDENCE below rather than inherited.
     tokens: [
-      'europe', 'european', 'european union', 'eu', 'eea', 'european economic area', 'emea',
+      'europe', 'european', 'european union', 'eu', 'eea', 'european economic area',
       'cet', 'cest', 'central european', 'central european time',
     ],
   },
@@ -186,17 +218,127 @@ const GEO_TARGETS = {
   // 'english' a language, not a place, and "English speaking" is a real value in a free text
   //           location field. It would keep a worldwide English speaking role as if it were British.
   'Remote UK': {
+    work_types: 'remote_only',
     why: 'his own addition, 2026-09-14. REMOTE only: he has no UK right to work, so an onsite London job is not a job he can take. Collection enforces that with f_WT=2 on the LinkedIn side and by every board here being remote only; this list is the geography half.',
     tokens: [
       'uk', 'u.k.', 'united kingdom', 'great britain', 'britain',
       'england', 'scotland', 'wales', 'northern ireland',
     ],
   },
+  // Added 2026-09-15 on his words, "the gulf and non EU europe, and stop dropping them". THE FIRST
+  // SCOPE OTHER THAN SWEDEN THAT ACCEPTS ONSITE WORK, which is the whole point of it: his own
+  // 2026-06-16 sourcing config already said "Gulf (Dubai/Doha/Riyadh) on-site+hybrid", so this is a
+  // preference being honoured again rather than a new one being invented.
+  //
+  // COUNTRIES AND THEIR MAJOR CITIES, and the cities earn their place here in a way they did not in
+  // the UK list. A UK row always carries the "united kingdom" tail, so nation names were enough.
+  // Gulf rows do not: the live probe returned "Dubai, United Arab Emirates" but also a bare
+  // "Doha Metropolitan Area" and a bare "Riyadh Region", neither of which names its country at all.
+  // A nation-only list would drop both.
+  //
+  // SIX TOKENS WERE CONSIDERED AND REFUSED, each for a collision that is real rather than imagined:
+  // 'sa'    two letters, and it is South Africa at least as often as Saudi Arabia. Both are inside
+  //         EMEA, so the collision is not even distant.
+  // 'qa'    Qatar's code, and also QUALITY ASSURANCE, which is one of the most common words in tech
+  //         hiring. A location field reading "QA" is a job function far more often than a country.
+  // 'ksa'   Kingdom of Saudi Arabia, and also Knowledge, Skills and Abilities, which is standard HR
+  //         vocabulary. Real Saudi postings say Saudi Arabia or Riyadh, so the token buys nothing.
+  // 'gulf'  LinkedIn's OWN typeahead resolves "Gulf" to Gulfport Mississippi, Gulf Breeze Florida
+  //         and Gulf Shores Alabama before anything Arabian. Measured, not guessed.
+  // 'gcc'   the Gulf Cooperation Council, and also the GNU Compiler Collection.
+  // 'ae'    two letters, no free-text location field ever carries it alone.
+  'Gulf': {
+    why: 'his own words 2026-09-15, and his 2026-06-16 config before that. ONSITE, HYBRID AND REMOTE all three, which is the difference from every scope except Sweden. He has worked the region and a Dubai or Riyadh onsite role is a job he can actually take.',
+    work_types: 'any',
+    tokens: [
+      'uae', 'u.a.e.', 'united arab emirates', 'emirates', 'dubai', 'abu dhabi', 'sharjah',
+      'qatar', 'doha', 'lusail',
+      'saudi', 'saudi arabia', 'riyadh', 'jeddah', 'jiddah', 'dammam', 'khobar',
+      'arabian gulf', 'persian gulf',
+    ],
+  },
+  // The other half of the same instruction, and the market list is a PROPOSAL rather than a record:
+  // nothing in the vault has ever named a non-EU European market. Switzerland and Norway, for the
+  // reasons written against the matching target in 05-plan-queries.js. The UK is also non-EU and is
+  // deliberately NOT here, because he named it separately and as remote only.
+  //
+  // FOUR TOKENS REFUSED, and two of them are the sharpest examples in this whole file because they
+  // came out of the live probe rather than out of caution:
+  // 'fully'  "Fully, Valais" is a real Swiss municipality and it was 1 of the 10 cards the Swiss
+  //          geoId returned. As a token it would match "fully remote" on every board this lane reads.
+  // 'time'   "Time, Rogaland" is a real Norwegian municipality and it was 1 of the 10 Norwegian
+  //          cards. As a token it would match "full time" and "part time".
+  // 'bergen' Norway's second city, and also Bergen op Zoom in the Netherlands and Bergen in Germany,
+  //          both of which are EU and would be pulled into an any-work-type scope by mistake.
+  // 'no'     Norway's country code and an ordinary English word. 'ch' is refused with it.
+  'Non-EU Europe': {
+    why: 'his own words 2026-09-15, "the gulf and non EU europe". ONSITE, HYBRID AND REMOTE. Switzerland and Norway: both outside the EU so the Remote EU scope does not already cover them, both real markets for this lane, and Norway is Nordic so the working culture is the closest fit to home that is not home.',
+    work_types: 'any',
+    tokens: [
+      'switzerland', 'swiss', 'suisse', 'schweiz', 'svizzera',
+      'zurich', 'geneva', 'geneve', 'basel', 'bern', 'lausanne', 'lugano',
+      'norway', 'norwegian', 'norge', 'oslo', 'trondheim', 'stavanger',
+    ],
+  },
   'Remote EMEA': {
-    why: 'his own words in the locations list. EMEA is Europe, the Middle East and Africa, so a job scoped to any of the three is inside the scope he asked for, and the scorer ranks it.',
-    tokens: ['emea', 'europe', 'european', 'middle east', 'africa', 'african'],
+    why: 'his own words in the locations list. EMEA is Europe, the Middle East and Africa. It is now the RESIDUAL of that set: the concrete markets he named inside it have their own scopes above, so what is left here is the Middle East beyond the Gulf, Africa, and any posting that simply says EMEA.',
+    // ANY work type, per his 2026-09-15 ruling, and it is safe to say so only because this list no
+    // longer carries 'europe'. While it did, an onsite Milan job matched EMEA as well as Remote EU
+    // and would have been kept under whichever rule fired first, which would have re-admitted onsite
+    // EU work through the back door of a scope that was never meant to grant it.
+    work_types: 'any',
+    // 'europe' and 'european' REMOVED 2026-09-15, see the Remote EU entry. Keeping the general terms
+    // for the parts of EMEA that no other scope claims.
+    tokens: ['emea', 'middle east', 'africa', 'african'],
   },
 };
+
+// ---------------------------------------------------------------------------------------------
+// THE PRECEDENCE RULE, because scopes overlap by construction and a row can match two of them.
+//
+// The scopes are nested in real life: the Gulf is inside the Middle East is inside EMEA, and the EU
+// is inside Europe is inside EMEA. So "which scope is this row in" has more than one true answer and
+// the lane has to pick one, because the WORK TYPE rule hangs off the answer and the two rules he
+// gave are opposites: the EU is remote only, EMEA takes anything.
+//
+// MOST SPECIFIC PLACE WINS. A row that names a country is judged by that country's rule; only a row
+// that names nothing more precise than a region falls through to the region's rule. Concretely:
+//   "Dubai, United Arab Emirates" onsite   -> Gulf      -> any work type   -> KEPT
+//   "Zurich, Switzerland" hybrid           -> Non-EU EU -> any work type   -> KEPT
+//   "Europe" onsite                        -> Remote EU -> remote only     -> DROPPED
+//   "EMEA" onsite                          -> EMEA      -> any work type   -> KEPT
+//
+// AND THE CASE THE ORDER EXISTS TO SETTLE, a posting whose location spells out
+// "Europe, Middle East and Africa". It carries 'europe' and it carries 'middle east'. Remote EU is
+// evaluated before Remote EMEA, so it is judged as a European job and the remote-only rule applies.
+// That is the conservative reading and it is the right one: the only geography that posting actually
+// asserts about itself is that Europe is in scope, and onsite in Europe outside Sweden is the one
+// thing his rule refuses. A posting that really is an onsite Gulf job names the Gulf, and then the
+// Gulf entry matches first and keeps it. Nothing about this order can drop a REMOTE row; it only
+// decides which rule an onsite row is judged by.
+//
+// Declared here rather than inherited from the order of the settings cell, which is what used to
+// decide it. A rule whose answer depends on how somebody typed a spreadsheet cell is not a rule.
+const GEO_PRECEDENCE = [
+  'Sweden',         // his home country, and the only scope where onsite was ever allowed before now
+  'Gulf',           // named countries and cities
+  'Non-EU Europe',  // named countries and cities
+  'Remote UK',      // named country
+  'Remote EU',      // region, remote only
+  'Remote EMEA',    // the widest region, and the residual
+];
+
+// Evidence that a row is NOT remote. Deliberately short and deliberately explicit: each of these is
+// a word a posting uses to say the work happens somewhere, and none of them is an inference.
+const NON_REMOTE_TOKENS = [
+  'hybrid', 'on-site', 'onsite', 'on site', 'in office', 'in-office', 'office based', 'office-based',
+];
+// Evidence that it IS remote. Only used to CANCEL the tokens above, never on its own: a location
+// reading "Hybrid remote" or "Remote or hybrid" says both, and a row that says both has not
+// demonstrated anything, so it is kept.
+const REMOTE_TOKENS = [
+  'remote', 'remotely', 'fully remote', 'work from home', 'wfh', 'telecommute', 'distributed',
+];
 
 // Always positive, whatever the locations list says, because a job open to everywhere is open to
 // everywhere he named.
@@ -268,11 +410,100 @@ const PLAN_CODE = require('./05-plan-queries.js').parameters.jsCode;
       if (tok !== tok.toLowerCase()) throw new Error('Filter: geography token ' + JSON.stringify(tok) + ' is not lowercase, and matching is done on a lowercased string.');
     }
   }
-  for (const list of [WORLDWIDE_TOKENS, NO_INFO_TOKENS]) {
+  for (const list of [WORLDWIDE_TOKENS, NO_INFO_TOKENS, NON_REMOTE_TOKENS, REMOTE_TOKENS]) {
     for (const tok of list) {
       if (typeof tok !== 'string' || tok.trim() === '' || tok !== tok.toLowerCase()) {
         throw new Error('Filter: ' + JSON.stringify(tok) + ' is not a usable lowercase token.');
       }
+    }
+  }
+
+  // 3a. EVERY SCOPE DECLARES ITS WORK TYPE RULE, and it must be one of the two words the runtime
+  // switches on. A scope with no rule would fall through to "not remote_only" and silently accept
+  // onsite work, which for Remote EU and Remote UK is precisely the thing he asked to be refused.
+  for (const k of Object.keys(GEO_TARGETS)) {
+    const wt = GEO_TARGETS[k].work_types;
+    if (wt !== 'any' && wt !== 'remote_only') {
+      throw new Error(
+        'Filter: geography target ' + JSON.stringify(k) + ' declares work_types ' + JSON.stringify(wt) + '.\n' +
+        '  It must be "any" or "remote_only". A missing value would read as "not remote only" and the\n' +
+        '  scope would accept onsite work without anybody choosing that.'
+      );
+    }
+  }
+
+  // 3b. THE TOKEN LISTS ARE DISJOINT. This is the check that keeps the precedence rule honest.
+  // While 'emea' sat in Remote EU and 'europe' sat in Remote EMEA, one string matched two scopes
+  // with OPPOSITE work type rules, and which one won came down to the order of a spreadsheet cell.
+  // Overlap is not banned because it is untidy, it is banned because the rule stops being decidable.
+  {
+    const owner = {};
+    const clashes = [];
+    for (const k of Object.keys(GEO_TARGETS)) {
+      for (const tok of GEO_TARGETS[k].tokens) {
+        if (owner[tok] !== undefined && owner[tok] !== k) clashes.push(JSON.stringify(tok) + ' is in both ' + owner[tok] + ' and ' + k);
+        owner[tok] = k;
+      }
+    }
+    if (clashes.length) {
+      throw new Error(
+        'Filter: ' + clashes.length + ' geography token(s) belong to more than one scope:\n  - ' + clashes.join('\n  - ') + '\n' +
+        '  Two scopes can hold opposite work type rules, so a row matching both has no defined answer.\n' +
+        '  Either the token belongs to exactly one scope, or the scopes are not really different.'
+      );
+    }
+    // A token that is ALSO an arrangement word would be stripped as "no geographic information"
+    // before it could ever match, so the scope would look populated and match nothing.
+    const arrangement = NO_INFO_TOKENS.concat(NON_REMOTE_TOKENS, REMOTE_TOKENS);
+    const ghosts = Object.keys(owner).filter((t) => arrangement.indexOf(t) !== -1);
+    if (ghosts.length) {
+      throw new Error(
+        'Filter: geography token(s) ' + JSON.stringify(ghosts) + ' are also arrangement words.\n' +
+        '  stripNoInfo removes those before the geography test runs, so the token could never fire and\n' +
+        '  the scope would silently be narrower than it reads.'
+      );
+    }
+  }
+
+  // 3c. THE PRECEDENCE LIST COVERS EVERY SCOPE EXACTLY ONCE. A scope missing from it would be
+  // unreachable at run time no matter how many tokens it carries, which is the most expensive kind
+  // of silent: the settings tab lists it, the plan searches it, and the filter never keeps a row for
+  // it. A duplicate would make the second copy dead and say nothing.
+  {
+    const want = Object.keys(GEO_TARGETS).slice().sort();
+    const have = GEO_PRECEDENCE.slice().sort();
+    const dupes = GEO_PRECEDENCE.filter((k, i) => GEO_PRECEDENCE.indexOf(k) !== i);
+    if (dupes.length) throw new Error('Filter: GEO_PRECEDENCE lists ' + JSON.stringify(dupes) + ' more than once.');
+    if (want.length !== have.length || want.some((k, i) => k !== have[i])) {
+      throw new Error(
+        'Filter: GEO_PRECEDENCE and GEO_TARGETS do not cover the same scopes.\n' +
+        '  targets:    ' + want.join(' | ') + '\n' +
+        '  precedence: ' + have.join(' | ') + '\n' +
+        '  A scope absent from the precedence list is never evaluated and can never keep a row.'
+      );
+    }
+  }
+
+  // 3d. THE TWO NODES AGREE ABOUT WORK TYPE. Plan Queries decides what LinkedIn is ASKED for
+  // (f_WT or no f_WT) and this node decides what is KEPT. They are two halves of one rule, written
+  // in two files, and they drift in a way no run reports: a scope asked for remote only but filtered
+  // as any collects nothing but remote and looks like a market with no onsite work in it, and the
+  // reverse collects onsite jobs and then throws them away after paying for the call.
+  {
+    const t = /^const LINKEDIN_TARGETS = (\{.*\});$/m.exec(PLAN_CODE);
+    const planTargets = JSON.parse(t[1]);
+    const bad = [];
+    for (const k of Object.keys(GEO_TARGETS)) {
+      const mine = GEO_TARGETS[k].work_types;
+      const theirs = planTargets[k] && planTargets[k].work_types_accepted;
+      if (theirs === undefined) { bad.push(k + ': Plan Queries carries no work_types_accepted'); continue; }
+      if (mine !== theirs) bad.push(k + ': this node says ' + JSON.stringify(mine) + ', Plan Queries says ' + JSON.stringify(theirs));
+    }
+    if (bad.length) {
+      throw new Error(
+        'Filter: the two nodes disagree about which work types a scope accepts:\n  - ' + bad.join('\n  - ') + '\n' +
+        '  Plan Queries sends the f_WT and this node enforces the rule. They have to be the same rule.'
+      );
     }
   }
 
@@ -434,30 +665,97 @@ function geoDecide(locationRaw, remote) {
   const low = raw.toLowerCase();
   const folded = fold(low);
   if (!HAS_CONTENT.test(low)) {
-    return { verdict: 'unknown', why: 'no location on the row', token: null };
+    return { verdict: 'unknown', why: 'no location on the row', token: null, scope: null };
   }
+  // ACTIVE_GEO_KEYS is ordered by GEO_PRECEDENCE, not by the settings cell, so the scope a row is
+  // judged in is the most SPECIFIC one it matches rather than whichever the sheet happened to list
+  // first. That matters because the scope decides the work type rule and two scopes can hold
+  // opposite ones.
   for (const key of ACTIVE_GEO_KEYS) {
     for (const tok of GEO_TARGETS[key].tokens) {
       if (tokenMatch(low, tok) || tokenMatch(folded, tok)) {
-        return { verdict: 'keep', why: 'matches the settings location ' + key, token: tok };
+        return { verdict: 'keep', why: 'matches the settings location ' + key, token: tok, scope: key };
       }
     }
   }
   for (const tok of WORLDWIDE_TOKENS) {
     if (tokenMatch(low, tok) || tokenMatch(folded, tok)) {
-      return { verdict: 'keep', why: 'open to everywhere, which includes every location in the settings tab', token: tok };
+      // Deliberately carries NO scope. A job open to everywhere is open to Sweden, and Sweden
+      // accepts every work type, so there is no remote-only rule that could honestly be applied to
+      // it. Handing it a scope would mean picking one of his locations arbitrarily and then
+      // enforcing that location's work type rule on a posting that named no location at all.
+      return { verdict: 'keep', why: 'open to everywhere, which includes every location in the settings tab', token: tok, scope: null };
     }
   }
   const left = stripNoInfo(folded);
   if (!HAS_CONTENT.test(left)) {
-    return { verdict: 'unknown', why: 'the location says how the work is done, not where, so it is not evidence of anywhere', token: null };
+    return { verdict: 'unknown', why: 'the location says how the work is done, not where, so it is not evidence of anywhere', token: null, scope: null };
   }
   return {
     verdict: 'drop',
     why: remote === true
       ? 'a remote job restricted to somewhere that is not in the settings locations'
-      : 'onsite outside Sweden',
+      : 'names a place that is not in the settings locations',
     token: null,
+    scope: null,
+  };
+}
+
+// --- work type --------------------------------------------------------------
+// THE RULE HE ASKED FOR ON 2026-09-15, and the half of it that matters is what it REFUSES to do.
+//
+// "stop dropping them" is the instruction, so the burden of proof sits on the drop. A scope that
+// accepts any work type never drops. A remote-only scope drops a row ONLY on evidence that the row
+// is actually not remote, and an ABSENT work type is not that evidence.
+//
+// That asymmetry is not caution for its own sake, it is forced by what the sources actually carry:
+//   six boards hardcode remote:true, so they can never state otherwise;
+//   arbeitnow is the only board that measures it per row, and its extractor returns null rather
+//     than false when the field is missing, so a false here was really measured;
+//   LinkedIn has no remote field at all and the value is INFERRED FROM THE REQUEST, true when the
+//     query carried f_WT=2 and null otherwise. The new Gulf and non-EU Europe scopes send no f_WT
+//     on purpose, so every row they collect arrives with remote null.
+// If null were treated as onsite, those two brand new scopes would collect rows all morning and
+// this node would throw every one of them away, and the run report would show a healthy collection
+// and an empty sheet. That is the exact failure the rule is written against.
+//
+// THE THREE THINGS THAT COUNT AS EVIDENCE, and nothing else does:
+//   E1  the row states remote === false, which only a source that measures it per row can produce.
+//   E2  the location string carries an arrangement word that means somewhere ("hybrid", "on-site")
+//       and does NOT also carry a remote word. A string saying both has demonstrated nothing.
+//   E3  the query itself asked for onsite or hybrid (f_WT 1 or 3). No scope sends those today, so
+//       this is a guard against a future setting rather than a live rule, and it is here because a
+//       rule that only handles today's values is how the next change ships a hole.
+function workTypeDecide(row, scopeKey) {
+  if (!scopeKey || !GEO_TARGETS[scopeKey]) {
+    return { verdict: 'keep', why: 'no scope was resolved for this row, so there is no work type rule to apply', evidence: null };
+  }
+  const rule = GEO_TARGETS[scopeKey].work_types;
+  if (rule !== 'remote_only') {
+    return { verdict: 'keep', why: 'the scope ' + scopeKey + ' accepts every work type', evidence: null };
+  }
+  const c = row._collect || {};
+  const loc = fold(String(row.location === null || row.location === undefined ? '' : row.location).toLowerCase());
+
+  if (row.remote === false) {
+    return { verdict: 'drop', why: scopeKey + ' is remote only and the source states this row is not remote', evidence: 'remote===false, stated per row by the source' };
+  }
+  let said = null;
+  for (const tok of NON_REMOTE_TOKENS) { if (tokenMatch(loc, tok)) { said = tok; break; } }
+  if (said) {
+    let cancels = null;
+    for (const tok of REMOTE_TOKENS) { if (tokenMatch(loc, tok)) { cancels = tok; break; } }
+    if (!cancels) {
+      return { verdict: 'drop', why: scopeKey + ' is remote only and the location says ' + JSON.stringify(said), evidence: 'location token ' + JSON.stringify(said) + ' with no remote word beside it' };
+    }
+  }
+  if (c.work_type === '1' || c.work_type === '3') {
+    return { verdict: 'drop', why: scopeKey + ' is remote only and the query asked LinkedIn for f_WT=' + c.work_type, evidence: 'f_WT=' + c.work_type + ' is onsite or hybrid' };
+  }
+  return {
+    verdict: 'keep',
+    why: scopeKey + ' is remote only and nothing on this row demonstrates it is not remote, so it is kept rather than dropped on an absent inference',
+    evidence: null,
   };
 }
 
@@ -536,6 +834,12 @@ for (const loc of F.locations) {
   }
   ACTIVE_GEO_KEYS.push(loc);
 }
+// ORDERED BY GEO_PRECEDENCE, never by the settings cell. The sheet decides WHICH scopes are active;
+// this file decides in what order they are tested, because the order settles what happens to a row
+// that matches two of them and those two can carry opposite work type rules. Sorting here rather
+// than trusting the cell is what makes "most specific place wins" a property of the code instead of
+// a property of how somebody typed a list.
+ACTIVE_GEO_KEYS.sort((a, b) => GEO_PRECEDENCE.indexOf(a) - GEO_PRECEDENCE.indexOf(b));
 
 // --- the four rules ---------------------------------------------------------
 const counts = {
@@ -545,11 +849,15 @@ const counts = {
   dropped_no_keep_term: 0,
   dropped_no_title: 0,
   dropped_geo: 0,
+  dropped_work_type: 0,
   dropped_too_old: 0,
 };
 const dropTermHits = {};
 const keepTermHits = {};
 const geoDropSamples = {};
+const workTypeDropSamples = {};
+const workTypeDropEvidence = {};
+let workTypeKeptUnproven = 0;
 const perSourceIn = {};
 const perSourceKept = {};
 let keptUndated = 0;
@@ -612,10 +920,12 @@ for (const it of jobs) {
   }
   keepTermHits[keepHit] = (keepTermHits[keepHit] || 0) + 1;
 
-  // 3. geography.
+  // 3. geography. It also RESOLVES THE SCOPE, which rule 3b then judges the work type against.
+  let scopeKey = null;
   const serverGeo = typeof c.location_setting === 'string' && GEO_TARGETS[c.location_setting] !== undefined;
   if (serverGeo) {
     geoSkippedServerSide += 1;
+    scopeKey = c.location_setting;
     f.detail = 'geography was applied at the source, the search was aimed at ' + c.location_setting;
   } else {
     const g = geoDecide(row.location, row.remote);
@@ -626,8 +936,30 @@ for (const it of jobs) {
       continue;
     }
     if (g.verdict === 'unknown') geoUnknownKept += 1;
+    scopeKey = g.scope;
     f.detail = g.why;
   }
+  f.scope = scopeKey;
+
+  // 3b. WORK TYPE, new 2026-09-15. The scope resolved above says which work types he will take
+  // there, and a row is dropped only on real evidence that it is not remote in a scope that is
+  // remote only. Everything unproven is KEPT and counted, because dropping on an absent inference
+  // is how a lane quietly collects nothing.
+  const wt = workTypeDecide(row, scopeKey);
+  f.work_type_rule = scopeKey && GEO_TARGETS[scopeKey] ? GEO_TARGETS[scopeKey].work_types : null;
+  if (wt.verdict === 'drop') {
+    counts.dropped_work_type += 1;
+    workTypeDropSamples[scopeKey] = (workTypeDropSamples[scopeKey] || 0) + 1;
+    const ev = wt.evidence || 'unstated';
+    workTypeDropEvidence[ev] = (workTypeDropEvidence[ev] || 0) + 1;
+    continue;
+  }
+  if (wt.evidence === null && f.work_type_rule === 'remote_only' && row.remote !== true) {
+    // Kept in a remote-only scope without being able to show it is remote. Counted so the size of
+    // the benefit of the doubt is readable rather than assumed.
+    workTypeKeptUnproven += 1;
+  }
+  f.work_type_detail = wt.why;
 
   // 4. freshness, on the window the plan computed.
   if (c.window_filtered_server_side === true) {
@@ -682,6 +1014,20 @@ if (counts.dropped_geo > 0) {
     'kept is a missing token in the geography vocabulary, which is one line in nodes/20-filter.js.'
   );
 }
+if (counts.dropped_work_type > 0) {
+  warnings.push(
+    counts.dropped_work_type + ' row(s) were dropped on WORK TYPE: they landed in a scope that is remote only and ' +
+    'carried real evidence of not being remote. The evidence that did it is in work_type.dropped_on_evidence. ' +
+    'Nothing is dropped here for an UNKNOWN work type, so this count can only grow when a source actually says so.'
+  );
+}
+if (workTypeKeptUnproven > 0) {
+  warnings.push(
+    workTypeKeptUnproven + ' row(s) were KEPT in a remote-only scope without being able to prove they are remote. ' +
+    'That is the rule working as written rather than a gap: dropping on an absent inference is how a lane quietly ' +
+    'collects nothing. Read this number beside work_type.dropped if the sheet starts carrying onsite jobs he cannot take.'
+  );
+}
 if (counts.jobs_in > 0 && counts.kept === 0) {
   warnings.push(
     'every one of the ' + counts.jobs_in + ' collected row(s) was filtered out. That is a real possible outcome on a ' +
@@ -726,10 +1072,25 @@ const stageReport = {
   geo: {
     rule: F.geo_rule || null,
     locations: F.locations,
+    precedence: ACTIVE_GEO_KEYS.slice(),
+    precedence_why: 'most specific place first. A row matching two scopes is judged in the narrower one, because the scope decides the work type rule and two scopes can hold opposite rules. Declared in the node, never inherited from the order of the settings cell.',
     skipped_filtered_at_source: geoSkippedServerSide,
     kept_unknown_location: geoUnknownKept,
     dropped: counts.dropped_geo,
     dropped_locations: geoDropSamples,
+  },
+  work_type: {
+    rule: 'per scope. Sweden, Gulf, Non-EU Europe and Remote EMEA accept onsite, hybrid and remote. Remote EU and Remote UK are remote only.',
+    per_scope: (function () {
+      const o = {};
+      for (const k of ACTIVE_GEO_KEYS) o[k] = GEO_TARGETS[k].work_types;
+      return o;
+    }()),
+    dropped: counts.dropped_work_type,
+    dropped_by_scope: workTypeDropSamples,
+    dropped_on_evidence: workTypeDropEvidence,
+    kept_unproven_in_remote_only_scope: workTypeKeptUnproven,
+    burden_of_proof: 'on the DROP. A row is dropped only where the source states remote===false, or the location names an arrangement that means somewhere with no remote word beside it, or the query itself asked for onsite or hybrid. An unknown work type is KEPT, because six of the eight sources cannot state it at all and LinkedIn only infers it from the request.',
   },
   language: {
     rule: F.language_rule || null,
@@ -773,6 +1134,9 @@ const jsCode = [
   `const GEO_TARGETS = ${JSON.stringify(GEO_TARGETS)};`,
   `const WORLDWIDE_TOKENS = ${JSON.stringify(WORLDWIDE_TOKENS)};`,
   `const NO_INFO_TOKENS = ${JSON.stringify(NO_INFO_TOKENS)};`,
+  `const GEO_PRECEDENCE = ${JSON.stringify(GEO_PRECEDENCE)};`,
+  `const NON_REMOTE_TOKENS = ${JSON.stringify(NON_REMOTE_TOKENS)};`,
+  `const REMOTE_TOKENS = ${JSON.stringify(REMOTE_TOKENS)};`,
   `const LANE_NUMBER = ${JSON.stringify(String(L.lane))};`,
   LOGIC,
 ].join('\n');

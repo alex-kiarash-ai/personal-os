@@ -107,3 +107,43 @@ A letter-only failure gets ONE reasoned rewrite with the failed checks named as 
 Page count is asserted TWO ways, the `/Type /Page` regex over the bytes and `extractFromFile`'s own
 `numpages`, because the render safety law forbids trusting the text layer alone: clipped text still
 extracts.
+
+---
+
+## AMENDMENT: D10 is superseded (2026-09-15, Shaheen)
+
+**The approved D10 read:** "Red flags that BLOCK auto-generation: onsite only (outside Sweden) and
+Swedish fluent required. Not contract or freelance, not seniority below his level: those still get
+written."
+
+**His instruction that changes it**, in two messages on 2026-09-14 night:
+*"Make it like this Sweden and EMEA (hybrid, onsite, remote), Euorope and UK ( remote only)"*, then,
+asked which EMEA markets he actually wanted searched, *"the gulf and non EU europe, and stop dropping
+them"*.
+
+**D10, replacement text. Work type is a scope question, not a global block.** A job is blocked for
+work type only where the collecting scope is remote only AND the row is demonstrably not remote.
+Remote EU and Remote UK are the two remote-only scopes: he has no UK right to work, so an onsite
+London role can never become an application. Sweden, the Gulf (United Arab Emirates, Qatar, Saudi
+Arabia) and non-EU Europe (Switzerland, Norway) accept onsite, hybrid and remote alike, on his
+2026-09-14 instruction and on his 2026-06-16 sourcing config before it. So an onsite role in Dubai,
+Doha, Riyadh, Zurich or Oslo is a CV worth writing and must NOT be blocked. **Where the work type is
+unstated, write the CV.** Most sources in this pipeline cannot state it at all, LinkedIn only infers
+it from the request, and the two newest scopes send no work-type filter by design, so every row they
+deliver arrives with work type null. Treating null as onsite would silently block the entire Gulf and
+non-EU Europe intake while every count upstream looked healthy. The Swedish-fluent-required block is
+unchanged. Contract, freelance and below-his-level seniority still get written, unchanged.
+
+**The collector already enforces the scope rule**, so by the time a row reaches the applications
+queue it should already comply. D10 in #36 is therefore belt-and-braces rather than the primary gate,
+and a row arriving that violates its own scope rule is a signal the collector is wrong, which the
+run report should say rather than silently absorb.
+
+**Every surviving row carries `_filter.scope` and `_filter.work_type_rule`**, so #36 branches on the
+scope the collector already decided rather than re-deriving geography from a location string. Two
+components deriving the same fact from the same raw text is how they drift.
+
+**Also swept, per the same amendment:** any plan text describing the pipeline as "remote outside
+Sweden" is now false; any step reading `remote` as a boolean must not treat falsy as onsite, because
+null and false are different and the collector preserves that distinction deliberately; and any
+scoring or ranking step that penalises onsite would now be penalising exactly what he asked to see.
