@@ -154,9 +154,12 @@ Carried from Agent 1's discrepancy table in the contract. Each one is a case whe
   the lane. Stage B must treat a 429 or a 999 from LinkedIn as a degraded source with a named reason, not
   as an empty result. The fallbacks, if it bites, are Jina Reader on a public job page or the Bright Data
   LinkedIn dataset, both documented in the research page.
-- **Anthropic credits are exhausted** (human-action `anthropic-api-credits-run89`, open since 2026-08-08).
-  Stage F will 4xx until Shaheen closes it. Stages A to E run regardless, and that is the reason the
-  scoring call is the LAST stage rather than an early one.
+- ~~**Anthropic credits are exhausted** (human-action `anthropic-api-credits-run89`, open since
+  2026-08-08). Stage F will 4xx until Shaheen closes it.~~ **FALSE AS OF 2026-09-15 and corrected
+  here rather than left to mislead.** Both scheduled runs this morning SCORED and were billed:
+  execution 5283 scored 1/1 for $0.0152 and execution 5285 scored 15/15 for $0.0988. Credits exist.
+  The design point below still stands and is the reason the lane survived the outage at all: the
+  scoring call is the LAST stage, so stages A to E run regardless.
 - ~~**Sweden and European Union LinkedIn geoIds are unresolved.** Only Stockholm `100907646` is confirmed.
   A geoId nobody verified returns results for the wrong place and looks perfectly healthy.~~
   **CLOSED 2026-09-14 (seat 1 of the #36 relay), and the sentence above stays because it is still the
@@ -226,9 +229,16 @@ V6 leg (c) asserts the declared cron and V9 no longer ages this lane.
 Three real manual executions, all `mode: manual`, all `success`: 5154 (2026-09-11, whose twenty
 surviving rows are the eval fixture), 5182 (2026-09-12: searched 950, filtered 102, held 20, scored
 0/20, wrote 0 rows, `last_run_at` HELD, verdict `scoring_down budget_hit degraded:himalayas`) and 5240
-(2026-09-14, the first run of the current build, same verdict). No cron has ever fired.
+(2026-09-14, the first run of the current build, same verdict). ~~No cron has ever fired.~~ **The cron
+fired for the first time on 2026-09-15: execution 5283 (#34, 06:30) and 5285 (#35, 06:45), both
+`mode: trigger`, both success.**
 
-**The lane has never written a job row, and that is correct behaviour rather than a defect.** Every
+~~**The lane has never written a job row, and that is correct behaviour rather than a defect.**~~
+**SUPERSEDED 2026-09-15.** #35 wrote 5 rows on its first cron run (execution 5285, `ok`, 15 scored,
+$0.0988, writes read back and verified). #34 the same morning searched 620 and wrote 0, and that zero
+is the DEDUPE working rather than a failure: the rows it found were already in the sheet from the
+2026-09-14 manual runs, so its verdict was `no_new_jobs`. The paragraph below explains the behaviour
+during the credit outage and is kept because the design point is unchanged. Every
 Anthropic call returns credit-exhausted, an unscored row is never written, so the write branch receives
 zero rows and the window is held. Restoring credits is what turns this lane on, and per Shaheen's
 sequence that comes after #34 and #35 are both finished and #03/#14/#32 are off.
