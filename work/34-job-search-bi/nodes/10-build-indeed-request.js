@@ -121,6 +121,26 @@ const MAX_EXPECTED_UNITS = 20;
 
 const INPUT_MAP = S.input_fields.map;
 const PROBED = S.probed === true;
+// The inputs that actually narrow a search, read from the contract rather than named here. A
+// constant like `domain` must never be in this list: it is always present, so counting it as a
+// criterion is what made the emptiness guard unreachable in the first place.
+const DISCRIMINATING = S.input_fields.discriminating;
+(function assertDiscriminating() {
+  if (!Array.isArray(DISCRIMINATING) || !DISCRIMINATING.length) {
+    throw new Error(
+      'Build Indeed Request: the contract carries no input_fields.discriminating list for ' + SOURCE_KEY + '.\n' +
+      '  Without it the empty-input guard cannot tell a search criterion from a routing constant, and a\n' +
+      '  unit with nothing to search for would be POSTed as a paid scrape of the whole board.'
+    );
+  }
+  const unmapped = DISCRIMINATING.filter((f) => !(f in INPUT_MAP));
+  if (unmapped.length) {
+    throw new Error(
+      'Build Indeed Request: input_fields.discriminating names ' + unmapped.join(', ') + ', which the input map\n' +
+      '  does not carry. A criterion the builder never emits cannot be counted as one.'
+    );
+  }
+}());
 
 const LOGIC = `
 // ---------------------------------------------------------------------------
@@ -167,8 +187,21 @@ for (const u of units) {
     if (v === null || v === undefined || v === '') { omitted.push({ seq: u.seq, field: field, from: from }); continue; }
     entry[field] = v;
   }
-  if (!Object.keys(entry).length) {
-    throw new Error('Build Indeed Request: planned unit seq ' + u.seq + ' produced an EMPTY trigger input. Every field in the contract input map resolved to nothing on that unit, so the request would ask Bright Data to discover jobs matching no criteria at all.');
+  // THE EMPTINESS TEST COUNTS CRITERIA, NOT FIELDS, corrected 2026-09-15.
+  //
+  // It used to refuse a unit only when EVERY mapped field resolved to nothing. That was right while
+  // the map held term, location and country. On 2026-09-14 the contract gained 'domain', which Plan
+  // Queries stamps with a constant on every unit, and from that moment the condition was unreachable:
+  // a unit with no term, no location and no country still produced { domain: 'indeed.com' }, passed
+  // this guard, and would have been POSTed as a paid scrape of the entire board. The run would have
+  // reported success and the bill would have been the only evidence.
+  //
+  // So the question is not "did any field survive" but "did anything that NARROWS the search
+  // survive". The contract names those in input_fields.discriminating, because which field is a
+  // criterion and which is routing is knowledge about the dataset and belongs with the dataset.
+  const criteria = DISCRIMINATING.filter((f) => entry[f] !== undefined);
+  if (!criteria.length) {
+    throw new Error('Build Indeed Request: planned unit seq ' + u.seq + ' produced an EMPTY trigger input. None of the discriminating fields the contract names (' + DISCRIMINATING.join(', ') + ') resolved on that unit, so the request would ask Bright Data to discover jobs matching no criteria at all and bill for every record it found. Fields present: ' + (Object.keys(entry).join(', ') || 'none') + '.');
   }
   inputs.push(entry);
 }
@@ -234,6 +267,7 @@ const jsCode = [
   '// Edit that file and re-run build.js. Editing this node in the n8n editor loses the change.',
   `const SOURCE_KEY = ${JSON.stringify(SOURCE_KEY)};`,
   `const INPUT_MAP = ${JSON.stringify(INPUT_MAP)};`,
+  `const DISCRIMINATING = ${JSON.stringify(DISCRIMINATING)};`,
   `const INPUT_SHAPE_VERIFIED = ${JSON.stringify(PROBED && S.input_fields._verified === true)};`,
   `const PRICE_PER_RECORD_USD = ${JSON.stringify(S.price_per_record_usd)};`,
   LOGIC,
