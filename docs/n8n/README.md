@@ -1,13 +1,13 @@
 # The n8n Automations - Plain-Language Guide
 
-This folder documents the n8n workflows that exist on Shaheen's server (n8n.shaheenkiarash.com, a small Hetzner cloud box). Most are running. A few are deliberately switched off and say so in their own row: a workflow can be finished, documented and waiting, and pretending otherwise is how a dead automation hides in a list of live ones. One folder per workflow. Each folder holds exactly two files:
+This folder documents the n8n workflows that exist on Shaheen's server (n8n.shaheenkiarash.com, a small Hetzner cloud box). Most are running. A few are deliberately switched off and say so in their own row: a workflow can be finished, documented and waiting, and pretending otherwise is how a dead automation hides in a list of live ones. One folder per workflow. Each folder holds exactly two files, with one honest exception noted in its own row:
 
 - **workflow.json** - the latest export of the real workflow, pulled straight from the server. This is a working backup: if the server ever dies, open n8n anywhere → Workflows → "Import from File" → pick this file, reconnect the credentials, and the automation is back.
 - **README.md** - what the automation does, why it exists at all, and what every step (every "node") does, written so a non-technical person can follow it.
 
-Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03; radar-collector added 2026-07-06; the two job-search lanes added 2026-09-14, both built and both switched off). Refresh recipe at the bottom.
+Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03; radar-collector added 2026-07-06; the two job-search lanes added 2026-09-14, both built and both switched off; the job application writer added 2026-09-15, built offline and NOT on the server). Refresh recipe at the bottom.
 
-## The 21 documented workflows
+## The 22 documented workflows
 
 | Folder | What it is, in one line |
 |---|---|
@@ -32,6 +32,7 @@ Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03; radar-
 | [writer-voice-eval](writer-voice-eval/) | The voice regression test for the job engines' writer. Switched off on purpose: it is run by hand, six set cases, and it has to score six out of six. |
 | [34-job-search-bi](34-job-search-bi/) | The Power BI job scout: every weekday it reads LinkedIn and six free job boards, scores what it finds against what Shaheen does, and fills a spreadsheet. It never applies. Built 2026-09-11, switched off. |
 | [35-job-search-ai](35-job-search-ai/) | The same 49 steps aimed at AI and automation jobs instead, fifteen minutes later so the two never call the same board in the same minute. Built 2026-09-14, switched off, never run. |
+| [36-job-application-writer](36-job-application-writer/) | The writing half: reads what both scouts found and turns every job scoring 70 or better into a tailored one-page CV and a cover letter in a Drive folder. It writes, it never applies. **Documented 2026-09-15 as 74 files on a laptop: nothing exists on the server yet, so this is the one folder here with no workflow.json.** |
 
 *(Five of those rows were added 2026-09-14. The folders and their READMEs already existed; only the table was missing them, so the heading above counted 21 while the list showed 16. The two job-search rows had also landed outside the table, which renders as a stray second table with no header.)*
 
