@@ -165,3 +165,34 @@ is deferred deliberately, not overlooked.
 Sweden" is now false; any step reading `remote` as a boolean must not treat falsy as onsite, because
 null and false are different and the collector preserves that distinction deliberately; and any
 scoring or ranking step that penalises onsite would now be penalising exactly what he asked to see.
+
+
+---
+
+## ORCHESTRATOR CARRY-OVERS (open, tracked here so no seat has to remember them)
+
+**1. The manifest row, and the voice-sync enrolment that hangs off it.** `system/manifest.json` has no
+`#36` row, so #36 is NOT enrolled in the voice sync: `scripts/lib/sync-n8n-voice.js` filters on
+`voice_sync === true && p.n8n`, and a project with neither is silently not a target. Seat 5 found this.
+It is NOT urgent and it is NOT a defect today, because seat 5 bakes the voice block at BUILD time from
+soul.md, so a `--rebuild` carries a current block by construction and the later sync sees an identical
+stable part and no-ops. What it means is that the block will never REFRESH on its own until the row
+exists.
+
+The row cannot simply be added now, and the ordering is the reason: V12 requires a `## Trifecta`
+heading with `Gate: **draft-only**` in `work/36-*/CLAUDE.md`, and that file is seat 9's deliverable; and
+the `n8n` id is null until seat 8 creates the workflow on the box. Adding the row early would fail the
+generator. So: **seat 8 writes the id, seat 9 writes the CLAUDE.md, and the orchestrator adds the
+manifest row and runs the generator after both**, which is also when V6 leg (c) and the 08:10 active
+watcher start covering this lane.
+
+**2. `work/23-self-review/close-out-grader/rubric.md` carries an en dash.** Seat 5 refused to bake it
+verbatim and rendered each occurrence as an escape with the prompt saying so, which is right, and it
+did NOT edit the rubric. The occurrences sit inside PV1 examples illustrating a dash carve-out that
+Shaheen REVERSED on 2026-08-20 ("you have use this in both versions PDF and Word, you already have
+this role, NEVER AGAIN use it"). `scripts/lib/voice-rules.js` already follows the reversal, so the
+rubric is the stale surface. It is a /self-review item, not a #36 item, and it is queued as one.
+
+**3. soul.md grew about 3KB mid-seat.** That was the orchestrator harvesting a My Words entry on
+2026-09-15, not drift. Worth stating because node 29's `jsCode` changes with the corpus BY DESIGN, so
+two builds either side of a harvest are legitimately different bytes.

@@ -65,6 +65,40 @@
  * HIS text and the unit the one-page ceiling is actually paid for in.
  *
  * ============================================================================================
+ * THE TWO HEADER SHAPES, and why the PARSER is the thing that reconciles them.
+ *
+ * The two masters are written in genuinely different shapes and only one of them is a document.
+ *
+ *   the AI mirror is DOCUMENT SHAPED already: an H1 carrying his name, a title line, one fused
+ *   contact line, then the work authorization line
+ *
+ *   the Power BI master is a LABELLED DATA STRUCTURE: "## HEADER" over a bullet list of
+ *   "Name:", "Role line:", "Email:", "Phone:", "LinkedIn:", "Location:", "Work authorization:"
+ *   and "Photo (for rendered CVs):"
+ *
+ * That shape is HIS, it predates this project, it is read by other things, and it is the format he
+ * chose. So it is not amended to suit a parser. The parser learns the second shape and emits the
+ * first one, which is why normalizeLabelledHeader() exists.
+ *
+ * This was found by seat 6 rendering a real Power BI PDF: the page opened with a teal section rule
+ * titled HEADER over seven labelled rows, and carried no H1 at all, so the document had no title
+ * and his name read as a form field. The labels are markup in his data format; a CV does not print
+ * "Name:" any more than it prints "## HEADER".
+ *
+ * WHAT NORMALIZATION DOES, and what it deliberately does not:
+ *   "Name:"              becomes the H1, the same block the AI master already has
+ *   "Role line:"         becomes the title line under it
+ *   Location, Email, Phone, LinkedIn fold into ONE contact line, in the AI master's own field
+ *                        order and with its own " | " separator, because that master is the one
+ *                        already shaped like a page and matching it is the whole point
+ *   "Work authorization:" keeps its label, verbatim, because A11 asserts that exact string
+ *   "Photo (...):"       stays a directive and never prints. It is a local file path.
+ *   an UNRECOGNISED label REFUSES THE BUILD. See normalizeLabelledHeader for the argument.
+ *
+ * His words are never touched: every value is the master's own substring, and the only characters
+ * this file contributes are the separators between them.
+ *
+ * ============================================================================================
  * WHAT THIS FILE IS NOT. It is not a node. The leading underscore keeps it out of build.js's node
  * glob (/^\d+-.+\.js$/), the same convention as work/34-job-search-bi/nodes/_lane.js. It runs on
  * THIS machine at build time and bakes its output into node parameters. The n8n box cannot read
