@@ -139,9 +139,27 @@ queue it should already comply. D10 in #36 is therefore belt-and-braces rather t
 and a row arriving that violates its own scope rule is a signal the collector is wrong, which the
 run report should say rather than silently absorb.
 
-**Every surviving row carries `_filter.scope` and `_filter.work_type_rule`**, so #36 branches on the
-scope the collector already decided rather than re-deriving geography from a location string. Two
+~~**Every surviving row carries `_filter.scope` and `_filter.work_type_rule`**, so #36 branches on the
+scope the collector already decided rather than re-deriving geography from a location string.~~
+
+**CORRECTED 2026-09-15, and this sentence was WRONG when it was written.** Seat 3 found it while
+building node 05. Those two fields exist INSIDE the collector workflow and never leave it: the jobs
+TAB is fifteen columns (`shared_row_shape`) and not one of them is scope. By the time a row reaches
+#36 the collector's decision has been dropped on the floor, so there was nothing to branch on. The
+principle the sentence states is still right, which is why it is struck rather than deleted: two
 components deriving the same fact from the same raw text is how they drift.
+
+**What seat 3 built instead, and why it is the honest second-best.** `Build Candidates` recovers the
+scope from the `location` cell using the collector's OWN `GEO_TARGETS` and `GEO_PRECEDENCE`, read out
+of `20-filter.js` at build time rather than restated, and stamps `scope_source:
+'recovered_from_location'` so no verdict downstream can be mistaken for the collector's own. Only the
+MATCHER is local; the tables are the collector's. That keeps the drift surface to one function instead
+of two rule sets.
+
+**The real fix is a SIXTEENTH COLUMN on the jobs tab**, carrying the scope the collector decided. It is
+not done because it moves both collectors, both sheet headers, every guard that asserts fifteen
+columns, and it needs a human step in the middle to widen the live tabs. It is the right change and it
+is deferred deliberately, not overlooked.
 
 **Also swept, per the same amendment:** any plan text describing the pipeline as "remote outside
 Sweden" is now false; any step reading `remote` as a boolean must not treat falsy as onsite, because
