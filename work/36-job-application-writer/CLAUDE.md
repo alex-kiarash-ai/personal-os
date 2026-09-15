@@ -427,7 +427,14 @@ Two conventions that are not style:
 - **It has never run.** Not on the box, not by hand, not as a drill. Every claim above about behaviour
   is a claim about code that has been read and tested offline, and offline tests cannot fail the way a
   live call can.
-- **The `writer_runs` tab does not exist in either spreadsheet.** Google fails a `values:batchGet`
+- ~~**The `writer_runs` tab does not exist in either spreadsheet.**~~ **CLOSED 2026-09-16.** Shaheen
+  created both tabs. Verified by the orchestrator through the Google Drive MCP rather than taken on
+  report: the header row in BOTH spreadsheets is an exact twelve-column match for
+  `WRITER_RUNS_COLUMNS`, in order, compared cell by cell against the list read out of `_lane.js`.
+  The reasoning below is kept because the RULE it explains is still the rule and is why the check
+  is worth having at all.
+- **The `writer_runs` tab used to be missing, and here is why that mattered.** Google fails a
+  `values:batchGet`
   whose ranges name a missing sheet with a 400 for the WHOLE request, not a partial result, so until
   both tabs are created the first run refuses BOTH lanes by name with `error:writer_runs_missing`. That
   is correct rather than unfortunate: a daily cap that cannot count today is not a cap, and this lane
