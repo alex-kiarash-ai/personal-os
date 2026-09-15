@@ -554,13 +554,24 @@ Beyond the universal list:
 checks, and 97, 135, 139, 112 and 109 across stages 1 to 5, **740 in total**, with every guard shown
 refusing a synthetic violation before its pass was reported. Seats 2, 3, 4, 5, 6, 6b and 7 are closed.
 
-What does NOT exist, stated plainly so nobody reads the above as a working lane:
-- the workflow on the box (`workflow_id` is null in the lane file)
-- `config/build.js`, the assembler that would put it there
-- the `writer_runs` tab in either spreadsheet
+What does NOT exist, stated plainly so nobody reads the above as a working lane. **Two entries were
+struck on 2026-09-16 within the hour, and they are kept struck rather than deleted because this list
+sat two screens below the corrections and still contradicted them, which is how a spec ends up
+arguing with itself:**
+- the workflow on the box (`workflow_id` is null in the lane file) **STILL TRUE, verified against the
+  live box on 2026-09-16: no workflow matching #36 exists**
+- ~~`config/build.js`, the assembler that would put it there~~ **FALSE. The builder is SHARED with #34
+  and #35 and it drives this lane through `--lane`. See the Build tooling section above.**
+- ~~the `writer_runs` tab in either spreadsheet~~ **FALSE since 2026-09-16. Both tabs exist and both
+  headers were verified cell by cell against `WRITER_RUNS_COLUMNS` through the Drive MCP.**
 - the `#36` row in `system/manifest.json`
 - any live Gotenberg call, so the render path is unmeasured
-- the letter-eval regression workflow, the census, and the first-fire drill at cap 2, which are seat 8
+- the letter-eval regression workflow and the first-fire drill at cap 2, which are seat 8. The node
+  CENSUS has been taken offline (74 nodes: 25 code, 14 httpRequest, 14 IF, 14 Merge, 2 convertToFile,
+  1 extractFromFile, 2 googleDrive, 2 triggers; all 14 Merges declare `numberInputs`; exactly one node
+  retries and it is Render PDF; exactly one node is named `Build Writer Request` and it is the same one
+  that carries the voice block; one terminal node, Assert Run; no duplicate names). Seat 8 still owns
+  the census AGAINST THE LIVE WORKFLOW, which is a different claim from the census against the files.
 
 **Seat 8 has not run.** It owns the regression eval (a verbatim copy of the live prose node, six
 seeded cases, and it has to be 6/6), the node census, the first-fire drill at cap 2 on one lane, and
