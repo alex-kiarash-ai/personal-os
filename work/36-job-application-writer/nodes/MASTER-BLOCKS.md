@@ -55,7 +55,9 @@ fallback slug. Parsing stays permissive; the fixture is what raises the alarm on
 ## 3. Granularity: one block is one bullet, one paragraph line, or one heading
 
 Measured against the real documents, not assumed. The AI master's printable half is 96 lines, 64
-blocks; the Power BI master's is 88 lines, 65 blocks. Most of those blocks are single bullets.
+blocks; the Power BI master's is 88 lines, 61 blocks. Most of those blocks are single bullets. The
+Power BI count is 61 rather than one per line because its labelled header folds eight lines into four
+printing blocks plus one directive, which is section 4B.
 
 **Smaller fails the whole design.** Every bullet in both masters is already exactly one sentence of
 his own text. Splitting a bullet into clauses would let a selector recombine two half sentences into
@@ -84,10 +86,10 @@ the unit the one-page ceiling is actually paid for in.
 
 ### The mandatory set, and where each one comes from
 
-- **The name.** The H1 in the AI master, the `- Name:` bullet in the Power BI master. R4 asserts the
-  rendered text contains `Shaheen Kiarash`, so a CV without it fails the render check by definition.
-  Note that an H1 is deliberately NOT treated as structural: doing that would have made his name
-  droppable.
+- **The name.** The H1 on both lanes: the AI master writes one, and the Power BI master's `- Name:`
+  bullet becomes one in section 4B. R4 asserts the rendered text contains `Shaheen Kiarash`, so a CV
+  without it fails the render check by definition. Note that an H1 is deliberately NOT treated as
+  structural: doing that would have made his name droppable.
 - **Contact blocks.** Any block carrying an email, a phone or a LinkedIn URL. A CV a recruiter cannot
   answer is not a CV. This is the one mandatory class that is REDACTED from the model view.
 - **The work-authorization line.** A11 asserts it is exactly `Work authorization: Swedish citizen
@@ -96,19 +98,66 @@ the unit the one-page ceiling is actually paid for in.
 - **The whole header section.** This is the one mandatory mark derived by judgement rather than from
   a written rule, and it is called out as such.
 
-  Why the whole header and not just the headline: the two masters write the same header differently.
-  The AI master fuses location, availability, email, phone and LinkedIn into ONE line; the Power BI
-  master splits them into six bullets. If only the contact-matching blocks were forced, the AI lane
-  would always carry location and availability (they ride the contact line) and the Power BI lane
-  would drop them, and the two lanes would ship structurally different headers for no reason anybody
-  chose. Forcing the whole section makes them agree. Nothing in either header is a real trim target
-  anyway: seven short lines against a ceiling that is spent on bullets.
+  Why the whole header and not just the headline: nothing in the header is a real trim target. Four
+  short lines against a ceiling that is spent on bullets, and a CV that dropped its own location or
+  availability to save 60 characters would be a worse document for no gain anybody chose. Since the
+  header normalization below runs, both masters reach this point with the same four header blocks,
+  so forcing the section forces the same thing on both lanes.
 
 ### The directive case, which is why `directive` exists at all
 
 The Power BI master carries `- Photo (for rendered CVs): outputs/research-team/.../profile-photo.jpg
 (Shaheen's pick, casual, 2026-07-14)`. It is a build instruction that happens to live in a bullet. A
 parser that treated it as selectable prose would eventually print a local file path on a CV.
+
+---
+
+## 4B. The two header shapes, and why the parser reconciles them
+
+**The two masters are written in genuinely different shapes and only one of them is a document.**
+
+- `master-ai-cv.md` is DOCUMENT SHAPED already: an H1 carrying his name, a title line, one fused
+  contact line, then the work authorization line.
+- `master-powerbi-cv.md` is a LABELLED DATA STRUCTURE: `## HEADER` over a bullet list of `Name:`,
+  `Role line:`, `Email:`, `Phone:`, `LinkedIn:`, `Location:`, `Work authorization:` and
+  `Photo (for rendered CVs):`.
+
+**The master is not amended to suit the parser.** That shape is his, it predates this project, it is
+read by other things, and it is the format he chose. The parser learns the second shape and emits the
+first, in `normalizeLabelledHeader()`.
+
+This was found on 2026-09-15 by rendering a real Power BI PDF and looking at it. The page opened with
+a teal section rule titled HEADER over seven labelled rows, and carried no H1 at all, so the document
+had no title and his name read as a form field. The labels are markup in his data format; a CV does
+not print `Name:` any more than it prints `## HEADER`.
+
+| in the master | on the page |
+|---|---|
+| `## HEADER` | nothing. It is a label on his list, not a heading in his document. Kept as `section.title` metadata, which never prints. |
+| `- Name: Shaheen Kiarash` | the H1, the same block the AI master already opens with |
+| `- Role line: ...` | the title line under it |
+| `- Location:` `- Email:` `- Phone:` `- LinkedIn:` | ONE contact line, in the AI master's own field order (location, email, phone, LinkedIn) and with its own ` \| ` separator |
+| `- Work authorization: ...` | the same line, label and all, verbatim. A11 asserts that exact string. |
+| `- Photo (for rendered CVs): ...` | nothing. Still a `directive` block, still accounted for, never printed. |
+
+**His words are never touched.** Every value is the master's own substring; the only characters this
+file contributes are the separators between them.
+
+**An unrecognised label REFUSES the build,** and the other two answers were considered first.
+Printing it as-is is the bug being fixed. Printing it without its label guesses that an unknown field
+is recruiter-facing prose, and the master already carries the counter-example: strip the label off
+the photo line and the CV prints a local file path. A parser cannot tell a new `Portfolio:` from a new
+`Photo (small):`, so guessing is a coin flip with a privacy leak on one face. Refusing is loud, cheap
+to fix, and correct about what actually happened. The fix is one line in `HEADER_LABELS`, added by
+somebody who read the new field and decided what it is. Two smaller refusals sit beside it: a header
+with labelled fields but no `Name:` (there would be no H1, and R4 asserts his name is on the page),
+and two lines claiming the same field (picking either silently would drop something he wrote down).
+
+**Ordering and offsets.** `m.blocks` is in PRINT order, which stopped being byte order here: his list
+puts `Role line:` above `Name:` and the page puts the name first. A normalized block carries the
+offsets of the FIRST source line it came from, and `roundTrip()` walks blocks sorted by offset.
+Everything the parser did not claim, the folded `## HEADER` and the labels it stripped, comes back as
+gap, so the round trip stays exact whatever order the labels appear in.
 
 ---
 
@@ -129,11 +178,14 @@ one makes the first one mean anything:
 Both throw. The second one is negative-tested by doctoring a copy of the master so no pattern
 matches, and watching the build refuse with `VACUOUS`.
 
-**Location stays visible to the model.** A city is not a contact detail and the selector needs it to
-reason about a remote or onsite ad. On the AI master, location shares a line with the email and the
-phone, so the whole line is redacted and the model does not see location on that lane either; the
-assembler still emits it. This asymmetry is a property of how the two masters are written, not a
-decision.
+**Location rides the contact line on BOTH lanes, so the selector sees it on neither.** A city is not
+a contact detail and it would be useful to a selector reasoning about a remote or onsite ad. It is
+lost anyway, because it shares the one contact line with the email and the phone and the whole line is
+redacted. On the AI master that was a property of how he wrote the file; since 4B it is also true on
+the Power BI lane, where the fold puts location on that same line, and it is now a DECISION rather
+than an accident. It was taken because a header that differs between lanes is worse than a selector
+that has to read the city off the job brief instead, which it already has. The assembler emits the
+location on both lanes regardless: it is mandatory, and nothing the selector does can drop it.
 
 ---
 
@@ -241,6 +293,15 @@ changes their content hashes, which changes their ids. `test-master-blocks.js` w
 mismatch and `assemble()` will refuse any id pinned before the change with a message that says
 "amendment signal".
 
+**A THIRD CASE, which is not an amendment at all.** The pin records what the PARSER makes of the
+master, not only what the master says, so ids can move while the file does not. A deliberate change to
+`_master.js` does exactly that, and the 2026-09-15 header normalization did: nine Power BI header ids
+moved and the master file was byte identical throughout. The failing check says so by name when the
+master sha still matches the pin. The procedure there is steps 6 to 9 only, with one addition: prove
+that every id OUTSIDE the section the parser change touched is unchanged AND in the same order, before
+running `--write`. If one moved that you did not mean to move, the parser change is wider than you
+think.
+
 The order matters, and step 1 is not optional.
 
 1. **Confirm the amendment is authorised.** The AI master changes exactly two ways: Shaheen hands
@@ -295,7 +356,7 @@ read this repo and never calls any of it.
 ## 11. Running the tests
 
 ```
-node work/36-job-application-writer/config/test-master-blocks.js          # 68 checks
+node work/36-job-application-writer/config/test-master-blocks.js          # 95 checks
 node work/36-job-application-writer/config/test-master-blocks.js --write  # regenerate the pin
 node work/36-job-application-writer/config/test-prose-scan.js             # 53 checks
 node scripts/prose-scan.js --rules                                       # print the rule tables

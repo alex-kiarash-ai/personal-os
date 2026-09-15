@@ -279,32 +279,37 @@ function splitPrintable(raw, laneKey) {
 // directive   an instruction to the BUILDER that must never be printed
 //
 // THE MANDATORY SET, and where each one comes from:
-//   name            the H1, or the "- Name:" header bullet. R4 asserts the rendered text contains
-//                   "Shaheen Kiarash", so a CV without it fails the render check by definition.
+//   name            the H1. Both lanes have one: the AI master writes it, and the Power BI master's
+//                   "- Name:" bullet BECOMES one in normalizeLabelledHeader. R4 asserts the rendered
+//                   text contains "Shaheen Kiarash", so a CV without it fails the render check by
+//                   definition.
 //   contact         any block carrying an email, a phone or a LinkedIn URL. A CV a recruiter cannot
 //                   answer is not a CV. This is the one mandatory class that is REDACTED from the
 //                   model: the selector has no use for a phone number when choosing a bullet.
 //   work auth       A11 asserts the line is exactly "Work authorization: Swedish citizen (EU
 //                   citizen)". A check that asserts the content of a line the assembler was free to
 //                   drop is a check that passes by accident, so the line is forced.
-//   the header      EVERY non-directive block in the header section, which on the AI master is the
-//                   four lines before the first H2 and on the Power BI master is the "## HEADER"
-//                   bullet list. This is the ONE mandatory mark derived by JUDGEMENT rather than
-//                   from a written rule, and it is called out as such.
+//   the header      EVERY non-directive block in the header section. This is the ONE mandatory mark
+//                   derived by JUDGEMENT rather than from a written rule, and it is called out as
+//                   such.
 //
-//                   Why the whole header and not just the headline: the two masters write the same
-//                   header differently. The AI master fuses location, availability, email, phone and
-//                   LinkedIn into ONE line; the Power BI master splits them into six bullets. If
-//                   only the contact-matching blocks were forced, the AI lane would always carry
-//                   location and availability (they ride the contact line) and the Power BI lane
-//                   would drop them, and the two lanes would ship structurally different headers for
-//                   no reason anybody chose. Forcing the whole section makes them agree. Nothing in
-//                   either header is a real trim target anyway: seven short lines against a ceiling
-//                   that is spent on bullets.
+//                   Why the whole header and not just the headline: nothing in the header is a real
+//                   trim target. Four short lines against a ceiling that is spent on bullets, and a
+//                   CV that dropped its own location or availability to save 60 characters would be
+//                   a worse document for no gain anybody chose.
+//
+//                   Since normalizeLabelledHeader() runs, BOTH masters reach this point with the
+//                   same four header blocks, so forcing the section forces the same thing on both
+//                   lanes. Before it ran, the AI lane always carried location and availability
+//                   (they ride its fused contact line) while the Power BI lane carried them as two
+//                   separate labelled bullets, and the two lanes shipped structurally different
+//                   headers.
 //
 // The PHOTO line in the Power BI master is the directive case: "Photo (for rendered CVs):
 // outputs/.../profile-photo.jpg". It is a build instruction that happens to live in a bullet. A
-// parser that treated it as selectable prose would eventually print a local file path on a CV.
+// parser that treated it as selectable prose would eventually print a local file path on a CV. It is
+// also the reason an unrecognised header label REFUSES rather than being printed label-first or
+// label-stripped: one of those two answers publishes this path.
 // ---------------------------------------------------------------------------------------------
 const RE_WORK_AUTH = /^(?:-\s*)?Work authorization\s*:/i;
 const RE_NAME_BULLET = /^-\s*Name\s*:/i;
@@ -334,6 +339,158 @@ function classify(level, raw, text, section, firstAfterH3) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// THE LABELLED HEADER, normalized into the document-shaped one. See the header note "THE TWO
+// HEADER SHAPES" for why this lives in the parser and not in either master.
+//
+// The labels are matched on the bullet TEXT (the "- " is already off), case-insensitively, with the
+// colon allowed to sit away from the word. Nothing here is lane-specific: it fires on the SHAPE, so
+// a master that grows a labelled header later gets the same treatment without a new branch.
+// ---------------------------------------------------------------------------------------------
+const HEADER_LABELS = [
+  { field: 'name', re: /^Name\s*:\s*/i },
+  { field: 'role', re: /^Role line\s*:\s*/i },
+  { field: 'location', re: /^Location\s*:\s*/i },
+  { field: 'email', re: /^Email\s*:\s*/i },
+  { field: 'phone', re: /^Phone\s*:\s*/i },
+  { field: 'linkedin', re: /^LinkedIn\s*:\s*/i },
+  // The ONE label that keeps its label. A11 asserts the rendered CV carries the string
+  // "Work authorization: <value>" character for character, and the AI master prints it that way
+  // too, so stripping it here would fail the letter audit on every Power BI pair.
+  { field: 'auth', re: /^Work authorization\s*:/i, keeps_its_label: true },
+];
+
+// The contact line, copied from the AI master rather than invented: location first, then email,
+// phone, LinkedIn, joined with " | ". Read that file before changing either of these.
+const CONTACT_LINE_ORDER = ['location', 'email', 'phone', 'linkedin'];
+const CONTACT_LINE_SEP = ' | ';
+
+function headerLabelOf(block) {
+  if (block.level !== 'bullet') return null;
+  for (const l of HEADER_LABELS) if (l.re.test(block.text)) return l;
+  return null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// AN UNRECOGNISED LABEL REFUSES THE BUILD, and the other two options were considered first.
+//
+//   PRINT IT AS-IS is the bug this function exists to remove. It is how "Name: Shaheen Kiarash"
+//   reached a rendered PDF in the first place.
+//
+//   PRINT IT WITHOUT ITS LABEL guesses that an unknown field is recruiter-facing prose, and the
+//   master already carries the counter-example: "Photo (for rendered CVs): outputs/.../photo.jpg"
+//   is a local file path. Strip that label and print the value and the CV carries a directory
+//   listing off this machine. A parser cannot tell a new "Portfolio:" from a new "Photo (small):",
+//   so guessing is a coin flip with a privacy leak on one face.
+//
+//   REFUSE is loud, cheap to fix, and correct about what actually happened: the header of a CV
+//   master changed shape. That is the amendment signal this whole library is built to surface, it
+//   is the same fail-closed posture the mirror-staleness leg takes, and the header is a fixed set
+//   of about eight fields that changes roughly never. The fix is one line in HEADER_LABELS, made
+//   by somebody who has read the new field and decided what it is.
+// ---------------------------------------------------------------------------------------------
+function normalizeLabelledHeader(laneKey, sections, blocks) {
+  const hdr = blocks.filter(b => b.section === 'hdr');
+  if (!hdr.some(headerLabelOf)) return blocks;   // already document shaped: the AI master. No-op.
+
+  const fields = {};
+  const directives = [];
+  const unknown = [];
+  for (const b of hdr) {
+    if (b.role === 'directive') { directives.push(b); continue; }
+    const l = headerLabelOf(b);
+    if (!l) { unknown.push(b); continue; }
+    if (fields[l.field]) {
+      throw new Error(
+        '#36 _master.js: the ' + laneKey + ' master header carries TWO "' + l.field + '" fields:\n' +
+        '    ' + fields[l.field].block.raw + '\n    ' + b.raw + '\n' +
+        '  One header field, one line. Picking either one silently would ship a CV missing something\n' +
+        '  he wrote down.'
+      );
+    }
+    fields[l.field] = { block: b, value: l.keeps_its_label ? b.text : b.text.replace(l.re, '').trim() };
+  }
+
+  if (unknown.length) {
+    throw new Error(
+      '#36 _master.js: the ' + laneKey + ' master header carries ' + unknown.length + ' line(s) this parser\n' +
+      '  does not recognise:\n' +
+      unknown.map(b => '    ' + b.raw).join('\n') + '\n' +
+      '  The header of that master is a LABELLED list and every label has to be a decision, because\n' +
+      '  the two wrong answers are both silent: printing an unknown line as-is puts "Label: value" on\n' +
+      '  a CV, and printing it without its label would have published the photo path as prose.\n' +
+      '  Add the field to HEADER_LABELS in this file (and to CONTACT_LINE_ORDER if it belongs on the\n' +
+      '  contact line), or add its prefix to RE_DIRECTIVE if it is build metadata that must never\n' +
+      '  print. Then regenerate the fixture: nodes/MASTER-BLOCKS.md says how.'
+    );
+  }
+
+  if (!fields.name) {
+    throw new Error(
+      '#36 _master.js: the ' + laneKey + ' master header has labelled fields but no "Name:" line, so\n' +
+      '  there is no H1 to build. R4 asserts the rendered CV contains his name and the name is the\n' +
+      '  single most mandatory string on the page. Refusing rather than shipping an anonymous CV.'
+    );
+  }
+
+  // A normalized block carries the offsets of the FIRST source line it came from, never a span over
+  // several. Any line not claimed by a block is emitted as GAP by roundTrip, so the byte accounting
+  // stays exact whatever order the labels appear in and whatever this function drops. A span would
+  // have been truer about provenance and would have broken the moment he reordered two bullets.
+  const made = [];
+  const mk = (src, level, text, raw) => ({
+    kind: level === 'h1' ? 'heading' : level,
+    level,
+    raw,
+    text,
+    section: 'hdr',
+    section_title: src.section_title,
+    group: src.group,
+    group_title: src.group_title,
+    start: src.start,
+    end: src.end,
+    role: 'mandatory',
+  });
+
+  // His name as the H1, which is exactly the block the AI master already opens with.
+  made.push(mk(fields.name.block, 'h1', fields.name.value, '# ' + fields.name.value));
+  if (fields.role) made.push(mk(fields.role.block, 'line', fields.role.value, fields.role.value));
+
+  const parts = CONTACT_LINE_ORDER.filter(f => fields[f]).map(f => fields[f].value);
+  if (parts.length) {
+    const line = parts.join(CONTACT_LINE_SEP);
+    made.push(mk(fields[CONTACT_LINE_ORDER.filter(f => fields[f])[0]].block, 'line', line, line));
+  }
+  // If NOTHING matched there is no contact block at all, which is not refused here on purpose:
+  // modelView's VACUOUS assertion already names that case better than this function could, and it
+  // catches it for both header shapes rather than only this one.
+
+  if (fields.auth) made.push(mk(fields.auth.block, 'line', fields.auth.value, fields.auth.value));
+
+  // Directives keep their original raw line. They are never emitted, so their raw is free to stay
+  // the honest source text rather than a print form nothing prints.
+  for (const d of directives) made.push(d);
+
+  const rest = blocks.filter(b => b.section !== 'hdr');
+  return made.concat(rest);
+}
+
+// Ids are assigned AFTER normalization, never during the line walk, because the header's blocks do
+// not exist yet while the lines are being read. Sequence numbers follow the array, which is PRINT
+// order, so hdr.x.b01 is the first thing on the page on both lanes.
+function assignIds(blocks) {
+  const seq = {};
+  for (const b of blocks) {
+    const gk = b.section + '.' + b.group;
+    seq[gk] = (seq[gk] || 0) + 1;
+    b.seq = seq[gk];
+    b.id = b.section + '.' + b.group + '.b' + String(seq[gk]).padStart(2, '0') + '@' + sha256(b.text).slice(0, 8);
+    b.chars = b.text.length;
+    b.contact = countContact(b.text);
+  }
+  return blocks;
+}
+
+// ---------------------------------------------------------------------------------------------
 // THE PARSER. Every character of the printable half belongs to exactly one block or to the gap
 // between two blocks, which is what makes the round trip provable rather than approximate.
 // ---------------------------------------------------------------------------------------------
@@ -348,7 +505,6 @@ function parseMaster(laneKey) {
   sections.push(section);
   let group = { key: 'x', title: null };
   section.groups.push(group);
-  const seq = {};           // "<section>.<group>" -> running sequence
   let justOpenedGroup = false;
 
   const lines = printable.split('\n');
@@ -370,9 +526,16 @@ function parseMaster(laneKey) {
       // An explicit "## HEADER" (the Power BI master has one, the AI master does not) folds into the
       // synthetic header section already open, so the two masters produce the same section keys from
       // different shapes. Anything else opens a new section.
+      //
+      // The folded heading makes NO BLOCK, and that is the fix for the first half of a real defect:
+      // assemble() emits a section's H2 whenever the section has any content, the header is always
+      // content, so a "## HEADER" block printed the word HEADER as a section title on every Power BI
+      // CV. A CV has no section called HEADER. The word is a label on his list, not a heading in his
+      // document, and the section keeps it as metadata (section.title) where nothing prints it.
       const slug = sectionSlug(textOnly);
       if (slug === 'hdr' && section.key === 'hdr') {
         section.title = textOnly;
+        continue;
       } else {
         section = { key: slug, title: textOnly, groups: [] };
         sections.push(section);
@@ -404,23 +567,18 @@ function parseMaster(laneKey) {
     block.role = classify(kind, line, textOnly, section.key, firstAfterH3);
     if (kind !== 'h3') justOpenedGroup = false;
 
-    // id
-    const gk = block.section + '.' + block.group;
-    seq[gk] = (seq[gk] || 0) + 1;
-    const n = String(seq[gk]).padStart(2, '0');
-    block.seq = seq[gk];
-    block.id = block.section + '.' + block.group + '.b' + n + '@' + sha256(block.text).slice(0, 8);
-    block.chars = block.text.length;
-    block.contact = countContact(block.text);
-
     blocks.push(block);
   }
+
+  // The header is reshaped, then everything is numbered and hashed, in that order: the header's
+  // blocks do not exist yet while the lines are being read.
+  const parsed = assignIds(normalizeLabelledHeader(laneKey, sections, blocks));
 
   // id uniqueness. Two identical sentences in different places get different ids because the
   // prefix differs; two identical sentences in the SAME group would collide, and a colliding id
   // is an id that silently selects the wrong thing.
   const seen = new Map();
-  for (const b of blocks) {
+  for (const b of parsed) {
     if (seen.has(b.id)) {
       throw new Error('#36 _master.js: duplicate block id ' + b.id + ' in the ' + laneKey + ' master. Two blocks in one group carry identical text; the id cannot address either of them.');
     }
@@ -434,14 +592,14 @@ function parseMaster(laneKey) {
     master_sha256: sha256(raw),
     printable,
     printable_sha256: sha256(printable),
-    blocks,
+    blocks: parsed,
     byId: seen,
     sections,
-    mandatory: blocks.filter(b => b.role === 'mandatory'),
-    selectable: blocks.filter(b => b.role === 'selectable'),
-    structural: blocks.filter(b => b.role === 'structural'),
-    meta: blocks.filter(b => b.role === 'meta'),
-    directive: blocks.filter(b => b.role === 'directive'),
+    mandatory: parsed.filter(b => b.role === 'mandatory'),
+    selectable: parsed.filter(b => b.role === 'selectable'),
+    structural: parsed.filter(b => b.role === 'structural'),
+    meta: parsed.filter(b => b.role === 'meta'),
+    directive: parsed.filter(b => b.role === 'directive'),
     notes: splitPrintable(raw, laneKey).notes,
   };
 }
@@ -453,12 +611,18 @@ function parseMaster(laneKey) {
 // This is the proof that the parser has not quietly eaten anything. A parser that dropped one
 // blank line would still look perfect in every other test in this repo, and would then produce a
 // CV with two sections run together, and nobody would know why.
+//
+// THE WALK SORTS BY OFFSET, because m.blocks is in PRINT order and print order stopped being byte
+// order the moment the header was normalized: his master lists "Role line:" above "Name:", and the
+// page puts the name first. This walk is about bytes, so it walks the bytes. Anything the parser
+// did not claim, the folded "## HEADER" line and the labels it stripped, comes back as GAP, which
+// is why the round trip is still exact rather than merely close.
 // ---------------------------------------------------------------------------------------------
 function roundTrip(laneKey) {
   const m = parseMaster(laneKey);
   let out = '';
   let cursor = 0;
-  for (const b of m.blocks) {
+  for (const b of m.blocks.slice().sort((x, y) => x.start - y.start || x.end - y.end)) {
     out += m.printable.slice(cursor, b.start);   // the gap
     out += m.printable.slice(b.start, b.end);    // the block
     cursor = b.end;

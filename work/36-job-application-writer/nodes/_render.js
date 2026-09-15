@@ -181,12 +181,24 @@ const CSS_CV = [
   'ul { margin: 0 0 1.0mm 0; padding-left: 4.6mm; }',
   'li { margin: 0 0 0.3mm 0; }',
   '.bridge { margin: 1.0mm 0; }',
-  // The contact block. The master heads with a labelled bullet list and a CV does not want bullets
-  // on its own phone number, so the FIRST list on the page is rendered as a run of lines. It is
-  // positional rather than content matching on purpose: a rule keyed to the word HEADER would
-  // silently stop applying the day a master renames that section.
-  '.page > ul:first-of-type { list-style: none; padding-left: 0; margin-bottom: 2.2mm; }',
-  '.page > ul:first-of-type li { margin: 0 0 0.3mm 0; }',
+  // REMOVED 2026-09-15, and worth keeping the reason because the rule looked sensible.
+  //
+  // It read:
+  //   .page > ul:first-of-type { list-style: none; padding-left: 0; margin-bottom: 2.2mm; }
+  //   .page > ul:first-of-type li { margin: 0 0 0.3mm 0; }
+  // and its comment said the Power BI master heads with a labelled bullet list, a CV does not want
+  // bullets on its own phone number, so strip the markers off the first list on the page. That was a
+  // STYLESHEET working around a PARSER defect, and it has been fixed at the source: _master.js now
+  // normalizes that labelled header into an h1, a title line, one contact line and the work
+  // authorization line, so the header is not a list on either lane and there is nothing to strip.
+  //
+  // The rule was also WRONG ON THE AI LANE FROM THE DAY IT WAS WRITTEN, which is the part that makes
+  // this a removal rather than a rewrite. The AI master's header was never a list, so
+  // "ul:first-of-type" matched the first REAL bullet list on that page, which is the current role.
+  // Measured with a local Chromium: the AI lane's first role printed its bullets at x=39.7 with no
+  // marker while every later role printed at x=52.7 with one. A positional selector cannot tell the
+  // header from the first thing after it, and that is exactly how a rule keeps applying after its
+  // reason is gone. Both lanes now print every role the same way.
 ].join('\n');
 
 // The letter. One page by construction (A3 bounds it at 100 to 280 words) and R3 asserts it anyway,
