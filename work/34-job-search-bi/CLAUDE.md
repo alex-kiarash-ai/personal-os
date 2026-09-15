@@ -239,7 +239,12 @@ calls instead of 20, the run held 10 rows instead of 20, all 10 carried a real d
 and ZERO rows were scored on a title alone against 15 before. `cap dropped 15`, `deferred for no
 description 10`, `pages skipped on demand 11`, all named on its own stage report.
 
-**The registry row is DORMANT as of 2026-09-14, revisit 2026-10-15.** It read LIVE while the workflow
+~~**The registry row is DORMANT as of 2026-09-14, revisit 2026-10-15.**~~ **SUPERSEDED 2026-09-15: the
+row is LIVE and the workflow is ACTIVE.** Both lanes were activated on 2026-09-14 and the manifest says
+LIVE for #34 and #35, which is why this paragraph had to be corrected rather than left: a spec claiming
+DORMANT three sections below an id that is active on the box sends the next reader to activate something
+already running. The reasoning below is kept because the RULE it explains is still exactly right, and it
+is the reason the row was flipped in the first place. It read LIVE while the workflow
 was deliberately inactive, and `scripts/n8n-active-check.mjs:139` governs every LIVE row carrying an
 n8n id with no carve-out for a lane that is off on purpose. From 08:10 the next morning that watcher
 would have reported `OFF: #34; #35` as the day's HQ headline, and because the script reports ONE reason
@@ -256,3 +261,26 @@ Read Back Jobs all target `jobs`. The key existed until one clean manual run had
 rows; execution 5247 is that run (10/10 written, 10/10 verified). The 10 rows sitting in `jobs_test`
 are neither lost nor a duplication risk: Remove Known reads `sheet.tab`, so it has never seen them, and
 the next run re-collects them and writes them to the real tab.
+
+
+## 2026-09-15: the scope change is LIVE on the box
+
+`Plan Queries` and `Filter` now carry six collection scopes (Sweden, Remote EU, Remote UK, Remote EMEA,
+Gulf, Non-EU Europe) and, for the first time in this lane, a WORK TYPE rule. `Build Indeed Request`
+carries a repaired empty-input guard. Deployed and read back independently on 2026-09-15: both lanes
+active true to true, 49 nodes, and the live `Filter` and `Plan Queries` diff to exactly ONE line between
+the two lanes, the baked `LANE_NUMBER`.
+
+**THE CODE IS LIVE AND THE BEHAVIOUR IS NOT, and the gap is deliberate.** Plan Queries reads the SHEET,
+and both settings tabs still list three scopes (`Sweden|Remote EU|Remote EMEA`). The UK scope was never
+synced either. So the next cron run pairs new code with old settings, which was simulated against
+`samples/settings-live-{bi,ai}.json` before the deploy and comes back clean: 16 units, 10 LinkedIn calls,
+6 boards, no throw. The scopes start collecting when `ocR7RJ988KcnAL6V` is Executed, not when the code
+lands.
+
+**The consequence to hold on to.** At 10 base LinkedIn calls against a ceiling of 20 the plan reports
+paging ON and adaptive. Six scopes on the sheets makes that 20 against 20 with paging OFF. **The settings
+sync is what creates the squeeze, so the `linkedin_max_calls_per_run` decision (20 to 25) belongs BEFORE
+the sync is pressed**, which is the reverse of the order the two queue items were written in.
+
+Full record, including the test-suite repair that preceded this: `vault/projects/job-search-bi/status.md`.
