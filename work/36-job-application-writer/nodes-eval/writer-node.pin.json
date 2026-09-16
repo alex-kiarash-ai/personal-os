@@ -4,8 +4,8 @@
   "_when_it_legitimately_moves": "Two causes, and both mean the same thing. (a) soul.md changed, so the voice block baked into node 29 changed, so the repo now generates a prompt the live node does not have. (b) someone edited the node in the n8n editor, which loses on the next rebuild anyway. Either way the eval MUST refuse until the box and the repo agree again, because an eval built from the repo while the box runs something else measures nothing. The fix is never to edit this file by hand: rebuild the runtime workflow (or run the voice sync), then re-pin from the live value with config/check-writer-pin.js --write-pin, which refuses unless the box and the repo already agree.",
   "_no_personal_data": "A sha256 and a character count. The generated prompt carries his voice block and his approved figures; the hash of it carries neither, which is why this file can be tracked in a PUBLIC repo while config/ cannot. No workflow id here either: check-writer-pin.js reads that from the gitignored lane file.",
   "node_name": "Build Writer Request",
-  "sha256": "f8725c192ed3aa938fe4241ed122a551a025c31ce12a5eeded01be87e8d92763",
-  "chars": 27995,
+  "sha256": "a5d10eead3723b9e77bdb9bff3a8e10cedd6d167d38536e77411b556ab3869a1",
+  "chars": 28869,
   "captured_at": "2026-09-16",
   "captured_from": "read-only GET /workflows/{id} against the live n8n box, workflow id read from the gitignored config/lane.json",
   "verified_against_repo": "identical to work/36-job-application-writer/nodes/29-build-writer-request.js -> parameters.jsCode on 2026-09-16"
