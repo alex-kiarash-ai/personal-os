@@ -196,3 +196,91 @@ rubric is the stale surface. It is a /self-review item, not a #36 item, and it i
 **3. soul.md grew about 3KB mid-seat.** That was the orchestrator harvesting a My Words entry on
 2026-09-15, not drift. Worth stating because node 29's `jsCode` changes with the corpus BY DESIGN, so
 two builds either side of a harvest are legitimately different bytes.
+
+
+**4. A cheap speed-up nobody has taken yet, recorded rather than done.** `config/test-stage-4.js` is
+the slow suite: it re-runs the real pipeline from node 03 to node 43 for every case rather than using
+fixtures, then shells out to headless Chromium four times and to PyMuPDF. One run is minutes, and
+stages 3, 4 and 5 back to back is three full pipelines.
+
+Seat 6 offered to put the Chromium section behind a flag so the default run is seconds and the real
+render measurement happens only when asked for. That is worth doing and it is NOT done, deliberately,
+for two reasons. The Chromium leg is the only thing in the whole suite that touches a real renderer,
+and it has already earned its place twice: it proved the brand's 11pt scale takes two pages, which
+turned the type scale from a guess into a measurement, and it proved the byte-level page-count regex
+works on real Skia output. A flag that defaults to skipping it is one session away from being a flag
+nobody ever sets.
+
+So the shape to build, when someone builds it: the render leg runs by DEFAULT in any run that touches
+`_render.js` or a node between 44 and 51, and is skippable only by an explicit flag whose absence is
+reported in the summary line. Fast by default is the wrong default here; fast when nothing rendered
+changed is the right one.
+
+
+**5. A test that only passes on the day it was written, found when the date rolled.** On 2026-09-16
+`test-stage-4.js` went red with nothing changed: an assertion carried the literal `2026-09-15` and
+compared it against a folder name built from the run date. The folder name was correct. The proof was
+not. It now reads the date off the pair.
+
+**The class is worth naming because the suites are full of the ingredient.** Every stage file carries
+fixture rows dated `2026-09-15` in `found_at` and `posted_at`, and that is CORRECT: a fixture wants a
+fixed date so the run is deterministic. The defect is not a date in a fixture, it is a fixed date on
+one side of a comparison whose other side moves. All five stage files were scanned for that shape on
+2026-09-16 and only the one case existed.
+
+Why it matters more than it looks: a suite that goes red for a reason unrelated to what it claims to
+check teaches the next reader to skim past that line, and the line after it, and eventually the
+suite. A red that is not a defect is more expensive than no test, and this repo already has the
+lesson written the other way round in the eval file: "a red that is not a defect is worse than no
+test, because people learn to scroll past it."
+
+
+**6. Divergence D2 is CLOSED, and closing it needed a case redesign as well as a port (2026-09-16).**
+The previous seat measured it and correctly declined to fix it alone. The lane's A8 allowed a figure
+in the letter out of FOUR places (his approved list, the verified quote line, the research hook, and,
+since that morning, the fetched employer page and the posting itself). The letter eval's `numbers`
+check allowed it out of TWO. So a figure the lane deliberately permits came back red in the eval, and
+the identical gap produces a false GREEN the moment the two lists differ the other way.
+
+What was done, in three parts, because a port alone would have been worse than the bug:
+
+- **The source list is DATA now.** `numberSources()` and `numberAllowlist()` are hoisted to column
+  zero in node 34 and LIFTED by the eval, the same move `sentenceBounds` and `negatedAround` got for
+  the claim rule that morning. A8 and A15 share ONE call to it, which is asserted at build time,
+  because "which employer text does this pair hold" is one question and it had two hand-built answers.
+  Node 38 lifts both by name alongside `auditPair`, or the final pass throws on the first figure.
+- **The eval SEEDS the sources.** Each case now carries `ad_text` and `site_text`, assembled from the
+  employer material the case already holds (must haves, nice to haves, ATS terms, objections and their
+  evidence, the verified span). Assembled rather than written, so a case can never turn on a number
+  nobody can find by reading it; and `research.hook.why` is deliberately excluded because that is OUR
+  reasoning, not the employer's prose, and site_text licenses figures. `_eval.js` now READS node 34's
+  own function source for the field paths it mentions and refuses to build if any case leaves one
+  empty, because an unfed source is a shorter allowlist wearing a clean bill of health. **The prompt
+  is untouched by all of this:** node 29 never reads either field, and the eval's HTTP node sends
+  `$json.write_request` only, so not one extra byte reaches Anthropic.
+- **C6 was REDESIGNED, not ported into.** It asserted that the employer's own figures must NOT appear
+  in the letter. The lane stopped having that rule that morning, on purpose: the skeleton REQUIRES
+  beat three to quote the employer, and failing a letter for a number inside a sentence it was told to
+  reproduce is a check arguing with the brief. Porting `ad_text` in without touching the case would
+  have made C6 un-failable, which kills a case instead of fixing it. So the employer figures stay and
+  are now legitimately quotable, and the bait moved to the danger that is still real: three objections
+  that each demand a figure about HIM (a share of an estate migrated, a cost saved, a headcount
+  managed) where nothing on his approved list and nothing in the employer material supplies one. The
+  id and the `primary` are unchanged so the summary line stays comparable across runs; the `seeds` and
+  `pass_means` prose was rewritten to say what it tests now and why it changed.
+
+**The limit that is left, stated rather than papered over.** A8 is token scoped: it asks where a
+number came from, never who it is attached to. A letter that borrows an employer figure and pins it to
+him passes both paths. That is a property of the LANE rule, and the eval must not invent a stricter
+one the box does not run, so it is named in C6's `pass_means` and it is the obvious next A8 amendment
+if anyone wants it.
+
+**And an observation for whoever re-pins.** Running `test-letter-eval.js` needs the pin swapped for
+the repo's current node-29 sha, because node 29 was amended (the pronoun rule) after the pin was
+captured and the whole `nodes-eval/` tree is pin-gated. That was done inside a try/finally and the pin
+file was restored byte for byte, verified by sha256 and by `git status`. Worth knowing: the repo-side
+node-29 jsCode measured 29,878 chars early in that session and 29,841 later, with node 29 and every
+file in its require graph untouched on disk (traced: it never reads node 34, so the A8 work cannot be
+the cause). Either the voice block is built from something that moves, or one of the two readings was
+taken against a tree mid-write. Until that is explained, treat the pin as a value that can drift
+without anybody editing a node, which is exactly the situation the pin exists to make visible.
