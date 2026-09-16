@@ -262,13 +262,57 @@ for (let i = 0; i < sent.length; i += 1) {
     continue;
   }
 
+  // THE BYTES COME FROM RENDER PDF, NOT FROM THIS NODE'S INPUT (2026-09-16, measured on exec 5442).
+  // Extract From File CONSUMES the binary: it returns numpages, info and text in json and hands on
+  // an item with no binary at all. Measured, every document in that run: Render PDF out 6 items all
+  // carrying binary.data at 48.5 kB, Extract PDF Text out 6 items with numpages 2 and zero binary.
+  // So getBinaryDataBuffer(i, ...) on THIS node's input can only ever return nothing, and the whole
+  // run died on R1 with the bytes sitting one node upstream.
+  // This is the second of the two repairs the refusal message below already prescribed, joining the
+  // branches, done BY REFERENCE rather than by rewiring: the descriptor is read off Render PDF at
+  // the same index this node has already proved is the right one (the pairing block above refuses
+  // the whole batch unless sent, returned and pairedItem all agree, so index i is authoritative
+  // here in a way it would not be in a node that guessed). Rewiring would have meant a Merge node,
+  // a 75th node, and a census every guard in this project asserts at 74.
+  // The binary path is now independent of the extraction, which is what it always needed to be:
+  // seat 7 uploads BYTES, and those bytes have to survive a node whose job is to throw them away.
   let buf = null;
   let bufWhy = null;
+  let srcBinary = item.binary;
+  // FIRST the item this node was handed. That is where the bytes are whenever the node ahead of this
+  // one leaves them alone, and it is what the offline fixtures feed.
   try {
     buf = await this.helpers.getBinaryDataBuffer(i, BINARY_PROPERTY);
   } catch (e) {
     buf = null;
     bufWhy = e && e.message ? e.message : String(e);
+  }
+  // THEN Render PDF, by reference. Extract From File CONSUMES the binary: measured on exec 5442,
+  // Render PDF out was 6 items each carrying binary.data at 48.5 kB and Extract PDF Text out was 6
+  // items with numpages 2 and no binary at all, so the whole run died on R1 with the bytes sitting
+  // one node upstream. This is the second of the two repairs the refusal below already prescribed,
+  // joining the branches, done BY REFERENCE rather than by rewiring: the descriptor is read off
+  // Render PDF at the index the pairing block above has already proved authoritative (it refuses the
+  // whole batch unless sent, returned and pairedItem agree). Rewiring would have meant a Merge node,
+  // a 75th node, and a census every guard in this project asserts at 74.
+  if (!buf || !buf.length) {
+    try {
+      const rendered = $('Render PDF').all();
+      const srcItem = rendered[i];
+      const desc = srcItem && srcItem.binary ? srcItem.binary[BINARY_PROPERTY] : null;
+      if (desc) {
+        srcBinary = srcItem.binary;
+        if (desc.id && this.helpers.getBinaryStream && this.helpers.binaryToBuffer) {
+          buf = await this.helpers.binaryToBuffer(await this.helpers.getBinaryStream(desc.id));
+          bufWhy = null;
+        } else if (typeof desc.data === 'string' && desc.data && desc.data !== 'filesystem-v2') {
+          buf = Buffer.from(desc.data, 'base64');
+          bufWhy = null;
+        }
+      }
+    } catch (e) {
+      if (!bufWhy) bufWhy = e && e.message ? e.message : String(e);
+    }
   }
   if (!buf || !buf.length) {
     stats.no_binary += 1;
@@ -301,7 +345,7 @@ for (let i = 0; i < sent.length; i += 1) {
     stats.disagreements += 1;
     if (errorSamples.length < 6) errorSamples.push({ render_key: r.render_key, state: 'page_count_disagreement', why: 'bytes say ' + pagesBytes + ', the parser says ' + JSON.stringify(pagesNum) });
   }
-  out.push({ json: r, binary: item.binary });
+  out.push({ json: r, binary: srcBinary || item.binary });
 }
 
 // --- 3. everything else passes through untouched --------------------------------

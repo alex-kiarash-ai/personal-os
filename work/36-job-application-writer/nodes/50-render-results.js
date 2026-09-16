@@ -61,9 +61,16 @@
       '  with pairs this run has already paid a read, a selection, a letter and a blind grade for.'
     );
   }
+  // The guard is on the PROPERTY, not on one spelling of the expression (widened 2026-09-16).
+  // It used to pin the literal `binary: item.binary`, which was right until exec 5442 proved the
+  // input item has no binary at all: Extract From File consumes it, so Measure PDF now sources the
+  // descriptor from Render PDF and emits `binary: srcBinary || item.binary`. The old pin would have
+  // forced the fix to keep a spelling that no longer describes where the bytes come from. What this
+  // check exists to catch is a json-only stream arriving at the upload, so it asserts THAT: the node
+  // must still emit a binary key on the measured path.
   const mc = String(measure.parameters.jsCode || '');
-  if (mc.indexOf('binary: item.binary') === -1) {
-    throw new Error('Render Results: Measure PDF no longer carries the PDF binary through. This node joins the branch that holds the only copy of the two documents, and a json-only stream would arrive at the upload with nothing to upload.');
+  if (!/out\.push\(\{\s*json:\s*r,\s*binary:\s*[A-Za-z_$][\w$]*(\s*\|\|\s*[\w$.]+)?\s*\}\)/.test(mc) && mc.indexOf('binary: item.binary') === -1) {
+    throw new Error('Render Results: Measure PDF no longer carries the PDF binary through on its measured path. This node joins the branch that holds the only copy of the two documents, and a json-only stream would arrive at the upload with nothing to upload.');
   }
 }());
 
