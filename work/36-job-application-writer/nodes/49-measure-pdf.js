@@ -297,8 +297,21 @@ for (let i = 0; i < sent.length; i += 1) {
   // a 75th node, and a census every guard in this project asserts at 74.
   if (!buf || !buf.length) {
     try {
-      const rendered = $('Render PDF').all();
-      const srcItem = rendered[i];
+      // itemMatching(), NOT all(). Measured on exec 5446: $('Render PDF').all()[i].binary is
+      // undefined in this n8n version, so the first attempt at this fix changed nothing. The n8n
+      // docs are explicit that the LINKED item is the accessor that carries binary ("use .item.binary
+      // for its binary data"), and itemMatching(i) is the linked-item form that takes an index, which
+      // is what a run-once-for-all-items node needs. all() returns json only.
+      let srcItem = null;
+      try {
+        srcItem = $('Render PDF').itemMatching(i);
+      } catch (e) {
+        srcItem = null;
+      }
+      if (!srcItem || !srcItem.binary) {
+        const rendered = $('Render PDF').all();
+        srcItem = rendered[i] || null;
+      }
       const desc = srcItem && srcItem.binary ? srcItem.binary[BINARY_PROPERTY] : null;
       if (desc) {
         srcBinary = srcItem.binary;
@@ -402,7 +415,7 @@ module.exports = {
   type: 'n8n-nodes-base.code',
   typeVersion: 2,
   position: [12220, 0],
-  connectFrom: 'Extract PDF Text',
+  connectFrom: 'Render Bytes',
   notes: 'Weighs each rendered PDF, hashes it with the same MD5 that hashed the two markdown files, and counts its pages a SECOND and independent way with a regex over the raw bytes. Two counts because the render safety law says a page count from the text layer alone cannot be trusted: clipped text still extracts. The PDFs are paired back to the documents they were asked for by reading the authoritative sent order off Render Route output 0 and cross checking it three ways; any mismatch refuses the whole batch rather than guessing, because a cover letter attached to another company job is a letter that has already been sent. The binary is carried through untouched, because seat 7 uploads bytes.',
   parameters: {
     mode: 'runOnceForAllItems',
