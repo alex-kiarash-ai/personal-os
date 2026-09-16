@@ -317,7 +317,16 @@ encrypted vault backup.** This repo is PUBLIC and that coverage is load-bearing.
 
 - **n8n:** `https://n8n.shaheenkiarash.com/api/v1`, header `X-N8N-API-KEY`, key file
   `work/03-application-engine/config/n8n-api-key.txt` (gitignored, read at runtime, never inlined).
-- **Workflow id:** **null.** Not created. Whatever creates it writes the id into `config/lane.json`
+- **Workflow id:** **`Yyr8mKCxItFsgv5x`, created 2026-09-16, INACTIVE** (74 nodes, 73 connection
+  sources, read back off the live box). ~~null, not created.~~ The manifest row was written the same
+  session and the generator re-run, so both mechanical reasons below are satisfied rather than
+  pending. A SECOND workflow belongs to this project from the same day, the letter eval
+  `Job Application Writer - Letter Eval (36)`, built from `config/lane-letter-eval.json` and
+  `nodes-eval/`, manual-only and deliberately NOT in the manifest: a manual harness with a manifest
+  row would be a scheduled-looking claim nothing asserts, which is the call `lane-sync-settings.json`
+  already made for #34.
+  Superseded procedure, kept because it is still the rule for the NEXT lane: whatever creates it
+  writes the id into `config/lane.json`
   AND into `system/manifest.json` as `n8n` for #36 in the SAME session, then re-runs
   `node scripts/generate-alex.js`. Both reasons are mechanical: V6 leg (c) has nothing to assert the
   declared cron against while `n8n` is null, and `scripts/lib/sync-n8n-voice.js` filters on
@@ -558,8 +567,10 @@ What does NOT exist, stated plainly so nobody reads the above as a working lane.
 struck on 2026-09-16 within the hour, and they are kept struck rather than deleted because this list
 sat two screens below the corrections and still contradicted them, which is how a spec ends up
 arguing with itself:**
-- the workflow on the box (`workflow_id` is null in the lane file) **STILL TRUE, verified against the
-  live box on 2026-09-16: no workflow matching #36 exists**
+- ~~the workflow on the box (`workflow_id` is null in the lane file)~~ **FALSE since 2026-09-16, later
+  the same day.** Shaheen ran the create; `Yyr8mKCxItFsgv5x` exists with 74 nodes, INACTIVE, and the
+  lane file carries the id. The line above was true when written that morning and false by the
+  afternoon, which is the ordinary way a doc that asserts a live fact goes wrong.
 - ~~`config/build.js`, the assembler that would put it there~~ **FALSE. The builder is SHARED with #34
   and #35 and it drives this lane through `--lane`. See the Build tooling section above.**
 - ~~the `writer_runs` tab in either spreadsheet~~ **FALSE since 2026-09-16. Both tabs exist and both
