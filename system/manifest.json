@@ -73,6 +73,12 @@
             "Build Writer Request": "claude-sonnet-5",
             "Build Grade Request": "claude-sonnet-4-6"
           }
+        },
+        {
+          "workflow": "qT2eXdw4rvozyOsq",
+          "name": "Job Application Writer - Letter Eval (36) (regression)",
+          "model": "claude-sonnet-5",
+          "reason": "Added 2026-09-16, the day the harness was created. It is the #36 twin of the Writer Voice Eval row above and exists for the same reason: the eval runs a VERBATIM copy of the runtime prose node, so it necessarily runs the runtime writer model, and without a row here V6's sweep leg warns that a live workflow runs a model the contract does not accept. Manual-only, never scheduled, never active, and deliberately NOT a manifest project row, so it stays warn-only as a non-registered workflow. The copy is enforced mechanically: nodes-eval holds no prompt text and requires nodes/29-build-writer-request.js, with a sha256 pin against the live box."
         }
       ],
       "local_wrappers": {

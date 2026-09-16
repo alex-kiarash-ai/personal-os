@@ -475,6 +475,16 @@ for (const raw of items) {
   j.select_request = {
     model: SELECT_MODEL,
     max_tokens: SELECT_MAX_TOKENS,
+    // EFFORT, added 2026-09-16 with the ceiling fix. On claude-opus-5 and claude-sonnet-5 OMITTING
+    // the thinking parameter runs ADAPTIVE thinking at the default effort of high, and max_tokens
+    // caps thinking and text together. Letter-eval execution 5425 measured the consequence: six
+    // calls, six times stop_reason max_tokens with output_tokens 2048 of which thinking_tokens 2048,
+    // and not one character of text. Buying enough ceiling for high-effort thinking breaks the
+    // budget-versus-cap guard, so the other half of the fix is asking for LESS thinking rather than
+    // paying for more. Low is the starting point and it is a MEASURED setting, not a taste: the
+    // letter eval scores six seeded cases against thirteen checks, so if the prose degrades it shows
+    // up there and this moves to medium.
+    output_config: { effort: 'low' },
     system: [
       {
         type: 'text',

@@ -177,9 +177,31 @@ const SETTINGS_SPEC = {
 const COST_MODEL = [
   { stage: 'read', model: LN.STAGE_MODELS.read, in_tokens: 5000, out_tokens: CAPS.values.read_max_tokens },
   { stage: 'research', model: LN.STAGE_MODELS.research, in_tokens: 3000, out_tokens: 1024 },
-  { stage: 'select', model: LN.STAGE_MODELS.select, in_tokens: 5000, out_tokens: 2048 },
-  { stage: 'write', model: LN.STAGE_MODELS.write, in_tokens: 7000, out_tokens: 2048 },
-  { stage: 'rewrite', model: LN.STAGE_MODELS.rewrite, in_tokens: 9000, out_tokens: 2048 },
+  // RAISED 2048 -> 16384 on 2026-09-16, on measured evidence from letter-eval execution 5425.
+  // All six eval calls came back HTTP 200 with stop_reason max_tokens, output_tokens 2048 of which
+  // thinking_tokens 2048, and NO text block at all: the model spent the entire ceiling reasoning and
+  // emitted zero characters of letter. The eval reported 6 x no_letter, which is why it keeps that
+  // outcome apart from a failed check.
+  // CAUSE, and it is a property of the model not of the prompt: on claude-sonnet-5 and claude-opus-5
+  // OMITTING the `thinking` parameter runs ADAPTIVE thinking, and max_tokens caps thinking and text
+  // TOGETHER. The same correction was already applied to the read row on 2026-09-15 (2048 -> 4096)
+  // for exactly this reason; these three rows were missed because only the reader had been analysed.
+  // SCOPE, derived from the model table rather than from taste: the two sonnet-4-6 rows are NOT
+  // raised, because on 4.6 omitting `thinking` means no thinking at all. Only the three rows whose
+  // model thinks by default are exposed.
+  // WHY 3072 AND NOT THE 16384 THE FOUR LIVE JOB LANES USE. 16384 was tried first and the offline
+  // suite refused it: at that ceiling the default 4.00 USD per-lane budget pays for 8 pairs, not the
+  // default cap of 10, and the coherence guard that refuses a config whose budget cannot pay for its
+  // own cap fired exactly as designed. 3072 is the largest round value that keeps budget and cap
+  // coherent (the three rows share roughly 0.164 USD of headroom per pair at 45 USD/MTok combined).
+  // So the ceiling alone cannot buy enough room, and the other half of this fix is REDUCING the
+  // thinking rather than paying for more of it: builders 10, 24 and 29 now send
+  // output_config.effort = 'low'. Raising the budget instead is a real money decision about spend
+  // per day and it is Shaheen's, not this file's.
+  // FIT IT AGAIN once there is a measurement: the next eval run prints real thinking_tokens.
+  { stage: 'select', model: LN.STAGE_MODELS.select, in_tokens: 5000, out_tokens: 3072 },
+  { stage: 'write', model: LN.STAGE_MODELS.write, in_tokens: 7000, out_tokens: 3072 },
+  { stage: 'rewrite', model: LN.STAGE_MODELS.rewrite, in_tokens: 9000, out_tokens: 3072 },
   { stage: 'grade', model: LN.STAGE_MODELS.grade, in_tokens: 4000, out_tokens: 1024 },
 ];
 
