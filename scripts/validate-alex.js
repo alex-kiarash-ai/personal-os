@@ -479,6 +479,24 @@ function modelIdsInNode(node) {
   let blob = '';
   try { blob = JSON.stringify(node.parameters || {}); } catch (_) { blob = ''; }
   for (const m of blob.matchAll(/\\?"model\\?"\s*:\s*\\?"([A-Za-z0-9._-]+)\\?"/g)) add(m[1]);
+
+  // THIRD FORM: `model: IDENT` where IDENT is a const holding the literal (#36, added 2026-09-16).
+  // The four older engines inline the id at the `model:` key, so the two passes above saw it. #36
+  // hoists it instead (`const WRITE_MODEL = "claude-sonnet-5";` ... `model: WRITE_MODEL`), which is
+  // better code and invisible to a literal-only regex: V6 reported "no model id found" on a node
+  // that names its model plainly three lines in, and that false failure BLOCKED the generator.
+  // Resolving it here keeps the check STRICT rather than relaxing it. Only an identifier actually
+  // used at a `model:` key is resolved, only against a string-literal declaration in the SAME node,
+  // and a drifted literal still comes back as the drifted value so the mismatch still fires. An
+  // identifier that resolves to nothing contributes nothing, so a node whose const was deleted
+  // still fails with "no model id found" rather than passing quietly.
+  if (typeof js === 'string') {
+    for (const m of js.matchAll(/\bmodel\s*:\s*([A-Za-z_$][A-Za-z0-9_$]*)\b/g)) {
+      const decl = new RegExp('\\b(?:const|let|var)\\s+' + m[1] + '\\s*=\\s*[\'"]([A-Za-z0-9._-]+)[\'"]');
+      const hit = js.match(decl);
+      if (hit) add(hit[1]);
+    }
+  }
   return [...out];
 }
 
@@ -1740,4 +1758,4 @@ if (require.main === module) {
     .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }
 
-module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED, readStagedChangeset, SUITE_RANGE, V_MAX };
+module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED, readStagedChangeset, SUITE_RANGE, V_MAX, modelIdsInNode };

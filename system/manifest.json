@@ -60,6 +60,19 @@
             "Build Match Request": "claude-opus-5",
             "Build Writer Request": "claude-sonnet-5"
           }
+        },
+        {
+          "workflow": "Yyr8mKCxItFsgv5x",
+          "name": "Job Application Writer (36)",
+          "model": "claude-sonnet-5",
+          "reason": "Added 2026-09-16, the day the workflow was created on the box. Five Anthropic calls per pair, and the split is the same principle as the four job lanes: pay for thinking where thinking decides the outcome. claude-opus-5 on the two judgement calls (Build Read Request, the recruiter seat producing the three objections a screener would raise; Build Select Request, which chooses CV blocks), claude-sonnet-5 on Build Writer Request, the ONE prose node, which carries the soul voice block, and claude-sonnet-4-6 on the two supporting calls (Build Research Request, Build Grade Request, the blind grader holding only the rubric). Every value here was read out of the LIVE node code on the box, not copied from a spec: the node files hoist the id into a const (WRITE_MODEL, READ_MODEL and so on) rather than inlining it at the model key, which is exactly the shape that made V6 report 'no model id found' on this workflow until the extractor learned to resolve it (scripts/tests/test-model-id-extractor.js).",
+          "models": {
+            "Build Read Request": "claude-opus-5",
+            "Build Research Request": "claude-sonnet-4-6",
+            "Build Select Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5",
+            "Build Grade Request": "claude-sonnet-4-6"
+          }
         }
       ],
       "local_wrappers": {
@@ -1366,6 +1379,37 @@
       "first_fire_kind": "drill",
       "n8n": "TNvg3zbOzd3rGr9T",
       "n8n_cron": "45 6 * * 1-5"
+    },
+    {
+      "num": 36,
+      "name": "job-application-writer",
+      "title": "Job Application Writer",
+      "state": "DORMANT",
+      "trigger": "n8n weekdays 07:15 (draft CV + cover letter)",
+      "one_liner": "The writing half of the job search. One workflow reads BOTH job-search spreadsheets (#34 BI and #35 AI) at 07:15, and for each row worth applying to it produces a tailored one-page CV and a cover letter into a Drive folder, then writes an applications row, a jobs.status cell and a writer_runs row per lane and reads every one of them back. The CV cannot contain a rewritten sentence by construction: the selector emits block ids and the assembler emits master strings, so an invented id is a refusal rather than a paragraph. It writes documents. It never applies, never emails, never opens a browser. DORMANT waiting on one named dependency: seat 8, the letter eval at 6/6 plus the first-fire drill at cap 2, and Shaheen's go to activate.",
+      "docs": "36-job-application-writer.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": "2026-10-01",
+      "work_dir": "work/36-job-application-writer",
+      "commands": [],
+      "status_md": "vault/projects/job-application-writer/status.md",
+      "cadence": {
+        "expected_hours": 30,
+        "label": "weekdays 07:15",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "draft-only"
+      },
+      "first_fire": null,
+      "first_fire_kind": null,
+      "n8n": "Yyr8mKCxItFsgv5x",
+      "n8n_cron": "15 7 * * 1-5",
+      "voice_sync": true
     }
   ]
 }
