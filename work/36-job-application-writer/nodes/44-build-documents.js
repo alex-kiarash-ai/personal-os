@@ -458,6 +458,22 @@ function readmeMarkdown(p, docs) {
     L.push('request object, with those checks named. Nothing was repaired silently.');
     L.push('');
   }
+  // THE DENIED MENTIONS. A banned technology the letter NAMED and then denied ("I do not have X")
+  // passes the claim check, because the rule for those three forbids CLAIMING the capability and
+  // the writer prompt ORDERS an honest gap. That is a judgement this workflow made unattended, so
+  // the person reviewing the folder gets to see it and disagree, rather than finding the word in
+  // the letter and assuming a gate was asleep.
+  const denied = Array.isArray(audit.denied_claims) ? audit.denied_claims : [];
+  if (denied.length) {
+    L.push('The letter NAMES ' + denied.length + ' banned technology mention(s) and denies each one. That is allowed and it');
+    L.push('is deliberate: the rule on those is never to CLAIM the capability, and the honest gap the');
+    L.push('writer is asked for sometimes needs the word. Each one, with the sentence around it:');
+    L.push('');
+    for (const d of denied.slice(0, 6)) {
+      L.push('- ' + clip(d.claim, 40) + ': ' + clip(d.what, 60) + ' in ' + JSON.stringify(clip(d.quote, README_QUOTE_MAX)));
+    }
+    L.push('');
+  }
   const criteria = (grade.criteria && typeof grade.criteria === 'object') ? grade.criteria : {};
   const critIds = Object.keys(criteria);
   if (critIds.length) {

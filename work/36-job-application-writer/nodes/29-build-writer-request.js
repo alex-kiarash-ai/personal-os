@@ -170,9 +170,14 @@ function rubric() {
     '  2. ONE line naming the role applied for.',
     '  3. The opener that answers the location and work authorization question honestly, before it',
     '     is asked. The user turn gives you the candidate work authorization line exactly as the CV',
-    '     states it, and the city. State that, state the working arrangement, and claim NOTHING',
-    '     beyond it. If the posting asks for a right to work the candidate does not hold, the user',
-    '     turn says so: name it as a fact, do not apologise for it, and never imply it is held.',
+    '     states it, and the city. USE THE CV OWN WORDS FROM THAT LINE in your opening sentence, the',
+    '     status word itself, spelled exactly as the line spells it. Do not answer the question in',
+    '     other words, do not answer it by implication, and do not replace the status word with a',
+    '     place name: a deterministic check looks for that word in the letter and an opener that',
+    '     paraphrases it fails and costs a rewrite. State the working arrangement too, and claim',
+    '     NOTHING beyond that line. If the posting asks for a right to work the candidate does not',
+    '     hold, the user turn says so: name it as a fact, do not apologise for it, and never imply',
+    '     it is held.',
     '  4. THREE BEATS, one short paragraph each, in this order:',
     '       beat one, what the candidate builds in the technical area this posting is about',
     '       beat two, the domain and the current employer. The user turn tells you whether that',
@@ -260,6 +265,8 @@ function toneBlock() {
     '  5. Every objection: point at the sentence that answers it. If you cannot, the letter is not',
     '     finished.',
     '  6. The last line is the candidate name alone.',
+    '  7. The opener: does the work authorization word from the user turn actually appear in it,',
+    '     spelled the same way. A city name is not that word.',
   ].join('\n');
 }
 

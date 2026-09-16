@@ -234,6 +234,29 @@ const AUDIT_CFG = {
     typescript: 'both', javascript: 'both', bureau: 'both',
     'vector-rag': 'both', 'job-pipeline': 'both', 'roles-processed': 'both', 'voice-project': 'both',
   },
+  // -------------------------------------------------------------------------------------------
+  // IS A DENIAL OF THIS CLAIM STILL A VIOLATION? The seven claims split, and the split is read off
+  // their OWN stated wording in voice-rules.js rather than invented here.
+  //
+  //   false means the rule says never MENTION the thing at all, so a denial still mentions it and
+  //     is still a hit. "never the word bureau for UC" is about the WORD. "never mention the job
+  //     application pipelines in ANY generated output" is about the SUBJECT, and a letter that says
+  //     "I do not run a job application pipeline" has just told a recruiter that one exists.
+  //   true means the rule says never CLAIM a capability. "NEVER claim TypeScript", "Never claim
+  //     vector RAG or embeddings". A sentence that says he does NOT have the thing is the rule
+  //     being obeyed out loud, and failing it is the audit arguing with the writer prompt, which
+  //     ORDERS this letter to name an honest gap.
+  //
+  // Measured, 2026-09-16, letter-eval execution 5427: all three of C2's claim checks fired on one
+  // honest sentence, "I don't have TypeScript or JavaScript on the CV, and I have not run a
+  // production vector database, so I won't pretend retrieval augmented generation at scale is
+  // proven work". Three FAILs, one sentence, and the sentence was right. A bare substring scan has
+  // no polarity, so it cannot tell a claim from its opposite.
+  // -------------------------------------------------------------------------------------------
+  claim_denial: {
+    typescript: true, javascript: true, 'vector-rag': true,
+    bureau: false, 'job-pipeline': false, 'roles-processed': false, 'voice-project': false,
+  },
 };
 
 // Everything above plain ASCII as an escape sequence, for the same two reasons voice-rules.js gives:
@@ -313,6 +336,21 @@ function assertAgainstUpstream() {
   for (const c of VR.CLAIMS) {
     if (!AUDIT_CFG.claim_scope[c.id]) {
       throw new Error('Audit Pair: voice-rules.js declares a banned claim ' + JSON.stringify(c.id) + ' and this audit gives it no scope, so it would be checked on no text at all and report green. Add it to claim_scope.');
+    }
+    // The SAME shape as the scope guard above, for the same reason. A new claim must not DEFAULT
+    // into either behaviour: defaulting to deniable would let an honest sentence carry a claim the
+    // rule bans outright, and defaulting to not-deniable would fail the honest gap the writer
+    // prompt orders. Both are silent, so neither is allowed to happen by omission. Written as a
+    // hasOwnProperty test rather than a truthiness test on purpose: `false` is a real answer here
+    // and `!AUDIT_CFG.claim_denial[c.id]` would read it as a missing one.
+    if (!Object.prototype.hasOwnProperty.call(AUDIT_CFG.claim_denial, c.id) || typeof AUDIT_CFG.claim_denial[c.id] !== 'boolean') {
+      throw new Error(
+        'Audit Pair: voice-rules.js declares a banned claim ' + JSON.stringify(c.id) + ' and this audit does not say whether a DENIAL of it is still a violation.\n' +
+        '  Read that claim own `why` in voice-rules.js and decide: a rule that says never CLAIM the\n' +
+        '  capability is deniable (true), a rule that says never MENTION the thing at all is not\n' +
+        '  (false), because a denial still mentions it. Add it to claim_denial. There is deliberately\n' +
+        '  no default: both defaults fail silently and in opposite directions.'
+      );
     }
   }
 
@@ -415,7 +453,7 @@ function auditPair(pair, phase) {
   function linesOf(text) {
     return String(text).split(NL).map((l) => l.trim()).filter((l) => l.length > 0);
   }
-  function sentenceAround(text, index) {
+  function sentenceBounds(text, index) {
     const before = text.lastIndexOf('.', index);
     const b2 = text.lastIndexOf(NL, index);
     const start = Math.max(before, b2, -1) + 1;
@@ -424,7 +462,47 @@ function auditPair(pair, phase) {
       const e = text.indexOf(ch, index);
       if (e !== -1 && e < end) end = e;
     }
-    return text.slice(start, end + 1);
+    return { start: start, end: end + 1 };
+  }
+  function sentenceAround(text, index) {
+    const b = sentenceBounds(text, index);
+    return text.slice(b.start, b.end);
+  }
+  // -------------------------------------------------------------------------------------------
+  // IS THIS HIT INSIDE A NEGATING CONSTRUCTION. ONE implementation, two callers, one parameter of
+  // difference, because it is one concept and a second copy of it would drift the way the tells
+  // list drifted between the live eval and the rubric.
+  //
+  //   A12, beforeOnly false. D17 REQUIRES the sentence "the posting asks for X, which I do not
+  //     hold", and that puts the negator AFTER the thing it denies. A12 has always read the whole
+  //     sentence and it still does.
+  //   the deniable claims, beforeOnly true. "TypeScript is no problem for me, I have used it"
+  //     would pass a whole sentence read, and it is a CLAIM. The negator has to govern the hit,
+  //     which in English means it comes first.
+  //
+  // THE REFINEMENT: a negator immediately followed by just, only or merely is NOT a denial. "I have
+  // not just TypeScript but also Python" is a claim wearing a negation, and it is the one shape
+  // where the positional rule alone gets the answer backwards.
+  //
+  // STATED LIMITATION, the same one A12 has carried since it was written, now shared by both
+  // callers: a hit inside a sentence that negates something ELSE will pass. That is the safe
+  // direction to be wrong in. The alternative rewrites every honest letter this lane exists to
+  // produce, and on the claim side the mention is REPORTED either way, so a reader can still see
+  // that the letter named a banned technology at all.
+  // -------------------------------------------------------------------------------------------
+  function negatedAround(text, at, beforeOnly) {
+    const b = sentenceBounds(text, at);
+    const region = (beforeOnly ? text.slice(b.start, at) : text.slice(b.start, b.end)).replace(/['\\u2019]/g, '');
+    for (const w of (CFG.negation_words || [])) {
+      const re = new RegExp('\\\\b' + w + '\\\\b(\\\\s+(?:just|only|merely)\\\\b)?', 'gi');
+      let m;
+      re.lastIndex = 0;
+      while ((m = re.exec(region)) !== null) {
+        if (!m[1]) return true;
+        if (m[0].length === 0) re.lastIndex += 1;
+      }
+    }
+    return false;
   }
   function hitsOf(text, re) {
     const out = [];
@@ -534,16 +612,43 @@ function auditPair(pair, phase) {
 
   // --- A6, A7, A9, A10. The banned claims, one named check each, on the scope the config gives. ---
   const CLAIM_CHECK = { typescript: 'A6', javascript: 'A6', bureau: 'A7', 'job-pipeline': 'A9', 'roles-processed': 'A9', 'voice-project': 'A9', 'vector-rag': 'A10' };
+  const deniedMentions = [];
   for (const c of CLAIMS) {
     const scope = CFG.claim_scope[c.id] || 'letter';
     const label = (CLAIM_CHECK[c.id] || 'A9') + '.' + c.id;
     if (scope === 'both' || scope === 'cv') {
+      // NEVER the denial carve out on the CV scope, whatever claim_denial says. The CV is verbatim
+      // master by construction and a CV does not deny skills: a denial appearing there is the
+      // ASSEMBLER emitting something that is not his frozen text, which is exactly the class this
+      // audit holds the pair for. Letter scope only, deliberately, and this branch is where that
+      // sentence is enforced rather than merely written down.
       const h = hitsOf(cvN, c.re);
       verdict(label + '.cv', 'cv', h.length === 0, 'clean', h.length + ' hit(s) in the CV: ' + h.map((x) => JSON.stringify(x.what)).join(', '), h.map((x) => ({ what: x.what, quote: quoteAround(cvN, x.at, x.what.length) })));
     }
     if (scope === 'both' || scope === 'letter') {
-      const h = hitsOf(letterN, c.re);
-      verdict(label + '.letter', 'letter', h.length === 0, 'clean', h.length + ' hit(s) in the letter: ' + h.map((x) => JSON.stringify(x.what)).join(', '), h.map((x) => ({ what: x.what, quote: quoteAround(letterN, x.at, x.what.length) })));
+      const deniable = CFG.claim_denial[c.id] === true;
+      const all = hitsOf(letterN, c.re);
+      const bad = [];
+      const denied = [];
+      for (const x of all) {
+        if (deniable && negatedAround(letterN, x.at, true)) denied.push(x); else bad.push(x);
+      }
+      const shape = (x) => ({ what: x.what, quote: quoteAround(letterN, x.at, x.what.length) });
+      for (const x of denied) deniedMentions.push(Object.assign({ claim: c.id, check: label + '.letter' }, shape(x)));
+      // THE DENIED HITS RIDE ON THE PASS. They do not fail the verdict and they are not invisible:
+      // the why says how many there were and the hits array carries them with their quotes, tagged
+      // denied, so the README and anyone reading the audit can see that the letter named a banned
+      // technology at all. rewriteFeedback only ever walks failed_letter, so these are inert to the
+      // rewrite turn by construction.
+      const deniedNote = denied.length
+        ? ' (' + denied.length + ' mention(s) allowed as an explicit denial, which the writer prompt ORDERS when it asks for an honest gap: ' +
+          denied.map((x) => JSON.stringify(quoteAround(letterN, x.at, x.what.length).slice(0, 110))).join(' | ') + ')'
+        : '';
+      verdict(label + '.letter', 'letter', bad.length === 0,
+        'clean' + deniedNote,
+        bad.length + ' hit(s) in the letter: ' + bad.map((x) => JSON.stringify(x.what)).join(', ') +
+          (deniable ? '. Not one of them sits behind a negation, so each reads as a CLAIM rather than as the honest gap the writer prompt asks for.' : '. This claim is never deniable: the rule forbids MENTIONING the thing, and a denial still mentions it.'),
+        bad.map(shape).concat(denied.map((x) => Object.assign({ denied: true }, shape(x)))));
     }
   }
 
@@ -551,6 +656,7 @@ function auditPair(pair, phase) {
   // quote. The employer own words are included deliberately: the skeleton REQUIRES beat three to
   // quote them, and failing a letter for a number inside a sentence it was told to reproduce would
   // be a check arguing with the brief. ---
+  const adText = String(pair.ad_text === undefined || pair.ad_text === null ? '' : pair.ad_text);
   const approved = (CFG.approved_numbers || {})[key] || [];
   const quoteSources = [];
   if (brief.quote_verified === true && brief.quote_line) quoteSources.push(String(brief.quote_line));
@@ -559,11 +665,28 @@ function auditPair(pair, phase) {
   const allow = {};
   for (const n of approved) allow[String(n)] = 'the approved list';
   for (const s of quoteSources) for (const n of extractNumbers(s)) if (!allow[n]) allow[n] = 'the employer own words';
+  // THE JOB AD IS EMPLOYER OWN WORDS TOO, and leaving it out was a real miss rather than a design
+  // choice. Letter eval 5427 failed A8 on 940, 27, 15, 1.4 and 900, and every one of those five was
+  // a figure the EMPLOYER put in their own posting. The letter argued against the ad using the ad's
+  // numbers, which is what a good letter does, and the check called them invented.
+  //
+  // Its own label, so the verdict can SAY where a figure was allowed from. That matters more here
+  // than on the other two sources: the ad is the biggest and least curated of them, so a reader
+  // asking "why did a number I have never seen pass" needs the answer in the verdict rather than by
+  // re-reading the posting. Ordered last on purpose, so a figure that IS on his approved list keeps
+  // the stronger label. This is an EXTENSION of the employer own words concept A8 already had, and
+  // the failure behaviour for a figure that appears nowhere is untouched.
+  if (adText) for (const n of extractNumbers(adText)) if (!allow[n]) allow[n] = 'the job ad';
   const badNumbers = [];
-  for (const n of extractNumbers(letter)) if (!allow[n]) badNumbers.push(n);
+  const usedFrom = {};
+  for (const n of extractNumbers(letter)) {
+    if (!allow[n]) badNumbers.push(n); else usedFrom[allow[n]] = (usedFrom[allow[n]] || 0) + 1;
+  }
+  const provenance = Object.keys(usedFrom).map((src) => usedFrom[src] + ' from ' + src);
   verdict('A8', 'letter', badNumbers.length === 0,
-    'every figure in the letter is on the approved list or inside the employer own words (' + approved.length + ' approved, ' + Object.keys(allow).length + ' allowed in total)',
-    badNumbers.length + ' figure(s) in the letter come from nowhere he approved: ' + Array.from(new Set(badNumbers)).join(', ') + '. Every number on an application is a claim, and one that is not in his own documents is one he never made.',
+    'every figure in the letter is traceable (' + (provenance.length ? provenance.join(', ') : 'the letter carries no figure at all') + '). Allowlist: ' +
+      approved.length + ' approved, ' + Object.keys(allow).length + ' allowed in total across the approved list, the employer own words and the job ad' + (adText ? '' : ' (no ad text on this pair, so that source contributed nothing)'),
+    badNumbers.length + ' figure(s) in the letter come from nowhere he approved and appear in neither the employer own words nor the posting: ' + Array.from(new Set(badNumbers)).join(', ') + '. Every number on an application is a claim, and one that is not in his own documents is one he never made.',
     Array.from(new Set(badNumbers)).map((n) => ({ what: n })));
 
   // --- A11. The work authorization line, exactly. ---
@@ -584,9 +707,11 @@ function auditPair(pair, phase) {
   for (const p of CFG.rtw_patterns) {
     const re = new RegExp(p.source, p.flags);
     for (const h of hitsOf(letterN, re)) {
-      const sentence = sentenceAround(letterN, h.at);
-      const negated = CFG.negation_words.some((w) => new RegExp('\\\\b' + w + '\\\\b', 'i').test(sentence.replace(/['\\u2019]/g, '')));
-      if (!negated) rtwHits.push({ what: h.what, pattern: p.id, quote: sentence.replace(/\\s+/g, ' ').trim().slice(0, 200) });
+      // beforeOnly FALSE, and it has to stay false: D17's required sentence puts the negator after
+      // the requirement it is denying. Same helper as the claim branch, one argument apart.
+      if (!negatedAround(letterN, h.at, false)) {
+        rtwHits.push({ what: h.what, pattern: p.id, quote: sentenceAround(letterN, h.at).replace(/\\s+/g, ' ').trim().slice(0, 200) });
+      }
     }
   }
   verdict('A12', 'letter', rtwHits.length === 0,
@@ -611,8 +736,9 @@ function auditPair(pair, phase) {
     'the pair carries no assembled evidence: cv_text ' + (cv ? 'present' : 'MISSING') + ', emitted_ids ' + (emitted ? emitted.length : 'MISSING') + ', master hash ' + (sel.master_sha256 ? 'present' : 'MISSING') + '. Assemble CV validates every id and forces the mandatory set, so a pair arriving here without that record did not come through it.',
     []);
 
-  // --- A15. Quotes. The plan's direction, and the one that can hurt. ---
-  const adText = String(pair.ad_text === undefined || pair.ad_text === null ? '' : pair.ad_text);
+  // --- A15. Quotes. The plan's direction, and the one that can hurt. adText is declared up at A8
+  // now, because A8 reads the posting as a number source and A8 runs first. One declaration, both
+  // readers, so the two checks can never disagree about what the ad text on this pair is. ---
   const q = brief.quote_line ? String(brief.quote_line) : '';
   const quoteReproved = !q ? null : (adText ? spanIsIn(q, adText) : null);
   const quotedSpans = [];
@@ -683,6 +809,11 @@ function auditPair(pair, phase) {
     failed_cv: failed.filter((c) => c.scope === 'cv' || c.scope === 'both').map((c) => c.id),
     failed_letter: failed.filter((c) => c.scope === 'letter').map((c) => c.id),
     skeleton: legs,
+    // The banned technologies the letter NAMED and then denied. Not a failure and not a warning
+    // about the letter: the writer prompt orders an honest gap and this is what an honest gap looks
+    // like. It is here so the mention is countable and readable afterwards, because a check that
+    // silently forgives is only one step better than a check that wrongly blocks.
+    denied_claims: deniedMentions.slice(0, 12),
     words: words,
     voice_rules_sha: VOICE_RULES_SHA,
     rule: 'a CV failure is NEVER rewritten: the CV is verbatim master by construction, so a failure there means the assembler is wrong or a master changed under a pinned id. A letter only failure gets ONE reasoned rewrite with the failed checks named as a second user turn on the same request object.',
@@ -746,7 +877,7 @@ if (!items.length) {
 }
 
 const out = [];
-const stats = { audited: 0, passed: 0, to_rewrite: 0, held_cv: 0, held_letter_unfixable: 0, skipped: 0 };
+const stats = { audited: 0, passed: 0, to_rewrite: 0, held_cv: 0, held_letter_unfixable: 0, skipped: 0, denied_mentions: 0 };
 const failCounts = {};
 const skipReasons = {};
 const warnings = [];
@@ -774,6 +905,7 @@ for (const raw of items) {
   const result = auditPair(j, 'first');
   j.letter_audit = result;
   stats.audited += 1;
+  stats.denied_mentions += (result.denied_claims || []).length;
   for (const id of result.failed_cv.concat(result.failed_letter)) failCounts[id] = (failCounts[id] || 0) + 1;
 
   if (result.failed_cv.length) {
@@ -830,6 +962,10 @@ if (stats.held_cv > 0) {
 }
 if (stats.to_rewrite > 0) {
   warnings.push(stats.to_rewrite + ' letter(s) failed a deterministic check and were sent for their ONE reasoned rewrite. Nothing was repaired silently: a substituted dash would make the letter ship looking clean and hide the slip from the blind grader.');
+}
+
+if (stats.denied_mentions > 0) {
+  warnings.push(stats.denied_mentions + ' mention(s) of a banned technology were ALLOWED because the letter denied them ("I do not have X"). The three deniable claims are TypeScript, JavaScript and vector RAG, whose rules forbid CLAIMING the capability rather than naming it, and the writer prompt ORDERS an honest gap. Each one is on its pair in letter_audit.denied_claims with its quote, so a reader can disagree with any of them.');
 }
 
 const report = {
