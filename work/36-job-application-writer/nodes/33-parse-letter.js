@@ -163,6 +163,15 @@ function round6(n) { return Math.round(n * 1e6) / 1e6; }
 // the complete list. No dash substitution, no control character scrub, no whitespace collapse: the
 // audit has to see what the model actually wrote, and the blind grader has to read it.
 // ---------------------------------------------------------------------------
+// THE SENTINEL PHRASE CANNOT BE HOISTED, and that is deliberate on the lift's side rather than a
+// limitation. _stage2.bakedFunction() cuts extractLetter out of the GENERATED jsCode and searches
+// THE LIFTED BYTES for a phrase, which is what proves the reused function is this rule and not
+// another one wearing the same name. A phrase living in a module constant is not in those bytes,
+// so hoisting it silently defeats the check. It is written literally inside the function below and
+// literally again in the run-report warning; two copies of a sentence is the cheap half of that
+// trade. It changed on 2026-09-16 when the screening marker became a second legitimate boundary,
+// because the old wording, 'exactly what sits between them', had stopped describing the code.
+
 function extractLetter(answer, openMark, closeMark, screenMark) {
   const raw = String(answer === null || answer === undefined ? '' : answer).split(CR + NL).join(NL).split(CR).join(NL);
   const out = { ok: false, why: null, letter: '', screen_raw: '', screen_lines: [], had_open: false, had_close: false, had_screen: false };
@@ -171,20 +180,44 @@ function extractLetter(answer, openMark, closeMark, screenMark) {
     return out;
   }
   const a = raw.indexOf(openMark);
-  const b = a === -1 ? -1 : raw.indexOf(closeMark, a + openMark.length);
+  const closeAt = a === -1 ? -1 : raw.indexOf(closeMark, a + openMark.length);
+  const screenAt = a === -1 ? -1 : raw.indexOf(screenMark, a + openMark.length);
   out.had_open = a !== -1;
-  out.had_close = b !== -1;
+  out.had_close = closeAt !== -1;
+
+  // THE SCREEN MARKER IS A SECOND LEGITIMATE BOUNDARY (added 2026-09-16, measured).
+  // Letter-eval execution 5426 had the model open the letter, write it, write the screening note
+  // under its own marker, and simply NOT emit the close marker on 2 of 6 cases. Both were refused as
+  // unparseable while a perfectly good letter sat in the response. That is a compliance rate no
+  // wording fix should be trusted to carry: the run before it was 6 of 6 on the same prompt.
+  // This is NOT a relaxation into guessing. The letter still ends at a marker the model actually
+  // emitted; the screening note's own opening marker is a boundary by construction, because the note
+  // is defined as everything after it and can never be part of the letter. What is dropped is the
+  // REDUNDANCY of demanding two markers where one already fixes the edge.
+  // The refusal that matters is untouched: an answer with an open marker and NEITHER a close marker
+  // nor a screen marker has no boundary at all and is still refused by name.
+  let b = closeAt;
+  let boundary = 'close';
+  if (closeAt === -1 && screenAt !== -1) {
+    b = screenAt;
+    boundary = 'screen';
+  }
+  out.boundary = boundary;
+
   if (a === -1 || b === -1) {
-    out.why = 'the answer does not carry the two letter markers. open marker found: ' + (a !== -1) + ', close marker found: ' + (b !== -1) +
-      '. The letter is defined as exactly what sits between them, so nothing is guessed from an answer that has no boundary.';
+    out.why = 'the answer does not carry a letter boundary. open marker found: ' + (a !== -1) +
+      ', close marker found: ' + (closeAt !== -1) + ', screening marker found: ' + (screenAt !== -1) +
+      '. The letter is defined as what sits between the open marker and whichever of those two comes next, so nothing is guessed from an answer that has no boundary at all.';
     return out;
   }
   out.letter = raw.slice(a + openMark.length, b).trim();
   if (!out.letter) {
-    out.why = 'the two letter markers are there and there is nothing between them';
+    out.why = boundary === 'close'
+      ? 'the two letter markers are there and there is nothing between them'
+      : 'the letter marker is followed immediately by the screening marker, so there is no letter between them';
     return out;
   }
-  const s = raw.indexOf(screenMark, b + closeMark.length);
+  const s = boundary === 'screen' ? screenAt : raw.indexOf(screenMark, b + closeMark.length);
   out.had_screen = s !== -1;
   if (s !== -1) {
     out.screen_raw = raw.slice(s + screenMark.length).trim();
@@ -408,7 +441,7 @@ if (errorKinds.auth) {
   warnings.push('THE ANTHROPIC KEY WAS REFUSED at the letter stage. Note that the credential for this workflow is a PROVISIONAL choice: human-action anthropic-credential-36-writer is open.');
 }
 if (holdKinds.no_letter_markers) {
-  warnings.push(holdKinds.no_letter_markers + ' letter(s) came back without the two markers and were HELD. The letter is defined as exactly what sits between them, so nothing is salvaged from an answer with no boundary: a best guess at where a letter starts is how a preamble ends up in a document a recruiter reads.');
+  warnings.push(holdKinds.no_letter_markers + ' letter(s) came back with NO boundary at all, neither a close marker nor a screening marker, and were HELD. The letter is defined as what sits between the open marker and whichever of those two comes next, so nothing is salvaged from an answer with no boundary: a best guess at where a letter ends is how a screening note ends up in a document a recruiter reads.');
 }
 if (stats.parsed > 0 && stats.with_screen_note < stats.parsed) {
   warnings.push((stats.parsed - stats.with_screen_note) + ' letter(s) came back with no screening note. The note is what proves each objection was answered, so a pair without one fails A18 at the audit and gets its one rewrite.');

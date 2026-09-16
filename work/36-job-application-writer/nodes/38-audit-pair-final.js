@@ -119,7 +119,7 @@ const NUMBER_RUNTIME = [
 const LIFTED = [
   S2.bakedFunction(N14, 'costOf', 'cache_creation_input_tokens'),
   S2.bakedFunction(N14, 'classify', 'invalid_request_error'),
-  S2.bakedFunction(N33, 'extractLetter', 'The letter is defined as exactly what sits between them'),
+  S2.bakedFunction(N33, 'extractLetter', 'The letter is defined as what sits between the open marker and whichever of those two comes next'),
   S2.bakedFunction(N34, 'auditPair', 'a CV failure is NEVER rewritten'),
 ].join('\n');
 

@@ -254,7 +254,7 @@ function liftedHelpers() {
 }
 
 function liftedExtractLetter() {
-  return S2.bakedFunction('./33-parse-letter.js', 'extractLetter', 'the answer does not carry the two letter markers');
+  return S2.bakedFunction('./33-parse-letter.js', 'extractLetter', 'the answer does not carry a letter boundary');
 }
 
 function rulesSource() {
