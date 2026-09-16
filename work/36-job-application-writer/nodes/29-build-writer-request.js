@@ -138,6 +138,19 @@ for (const key of MASTER_KEYS) {
 // ---------------------------------------------------------------------------------------------
 // THE RUBRIC. Generic English. No name, no nationality, no employer, no figure, no block id: this
 // file is tracked and the repo is public. Everything personal arrives in the user turn.
+//
+// AMENDED 2026-09-16, the pronoun rule, after letter eval execution 5428 failed C5. The rule read
+// "NO GENDERED PRONOUNS anywhere in the answer" and the letter wrote "does not want to review every
+// measure, and she does not have to", about a person the POSTING describes. The model was not
+// ignoring the rule: it read the rule as being about the candidate, which is how the rule is usually
+// discussed, and then wrote about somebody else. C5 had passed the run before on nearly the same
+// prompt, so this is model variance on an ambiguous sentence rather than a regression.
+//
+// The fix names the people the old wording left implicit and says what to write instead, because a
+// prohibition with no replacement is the shape a model routes around. It also gets a line in the
+// read-back checklist below, on the same reasoning the dash rule already has one: A5 is a
+// deterministic character-level scan, so a slip is cheap to catch here and costs a paid rewrite
+// downstream.
 // ---------------------------------------------------------------------------------------------
 function rubric() {
   return [
@@ -218,7 +231,10 @@ function rubric() {
     '  DASHES. The characters U+2013 and U+2014 do not appear anywhere in your answer. Use a comma,',
     '    a colon or a full stop. This is a standing correction and it is checked on the raw output',
     '    with no substitution step, so one of them costs a rewrite.',
-    '  NO GENDERED PRONOUNS anywhere in the answer.',
+    '  NO GENDERED PRONOUNS anywhere in the answer, about ANYONE. Not the candidate, not a named',
+    '    hiring manager, not a person the posting describes, not whoever held the role before. He,',
+    '    him, his, she, her, hers, himself and herself do not appear at all. Name the role, the team',
+    '    or the company instead, or write the sentence so that no pronoun is needed.',
     '',
     'OUTPUT FORMAT. Return exactly this and nothing around it. No preamble, no explanation, no',
     'markdown fence, no heading.',
@@ -267,6 +283,8 @@ function toneBlock() {
     '  6. The last line is the candidate name alone.',
     '  7. The opener: does the work authorization word from the user turn actually appear in it,',
     '     spelled the same way. A city name is not that word.',
+    '  8. Scan for he, him, his, she, her, hers, himself, herself. Zero, including where you are',
+    '     writing about somebody at the employer.',
   ].join('\n');
 }
 

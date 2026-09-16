@@ -50,6 +50,11 @@ const SEEDS = E.caseSeeds();
   // config/test-letter-eval.js drives both with doctored input.
   E.assertProseNodeReads(E.writerJsCode());
   E.assertCasesWellFormed(SEEDS, 6);
+  // And the third one, added 2026-09-16 with divergence D2. The first two ask whether the seeds are
+  // shaped for the PROMPT. This asks whether they are shaped for the AUDIT: node 34 allows a figure
+  // out of four fields on the pair, and a seed that leaves one empty gives this eval a shorter
+  // allowlist than the box has, which fails letters the lane accepts.
+  E.assertSeedsFeedEveryNumberSource(SEEDS);
 }());
 
 const LOGIC = `

@@ -82,6 +82,7 @@ const SCREEN_LINES_MAX = 12;
 const SCREEN_SENTENCE_MAX = 400;
 
 ${E.liftedExtractLetter()}
+${E.liftedNumberSources()}
 
 let sent = [];
 try { sent = $('Eval Write Route').all(0).map((i) => i.json); } catch (e) { sent = []; }
@@ -103,8 +104,11 @@ for (let i = 0; i < sent.length; i += 1) {
     master_key: sent[i].master_key,
     voice_block_present: sent[i].voice_block_present === true,
     approved_numbers: (sent[i]._write && sent[i]._write.approved_numbers) || [],
-    quote_line: (sent[i].brief && sent[i].brief.quote_verified === true) ? String(sent[i].brief.quote_line || '') : '',
-    hook_quote: (sent[i].research && sent[i].research.hook) ? String(sent[i].research.hook.quote || '') : '',
+    // The labelled list of every piece of text on this pair that the LANE allows a figure to come
+    // from, built by node 34's own numberSources() rather than by picking two fields out by hand.
+    // It used to be quote_line plus hook_quote, which is two of the four the lane reads, and that
+    // shortfall is divergence D2: a figure the box allows made this eval red.
+    number_sources: numberSources(sent[i]),
     outcome: null,
     why: null,
     http_status: null,
@@ -180,6 +184,9 @@ const jsCode = [
   '// extractLetter() below is LIFTED VERBATIM out of the generated code of',
   '// nodes/33-parse-letter.js, so the eval and the lane agree byte for byte about what "the letter"',
   '// is. The markers are read off the prose node, which is what told the model to emit them.',
+  '// numberSources() is LIFTED the same way out of nodes/34-audit-pair.js, so the row this node',
+  '// hands to Case Metrics names the same four sources of employer text the runtime audit allows a',
+  '// figure to come from, rather than the two this node used to pick out by hand.',
   'const LETTER_OPEN = ' + JSON.stringify(LETTER_OPEN) + ';',
   'const LETTER_CLOSE = ' + JSON.stringify(LETTER_CLOSE) + ';',
   'const SCREEN_OPEN = ' + JSON.stringify(SCREEN_OPEN) + ';',
@@ -192,7 +199,7 @@ module.exports = {
   typeVersion: 2,
   position: [1300, 0],
   connectFrom: 'Write Letter',
-  notes: 'One row per case: the extracted letter, the screening note, the HTTP status, the stop reason and the usage. extractLetter is lifted verbatim from nodes/33-parse-letter.js and the three markers are read off the prose node. Refuses the whole run if the response count does not match the sent count, because pairing across a gap produces confident nonsense.',
+  notes: 'One row per case: the extracted letter, the screening note, the HTTP status, the stop reason, the usage and the labelled list of employer text a figure may come from. extractLetter is lifted verbatim from nodes/33-parse-letter.js, numberSources from nodes/34-audit-pair.js, and the three markers are read off the prose node. Refuses the whole run if the response count does not match the sent count, because pairing across a gap produces confident nonsense.',
   parameters: {
     mode: 'runOnceForAllItems',
     jsCode,

@@ -17,7 +17,9 @@
  *                              band, and the gap sentence really being in the letter
  *   pronouns    (A5.letter)    no he, him, his, she, her, hers, himself, herself
  *   claim:*     (A6,A7,A9,A10) seven named claims, one check each, so a failure names the rule
- *   numbers     (A8)           every figure on the approved list or inside a proved quotable span
+ *   numbers     (A8)           every figure on the approved list, or inside employer text this case
+ *                              holds: the verified span, the research hook, the employer page and the
+ *                              posting. That source list is node 34's own function, lifted.
  *
  * The tables are not retyped. scripts/lib/voice-rules.js renders them and this node bakes the
  * render, exactly as the audit node does, so there is ONE definition of a tell, a pronoun, a dash
@@ -26,12 +28,44 @@
  * are lifted out of node 34's baked AUDIT_CFG, which derived them from the masters, for the same
  * reason and with more force: one of them is his name.
  *
- * normalise(), wordCount() and extractNumbers() are lifted verbatim out of node 34's generated
- * code. A word count or a number tokeniser that differs by one rule between the eval and the audit
- * produces an eval that passes a letter the lane would reject, which is the exact failure a
- * regression harness exists to prevent.
+ * normalise(), wordCount(), extractNumbers(), sentenceBounds(), negatedAround(), numberSources()
+ * and numberAllowlist() are lifted verbatim out of node 34's generated code. A word count or a number
+ * tokeniser that differs by one rule between the eval and the audit produces an eval that passes a
+ * letter the lane would reject, which is the exact failure a regression harness exists to prevent.
+ * The last two joined the list on 2026-09-16 as divergence D2: see section 1c.
  *
- * THE ONE THING THAT IS NOT LIFTED, said plainly rather than left to be found: flat() and
+ * =============================================================================================
+ * 1b. WHY THE CLAIM CHECKS ARE LIFTED AND NOT MIRRORED (2026-09-16).
+ * =============================================================================================
+ * This loop used to be a bare substring scan written here against voice-rules.js. On 2026-09-16 node
+ * 34 learned that a DENIAL is not a claim for the three deniable ones, bounded to the letter and to a
+ * negator that governs the hit. This node knew nothing about it, so letter eval execution 5428 failed
+ * C2 on the letter's honest gap sentence, which is a sentence the writer prompt ORDERS.
+ *
+ * The lesson is not "port the fix". It is that the eval was answering a different question from the
+ * lane and nothing said so. The pin guarantees the eval runs the same PROMPT as the box; nothing
+ * guaranteed it applied the same CHECKS, and that gap produces a false GREEN exactly as easily as it
+ * produced that false red. So negatedAround() is LIFTED and claim_denial and negation_words come out
+ * of node 34's baked AUDIT_CFG, and config/test-audit-denial.js runs the SAME letters through both
+ * paths and asserts the same verdict, so the next divergence fails a test instead of confusing a run.
+ *
+ * =============================================================================================
+ * 1c. DIVERGENCE D2, THE SAME SHAPE, FOUND THE SAME DAY (2026-09-16).
+ * =============================================================================================
+ * The numbers check had its own allowlist: the approved list plus two quotable spans. Node 34's A8
+ * allowed a figure out of FOUR places, because the employer's own posting and the employer's own
+ * fetched page are employer own words too, and the skeleton REQUIRES beat three to quote them. So a
+ * figure the lane deliberately permits made this eval red, and the identical gap makes it GREEN the
+ * moment the two lists differ the other way.
+ *
+ * The fix is the same one as 1b and it is the same lesson: the list is DATA in node 34 now
+ * (numberSources), it is LIFTED here, and the sources themselves arrive from Parse Eval Letter built
+ * by that same function off the seeded pair. Seeding them is the other half: the eval cases now carry
+ * ad_text and site_text assembled from their own employer material, and _eval.js refuses to build if
+ * a case leaves a source node 34 reads empty, because an unfed source is a shorter allowlist wearing
+ * a clean bill of health.
+ *
+ * THE ONE THING THAT IS STILL NOT LIFTED, said plainly rather than left to be found: flat() and
  * spanIsIn() are four lines that live INSIDE a closure in node 34, so bakedFunction cannot cut them
  * at column zero. They are re-declared below with identical semantics (collapse whitespace,
  * lowercase, trim, drop trailing punctuation from the needle, substring). If node 34's copy ever
@@ -46,6 +80,14 @@
  * would be answering a narrower question than the one it claims to. The summary reports the primary
  * separately so a failure is legible at a glance.
  *
+ * AND HERE IS WHAT A SCORE BELOW 6/6 ACTUALLY MEANS, because it is easy to read it as worse news
+ * than it is. This harness has eight nodes and NO rewrite branch: it scores the FIRST draft. The
+ * lane gives a letter-only failure ONE reasoned rewrite before it holds anything. So 4/6 here does
+ * not say the lane would have held two pairs; it says the lane would have paid for two rewrites and
+ * held whatever still failed afterwards. That is deliberate and it is the right thing to measure,
+ * because the question this harness answers is "is the PROMPT still good", and a first pass that
+ * needs a rewrite is a prompt getting worse even when the rewrite saves the letter.
+ *
  * =============================================================================================
  * 3. WHAT IS ADVISORY, AND WHY IT IS NOT BLOCKING.
  * =============================================================================================
@@ -55,9 +97,17 @@
  *                             lane ships green, and a red that is not a defect teaches people to
  *                             scroll past the suite. Worth seeing, so it is a NOTE.
  *   screen_objection_verbatim the note promises each named sentence is copied character for
- *                             character. The runtime enforces that for the GAP line only (the A4
- *                             honest_gap leg), so the gap line is blocking here and the objection
- *                             lines are a NOTE. Same reasoning, same direction.
+ *                             character. **CORRECTED 2026-09-16: the reason this file used to give
+ *                             was FALSE.** It said "the runtime enforces that for the GAP line only",
+ *                             and it does not: node 34's A18 is letter scope, blocking, and it
+ *                             checks every objection sentence verbatim. A wrong reason is worse than
+ *                             no reason, because it is the sentence that stops the next person
+ *                             looking. The honest reason is that the eval scores the PROMPT rather
+ *                             than gating a shipment, and the six cases seed objections whose
+ *                             answers are the model's to write, so a blocking verbatim check here
+ *                             would go red on a defensible letter. It stays a NOTE, and the
+ *                             difference from the runtime is now stated in the parity map of
+ *                             config/test-letter-eval.js instead of being explained away.
  *
  * =============================================================================================
  * 4. evaluateLetter() IS DECLARED AT COLUMN ZERO ON PURPOSE.
@@ -86,6 +136,21 @@ const CHECK_IDS = ['dashes', 'tells', 'words', 'skeleton', 'pronouns', 'numbers'
     throw new Error('Case Metrics: node 06 is named ' + JSON.stringify(parse.name) + ' and this node connects from "Parse Eval Letter".');
   }
 
+  // THE NUMBER SOURCES ARRIVE FROM UPSTREAM, BUILT BY NODE 34'S OWN FUNCTION. If node 06 stops
+  // emitting them, `T.number_sources` is an empty array, the allowlist shrinks to the approved list
+  // alone, and this eval fails every letter that quotes a figure back at the employer. That is a
+  // RED, so it would be noticed, but it would be noticed as six broken cases rather than as one
+  // broken row shape, which is a day of looking at the wrong thing.
+  const pc = String((parse.parameters || {}).jsCode || '');
+  if (pc.indexOf('number_sources: numberSources(sent[i]),') === -1 || pc.indexOf('function numberSources(') === -1) {
+    throw new Error(
+      'Case Metrics: Parse Eval Letter no longer builds number_sources with the LIFTED numberSources().\n' +
+      '  That list is every piece of employer text the LANE allows a figure to come from. Built by hand\n' +
+      '  here or upstream, it goes stale the day node 34 gains a source, and a shorter allowlist means\n' +
+      '  this eval fails letters the box accepts. That is divergence D2 and it already happened once.'
+    );
+  }
+
   // A `primary` that is not a real check id would be asserted against nothing and the summary would
   // print "primary PASS" for a check that does not exist. That is the shape of bug the plan's own
   // record calls out twice: a guard that passes because it tests nothing.
@@ -96,6 +161,39 @@ const CHECK_IDS = ['dashes', 'tells', 'words', 'skeleton', 'pronouns', 'numbers'
         '  The checks are: ' + CHECK_IDS.join(', ') + '\n' +
         '  A primary nothing asserts makes the case decorative: it would report a pass on a gate that\n' +
         '  was never pointed at anything.'
+      );
+    }
+  }
+
+  // THE DENIAL MAP HAS TO ANSWER FOR EVERY CLAIM, and it is node 34's map rather than one of ours.
+  // The SAME guard node 34 carries, in the same shape and for the same reason: a claim that defaults
+  // into deniable lets an honest-looking sentence carry a claim the rule bans outright, and a claim
+  // that defaults into not-deniable fails the honest gap the writer prompt orders. Both are silent
+  // and they fail in opposite directions, so neither is allowed to happen by omission.
+  //
+  // Written as a hasOwnProperty test rather than a truthiness test on purpose: `false` is a real
+  // answer here and `!CFG.claim_denial[c.id]` would read it as a missing one.
+  if (!CFG.claim_denial || typeof CFG.claim_denial !== 'object') {
+    throw new Error(
+      'Case Metrics: node 34 bakes no claim_denial map into AUDIT_CFG.\n' +
+      '  That map is what tells this eval which banned claims a DENIAL is allowed to satisfy. Without\n' +
+      '  it the eval falls back to a bare substring scan and fails the honest gap sentence the writer\n' +
+      '  prompt ORDERS, which is exactly what letter eval execution 5428 did.'
+    );
+  }
+  if (!Array.isArray(CFG.negation_words) || !CFG.negation_words.length) {
+    throw new Error(
+      'Case Metrics: node 34 bakes no negation_words list into AUDIT_CFG.\n' +
+      '  negatedAround() takes it as an argument, so an empty list means NOTHING reads as a denial and\n' +
+      '  every honest gap sentence fails again, silently and in the safe looking direction.'
+    );
+  }
+  for (const c of VR.CLAIMS) {
+    if (!Object.prototype.hasOwnProperty.call(CFG.claim_denial, c.id) || typeof CFG.claim_denial[c.id] !== 'boolean') {
+      throw new Error(
+        'Case Metrics: voice-rules.js declares a banned claim ' + JSON.stringify(c.id) + ' and node 34 does not say\n' +
+        '  whether a DENIAL of it is still a violation. Answer it in AUDIT_CFG.claim_denial in node 34,\n' +
+        '  which is the one place that map lives. There is deliberately no default here either.'
       );
     }
   }
@@ -210,7 +308,17 @@ function evaluateLetter(letter, screen, T) {
 
   leg('availability', /availab/i.test(raw) ? 'PASS' : 'FAIL', 'the letter states availability, in the wording the CV uses');
 
-  leg('no_signoff', hitsOf(norm, T.signoff.source, T.signoff.flags).length ? 'FAIL' : 'PASS',
+  // On the RAW text, because node 34's leg tests the signoff pattern against the raw letter and this
+  // leg exists to say what THAT leg would say. Corrected 2026-09-16: it used to run on the
+  // normalised text, and normalise() turns a non breaking space into an ordinary one, so a letter
+  // closing "Best<NBSP>regards" passed the lane and failed the eval. A one character red that is not
+  // a defect is the kind that teaches people to scroll past the suite.
+  //
+  // Worth saying which way this was resolved and why: the eval was made to match the LANE rather
+  // than the lane made to match the eval, because the eval's whole job is to answer "would the lane
+  // accept this letter". If the raw test is the weaker of the two, and it probably is, the fix
+  // belongs in node 34's leg and this one follows it.
+  leg('no_signoff', hitsOf(raw, T.signoff.source, T.signoff.flags).length ? 'FAIL' : 'PASS',
     'the approved shape closes on the name alone, with no sign off phrase above it');
 
   const lastLine = lines.length ? lines[lines.length - 1] : '';
@@ -239,29 +347,65 @@ function evaluateLetter(letter, screen, T) {
       : proHits.length + ' gendered pronoun(s): ' + proHits.map(function (h) { return h.what; }).join(', ') + '. Alex is never he, him, his, she or it, and neither is anybody else in a letter under his name (Shaheen 2026-07-28).',
     proHits);
 
-  // --- A6, A7, A9, A10. One named check each. ---
+  // --- A6, A7, A9, A10. One named check each, with node 34's OWN denial rule, not a second copy.
+  //
+  // negatedAround() is LIFTED out of node 34's generated code and T.claim_denial is lifted out of its
+  // baked AUDIT_CFG, so a claim that is deniable here is deniable there BY CONSTRUCTION. Before
+  // 2026-09-16 this loop was a bare substring scan, node 34 had learned that a denial is not a claim,
+  // and eval execution 5428 failed C2 on the honest gap sentence the writer prompt ORDERS.
+  //
+  // beforeOnly TRUE, the same argument node 34's claim branch passes. "TypeScript is no problem for
+  // me, I have used it" reads as a denial on a whole-sentence test and it is a CLAIM; the negator has
+  // to govern the hit, which in English means it comes first. A12's caller passes false for the
+  // opposite reason and that difference is the whole of what separates them.
+  //
+  // A claim with no claim_denial answer is refused at build time below rather than defaulting, for
+  // the reason node 34 gives: both defaults fail silently and in opposite directions.
+  const deniedClaims = [];
   for (let i = 0; i < T.claims.length; i += 1) {
     const c = T.claims[i];
-    const h = hitsOf(norm, c.source, c.flags);
-    add('claim:' + c.id, h.length === 0,
-      h.length === 0 ? 'clean' : h.length + ' hit(s): ' + h.map(function (x) { return JSON.stringify(x.what); }).join(', '), h);
+    const all = hitsOf(norm, c.source, c.flags);
+    const deniable = T.claim_denial[c.id] === true;
+    const bad = [];
+    const denied = [];
+    for (let k = 0; k < all.length; k += 1) {
+      if (deniable && negatedAround(norm, all[k].at, true, T.negation_words)) denied.push(all[k]);
+      else bad.push(all[k]);
+    }
+    for (let k = 0; k < denied.length; k += 1) deniedClaims.push({ claim: c.id, what: denied[k].what, quote: denied[k].quote });
+    // The denied hits ride on the PASS and stay visible, exactly as they do in node 34: a check that
+    // silently forgives is only one step better than one that wrongly blocks.
+    const deniedNote = denied.length
+      ? ' (' + denied.length + ' mention(s) allowed as an explicit denial, which the writer prompt ORDERS when it asks for an honest gap)'
+      : '';
+    add('claim:' + c.id, bad.length === 0,
+      bad.length === 0 ? 'clean' + deniedNote
+        : bad.length + ' hit(s): ' + bad.map(function (x) { return JSON.stringify(x.what); }).join(', ') +
+          (deniable ? '. Not one of them sits behind a negation, so each reads as a CLAIM rather than as the honest gap.' : '. This claim is never deniable: the rule forbids MENTIONING the thing, and a denial still mentions it.'),
+      bad.concat(denied.map(function (x) { return { what: x.what, at: x.at, quote: x.quote, denied: true }; })));
   }
 
-  // --- A8. Every figure approved, or inside a span this run proved quotable. ---
-  const allow = {};
-  for (let i = 0; i < (T.approved || []).length; i += 1) allow[String(T.approved[i])] = 'the approved list';
-  for (let i = 0; i < (T.quote_sources || []).length; i += 1) {
-    const ns = extractNumbers(T.quote_sources[i]);
-    for (let k = 0; k < ns.length; k += 1) if (!allow[ns[k]]) allow[ns[k]] = 'the employer own words';
-  }
+  // --- A8. Every figure approved, or inside employer text the LANE allows a figure from.
+  //
+  // numberAllowlist() and the T.number_sources list it reads are node 34's OWN bytes, lifted. This
+  // used to build its own allowlist out of the approved list plus two quotable spans, while the lane
+  // allowed four sources, and that shortfall is divergence D2: a figure the box deliberately permits
+  // came back red here. The labels travel with it, so the detail line SAYS where each figure was
+  // allowed from rather than only that it was. ---
+  const allow = numberAllowlist(T.approved || [], T.number_sources || []);
   const numHits = [];
+  const usedFrom = {};
   const seen = extractNumbers(raw);
   for (let i = 0; i < seen.length; i += 1) {
     if (!allow[seen[i]]) numHits.push({ what: seen[i], at: -1, quote: seen[i] });
+    else usedFrom[allow[seen[i]]] = (usedFrom[allow[seen[i]]] || 0) + 1;
   }
+  const provenance = Object.keys(usedFrom).map(function (k) { return usedFrom[k] + ' from ' + k; });
+  const srcFields = (T.number_sources || []).map(function (s) { return s.field; });
   add('numbers', numHits.length === 0,
-    numHits.length === 0 ? 'every one of the ' + seen.length + ' figure(s) in the letter is on the approved list or inside a proved quotable span'
-      : numHits.length + ' figure(s) that are on neither: ' + numHits.map(function (h) { return h.what; }).join(', '), numHits);
+    numHits.length === 0
+      ? 'every one of the ' + seen.length + ' figure(s) in the letter is traceable (' + (provenance.length ? provenance.join(', ') : 'the letter carries no figure at all') + '), against ' + (T.approved || []).length + ' approved and ' + (srcFields.length ? srcFields.length + ' source(s) of employer text (' + srcFields.join(', ') + ')' : 'NO employer text at all on this case')
+      : numHits.length + ' figure(s) on neither his approved list nor any employer text this case holds (' + (srcFields.length ? srcFields.join(', ') : 'no employer text seeded') + '): ' + numHits.map(function (h) { return h.what; }).join(', '), numHits);
 
   // --- ADVISORY. Reported, never blocking, never in the verdict. ---
   const screenRaw = (screen && screen.raw) ? String(screen.raw) : '';
@@ -280,7 +424,17 @@ function evaluateLetter(letter, screen, T) {
     objBad);
 
   const failed = checks.filter(function (c) { return c.status === 'FAIL'; }).map(function (c) { return c.id; });
-  return { checks: checks, advisory: advisory, words: words, paragraphs: paras.length, pass: failed.length === 0, failed: failed };
+  return {
+    checks: checks,
+    advisory: advisory,
+    words: words,
+    paragraphs: paras.length,
+    pass: failed.length === 0,
+    failed: failed,
+    // The banned technologies the letter NAMED and then denied. Same field, same meaning and same
+    // reason as node 34's letter_audit.denied_claims: not a failure, not a warning, just countable.
+    denied_claims: deniedClaims.slice(0, 12),
+  };
 }
 `;
 
@@ -336,6 +490,11 @@ for (const row of rows) {
     dash: { source: DASH_RE.source, flags: DASH_RE.flags },
     pronoun: { source: PRONOUN_RE.source, flags: PRONOUN_RE.flags },
     claims: CLAIMS.map((x) => ({ id: x.id, source: x.re.source, flags: x.re.flags })),
+    // Both lifted out of node 34's baked AUDIT_CFG at build time, never restated. claim_denial says
+    // which claims a denial is allowed to satisfy; negation_words is the list negatedAround() reads,
+    // and it is passed in rather than closed over so the lifted bytes work wherever they land.
+    claim_denial: CLAIM_DENIAL,
+    negation_words: NEGATION_WORDS,
     band: BAND,
     greeting: GREETING,
     signoff: SIGNOFF,
@@ -346,7 +505,10 @@ for (const row of rows) {
     employer_org: (ident.employer && ident.employer.org) || null,
     role_title: seeded.role_title || null,
     approved: Array.isArray(row.approved_numbers) && row.approved_numbers.length ? row.approved_numbers : (APPROVED[lane] || []),
-    quote_sources: [row.quote_line, row.hook_quote].filter((s) => s),
+    // Built by node 34's numberSources() in Parse Eval Letter, off the seeded pair, and passed
+    // through untouched. Never assembled here: the whole point of D2 is that this node must not hold
+    // its own idea of which text licenses a figure.
+    number_sources: Array.isArray(row.number_sources) ? row.number_sources : [],
   };
 
   const r = evaluateLetter(row.letter_text, row.screen, T);
@@ -356,6 +518,9 @@ for (const row of rows) {
   base.failed = r.failed;
   base.fail_detail = r.checks.filter((x) => x.status === 'FAIL').map((x) => ({ id: x.id, detail: x.detail, hits: x.hits.slice(0, 6) }));
   base.advisory = r.advisory.filter((x) => x.status === 'NOTE').map((x) => ({ id: x.id, detail: x.detail }));
+  // Mentions of a banned technology the letter DENIED. Allowed, not failures, and carried so a
+  // reader can disagree with any of them. Same field name the runtime audit uses on its pair.
+  base.denied_claims = r.denied_claims || [];
   const prim = r.checks.filter((x) => x.id === c.primary)[0];
   base.primary_status = prim ? prim.status : 'NOT RUN';
   base.letter_text = row.letter_text;
@@ -380,6 +545,8 @@ const jsCode = [
   E.rulesSource(),
   'const GREETING = ' + JSON.stringify(CFG.greeting) + ';',
   'const SIGNOFF = ' + JSON.stringify({ source: CFG.signoff.source, flags: CFG.signoff.flags }) + ';',
+  'const CLAIM_DENIAL = ' + JSON.stringify(CFG.claim_denial) + ';',
+  'const NEGATION_WORDS = ' + JSON.stringify(CFG.negation_words) + ';',
   'const PARAGRAPH_BAND = ' + JSON.stringify(CFG.paragraphs) + ';',
   'const IDENTITY = ' + JSON.stringify(CFG.identity) + ';',
   'const APPROVED = ' + JSON.stringify(CFG.approved_numbers) + ';',
@@ -393,7 +560,7 @@ module.exports = {
   typeVersion: 2,
   position: [1560, 0],
   connectFrom: 'Parse Eval Letter',
-  notes: 'Thirteen blocking checks per case, each carrying the runtime audit id it mirrors (A1 to A10), plus two advisory notes that are deliberately not blocking. Tables rendered from scripts/lib/voice-rules.js, identity and approved figures lifted from node 34, helpers lifted from node 34, and evaluateLetter() declared at column zero so the offline suite runs these bytes with no network.',
+  notes: 'Thirteen blocking checks per case, each carrying the runtime audit id it mirrors (A1 to A10), plus two advisory notes that are deliberately not blocking. Tables rendered from scripts/lib/voice-rules.js, identity and approved figures lifted from node 34, seven helpers lifted from node 34 including the A8 number source list and allowlist, and evaluateLetter() declared at column zero so the offline suite runs these bytes with no network.',
   parameters: {
     mode: 'runOnceForAllItems',
     jsCode,

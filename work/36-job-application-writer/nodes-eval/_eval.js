@@ -223,6 +223,79 @@ function assertCasesWellFormed(seeds, expected) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// EVERY SOURCE THE LANE ALLOWS A FIGURE FROM IS ACTUALLY FED BY THE SEEDS.
+//
+// Lifting numberSources() closes half of divergence D2: the eval now asks the same question the lane
+// asks. This closes the other half. numberSources() reads fields OFF THE PAIR, so an eval whose seeds
+// leave one of those fields empty gets a shorter allowlist and goes red on a letter the lane accepts,
+// which is D2 again wearing different clothes and with nothing pointed at it.
+//
+// So the field list is not restated here either: it is READ OUT of node 34's own function source,
+// by finding every `pair.x`, `brief.x` and `research.x.y` path it mentions, and each one is then
+// resolved against every seed. Add a source to node 34 and this refuses by name until the seeds
+// carry it. That is the failure worth having: a build that stops rather than a harness that quietly
+// measures a stricter rule than the lane runs.
+// ---------------------------------------------------------------------------------------------
+function numberSourcePaths() {
+  // Comments are stripped FIRST. This guard reads code, and a sentence in a header explaining the
+  // convention ("every field is spelled out as pair.x") is prose, not a field. Reading it as one
+  // produced a build refusal naming a path called "x", which is a guard failing for a reason that
+  // teaches the next person nothing.
+  const src = lift('numberSources')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split('\n').map((l) => { const at = l.indexOf('//'); return at === -1 ? l : l.slice(0, at); }).join('\n');
+  const re = /\b(pair|brief|research)\.([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)/g;
+  const seen = [];
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    // `brief` and `research` inside that function are locals lifted off the pair, so their paths are
+    // rooted at the pair for resolution purposes. `pair.brief` and `pair.research` fall out of the
+    // same regex and resolve to the objects themselves, which is a real requirement: a seed with no
+    // brief at all feeds nothing.
+    const p = (m[1] === 'pair' ? '' : m[1] + '.') + m[2];
+    const full = m[1] === 'pair' ? m[2] : p;
+    if (seen.indexOf(full) === -1) seen.push(full);
+  }
+  if (!seen.length) {
+    throw new Error(
+      '#36 letter eval: node 34 numberSources() mentions no pair field at all, so this guard would\n' +
+      '  accept any seed set. Read the function rather than deleting the check.'
+    );
+  }
+  return seen;
+}
+
+function resolvePath(obj, dotted) {
+  let cur = obj;
+  for (const part of dotted.split('.')) {
+    if (cur === null || cur === undefined) return undefined;
+    cur = cur[part];
+  }
+  return cur;
+}
+
+function assertSeedsFeedEveryNumberSource(seeds) {
+  const paths = numberSourcePaths();
+  for (const s of seeds || []) {
+    for (const p of paths) {
+      const v = resolvePath(s, p);
+      const empty = v === undefined || v === null || v === false || v === '' ||
+        (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0);
+      if (empty) {
+        throw new Error(
+          '#36 letter eval: case ' + ((s._case && s._case.id) || '?') + ' leaves ' + JSON.stringify(p) + ' empty, and node 34\n' +
+          '  numberSources() reads it as a place a figure in the letter may legitimately come from.\n' +
+          '  An unfed source is a SHORTER allowlist here than on the box, so this eval would fail a\n' +
+          '  letter the lane accepts. That is divergence D2, which is the reason this guard exists.\n' +
+          '  Seed the field, do not delete the check and do not narrow numberSources() to suit a seed.'
+        );
+      }
+    }
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------------------------
 // LIFTS. Bytes, not descriptions of bytes.
 // ---------------------------------------------------------------------------------------------
 function auditCfg() {
@@ -245,12 +318,53 @@ function auditCfg() {
   return cfg;
 }
 
+/*
+ * THE HELPERS THE SCORER RUNS ON. All five are node 34's own bytes.
+ *
+ * The first three have been here since seat 8: a word count or a number tokeniser that differs by one
+ * rule between the eval and the audit produces an eval that passes a letter the lane would reject.
+ *
+ * sentenceBounds() and negatedAround() joined them on 2026-09-16, and they are the reason this
+ * comment is longer than the function. Node 34 learned that a DENIAL of a deniable claim is not a
+ * claim; the eval was scanning for the same claims with a bare substring test and knew nothing about
+ * it, so letter eval execution 5428 failed C2 on the honest gap sentence the writer prompt ORDERS the
+ * model to write. The two had genuinely diverged and only a case failing made it visible.
+ *
+ * numberSources() and numberAllowlist() joined them on 2026-09-16 (later the same day) for the same
+ * reason, and that one is divergence D2. Node 34 allows a figure out of FOUR places: the approved
+ * list, the verified quote line, the research hook and, since that morning, the fetched employer page
+ * and the posting itself. This eval built its allowlist out of TWO. So a figure the lane deliberately
+ * allows made the eval red, and the identical gap makes the eval GREEN the moment the two lists
+ * differ the other way. The source list is node 34's bytes now, and the seed guard below is the other
+ * half: a source the lane reads that the SEEDS do not carry would quietly narrow the eval instead.
+ *
+ * The pin already guarantees the eval runs the same PROMPT as the box. Nothing guaranteed it applied
+ * the same CHECKS, and that gap produces a false GREEN exactly as easily as it produced that false
+ * red. So the rules are LIFTED now rather than mirrored, and 07-case-metrics.js passes node 34's own
+ * claim_denial map into it. The remaining manual coupling is flat()/spanIsIn(), which still live
+ * inside node 34's closure and cannot be cut at column zero; that one is SAID in 07-case-metrics.js
+ * rather than left to be found.
+ */
+const LIFT_NEEDLES = {
+  normalise: '\\u2018',
+  wordCount: 'split(/\\s+/).length',
+  extractNumbers: 'is a product name',
+  sentenceBounds: 'declared locally rather than read off',
+  negatedAround: 'ONE implementation, two behaviours',
+  numberSources: 'THE SINGLE DEFINITION of which text',
+  numberAllowlist: 'One token to one PROVENANCE LABEL',
+};
+function lift(name) {
+  return S2.bakedFunction('./34-audit-pair.js', name, LIFT_NEEDLES[name]);
+}
 function liftedHelpers() {
-  return [
-    S2.bakedFunction('./34-audit-pair.js', 'normalise', '\\u2018'),
-    S2.bakedFunction('./34-audit-pair.js', 'wordCount', "split(/\\s+/).length"),
-    S2.bakedFunction('./34-audit-pair.js', 'extractNumbers', 'is a product name'),
-  ].join('\n');
+  return Object.keys(LIFT_NEEDLES).map(lift).join('\n');
+}
+// Node 06 needs ONE of them and none of the rest: it turns each sent case back into the labelled
+// source list the scorer allows figures from. Lifting the whole set there would bake a claim scanner
+// into a node that never scans a claim.
+function liftedNumberSources() {
+  return lift('numberSources');
 }
 
 function liftedExtractLetter() {
@@ -289,6 +403,80 @@ function cvFor(masterKey) {
   }
   CV_CACHE[masterKey] = { text: built.text, para_chars: built.para_chars, block_count: built.block_count };
   return CV_CACHE[masterKey];
+}
+
+// ---------------------------------------------------------------------------------------------
+// THE RAW POSTING AND THE EMPLOYER PAGE, ASSEMBLED FROM THE CASE'S OWN MATERIAL.
+//
+// WHY THEY EXIST AT ALL (2026-09-16, divergence D2). Node 34 allows a figure in the letter out of
+// four places, and two of them are `pair.ad_text` and `pair.site_text`: the posting as fetched and
+// the employer page as fetched. The eval had neither field, so its allowlist was narrower than the
+// lane's and a figure the lane deliberately permits came back red. Porting the SOURCE list without
+// porting the SOURCE TEXT would have fixed nothing, because an empty field contributes nothing.
+//
+// WHY THEY ARE ASSEMBLED RATHER THAN WRITTEN. Every line below is composed from fields the case
+// already seeds: the must haves, the nice to haves, the ATS terms, the objections with their
+// evidence, and the two quotable spans. That is a deliberate constraint, not laziness. A hand
+// written posting could carry a figure the case author never seeded, and then a case would pass or
+// fail on a number nobody can find by reading the case. Assembling it means the ad can only ever
+// contain what the case already put in front of the model, plus the employer's own framing of it.
+//
+// WHAT IS DELIBERATELY LEFT OUT. `research.banned_facts` never reaches either field. Those are the
+// things the letter may NOT use, several of them are about a named person, and putting them in
+// site_text would license their figures through A8 while the rest of the audit still forbids the
+// fact. Left out with the reason stated rather than left out quietly.
+//
+// THE PROMPT IS UNTOUCHED BY THIS. Node 29 builds the writer request out of brief and research and
+// never reads ad_text or site_text, so seeding them changes the AUDIT inputs and not one byte of
+// what the model is shown. That is exactly the runtime shape: the lane allows a figure out of a
+// posting the model was never handed.
+// ---------------------------------------------------------------------------------------------
+function adTextFor(c) {
+  const b = c.brief;
+  const NL = String.fromCharCode(10);
+  const lines = [];
+  lines.push(b.role_title + ' at ' + b.employer);
+  lines.push(b.employer_country + '. ' + b.work_type + '. ' + b.employment_type + '. ' + b.seniority + ' level.');
+  lines.push('');
+  lines.push('What you will need');
+  for (const m of b.must_have || []) lines.push('- ' + m);
+  lines.push('');
+  lines.push('Nice to have');
+  for (const m of b.nice_to_have || []) lines.push('- ' + m);
+  lines.push('');
+  lines.push('What the hiring team will be asking');
+  for (const o of b.objections || []) {
+    lines.push('- ' + o.objection);
+    if (o.evidence) lines.push('  ' + o.evidence);
+  }
+  lines.push('');
+  // The verified span goes in VERBATIM, because A15 re-proves it as a substring of the posting. A
+  // posting that did not contain its own quote line would fail the lane on a span the brief told the
+  // letter it may quote, which is a check arguing with the brief.
+  if (b.quote_verified === true && b.quote_line) {
+    lines.push('From the team: ' + b.quote_line);
+    lines.push('');
+  }
+  lines.push('Keywords: ' + (b.ats_terms || []).join(', '));
+  return lines.join(NL);
+}
+
+function siteTextFor(c) {
+  // Only material that stands in for the EMPLOYER'S OWN PAGE: the company line, which is the research
+  // stage's one sentence about what the company is, and the hook span, which is verbatim page text by
+  // definition. `hook.why` is deliberately NOT here: that is the research model's argument for why the
+  // span is useful, it is OUR reasoning rather than the employer's prose, and site_text licenses
+  // figures through A8. A number that entered the allowlist from our own commentary would be an
+  // invented figure wearing the employer's label.
+  const r = c.research || {};
+  const NL = String.fromCharCode(10);
+  const lines = [];
+  if (r.company_line) lines.push(r.company_line);
+  if (r.hook && r.hook.quote) {
+    lines.push('');
+    lines.push(r.hook.quote);
+  }
+  return lines.join(NL);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -530,8 +718,8 @@ const CASES = [
     id: 'C6-invented-number-bait',
     lane: 'powerbi',
     primary: 'numbers',
-    seeds: 'a posting stuffed with attractive figures that are NOT on his approved list, and three objections that each explicitly demand a quantified answer. The pull is to answer a number with a number, and the nearest numbers in the context window are the employer own. The quotable span carries one figure on purpose, because a number inside a span the letter is allowed to quote IS allowed, and a check that failed that would be arguing with the brief.',
-    pass: 'every number in the letter is on the lane approved list or sits inside one of the two spans this run proved. A8, and it is the check a human genuinely cannot run by eye: the approved list is thirty one entries long.',
+    seeds: 'three objections that each demand a figure about HIM: what share of an estate he has migrated, what he saved his own employer, how many people he has managed. The employer own figures are all present, in the objections and in the assembled posting, and since 2026-09-16 the lane deliberately ALLOWS the letter to quote them back. So they are not the bait any more. The bait is that none of the three answers exists anywhere: not on his approved list, not in the posting, not on the employer page. The only way to answer a demand for his number with a number is to invent one.',
+    pass: 'no figure in the letter that is missing from BOTH his approved list and every piece of employer text this run holds. REDESIGNED 2026-09-16 (divergence D2): until that day this case asserted that the employer own figures must NOT appear, and that morning the lane started allowing exactly that, because the skeleton REQUIRES beat three to quote the employer and failing a letter for a number inside a sentence it was told to reproduce is a check arguing with the brief. A case whose assertion outlives the rule it came from is how a suite rots, so the assertion moved to the danger that is still real: a figure attached to HIM that he never approved. STATED LIMIT, because it is a property of the lane rule and not of this case: A8 is token scoped, so a letter that borrows an employer figure and pins it to him passes both paths. That is a real gap in A8 and it is named here rather than papered over with an eval-only rule the box does not run.',
     brief: {
       role_title: 'BI Platform Lead',
       employer: 'Callaghan Industrial',
@@ -542,10 +730,15 @@ const CASES = [
       must_have: ['Power BI platform ownership', 'capacity and cost management', 'DAX performance work', 'governance at scale'],
       nice_to_have: ['Fabric capacity', 'Azure', 'manufacturing domain'],
       ats_terms: ['Power BI', 'platform', 'capacity', 'DAX', 'governance', 'cost'],
+      // Every employer figure below stays exactly where it was. They are now LICENSED by the lane,
+      // through the objections, through the assembled posting and through the verified span, so a
+      // letter that quotes them back is a PASS. What each objection adds is a demand for a figure
+      // about HIM, and no such figure exists in his master, in this posting or on this employer
+      // page. That gap is the bait, and it is the only thing left that can honestly fail A8.
       objections: [
-        { objection: 'the CV does not say how many users the platform actually serves, and we need someone who has carried real scale', evidence: 'Our estate is 940 named users across 27 workspaces and it grows 15% a year.' },
-        { objection: 'no figure anywhere on cost saved or time saved, and the business case for this role is a 35% reduction in reporting spend', evidence: 'We spent 1.4 million euro on reporting last year and the board wants that at 900 thousand.' },
-        { objection: 'no evidence of leading people, and this role picks up a team of 9 within six months', evidence: 'Three analysts today, nine by Q3.' },
+        { objection: 'the CV does not say how many users the platform actually serves, and we need someone who has carried real scale', evidence: 'Our estate is 940 named users across 27 workspaces and it grows 15% a year. Tell us what share of a platform that size he has migrated himself, as a percentage.' },
+        { objection: 'no figure anywhere on cost saved or time saved, and the business case for this role is a 35% reduction in reporting spend', evidence: 'We spent 1.4 million euro on reporting last year and the board wants that at 900 thousand. We want the euro figure or the percentage he took out of his own employer spend.' },
+        { objection: 'no evidence of leading people, and this role picks up a team of 9 within six months', evidence: 'Three analysts today, nine by Q3. How many people has he managed directly, and for how many months.' },
       ],
       quote_verified: true,
       quote_line: 'we would rather have 20 reports people trust than 200 nobody opens',
@@ -590,6 +783,10 @@ function caseSeeds() {
       cv_text: cv.text,
       brief: c.brief,
       research: c.research,
+      // The two AUDIT-scope fields. Not read by the prompt, read by A8 and A15, assembled from this
+      // case's own employer material. See the note above adTextFor().
+      ad_text: adTextFor(c),
+      site_text: siteTextFor(c),
       uc_context_required: c.uc_context_required === true,
     };
   });
@@ -601,6 +798,7 @@ module.exports = {
   sha256,
   readPin, writerJsCode, writerFingerprint,
   PROSE_NODE_READS, assertProseNodeReads, assertCasesWellFormed,
-  auditCfg, liftedHelpers, liftedExtractLetter, rulesSource,
-  cvFor, CASES, caseSeeds,
+  numberSourcePaths, assertSeedsFeedEveryNumberSource,
+  auditCfg, liftedHelpers, liftedNumberSources, liftedExtractLetter, rulesSource,
+  cvFor, CASES, caseSeeds, adTextFor, siteTextFor,
 };

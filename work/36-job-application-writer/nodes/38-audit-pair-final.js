@@ -10,6 +10,10 @@
  * on a box that cannot require a file is to LIFT the source at build time:
  *
  *   extractLetter()  lifted out of 33-parse-letter.js       the marker extraction, sanitiser free
+ *   sentenceBounds() lifted out of 34-audit-pair.js         the sentence a hit sits in
+ *   negatedAround()  lifted out of 34-audit-pair.js         is that hit a claim or a denial of one
+ *   numberSources()  lifted out of 34-audit-pair.js         which text on a pair licenses a figure
+ *   numberAllowlist() lifted out of 34-audit-pair.js        that text turned into token to label
  *   auditPair()      lifted out of 34-audit-pair.js         A1 to A18
  *   AUDIT_CFG        the exact baked line out of 34         the approved figures, the derived
  *                                                           identity, the ceiling, the filenames
@@ -116,10 +120,22 @@ const NUMBER_RUNTIME = [
   bakedVoiceFunction('extractNumbers', 'thousands separators'),
 ].join('\n');
 
+// sentenceBounds(), negatedAround(), numberSources() and numberAllowlist() used to live INSIDE
+// auditPair(), so lifting the scan carried them along for free. All four were hoisted to column zero
+// in node 34 on 2026-09-16 so the LETTER EVAL could lift them too and stop re-implementing the claim
+// rule against voice-rules.js and the A8 source list against its own two-entry copy, which is how
+// the eval and the lane genuinely diverged twice. The cost of that hoist is this: auditPair() now
+// calls FOUR free names, and they have to be lifted BY NAME alongside it or the final pass throws a
+// ReferenceError on the first letter that mentions a banned technology or carries a figure. Named
+// here so the coupling is written down rather than discovered in an execution log.
 const LIFTED = [
   S2.bakedFunction(N14, 'costOf', 'cache_creation_input_tokens'),
   S2.bakedFunction(N14, 'classify', 'invalid_request_error'),
   S2.bakedFunction(N33, 'extractLetter', 'The letter is defined as what sits between the open marker and whichever of those two comes next'),
+  S2.bakedFunction(N34, 'sentenceBounds', 'declared locally rather than read off'),
+  S2.bakedFunction(N34, 'negatedAround', 'ONE implementation, two behaviours'),
+  S2.bakedFunction(N34, 'numberSources', 'THE SINGLE DEFINITION of which text'),
+  S2.bakedFunction(N34, 'numberAllowlist', 'One token to one PROVENANCE LABEL'),
   S2.bakedFunction(N34, 'auditPair', 'a CV failure is NEVER rewritten'),
 ].join('\n');
 
