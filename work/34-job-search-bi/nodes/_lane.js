@@ -174,7 +174,27 @@ const PAGING_DEFAULTS = {
   // on it. The hard clamp in 33-detail-gate.js (30) is untouched and still the thing a hand
   // edited settings cell cannot get past.
   linkedin_detail_max_calls_per_run: 14,
-  linkedin_total_max_calls_per_run: 25,
+  // 25 -> 40 on 2026-09-16, because the paragraph above this block stopped being true on 09-15.
+  // It sized 25 as "the measured-safe 20 plus a margin of 5" on the stated assumption that "on a
+  // normal 24h window the search leg spends 10 to 14". Three more collection scopes were added on
+  // 09-15 and the search leg went to a FLAT 20, which is the entire budget, so the detail leg has
+  // been running on whatever was left: nothing.
+  // MEASURED, execution 5468 (AI lane, manual, 2026-09-16): searched 715, survived the title filter
+  // 42, `cap dropped 27`, `deferred for no description 15`, scored 5, written 4. Shaheen's words
+  // were "it found only 4 jobs! For sure there are more". He was right, and the 4 was never the
+  // supply: 41 of those 42 came from linkedin_guest_search and exactly ONE from a free board, so
+  // this cap IS the job supply for this lane and no other source can be leaned on instead.
+  // 40 = the 20 the search leg now actually spends, plus room for the detail leg to reach its own
+  // cap of 14. That makes the two numbers agree for the first time since the scopes changed, and it
+  // takes the lane from 5 jobs read per run to 14.
+  // THE COST, stated rather than buried: 34 calls a run is above the only figure ever measured safe
+  // (20, execution 5154) and well above D20's documented refusal threshold of roughly ten. This is a
+  // deliberate trade of rate-limit risk for job supply. If LinkedIn starts refusing, the lane reports
+  // linkedin_guest_search degraded with a named reason rather than returning a healthy zero, and the
+  // step back down is this number.
+  // NOT TOUCHED: linkedin_detail_max_calls_per_run stays 14. Shaheen ruled on that dial directly
+  // ("Ok , keep it at 10", then 14 on his own call for the ad-language gate), so it is his to move.
+  linkedin_total_max_calls_per_run: 40,
   linkedin_page_demand_multiple: 3,
 };
 // Optional settings rows. NOT in SCHEMA.keys, on purpose: a key in that list is REQUIRED and Parse
