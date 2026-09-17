@@ -179,17 +179,85 @@ const GEO_TARGETS = {
       'lund', 'helsingborg', 'umea', 'norrkoping', 'jonkoping', 'solna', 'kista', 'sundbyberg',
     ],
   },
-  'Remote EU': {
-    why: 'a remote job open to the EU is open to him. CET is included because two boards state the timezone instead of the region.',
+  // ============================================================================================
+  // THE FOUR NAMED REMOTE COUNTRIES, 2026-09-17. THEY REPLACE 'Remote EU', THEY DO NOT NARROW IT.
+  // ============================================================================================
+  // This is the half of the change that decides whether a job LIVES. Only LinkedIn and Jobicy take a
+  // request-side geography at all, so for six of the eight live sources a scope exists ONLY as a
+  // token list here, and a row this file cannot name is dropped.
+  //
+  // WHAT LEAVING 'Remote EU' OUT ACTUALLY DOES, measured before he decided rather than after. On the
+  // 2026-09-17 runs, 22 of 60 surviving BI rows and 13 of 43 AI rows came through 'Remote EU', and
+  // only 2 and 4 of those named a country on his new list. The rest were Portugal x10, Lithuania x4,
+  // Poland, France, Romania, Czechia, Italy and Finland, every one of them REMOTE. Asked whether
+  // those should stop arriving, he answered "strict: only the five I named". So they stop. A board
+  // row whose location says only "Europe", "EU" or "CET" now matches nothing and is dropped on
+  // geography, which the run report already counts and samples (dropped_geo, geoDropSamples).
+  //
+  // NATIONS, LANGUAGES AND THE MAJOR CITIES, and the cities earn their place here for a reason the
+  // UK list did not have. A UK row always carries the "united kingdom" tail. These four do not
+  // always: the live probes returned "Limburg, Netherlands" and "North Holland, Netherlands" (which
+  // do name the country) but also "Sant Joan Despi, Catalonia, Spain" and "County Westmeath,
+  // Ireland" where a region sits between the town and the country. A city list is what catches a
+  // board row that prints only "Barcelona" or "Amsterdam", which both do.
+  //
+  // THE OVERLAP WITH 'Remote UK' IS DELIBERATE AND IS THE ONE PLACE THESE LISTS ARE NOT DISJOINT.
+  // 'ireland' matches inside "Northern Ireland", which belongs to the UK. GEO_PRECEDENCE puts
+  // Remote UK BEFORE Remote Ireland so a Belfast row is judged as UK, and because both scopes carry
+  // the SAME remote-only rule the verdict is identical either way: only the label differs. Removing
+  // 'ireland' instead was considered and refused, because LinkedIn prints "County Westmeath,
+  // Ireland" with no city this list would otherwise catch.
+  //
+  // TOKENS CONSIDERED AND REFUSED, each for a real collision:
+  //   'ie', 'de', 'nl', 'es'  two letters. 'de' is a Spanish and Portuguese preposition and appears
+  //                           in half the Iberian location strings; 'es' is a Spanish word ending.
+  //   'holland'               KEPT, it is unambiguous and boards print it.
+  //   'eire'                  KEPT, rare but unambiguous.
+  //   'dach'                  the DACH region is Germany plus Austria plus Switzerland, and Austria
+  //                           is not on his list while Switzerland has its own scope with a
+  //                           different work-type rule. A DACH row would be claimed by Germany and
+  //                           granted remote-only, which is the conservative reading, but it would
+  //                           also silently admit a market he did not name. Refused.
+  //   'iberia', 'benelux'     same shape: they name a region wider than the country he listed.
+  //                           Benelux is Belgium plus the Netherlands plus Luxembourg, and he named
+  //                           only the Netherlands.
+  'Remote Ireland': {
     work_types: 'remote_only',
-    // 'emea' REMOVED 2026-09-15. It was in BOTH this list and the Remote EMEA list, and while that
-    // was true the sentence "EU is remote only but EMEA takes any work type" could not be expressed
-    // at all: whichever key happened to iterate first decided the work type rule for a row that
-    // matched both, and the iteration order came from the order of a spreadsheet cell. The two lists
-    // are now disjoint and the order is declared in GEO_PRECEDENCE below rather than inherited.
+    why: 'named by him 2026-09-17, in the remote-only group. He has no Irish right to work, so an onsite Dublin job is not a job he can take; the collector enforces it with f_WT=2 and every board here is remote only, and this list is the geography half.',
     tokens: [
-      'europe', 'european', 'european union', 'eu', 'eea', 'european economic area',
-      'cet', 'cest', 'central european', 'central european time',
+      'ireland', 'irish', 'eire', 'republic of ireland',
+      'dublin', 'cork', 'galway', 'limerick', 'waterford',
+    ],
+  },
+  'Remote Germany': {
+    work_types: 'remote_only',
+    // The probe figure that used to sit in this string named one of his live search terms, and the
+    // leak scanner in test-stage-a.js caught it: these node files are TRACKED and the repo is
+    // PUBLIC, so a search term here is a search term published. The number lives in the gitignored
+    // contract under geo_ids.verified.Germany.volume_note instead.
+    why: 'named by him 2026-09-17, in the remote-only group. The largest of the four by market size and the thinnest on the pre-ship probe, which is a fact about one probe and not about the market.',
+    tokens: [
+      'germany', 'german', 'deutschland',
+      'berlin', 'munich', 'munchen', 'hamburg', 'frankfurt', 'cologne', 'koln',
+      'stuttgart', 'dusseldorf', 'dortmund', 'leipzig', 'bavaria', 'nordrhein',
+    ],
+  },
+  'Remote Netherlands': {
+    work_types: 'remote_only',
+    why: 'named by him 2026-09-17, in the remote-only group.',
+    tokens: [
+      'netherlands', 'dutch', 'holland', 'nederland',
+      'amsterdam', 'rotterdam', 'utrecht', 'the hague', 'den haag', 'eindhoven',
+      'groningen', 'noord-holland', 'north holland', 'limburg', 'overijssel',
+    ],
+  },
+  'Remote Spain': {
+    work_types: 'remote_only',
+    why: 'named by him 2026-09-17, in the remote-only group.',
+    tokens: [
+      'spain', 'spanish', 'espana',
+      'madrid', 'barcelona', 'valencia', 'seville', 'sevilla', 'bilbao',
+      'malaga', 'zaragoza', 'catalonia', 'cataluna', 'andalusia',
     ],
   },
   // Added 2026-09-14 with the UK scope, and this entry is the half of that change that actually
@@ -280,17 +348,11 @@ const GEO_TARGETS = {
       'norway', 'norwegian', 'norge', 'oslo', 'trondheim', 'stavanger',
     ],
   },
-  'Remote EMEA': {
-    why: 'his own words in the locations list. EMEA is Europe, the Middle East and Africa. It is now the RESIDUAL of that set: the concrete markets he named inside it have their own scopes above, so what is left here is the Middle East beyond the Gulf, Africa, and any posting that simply says EMEA.',
-    // ANY work type, per his 2026-09-15 ruling, and it is safe to say so only because this list no
-    // longer carries 'europe'. While it did, an onsite Milan job matched EMEA as well as Remote EU
-    // and would have been kept under whichever rule fired first, which would have re-admitted onsite
-    // EU work through the back door of a scope that was never meant to grant it.
-    work_types: 'any',
-    // 'europe' and 'european' REMOVED 2026-09-15, see the Remote EU entry. Keeping the general terms
-    // for the parts of EMEA that no other scope claims.
-    tokens: ['emea', 'middle east', 'africa', 'african'],
-  },
+  // 'Remote EMEA' was here and it is GONE (2026-09-17). It was the widest residual, the scope that
+  // caught a row whose location said only "EMEA", "Middle East" or "Africa", and it is precisely
+  // what Shaheen removed by choosing the strict named list. Its work_types was 'any', which is why
+  // it had to be evaluated LAST: it was the one scope that would grant onsite to a row naming no
+  // country. A Gulf row still survives, on the Gulf scope, which names its countries and cities.
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -320,12 +382,23 @@ const GEO_TARGETS = {
 // Declared here rather than inherited from the order of the settings cell, which is what used to
 // decide it. A rule whose answer depends on how somebody typed a spreadsheet cell is not a rule.
 const GEO_PRECEDENCE = [
-  'Sweden',         // his home country, and the only scope where onsite was ever allowed before now
-  'Gulf',           // named countries and cities
-  'Non-EU Europe',  // named countries and cities
-  'Remote UK',      // named country
-  'Remote EU',      // region, remote only
-  'Remote EMEA',    // the widest region, and the residual
+  'Sweden',             // his home country, and the first scope where onsite was ever allowed
+  'Gulf',               // named countries and cities, any work type
+  'Non-EU Europe',      // named countries, any work type. KEPT on his explicit answer 2026-09-17
+                        // when his new list omitted Switzerland and Norway.
+  // The five remote-only countries. Order inside this group decides only the LABEL, because all
+  // five carry the same rule, with ONE case where it matters: 'ireland' matches inside "Northern
+  // Ireland", so Remote UK is tested first and a Belfast row is judged as UK.
+  'Remote UK',
+  'Remote Ireland',
+  'Remote Germany',
+  'Remote Netherlands',
+  'Remote Spain',
+  // 'Remote EU' and 'Remote EMEA' were the last two entries and both are GONE (2026-09-17). They
+  // were the residuals: the scopes that judged a row naming nothing more precise than a region.
+  // With them removed there IS no residual, which is the strict list working as chosen. A row whose
+  // location says only "Europe" or "EMEA" now falls off the end of this list and is dropped on
+  // geography, counted and sampled on the run report.
 ];
 
 // Evidence that a row is NOT remote. Deliberately short and deliberately explicit: each of these is

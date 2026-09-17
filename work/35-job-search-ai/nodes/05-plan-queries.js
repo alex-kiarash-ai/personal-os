@@ -236,14 +236,71 @@ const LINKEDIN_TARGETS = {
     country: 'SE',
     swedish_terms: true,
   },
-  'Remote EU': {
+  // ============================================================================================
+  // THE FOUR NAMED REMOTE COUNTRIES, 2026-09-17, and they REPLACE 'Remote EU'.
+  // ============================================================================================
+  // His instruction: "Sweden (onsite, Hyprid, remote). UK and Irland Germany the Netherlands Spain
+  // (remote only) then Dubai, Doha, Saudi Arabia (on-site)". Asked directly whether remote jobs from
+  // the REST of Europe should stop arriving, he chose "strict: only the five I named", with the
+  // measured cost in front of him: on the 2026-09-17 runs that would have dropped 20 of 60 BI rows
+  // and 9 of 43 AI rows, all of them remote (Portugal x10, Lithuania x4, Poland, France, Romania,
+  // Czechia, Italy, Finland). So 'Remote EU' is not narrowed, it is GONE, and a posting whose
+  // location says only "Europe" now matches no scope at all. That is the decision, not a side effect.
+  //
+  // ONE SEARCH TERM EACH, and that is the budget arithmetic rather than a judgement about the
+  // markets. Measured on execution 5474: Sweden costs 7 calls (4 English terms plus 3 Swedish),
+  // Remote UK 4, the Gulf 3 (one term across three ids), Non-EU Europe 2. Giving these four ALL_TERMS
+  // would cost 16 and take the search leg to 32 against a 25 cap, starving the detail stage that
+  // Shaheen capped at 14 BY NAME. One term each costs 4 and leaves the run at 20 calls, exactly what
+  // it spends today. If a country turns out to be worth more, raise max_terms for that ONE entry and
+  // watch the total; do not raise them all.
+  //
+  // UK KEEPS ITS OWN SCOPE AND ITS FOUR TERMS. His sentence groups the five countries by WORK TYPE
+  // (remote only), not by search depth, and folding the UK into a one-term group would have quietly
+  // cut an existing market's coverage by four while adding four new ones. The grouping he wrote is
+  // honoured in the FILTER, where all five carry the same remote-only rule.
+  //
+  // country IS SET on all four, unlike the Gulf and Non-EU Europe which are multi-country and carry
+  // null. Bright Data Indeed requires exactly one country; it is off by default in both lanes, and
+  // the field is correct so that the day it is switched on these scopes are not silently skipped.
+  'Remote Ireland': {
     linkedin: true,
-    location: 'European Union',
-    geo_ids: geoSet(['European Union']),
-    work_type: '2', // 2 = remote
+    location: 'Ireland',
+    geo_ids: geoSet(['Ireland']),
+    work_type: '2', // remote only, and not optional: he has no Irish right to work
     work_types_accepted: 'remote_only',
-    max_terms: ALL_TERMS,
-    country: null,
+    max_terms: 1,
+    country: 'IE',
+    swedish_terms: false,
+  },
+  'Remote Germany': {
+    linkedin: true,
+    location: 'Germany',
+    geo_ids: geoSet(['Germany']),
+    work_type: '2',
+    work_types_accepted: 'remote_only',
+    max_terms: 1,
+    country: 'DE',
+    swedish_terms: false,
+  },
+  'Remote Netherlands': {
+    linkedin: true,
+    location: 'Netherlands',
+    geo_ids: geoSet(['Netherlands']),
+    work_type: '2',
+    work_types_accepted: 'remote_only',
+    max_terms: 1,
+    country: 'NL',
+    swedish_terms: false,
+  },
+  'Remote Spain': {
+    linkedin: true,
+    location: 'Spain',
+    geo_ids: geoSet(['Spain']),
+    work_type: '2',
+    work_types_accepted: 'remote_only',
+    max_terms: 1,
+    country: 'ES',
     swedish_terms: false,
   },
   // Added 2026-09-14 on Shaheen's words, "I want also to add UK remote positions to the plan".
@@ -333,12 +390,13 @@ const LINKEDIN_TARGETS = {
     country: null, // two countries, same reason as the Gulf scope above
     swedish_terms: false,
   },
-  'Remote EMEA': {
-    linkedin: false,
-    reason: 'EMEA is a work scope, not a place this lane searches. LinkedIn DOES resolve an id for it (91000007, probed 2026-09-15 and it returns a real EMEA spread), and it is deliberately not used: EMEA contains the EU, so an EMEA query carrying no f_WT would return onsite EU jobs and re-admit through one scope exactly what the Remote EU rule exists to refuse. The concrete markets he named inside EMEA are the Gulf and non-EU Europe, and those have their own targets above with their own ids. The remote boards cover the rest of the scope, which is what they are for.',
-    work_types_accepted: 'any',
-    swedish_terms: false,
-  },
+  // 'Remote EMEA' was here and it is GONE (2026-09-17). It never cost a LinkedIn call (linkedin:
+  // false) and its job was to be the widest residual in the FILTER: a row whose location said only
+  // "EMEA" was judged by it. Shaheen chose the strict list, so that residual is exactly what he
+  // removed. The reasoning it carried is worth keeping for whoever proposes it again: LinkedIn does
+  // resolve an id for EMEA (91000007, probed 2026-09-15, a real EMEA spread) and it was refused then
+  // too, because EMEA contains the EU, so an EMEA query with no f_WT would re-admit onsite EU jobs
+  // through one scope. That argument is unchanged and it now has a second reason on top of it.
 };
 
 // EVERY geoId a target declares must have resolved. This was written for the UK target alone and is

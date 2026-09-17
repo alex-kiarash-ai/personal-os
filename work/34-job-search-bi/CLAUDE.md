@@ -357,3 +357,34 @@ ROW sorted to the BOTTOM (row 37 of 37), every row fifteen cells wide, which is 
 whole range rather than the data does. The append node reads row 1 as the header, so tomorrow's 06:30
 write would have failed on a sheet nobody had touched since. The header was moved back to row 1 and
 the data row order was left exactly as it was found.
+
+
+## 2026-09-17, late: the collection scopes are replaced (Shaheen)
+
+The scope list is now **Sweden** (any work type), **UK, Ireland, Germany, the Netherlands, Spain**
+(remote only), **Gulf** (UAE, Qatar, Saudi Arabia, any work type) and **Non-EU Europe** (Switzerland,
+Norway, any work type, kept on his explicit answer when his new list omitted them).
+
+**`Remote EU` and `Remote EMEA` are GONE and that is the consequential half.** They were the wide
+residuals, the scopes that judged a row naming nothing more precise than a region, so a remote job
+whose location says only "Europe", "EU", "EMEA" or "CET" now matches no scope and is dropped. He
+chose that with the measurement in front of him: on the 09-17 runs it drops 19 of 60 surviving BI
+rows and 8 of 43 AI rows, all remote, mostly Portugal, Lithuania, France and Poland.
+
+**Four new geoIds, each proven** by asking the search endpoint with the id and a deliberately wrong
+location string: Ireland `104738515`, Germany `101282230`, Netherlands `102890719`, Spain
+`105646813`. All four returned 100 percent in-country cards. Evidence in the contract under
+`geo_ids.verified`.
+
+**The budget is unchanged at 20 LinkedIn calls**: Sweden 7, UK 4, the four new countries 1 term each,
+Gulf 3, Non-EU Europe 2. The four take one term rather than four because sixteen would take the
+search leg to 32 against a 25 cap and starve the detail stage he capped at 14 by name. The UK keeps
+its own scope and its four terms.
+
+**Four surfaces moved together** and were then read back off the live box and compared as sets: the
+`locations` cell on both sheets, `geo_ids.verified` in the contract, `LINKEDIN_TARGETS` in node 05,
+and `GEO_TARGETS` plus `GEO_PRECEDENCE` in node 20. Sheet == LinkedIn targets == filter targets on
+both lanes. The `geo_rule` prose the scorer reads was rewritten in the same write.
+
+Full reasoning, the measurement, and the six things the test suites had to learn:
+`vault/projects/job-search-bi/status.md` under the same date.
