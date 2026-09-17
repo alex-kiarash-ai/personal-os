@@ -34,13 +34,15 @@ const https = require('https');
 const REPO = path.resolve(__dirname, '..');
 const { buildVoiceBlock, stablePart, extractLiveBlock, TARGETS, NODE } = require('./lib/sync-n8n-voice.js');
 
-const API = 'https://n8n.shaheenkiarash.com/api/v1';
-const KEY_FILE = path.join(REPO, 'work', '03-application-engine', 'config', 'n8n-api-key.txt');
+// Base URL + key both resolve through the one sanctioned door (2026-09-14). This file used to carry
+// `API` as a literal and read the key from a hardcoded in-repo path, which paths.mjs forbids outright
+// ("no script may name a credential path again") and which would have broken silently the moment the
+// key is moved to ~/.config/alex/secrets, as secret-env.mjs already warns it should be.
+const { n8nCreds } = require('./lib/n8n-creds');
+const API = n8nCreds().base;
 
 function apiKey() {
-  const fromEnv = process.env.N8N_API_KEY;
-  if (fromEnv) return fromEnv.trim();
-  try { return fs.readFileSync(KEY_FILE, 'utf8').trim(); } catch { return null; }
+  return n8nCreds().key;
 }
 
 function getWorkflow(id, key) {

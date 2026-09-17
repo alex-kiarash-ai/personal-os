@@ -1,13 +1,13 @@
 # The n8n Automations - Plain-Language Guide
 
-This folder documents every n8n workflow that is **live right now** on Shaheen's server (n8n.shaheenkiarash.com, a small Hetzner cloud box). One folder per workflow. Each folder holds exactly two files:
+This folder documents the n8n workflows that exist on Shaheen's server (n8n.shaheenkiarash.com, a small Hetzner cloud box). Most are running. A few are deliberately switched off and say so in their own row: a workflow can be finished, documented and waiting, and pretending otherwise is how a dead automation hides in a list of live ones. One folder per workflow. Each folder holds exactly two files, with one honest exception noted in its own row:
 
 - **workflow.json** - the latest export of the real workflow, pulled straight from the server. This is a working backup: if the server ever dies, open n8n anywhere → Workflows → "Import from File" → pick this file, reconnect the credentials, and the automation is back.
 - **README.md** - what the automation does, why it exists at all, and what every step (every "node") does, written so a non-technical person can follow it.
 
-Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03; radar-collector added 2026-07-06). Refresh recipe at the bottom.
+Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03; radar-collector added 2026-07-06; the two job-search lanes added 2026-09-14, both built and both switched off; the job application writer added 2026-09-15, built offline and NOT on the server). Refresh recipe at the bottom.
 
-## The 14 live workflows
+## The 22 documented workflows
 
 | Folder | What it is, in one line |
 |---|---|
@@ -25,6 +25,18 @@ Snapshot date: **2026-07-02** (life-ops-sheet-writeback added 2026-07-03; radar-
 | [linkedin-series-staging](linkedin-series-staging/) | Scheduled prep robot for the "Building Alex" LinkedIn series: stages approved episodes as text into a per-episode folder, writes the Drive link back, and verifies its writes; never posts. Images are manual. |
 | [radar-collector](radar-collector/) | The Radar's always-on ear (added 2026-07-06): collects the AI-landscape feeds daily at 06:00 into a server table; urgent items become same-day notes. |
 | [life-ops-sheet-writeback](life-ops-sheet-writeback/) | The plant-and-gym stamp: one authorized web call updates the watering log and gym start date in Shaheen's life-ops spreadsheet, so the morning brief's Life Ops section stays true. |
+| [alex-health-ingest](alex-health-ingest/) | The sleep and steps receiver: the phone posts once a night, this turns the sleep stages into a 0 to 100 score and files a row a day. |
+| [portal-scanner](portal-scanner/) | The free company-portal job finder: reads each seed company's own hiring system directly, keeps the matches, banks them. Makes no AI call and costs nothing. |
+| [portal-application-engine](portal-application-engine/) | The drafting half of the same lane: takes what the scanner banked and writes the CV and cover letter. Drafts only. |
+| [quota-reset-autorun](quota-reset-autorun/) | The one-shot gate behind an auto-run armed to fire the moment a usage quota resets. |
+| [writer-voice-eval](writer-voice-eval/) | The voice regression test for the job engines' writer. Switched off on purpose: it is run by hand, six set cases, and it has to score six out of six. |
+| [34-job-search-bi](34-job-search-bi/) | The Power BI job scout: every weekday it reads LinkedIn and six free job boards, scores what it finds against what Shaheen does, and fills a spreadsheet. It never applies. Built 2026-09-11, switched off. |
+| [35-job-search-ai](35-job-search-ai/) | The same 49 steps aimed at AI and automation jobs instead, fifteen minutes later so the two never call the same board in the same minute. Built 2026-09-14, switched off, never run. |
+| [36-job-application-writer](36-job-application-writer/) | The writing half: reads what both scouts found and turns every job scoring 70 or better into a tailored one-page CV and a cover letter in a Drive folder. It writes, it never applies. **Documented 2026-09-15 as 74 files on a laptop: nothing exists on the server yet, so this is the one folder here with no workflow.json.** |
+
+*(Five of those rows were added 2026-09-14. The folders and their READMEs already existed; only the table was missing them, so the heading above counted 21 while the list showed 16. The two job-search rows had also landed outside the table, which renders as a stray second table with no header.)*
+
+**Folder naming.** A folder that belongs to a numbered project is named `NN-project-name`, matching `docs/projects/`. `03-application-engine`, `14-ai-application-engine`, `34-job-search-bi` and `35-job-search-ai` follow it. `portal-scanner` and `portal-application-engine` are older and unnumbered, and they stay as they are: renaming them would break `scripts/reexport-live-workflows.js`, which hardcodes both paths, for a tidiness nobody needs. Workflows that are not a numbered project (the HQ pieces, the MCP tools, the ingests) carry no number, because there is none to carry. *(Ruled 2026-09-14. The build plan asked for `job-search-bi` and `job-search-ai` without the numbers; the numbered form was kept because nothing in the repo reads these folder names programmatically, so the only question is which spelling helps a reader, and a number that matches the project is the one that does.)*
 
 ## Also on the server, but switched OFF (not documented here)
 

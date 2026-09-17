@@ -60,6 +60,25 @@
             "Build Match Request": "claude-opus-5",
             "Build Writer Request": "claude-sonnet-5"
           }
+        },
+        {
+          "workflow": "Yyr8mKCxItFsgv5x",
+          "name": "Job Application Writer (36)",
+          "model": "claude-sonnet-5",
+          "reason": "Added 2026-09-16, the day the workflow was created on the box. Five Anthropic calls per pair, and the split is the same principle as the four job lanes: pay for thinking where thinking decides the outcome. claude-opus-5 on the two judgement calls (Build Read Request, the recruiter seat producing the three objections a screener would raise; Build Select Request, which chooses CV blocks), claude-sonnet-5 on Build Writer Request, the ONE prose node, which carries the soul voice block, and claude-sonnet-4-6 on the two supporting calls (Build Research Request, Build Grade Request, the blind grader holding only the rubric). Every value here was read out of the LIVE node code on the box, not copied from a spec: the node files hoist the id into a const (WRITE_MODEL, READ_MODEL and so on) rather than inlining it at the model key, which is exactly the shape that made V6 report 'no model id found' on this workflow until the extractor learned to resolve it (scripts/tests/test-model-id-extractor.js).",
+          "models": {
+            "Build Read Request": "claude-opus-5",
+            "Build Research Request": "claude-sonnet-4-6",
+            "Build Select Request": "claude-opus-5",
+            "Build Writer Request": "claude-sonnet-5",
+            "Build Grade Request": "claude-sonnet-4-6"
+          }
+        },
+        {
+          "workflow": "qT2eXdw4rvozyOsq",
+          "name": "Job Application Writer - Letter Eval (36) (regression)",
+          "model": "claude-sonnet-5",
+          "reason": "Added 2026-09-16, the day the harness was created. It is the #36 twin of the Writer Voice Eval row above and exists for the same reason: the eval runs a VERBATIM copy of the runtime prose node, so it necessarily runs the runtime writer model, and without a row here V6's sweep leg warns that a live workflow runs a model the contract does not accept. Manual-only, never scheduled, never active, and deliberately NOT a manifest project row, so it stays warn-only as a non-registered workflow. The copy is enforced mechanically: nodes-eval holds no prompt text and requires nodes/29-build-writer-request.js, with a sha256 pin against the live box."
         }
       ],
       "local_wrappers": {
@@ -251,6 +270,10 @@
           "name": "Writer Voice Eval (regression)"
         }
       ]
+    },
+    "n8n": {
+      "doc": "The n8n REST base URL as SSOT (added 2026-09-14). It is a PUBLIC hostname, never a credential, so it belongs here and not in a secrets file. Five scripts used to carry it (or the API key path) as a hardcoded literal; they now resolve both through scripts/lib/n8n-creds.js, which reads this field and gets the KEY through the sanctioned secret-env door. Same principle as meta.paths: a checker reads the value from here, never a literal.",
+      "api_base": "https://n8n.shaheenkiarash.com/api/v1"
     }
   },
   "projects": [
@@ -324,16 +347,16 @@
       "num": 3,
       "name": "application-engine",
       "title": "Application Engine (BI)",
-      "state": "LIVE",
+      "state": "PARKED",
       "trigger": "n8n Tue+Thu 15:00 + watch 8:30",
-      "one_liner": "Job pipeline, Power BI track: source, score, gate, draft, render every Tue & Thu; also an MCP server.",
+      "one_liner": "Job pipeline, Power BI track: source, score, gate, draft, render every Tue & Thu; also an MCP server. PARKED 2026-09-14 on Shaheen's word, deactivated on the box the same minute and read back. Resume context: the Anthropic spend was stopped deliberately because the output did not justify it, not an outage. To resume, reactivate the workflow and top up; nothing else was changed.",
       "docs": "03-application-engine.md",
       "schedule_jobs": [
         "PersonalOS-application-engine"
       ],
       "hq_project": "app-engine-bi",
       "budget_priority": 1,
-      "revisit": null,
+      "revisit": "2026-11-01",
       "work_dir": "work/03-application-engine",
       "commands": [
         "application-engine"
@@ -683,13 +706,13 @@
       "num": 14,
       "name": "ai-application-engine",
       "title": "AI Application Engine",
-      "state": "LIVE",
+      "state": "PARKED",
       "trigger": "n8n Tue+Thu 15:30",
-      "one_liner": "Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate.",
+      "one_liner": "Job pipeline, AI track: clone of #03 with the AI CV + a recalibrated career-changer gate. PARKED 2026-09-14 on Shaheen's word, deactivated on the box the same minute and read back. Resume context: the Anthropic spend was stopped deliberately because the output did not justify it, not an outage. To resume, reactivate the workflow and top up; nothing else was changed.",
       "docs": "14-ai-application-engine.md",
       "schedule_jobs": [],
       "hq_project": "app-engine-ai",
-      "revisit": null,
+      "revisit": "2026-11-01",
       "work_dir": "work/14-ai-application-engine",
       "commands": [],
       "status_md": "vault/projects/ai-job-pipeline/status.md",
@@ -1246,13 +1269,13 @@
       "num": 32,
       "name": "portal-application-engine",
       "title": "Portal Application Engine",
-      "state": "LIVE",
+      "state": "PARKED",
       "trigger": "n8n Tue & Thu 15:43 (drain + draft)",
-      "one_liner": "Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28.",
+      "one_liner": "Standalone company-portal job lane, STAGE 2 of 2: drains the queue #31 banks and runs its OWN cloned Match/Gate/Writer/Render pipeline to review-ready drafts. Split from the scanner 2026-07-28. PARKED 2026-09-14 on Shaheen's word, deactivated on the box the same minute and read back. Resume context: the Anthropic spend was stopped deliberately because the output did not justify it, not an outage. To resume, reactivate the workflow and top up; nothing else was changed.",
       "docs": "32-portal-application-engine.md",
       "schedule_jobs": [],
       "hq_project": null,
-      "revisit": null,
+      "revisit": "2026-11-01",
       "work_dir": "work/32-portal-application-engine",
       "commands": [],
       "status_md": "vault/projects/portal-application-engine/status.md",
@@ -1302,6 +1325,97 @@
       "first_fire": "2026-08-21",
       "first_fire_kind": "live",
       "n8n": null
+    },
+    {
+      "num": 34,
+      "name": "job-search-bi",
+      "title": "Job Search BI",
+      "state": "LIVE",
+      "trigger": "n8n weekdays 06:30 (collect + score)",
+      "one_liner": "Daily job-search collector for the Power BI lane: the LinkedIn guest endpoints plus six free public remote boards into one deduped row shape, scored against the BI profile, written to a Google Sheet Shaheen reviews. The source contract lives in work/34-job-search-bi/config/sources.json and is SHARED with #35, so the two lanes can never drift a field name. It collects and scores, it never applies.",
+      "docs": "34-job-search-bi.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/34-job-search-bi",
+      "commands": [],
+      "status_md": "vault/projects/job-search-bi/status.md",
+      "cadence": {
+        "expected_hours": 30,
+        "label": "weekdays 06:30",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-09-11",
+      "first_fire_kind": "drill",
+      "n8n": "oSVDR2WjkZnjovCP",
+      "n8n_cron": "30 6 * * 1-5"
+    },
+    {
+      "num": 35,
+      "name": "job-search-ai",
+      "title": "Job Search AI",
+      "state": "LIVE",
+      "trigger": "n8n weekdays 06:45 (collect + score)",
+      "one_liner": "Daily job-search collector for the AI Automation lane: the SAME source contract and the same row shape as #34, scored against the AI lane profile with its own keyword set and its own sheet tab. Split from #34 so each lane carries its own n8n id and its own cron and comes under V6 leg (c) plus the daily active-flag watcher. It collects and scores, it never applies.",
+      "docs": "35-job-search-ai.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/35-job-search-ai",
+      "commands": [],
+      "status_md": "vault/projects/job-search-ai/status.md",
+      "cadence": {
+        "expected_hours": 30,
+        "label": "weekdays 06:45",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-09-14",
+      "first_fire_kind": "drill",
+      "n8n": "TNvg3zbOzd3rGr9T",
+      "n8n_cron": "45 6 * * 1-5"
+    },
+    {
+      "num": 36,
+      "name": "job-application-writer",
+      "title": "Job Application Writer",
+      "state": "LIVE",
+      "trigger": "n8n weekdays 07:15 (draft CV + cover letter)",
+      "one_liner": "The writing half of the job search. One workflow reads BOTH job-search spreadsheets (#34 BI and #35 AI) at 07:15, and for each row worth applying to it produces a tailored one-page CV and a cover letter into a Drive folder, then writes an applications row, a jobs.status cell and a writer_runs row per lane and reads every one of them back. The CV cannot contain a rewritten sentence by construction: the selector emits block ids and the assembler emits master strings, so an invented id is a refusal rather than a paragraph. It writes documents. It never applies, never emails, never opens a browser. LIVE and ACTIVE since 2026-09-16: first real run that day (4 attempted, 2 held, 1 blocked, 1 capped), scheduled runs every weekday since, and the row was corrected from DORMANT on 2026-09-17 after the box was read back active with the cron firing. A job folder is TWO PDFs since 2026-09-17, not four files: the README.md and job-ad.md were removed on Shaheen's instruction, and the three nodes that converted them went with them (72 nodes, was 75).",
+      "docs": "36-job-application-writer.md",
+      "schedule_jobs": [],
+      "hq_project": null,
+      "revisit": null,
+      "work_dir": "work/36-job-application-writer",
+      "commands": [],
+      "status_md": "vault/projects/job-application-writer/status.md",
+      "cadence": {
+        "expected_hours": 30,
+        "label": "weekdays 07:15",
+        "scope": "n8n-engine"
+      },
+      "trifecta": {
+        "private_data": true,
+        "untrusted_content": true,
+        "external_comm": false,
+        "gate": "draft-only"
+      },
+      "first_fire": "2026-09-16",
+      "first_fire_kind": "live",
+      "n8n": "Yyr8mKCxItFsgv5x",
+      "n8n_cron": "15 7 * * 1-5",
+      "voice_sync": true
     }
   ]
 }

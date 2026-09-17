@@ -163,6 +163,22 @@ function closedFromGit(base) {
     console.error('Unable to derive the closed set is not the same as nothing being closed.');
     process.exit(2);
   }
+  /*
+   * 2026-09-11: an EMPTY range is not "nothing was fixed".
+   *
+   * Once the remediation branch merges, `main..HEAD` is empty and every row reads open - the tool
+   * reported 0 of 230 closed minutes after the work landed on main. A count of zero that means
+   * "no delta to read" is indistinguishable from one that means "none of this was done", and the
+   * second reading is alarming enough to act on. Say which it is.
+   */
+  if (!log.trim()) {
+    console.error(`stress-remediation: the range ${base}..HEAD is EMPTY - there are no commits to derive a closed set from.`);
+    console.error('This usually means the remediation branch has been MERGED, so the work is now IN the base.');
+    console.error(`Pass the pre-merge point instead, e.g. --base ${base}~1, or a tag cut before the merge.`);
+    console.error('Reporting 0 closed here would read as "nothing was fixed", which is a different and much worse claim.');
+    process.exit(3);
+  }
+
   const closed = new Map();
   const tok = /\b(A\d\d)-T-?(\d+)[a-z]?\b|\bT-?(\d+)[a-z]?\b/g;
   for (const line of log.split(/\r?\n/)) {

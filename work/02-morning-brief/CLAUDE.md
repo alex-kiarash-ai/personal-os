@@ -99,6 +99,18 @@ inspiration sweep measures its own brief this way; this is the differentiator.
 
 **Why this is worth a few characters a day.** The brief mixes two very different things in one scannable list: things that happened overnight, and things Alex went and looked up. They read identically today. A retrieved line can be stale (a status.md that has not been updated), or wrong (a lesson that was never true), or quoting an untrusted source (a vault page containing forwarded email text). One tag lets Shaheen weight a line in the half-second he spends on it, and lets him tell "the system observed this" from "the system remembered this". Same reasoning as the run-46 finding that a poisoned lessons row and a harvested fact looked identical at injection time; this is that fix applied one surface up.
 
+**Job-search lanes line (#34 BI + #35 AI, added 2026-09-14).** ONE line in Key Context, never a section:
+`Job scouts: BI {x} new / AI {y} new yesterday` plus the two sheet links. Read each lane's `runs` ledger
+tab for the newest row and take its written count; the spreadsheet id and tab live in that lane's
+`work/{34|35}-job-search-*/config/lane.json`, which is gitignored, so this spec points at it rather than
+restating it. **Today the honest line is silence.** Both lanes are DORMANT, both workflows are inactive,
+and neither has ever written a job row, so there is nothing to report and an invented zero would be
+worse than nothing. The rule that survives activation: print the line only when a lane actually ran since
+the last brief, and when a lane ran and wrote nothing, say WHY in the same line (`BI 0 new, scoring
+down`), because a silent zero from a scout that is working and a silent zero from a scout that broke
+three weeks ago read identically. Same doctrine as the Pipeline-health check above. Lanes unreachable or
+the sheet unreadable = one FYI line, never a failed brief.
+
 **Interview watch (feeds #21 Interview-to-Offer, added 2026-07-06).** Scan the already-fetched Gmail + today's calendar for interview signals (interview / technical screen / hiring-manager language, or a booked time tied to a company in vault/business/ or a recruiter in vault/people/). If found, add ONE Urgent/Key Context line suggesting `/interview "{Company}"` for a dossier + prep. Flag ONLY, never auto-run /interview and never draft anything. Nothing found = no line. Read-only. Full mechanics: step 11 in the command file (renumbered from 4h on 2026-07-28) + work/21-interview-copilot/CLAUDE.md.
 
 **Radar section (Mondays, added 2026-07-02).** The `PersonalOS-alex-radar` job runs Mondays 07:30 and writes `vault/projects/alex-ai-radar/radars/YYYY-MM-DD.md` before this brief fires at 08:00. If a radar file newer than the last brief exists, add a **Radar** section: the ONE item that cleared the bar (or "nothing cleared the bar this week"), any genuinely accelerating theme, and a pointer to any auto concept PDF. Keep it to 3-5 lines, Alex voice, no digest-speak. If it's Monday and today's radar file is MISSING, flag that in Key Context ("radar sweep didn't run, check outputs/logs/alex-radar.log") instead of silently skipping - a dead sweep must never look like a quiet week.
@@ -118,7 +130,7 @@ inspiration sweep measures its own brief this way; this is the differentiator.
 - **Noise:** newsletters, promos, marketing. One count line at the bottom, never itemized.
 
 ## Connections
-- **Fed by:** [[projects/alex-ai-radar/status|Alex AI Radar]] weekly Stream B sweep (Mondays 07:30, Radar section); [[projects/alex-hq/status|Alex HQ]] notes inbox (typed + voice, filed every brief); **Plant Watering Schedule** Google Sheet (plants/gym/learning, Life Ops section, added 2026-07-02). Later: email triage, CRM.
+- **Fed by:** [[projects/alex-ai-radar/status|Alex AI Radar]] weekly Stream B sweep (Mondays 07:30, Radar section); [[projects/alex-hq/status|Alex HQ]] notes inbox (typed + voice, filed every brief); **Plant Watering Schedule** Google Sheet (plants/gym/learning, Life Ops section, added 2026-07-02). Later: email triage, CRM. **Wired but silent (2026-09-14):** [[projects/job-search-bi/status|#34]] + [[projects/job-search-ai/status|#35]], the two job-search lanes, feed one Key Context line once either lane runs. Both are DORMANT and write nothing today, so the line is absent by design rather than missing.
 - **Feeds into:** /status, vault/people/, vault/business/. Sprint board row marked Done on first build (done 2026-06-10).
 
 ## Post-Run (mandatory)

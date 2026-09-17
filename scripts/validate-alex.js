@@ -65,7 +65,7 @@ const REPO = path.join(__dirname, '..');
 // deriving its expectation from prose (the V6 lesson): so V_MAX is declared HERE, once, and
 // generate-alex.js + the recall h-validators harvester + narrative-drift-check.py all read THIS
 // declaration (a structured `const V_MAX = <n>`), never a printed string or a prose claim.
-const V_MAX = 19;
+const V_MAX = 20;
 const SUITE_RANGE = `G1-G4 + V1-V${V_MAX}`;
 
 const PLACEHOLDER_RE = /\{\{[A-Z0-9_]+\}\}/g; // must match render-templates.js
@@ -479,6 +479,24 @@ function modelIdsInNode(node) {
   let blob = '';
   try { blob = JSON.stringify(node.parameters || {}); } catch (_) { blob = ''; }
   for (const m of blob.matchAll(/\\?"model\\?"\s*:\s*\\?"([A-Za-z0-9._-]+)\\?"/g)) add(m[1]);
+
+  // THIRD FORM: `model: IDENT` where IDENT is a const holding the literal (#36, added 2026-09-16).
+  // The four older engines inline the id at the `model:` key, so the two passes above saw it. #36
+  // hoists it instead (`const WRITE_MODEL = "claude-sonnet-5";` ... `model: WRITE_MODEL`), which is
+  // better code and invisible to a literal-only regex: V6 reported "no model id found" on a node
+  // that names its model plainly three lines in, and that false failure BLOCKED the generator.
+  // Resolving it here keeps the check STRICT rather than relaxing it. Only an identifier actually
+  // used at a `model:` key is resolved, only against a string-literal declaration in the SAME node,
+  // and a drifted literal still comes back as the drifted value so the mismatch still fires. An
+  // identifier that resolves to nothing contributes nothing, so a node whose const was deleted
+  // still fails with "no model id found" rather than passing quietly.
+  if (typeof js === 'string') {
+    for (const m of js.matchAll(/\bmodel\s*:\s*([A-Za-z_$][A-Za-z0-9_$]*)\b/g)) {
+      const decl = new RegExp('\\b(?:const|let|var)\\s+' + m[1] + '\\s*=\\s*[\'"]([A-Za-z0-9._-]+)[\'"]');
+      const hit = js.match(decl);
+      if (hit) add(hit[1]);
+    }
+  }
   return [...out];
 }
 
@@ -532,9 +550,11 @@ async function v6ModelRouting({ manifest, context }, failures, warnings) {
     return set;
   };
 
-  const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
+  const { n8nCreds } = require('./lib/n8n-creds');
+  const creds = n8nCreds();
+  const base = creds.base, key = creds.key;
   if (!base || !key) {
-    const msg = 'V6: N8N_API_URL and/or N8N_API_KEY env vars missing - the live model-routing check cannot run (credentials never live in code)';
+    const msg = `V6: n8n credentials did not resolve, so the live model-routing check cannot run (${creds.missing})`;
     if (context === 'pre-commit') { warnings.push(`WARNING V6 SKIPPED (pre-commit): ${msg}`); return; }
     failures.push(`FAILED ${msg}`);
     return;
@@ -1484,6 +1504,71 @@ function v16ConstitutionBudget({ stagedDir, manifest }, failures) {
  *   - two or more recorded revisits with the state unchanged -> FAIL (activate or retire; that IS
  *     the two-strike rule, and it is the whole reason the history field exists)
  */
+/*
+ * V20 - the two job-search lanes' node trees are byte-identical (2026-09-14, the #35 port).
+ *
+ * #34 and #35 are the same pipeline pointed at two lane files. The shared source contract
+ * (config/sources.json) exists because "two copies is how two lanes that are supposed to be
+ * identical drift a field name, and the drift is invisible until one lane quietly collects less
+ * than the other". The NODE tree got the opposite treatment: work/35-job-search-ai/nodes/ is a
+ * byte-identical COPY of work/34-job-search-bi/nodes/, 52 files of it.
+ *
+ * That copy is deliberate and it cannot be a require-wrapper: _lane.js resolves LANE_DIR from
+ * __dirname, so a file required out of #34's folder reads #34's config and would build the BI
+ * spreadsheet, the BI cron and the BI credential into the AI workflow. Location IS the lane.
+ *
+ * So the duplication stays and the drift risk is moved somewhere it cannot hide. Fix the row-cap
+ * coupling in #34 and forget the copy, and #35 keeps the old arithmetic with nothing to say so;
+ * that is exactly the invisible-divergence failure the contract was built to prevent, reintroduced
+ * one folder over. This check is the second cap on it.
+ *
+ * FAIL, not warn: a lane silently collecting less than its twin produces a plausible smaller sheet,
+ * and nobody audits a job list for the rows it failed to contain.
+ *
+ * Re-sync after an intentional change: copy #34's tree over #35's, rebuild BOTH workflows.
+ * If the two lanes ever need to differ for real, this check is the place that decision gets made
+ * explicitly rather than by drift.
+ */
+function v20JobSearchLaneParity({ stagedDir }, failures) {
+  const A = 'work/34-job-search-bi/nodes';
+  const B = 'work/35-job-search-ai/nodes';
+  let tracked = [];
+  try {
+    tracked = require('child_process')
+      .execFileSync('git', ['ls-files', A, B], { cwd: REPO, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
+      .split(String.fromCharCode(10)).map((f) => f.trim()).filter(Boolean);
+  } catch { return; }   // no git = nothing to assert, not a failure
+  const isNode = (rel, root) => rel.startsWith(root + '/')
+    && /^[_0-9].*\.js$/.test(rel.slice(root.length + 1))
+    && !rel.slice(root.length + 1).includes('/');
+  const namesA = tracked.filter((r) => isNode(r, A)).map((r) => r.slice(A.length + 1));
+  const namesB = tracked.filter((r) => isNode(r, B)).map((r) => r.slice(B.length + 1));
+  if (namesA.length === 0) return;   // #34 not present in this checkout: nothing to compare against
+  const setB = new Set(namesB);
+  const orphans = namesB.filter((n) => !namesA.includes(n));
+  for (const n of orphans) {
+    failures.push(`FAILED V20: ${B}/${n} has no twin in ${A}/. The AI lane's node tree is a byte-identical copy of the BI lane's; a file that exists in only one of them is a divergence nothing else will report.`);
+  }
+  for (const n of namesA) {
+    if (!setB.has(n)) {
+      failures.push(`FAILED V20: ${A}/${n} was never copied to ${B}/. #35 builds from its own folder, so a node missing there is a node the AI lane does not have.`);
+      continue;
+    }
+    const a = effective(stagedDir, `${A}/${n}`);
+    const b = effective(stagedDir, `${B}/${n}`);
+    if (!a || !b) continue;
+    // Line endings are normalised before comparing. On Windows one side can arrive from the index
+    // (LF) and the other from the working copy (CRLF) in the same run, which would fail a pair that
+    // is identical in every way that matters. Normalising cannot hide a real divergence; it only
+    // removes a false red this check would otherwise throw on a clean tree.
+    const CR = String.fromCharCode(13), LF = String.fromCharCode(10);
+    const norm = (t) => t.split(CR + LF).join(LF);
+    if (norm(a.text) !== norm(b.text)) {
+      failures.push(`FAILED V20: ${A}/${n} and ${B}/${n} differ. The two job-search lanes must run identical wiring; copy #34's file over #35's and rebuild BOTH workflows, or state the divergence deliberately.`);
+    }
+  }
+}
+
 function v19RevisitDiscipline({ stagedDir }, failures, warnings) {
   let manifest;
   try {
@@ -1625,6 +1710,7 @@ async function runAll({ stagedDir, context = 'generator', changed = false } = {}
   v17MandatorySkillBindings({ stagedDir }, failures); // MANDATORY skill rows resolve to live junctions (every run)
   v18ControlCharacters({ stagedDir }, failures);      // no stray control byte in tracked source (every run)
   v19RevisitDiscipline({ stagedDir }, failures, warnings); // DORMANT/PARKED revisit dates + the two-strike rule (every run)
+  v20JobSearchLaneParity({ stagedDir }, failures); // #34 and #35 node trees are byte-identical (every run)
 
   for (const w of warnings) console.error(w);
   for (const f of failures) console.error(f);
@@ -1672,4 +1758,4 @@ if (require.main === module) {
     .catch(e => { console.error(`validate-alex: internal error: ${e.message}`); process.exitCode = 1; });
 }
 
-module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED, readStagedChangeset, SUITE_RANGE, V_MAX };
+module.exports = { runAll, evaluateProtectedChangeset, V10_PROTECTED, readStagedChangeset, SUITE_RANGE, V_MAX, modelIdsInNode };

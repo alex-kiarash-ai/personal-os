@@ -205,7 +205,8 @@ async function probeDeployed() {
   if (!n8nVer) console.error(`landscape-monitor: deployed probe - n8n version read FAILED (${verErr})`);
   // Deployed writer model: read it off the live BI engine (#03) - env-gated on the n8n API key.
   let model = null;
-  const base = process.env.N8N_API_URL, key = process.env.N8N_API_KEY;
+  const { n8nCreds } = require('./lib/n8n-creds');
+  const { base, key } = n8nCreds();
   if (base && key) {
     try {
       const ac = new AbortController();

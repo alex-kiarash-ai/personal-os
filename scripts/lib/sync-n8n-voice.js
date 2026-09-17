@@ -58,10 +58,10 @@ const START = '<<<SOUL_VOICE_START';
 const END = '<<<SOUL_VOICE_END>>>';
 
 function env() {
-  const base = process.env.N8N_API_URL;
-  const key = process.env.N8N_API_KEY;
+  const { n8nCreds } = require('./n8n-creds');
+  const { base, key, missing } = n8nCreds();
   if (!base || !key)
-    throw new Error('sync-n8n-voice: N8N_API_URL and/or N8N_API_KEY env vars are missing - refusing to run (credentials never live in code)');
+    throw new Error(`sync-n8n-voice: n8n credentials did not resolve - refusing to run (${missing})`);
   return { base: base.replace(/\/$/, ''), hdrs: { 'X-N8N-API-KEY': key, 'Content-Type': 'application/json' } };
 }
 
@@ -118,6 +118,31 @@ function buildVoiceBlock(soul) {
 function stablePart(blockText) {
   const i = blockText.indexOf('\n');
   return blockText.slice(i + 1).trim();
+}
+
+/*
+ * comparableCode - a node's jsCode with the voice block's SYNC DATE neutralised, and nothing else.
+ *
+ * WHY THIS EXISTS (2026-09-17). `29-build-writer-request.js` bakes the voice block at require time,
+ * and `buildVoiceBlock` stamps the header with TODAY. So the bytes of that node change at midnight
+ * whether or not a single word of soul.md moved, and anything that pins those bytes goes red the
+ * next calendar day for a reason that has nothing to do with the prose.
+ *
+ * Measured, not assumed: on 2026-09-17 the #36 letter eval refused to build against a pin captured
+ * on 09-16, both 29841 characters, and swapping the one date string back reproduced the pinned
+ * sha256 exactly. The prompt was byte-identical.
+ *
+ * That kind of red is worse than no check. It fires daily, it is always a false alarm, and the
+ * person who has learned to re-pin without reading is the person who will re-pin over a real drift.
+ *
+ * WHAT IS DELIBERATELY *NOT* NORMALISED: everything else. Not the rules, not the samples, not the
+ * model, not a single space. `stablePart` above drops the whole header line; this drops only the
+ * ten characters of the date, because the rest of that line (the marker, the do-not-edit warning)
+ * IS content worth pinning, and a check that ignores more than it must is a check that misses.
+ */
+const SYNC_DATE_RE = new RegExp('(' + START + ' synced )[0-9]{4}-[0-9]{2}-[0-9]{2}', 'g');
+function comparableCode(code) {
+  return String(code).replace(SYNC_DATE_RE, '$1<SYNC-DATE>');
 }
 
 // Inject/refresh the block inside the node's SYSTEM string literal (idempotent, same as standalone).
@@ -246,4 +271,4 @@ async function run({ soul, apply, log }) {
 
 // stablePart exported 2026-09-11 (A15-T-06): the drift checker must compare with the SAME
 // function the sync writes with, or the two slowly disagree about what "unchanged" means.
-module.exports = { run, buildVoiceBlock, stablePart, extractLiveBlock, injectIntoSystem, TARGETS, NODE, START, END };
+module.exports = { run, buildVoiceBlock, stablePart, comparableCode, extractLiveBlock, injectIntoSystem, TARGETS, NODE, START, END };

@@ -27,7 +27,11 @@ Reads the Progress Tracker (the master list of automations to build), generates 
 - db_id: `462c1e60-a70c-4fd4-815f-2a58b1f8f573`
 - data_source_id: `0c239613-7e4e-410c-b064-266fa31a9da4`
 - parent_page_id: `37bb5342-d7f1-81a4-8bf1-d5642d7c3e85` (Personal Ops System page)
-- Schema: Task (title), Status (Planned/Next/In Progress/Blocked/Done), Project (Job Pipeline/Modeling/Personal Ops System), Order (number), Notes (text)
+- Schema: Task (title), Status (Planned/Next/In Progress/Blocked/Done), Project (Job Pipeline/Modeling/**Personal OS**), Order (number), Notes (text)
+  - **Corrected 2026-09-14:** this line said the Project option was `Personal Ops System`. The LIVE board's option is
+    `Personal OS`, confirmed by reading the data source while writing the #34/#35 rows. A select value must match the
+    option name exactly, so anything writing from this line would have been rejected or, worse, quietly created a
+    second option and split the board in two. The board is ground truth; this file is a description of it.
 - Views: Board (by Status), Build Order (by Order), Default table
 
 **Read path (rebuilt 2026-07-10): paginated Notion REST, not the MCP.** `scripts/lib/notion-board.js` queries `POST /v1/data_sources/{data_source_id}/query` with cursor pagination (Notion-Version 2025-09-03; falls back to `/v1/databases/{db_id}/query` at 2022-06-28), returning ALL rows in one deterministic pass - no 25-result cap, no hand-maintained page-ID list. Credentials: a Notion internal-integration token shared to this DB, at `work/01-sprint-tracker/config/notion-token.txt` (gitignored, MANUAL one-time setup - see Setup below). If the token is absent the core falls back to parsing the status.md snapshot table (degraded: counts still work, but the honest shipped/reconciled velocity split needs the live read). The old fetch-each-row-by-ID path (a workaround for the MCP's schema-only `notion-fetch` + the 25-cap search) is retired; the snapshot table now serves only as that cache fallback + a human view.
