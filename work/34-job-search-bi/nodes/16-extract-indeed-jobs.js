@@ -64,9 +64,16 @@ const GUARD = require('./14-indeed-poll-guard.js');
 // reason, as the LinkedIn extractor: writing a plausible 'new' into status here would invent a
 // vocabulary Stage D has not chosen, and a value nobody set is easier to find than one someone
 // guessed.
+// THE SHEET IS ELEVEN COLUMNS SINCE 2026-09-17 AND THIS NODE STILL FILLS ELEVEN FIELDS OF ITS OWN.
+// Shaheen removed apply_url, fit_reasons, lane and excerpt from the jobs tab: his reason was that the
+// output does not add value and costs tokens. `lane` is the only one that stopped being FILLED, and
+// it stopped because each lane owns its own spreadsheet, so the constant was telling a reader
+// something the document already said. apply_url and excerpt are still collected and still used
+// (excerpt IS the description block of the scoring prompt), they are simply never written, and the
+// contract declares them under internal_only_fields so a guard can still prove they exist.
 const COLLECTOR_FILLS = [
   'job_id', 'found_at', 'source', 'title', 'company', 'location',
-  'remote', 'posted_at', 'url', 'apply_url', 'lane', 'excerpt',
+  'remote', 'posted_at', 'url', 'apply_url', 'excerpt',
 ];
 const LEFT_FOR_LATER = ['fit_score', 'fit_reasons', 'status'];
 
@@ -99,16 +106,25 @@ const ENVELOPE_KEYS = ['data', 'results', 'records', 'items', 'rows'];
   }
 
   const shape = CONTRACT.shared_row_shape;
+  const internal = Object.keys(CONTRACT.internal_only_fields || {}).filter(function (k) { return k[0] !== '_'; });
+  if (!internal.length) {
+    throw new Error(
+      'Extract Indeed Jobs: the contract carries no internal_only_fields.\n' +
+      '  Since 2026-09-17 the sheet is a SUBSET of what this node fills: excerpt and apply_url are\n' +
+      '  collected, used and never written. That list is where they are declared, and without it this\n' +
+      '  check cannot tell a deliberately unwritten field from a field nobody claims.'
+    );
+  }
   const mine = COLLECTOR_FILLS.concat(LEFT_FOR_LATER).slice().sort();
-  const theirs = shape.slice().sort();
+  const theirs = shape.concat(internal).slice().sort();
   if (mine.length !== theirs.length || mine.some((k, i) => k !== theirs[i])) {
     throw new Error(
       'Extract Indeed Jobs: this node and the contract disagree about the row shape.\n' +
-      '  contract shared_row_shape: ' + theirs.join(', ') + '\n' +
-      '  this node accounts for:    ' + mine.join(', ') + '\n' +
-      '  Every column has to be either filled here or deliberately left for a later stage. Both collectors\n' +
-      '  write into the SAME sheet, whose header is already written from this same list, so a column this\n' +
-      '  node does not know about is a column that silently arrives empty for Indeed rows only.'
+      '  contract columns + internal: ' + theirs.join(', ') + '\n' +
+      '  this node accounts for:      ' + mine.join(', ') + '\n' +
+      '  Every field has to be either filled here or deliberately left for a later stage, and every\n' +
+      '  field this node fills has to be either a sheet column or declared internal. A column nobody\n' +
+      '  claims arrives empty in the sheet; a field nobody declares is one the 09-17 trim forgot.'
     );
   }
 
@@ -349,7 +365,6 @@ if (outcome === 'ready') {
         posted_at: text(pick(row0, 'posted_at')),
         url: text(pick(row0, 'url')),
         apply_url: text(pick(row0, 'apply_url')),
-        lane: LANE_NUMBER,
         excerpt: clip(text(pick(row0, 'excerpt')), 600),
       };
 
@@ -359,7 +374,7 @@ if (outcome === 'ready') {
       }
 
       const row = { _kind: 'job' };
-      for (const k of ROW_SHAPE) row[k] = values[k] === undefined ? null : values[k];
+      for (const k of COLLECTOR_FILLS) row[k] = values[k] === undefined ? null : values[k];
       for (const k of LEFT_FOR_LATER) row[k] = null;
       row._collect = {
         source: SOURCE_KEY,
@@ -514,7 +529,10 @@ const jsCode = [
   '// Edit that file and re-run build.js. Editing this node in the n8n editor loses the change.',
   `const SOURCE_KEY = ${JSON.stringify(SOURCE_KEY)};`,
   `const SOURCE_DEDUP_PREFIX = ${JSON.stringify(S.dedup_id_rule.slice(0, S.dedup_id_rule.indexOf('-') + 1))};`,
-  `const ROW_SHAPE = ${JSON.stringify(CONTRACT.shared_row_shape)};`,
+  // COLLECTOR_FILLS, not shared_row_shape: since 2026-09-17 the sheet is a SUBSET of what this node
+  // fills (apply_url and excerpt are collected, used and never written), and the emitted row has to
+  // carry every field it fills or the scorer reads a posting with no description.
+  `const COLLECTOR_FILLS = ${JSON.stringify(COLLECTOR_FILLS)};`,
   `const LEFT_FOR_LATER = ${JSON.stringify(LEFT_FOR_LATER)};`,
   `const CANDIDATES = ${JSON.stringify(CANDIDATES)};`,
   `const CANDIDATES_job_id = ${JSON.stringify(CANDIDATES.job_id)};`,

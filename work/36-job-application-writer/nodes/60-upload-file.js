@@ -17,7 +17,7 @@
  * =============================================================================================
  * 2. BOTH READ EXPRESSIONS FALL BACK, FOR THE REASON UPLOAD ROUTE STATES.
  * =============================================================================================
- * Two of the four files came through Text to File and this seat cannot prove from here whether that
+ * Until 2026-09-17 two of four files came through Text to File and this seat could not prove whether that
  * node keeps the item json. So `name` and `folderId` read the field off the item first and off the
  * paired source item second. If the json survives, the fallback never runs. If it does not, the
  * fallback is exactly what the staging workflow does, and it is the only thing that would work.
@@ -84,10 +84,11 @@ const W = require('./_write');
       '  that sets it is the one thing this seat could not verify from a development machine.'
     );
   }
-  const convert = require('./57-text-to-file.js');
-  if (convert.parameters.options.encoding !== 'utf8') {
-    throw new Error('Upload File: Text to File no longer writes utf8, and the md5 the read back compares against was computed over UTF-8 bytes.');
-  }
+  // The Text to File encoding check was here until 2026-09-17. It proved that node wrote utf8,
+  // because the md5 the read back compares against was computed over UTF-8 bytes of a string. Both
+  // markdown files were removed on Shaheen instruction and that node is deleted, so every file this
+  // node uploads is now PDF BYTES whose digest was measured on the bytes themselves by Check
+  // Renders. There is no encoding left to get wrong.
 }());
 
 module.exports = {

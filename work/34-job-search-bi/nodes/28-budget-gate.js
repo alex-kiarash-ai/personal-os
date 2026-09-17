@@ -118,14 +118,22 @@ const USER_EXCERPT_MAX = 2000;
   if (SC.text.indexOf('score_scale') === -1) {
     throw new Error('Budget Gate: score_scale is no longer a text key in the settings schema. Parse Score clamps to it.');
   }
-  // The row shape must still carry the fields the prompt is built from.
+  // The ROW must still carry the fields the prompt is built from, which since 2026-09-17 is not the
+  // same question as which columns the sheet has. excerpt and fit_reasons came off the sheet in that
+  // trim and are declared in internal_only_fields: excerpt is still the prompt's description block,
+  // fit_reasons is still parsed off the response, and neither is written anywhere now. What this
+  // check protects is the PROMPT, so it reads columns plus internal and would still catch a real
+  // deletion of either.
   const { sources } = require('./_lane');
-  const shape = sources().shared_row_shape;
+  const CONTRACT_28 = sources();
+  const shape = CONTRACT_28.shared_row_shape
+    .concat(Object.keys(CONTRACT_28.internal_only_fields || {}).filter(function (k) { return k[0] !== '_'; }));
   for (const f of ['title', 'company', 'location', 'remote', 'posted_at', 'source', 'excerpt', 'fit_score', 'fit_reasons']) {
     if (shape.indexOf(f) === -1) {
       throw new Error(
-        'Budget Gate: the shared row shape no longer carries a ' + f + ' column. The scoring prompt is\n' +
-        '  built from these fields and the score is written back into fit_score and fit_reasons.'
+        'Budget Gate: the contract carries no ' + f + ' field, as a sheet column or as internal. The\n' +
+        '  scoring prompt is built from these fields and the score is written back into fit_score and\n' +
+        '  fit_reasons. A column deletion is fine and happened on 2026-09-17; losing the FIELD is not.'
       );
     }
   }

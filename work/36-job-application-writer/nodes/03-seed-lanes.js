@@ -83,13 +83,18 @@ const RUNS_LAST = colLetter(WRITER_RUNS_COLUMNS.length);
 
   assertColumnsAgainstSeed();
 
-  // The approved plan names these ranges literally (jobs!A:O, writer_runs!A:L). They are DERIVED
-  // here from the column lists so a grown tab moves its own range, and then checked against the
-  // plan's letters, because a derived range that silently stopped matching the approved one would
-  // be a change nobody decided to make.
-  if (JOBS_LAST !== 'O') {
+  // The approved plan named these ranges literally (jobs!A:O, writer_runs!A:L). They are DERIVED
+  // here from the column lists so a moved tab moves its own range, and then checked against the
+  // expected letters, because a derived range that silently stopped matching would be a change
+  // nobody decided to make.
+  //
+  // jobs IS A:K SINCE 2026-09-17, not the plan's A:O. Shaheen removed apply_url, fit_reasons, lane
+  // and excerpt from the jobs tab in both spreadsheets, fifteen columns down to eleven, and both
+  // sheet headers moved in that same session. The check is kept rather than deleted: this node
+  // reads by position, and the next move should stop the build exactly the way this one did.
+  if (JOBS_LAST !== 'K') {
     throw new Error(
-      'Seed Lanes: the jobs row shape is now ' + JOBS_COLUMNS.length + ' columns, so the range is A:' + JOBS_LAST + ' and the approved plan says A:O.\n' +
+      'Seed Lanes: the jobs row shape is now ' + JOBS_COLUMNS.length + ' columns, so the range is A:' + JOBS_LAST + ' and eleven columns means A:K.\n' +
       '  That may be right, and it is not something this build decides quietly: both collectors write\n' +
       '  by position and both sheet headers move in the same session.'
     );

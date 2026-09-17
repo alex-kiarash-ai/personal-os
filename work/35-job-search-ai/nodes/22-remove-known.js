@@ -193,13 +193,19 @@ const CT_LOOKBACK_DAYS = 45;
   const dupe = SOURCE_PRIORITY.find((k, i) => SOURCE_PRIORITY.indexOf(k) !== i);
   if (dupe) throw new Error('Remove Known: ' + dupe + ' appears twice in the dedupe priority.');
 
-  // The three fields the never-merge rule protects have to still be columns.
+  // The fields the never-merge rule protects have to still EXIST on the row. Since 2026-09-17 that is
+  // not the same as being a sheet column: apply_url lost its column in the trim and is declared in
+  // internal_only_fields, so it still travels with its row and this guard still has something to
+  // protect. `url` is unchanged and is the link the attribution obligations are actually satisfied by.
+  const rowFields = CONTRACT.shared_row_shape
+    .concat(Object.keys(CONTRACT.internal_only_fields || {}).filter(function (k) { return k[0] !== '_'; }));
   for (const f of ['source', 'url', 'apply_url', 'job_id', 'company', 'title', 'posted_at']) {
-    if (CONTRACT.shared_row_shape.indexOf(f) === -1) {
+    if (rowFields.indexOf(f) === -1) {
       throw new Error(
-        'Remove Known: the contract no longer carries a ' + f + ' column. This node dedupes on it or\n' +
-        '  guarantees it travels with its own row, and four of these boards make the link a condition\n' +
-        '  of API access rather than a courtesy.'
+        'Remove Known: the contract carries no ' + f + ' field, as a column or as internal.\n' +
+        '  This node dedupes on it or guarantees it travels with its own row, and four of these boards\n' +
+        '  make the link a condition of API access rather than a courtesy. Dropping a COLUMN is fine and\n' +
+        '  happened on 2026-09-17; dropping the FIELD is what this refuses.'
       );
     }
   }

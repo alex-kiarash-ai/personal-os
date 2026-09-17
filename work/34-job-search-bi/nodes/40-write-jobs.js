@@ -53,9 +53,9 @@
  * **THE DEGENERATE PATH, worth knowing before it bites.** `execute()` reads the target range first
  * and, if the tab comes back EMPTY, reassigns `dataMode = 'autoMapInputData'` and skips the schema
  * check. So a `jobs_test` created as a blank tab makes the node invent a header out of the first
- * item's keys. Build Rows keeps a writable item to the fifteen real column names plus `_write_now`
- * precisely so that path would produce a header that is recognisably fifteen sixteenths right, and
- * the header read-back in Build Run Row fails the run on the sixteenth.
+ * item's keys. Build Rows keeps a writable item to the eleven real column names plus `_write_now`
+ * precisely so that path would produce a header that is recognisably eleven twelfths right, and
+ * the header read-back in Build Run Row fails the run on the twelfth.
  *
  * ---------------------------------------------------------------------------------------------
  * 4. onError: continueRegularOutput, AND NO RETRY.
@@ -87,11 +87,16 @@ const WRITE = O.writeTarget();
   const src = (build.parameters && build.parameters.jsCode) || '';
   // The value map addresses each column by name off the item. Build Rows has to be putting them
   // at the TOP LEVEL of a writable row, not nested, or every mapped cell resolves to undefined and
-  // the append writes fifteen empty columns with a 200.
-  if (!/for \(const col of ROW_SHAPE\) row\[col\] = cell\(/.test(src)) {
+  // the append writes eleven empty columns with a 200.
+  //
+  // The regex widened on 2026-09-17. Build Rows used to write every column through one `cell()` call;
+  // found_at and posted_at now go through `cell(dateOnly(...))` because Shaheen asked for a date and
+  // not a timestamp, so the loop body is a branch rather than a single expression. What this check is
+  // actually for is the TOP-LEVEL assignment `row[col] = `, and that is what it now matches.
+  if (!/for \(const col of ROW_SHAPE\) \{[\s\S]{0,400}?row\[col\] = /.test(src)) {
     throw new Error(
-      'Write Jobs: Build Rows no longer places the fifteen columns at the top level of a writable row.\n' +
-      '  This node maps each cell with $json["<column>"], so a nested row would append fifteen blank\n' +
+      'Write Jobs: Build Rows no longer places the eleven columns at the top level of a writable row.\n' +
+      '  This node maps each cell with $json["<column>"], so a nested row would append eleven blank\n' +
       '  columns and return a perfectly healthy 200.'
     );
   }

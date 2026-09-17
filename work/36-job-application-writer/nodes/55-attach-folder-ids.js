@@ -137,10 +137,6 @@ const WHY_MAX = 400;
   const build = require('./44-build-documents.js');
   const bsrc = String(build.parameters.jsCode || '');
   for (const [needle, what] of [
-    ['j.readme_md = readme;', 'the README markdown, which this node hands to Text to File'],
-    ['j.job_ad_md = jobAd;', 'the saved posting, same'],
-    ['j.readme_md5 = md5Utf8(readme);', 'the digest the Drive read back is compared against'],
-    ['j.job_ad_md5 = docs.job_ad_md5;', 'the same for the posting'],
     ['j.pair_id = pairId;', 'the id every pairing in this seat joins on'],
   ]) {
     if (bsrc.indexOf(needle) === -1) {
@@ -339,31 +335,15 @@ for (let si = 0; si < sent.length; si += 1) {
   for (const f of manifest) byKind[txt(f.kind)] = f;
   const missingKinds = FILE_KINDS.filter((k) => !byKind[k]);
   if (missingKinds.length) {
-    markDrive(j, 'the file manifest is missing ' + JSON.stringify(missingKinds) + '. A folder with three of the four files is a half application, and a half application that is written into the sheet reads exactly like a whole one.');
+    markDrive(j, 'the file manifest is missing ' + JSON.stringify(missingKinds) + '. A folder short of its ' + FILE_KINDS.length + ' file(s) is a half application, and a half application that is written into the sheet reads exactly like a whole one.');
     out.push({ json: j });
     continue;
   }
 
-  // The two markdown strings, and the digest check that costs nothing. Recomputing here with the
-  // same function over the same string can only disagree if the STRING changed since Build
-  // Documents, which is the one thing worth catching.
-  const texts = { readme: txt(j.readme_md), job_ad: txt(j.job_ad_md) };
-  let textProblem = null;
-  for (const kind of ['readme', 'job_ad']) {
-    const s = texts[kind];
-    if (!s.length) { textProblem = 'the pair carries no ' + kind + ' text, so there is nothing to upload as ' + txt(byKind[kind].name) + '.'; break; }
-    const stamped = txt(byKind[kind].md5);
-    const now = md5Utf8(s);
-    if (stamped && now !== stamped) {
-      textProblem = 'the ' + kind + ' digest changed between Build Documents and here: it was ' + stamped + ' and the text on this pair now hashes to ' + now + '. Something rewrote the string in flight, and uploading it would put a file in Drive that no digest on this pair describes.';
-      break;
-    }
-  }
-  if (textProblem) {
-    markDrive(j, textProblem);
-    out.push({ json: j });
-    continue;
-  }
+  // The two markdown strings used to be re-hashed here, because a string that changed in flight
+  // would have uploaded a file no digest on the pair describes. Both files went on 2026-09-17, so
+  // every file this node emits is now a PDF that arrives as BYTES with a digest taken over those
+  // exact bytes by Check Renders, and there is no string left to drift.
 
   // The two PDF descriptors, copied UNCHANGED onto their own items under the data property. See note 3.
   const bin = (it && it.binary) || {};
@@ -409,27 +389,25 @@ for (let si = 0; si < sent.length; si += 1) {
     run_started_at: txt(j.run_started_at),
     exec_id: txt(j.exec_id),
   };
+  // EVERY FILE IS A PDF SINCE 2026-09-17. The two markdown files are gone, so the isPdf branch, the
+  // needs_convert flag and the text property went with them, and with those the three nodes that
+  // turned a string into a file: Convert Route, Text to File and Files Ready. Upload Route now hangs
+  // off this node directly.
   for (let k = 0; k < FILE_KINDS.length; k += 1) {
     const kind = FILE_KINDS[k];
     const f = byKind[kind];
-    const isPdf = kind === 'cv' || kind === 'letter';
     const item = {
       json: Object.assign({}, common, {
         kind: kind,
         file_seq: k + 1,
         filename: txt(f.name),
         expected_md5: txt(f.md5),
-        expected_bytes: isPdf ? (isFinite(Number(f.bytes)) ? Number(f.bytes) : null) : utf8Bytes(texts[kind]).length,
-        needs_convert: !isPdf,
-        source_binary_property: isPdf ? txt(f.binary_property) : null,
+        expected_bytes: isFinite(Number(f.bytes)) ? Number(f.bytes) : null,
+        source_binary_property: txt(f.binary_property),
       }),
     };
-    if (isPdf) {
-      item.binary = {};
-      item.binary[UPLOAD_PROPERTY] = bin[txt(f.binary_property)];
-    } else {
-      item.json.text = texts[kind];
-    }
+    item.binary = {};
+    item.binary[UPLOAD_PROPERTY] = bin[txt(f.binary_property)];
     fileItems.push(item);
     stats.files += 1;
   }
@@ -446,7 +424,7 @@ if (stats.drive_resources_dropped !== sent.length && sent.length) {
   warnings.push('THE DRIVE RESOURCE COUNT DOES NOT ADD UP: ' + stats.drive_resources_dropped + ' item(s) with no _kind were dropped from the stream and ' + sent.length + ' folder(s) were asked for. An item with no _kind is either a Create Folder response or something nobody built, and the second case would reach the upload route as an item nothing can describe.');
 }
 if (stats.files !== stats.folders * FILE_KINDS.length) {
-  warnings.push('THE FILE COUNT DOES NOT MATCH THE FOLDER COUNT: ' + stats.folders + ' folder(s) and ' + stats.files + ' file item(s). Four files per folder is the contract Check Uploads asserts as U3, and a folder that is short one file is a half application that reads like a whole one.');
+  warnings.push('THE FILE COUNT DOES NOT MATCH THE FOLDER COUNT: ' + stats.folders + ' folder(s) and ' + stats.files + ' file item(s). ' + FILE_KINDS.length + ' file(s) per folder is the contract Check Uploads asserts as U3, and a folder that is short one file is a half application that reads like a whole one.');
 }
 if (stats.failed > 0) {
   warnings.push(stats.failed + ' shipped pair(s) were marked error:drive. Their folders, where one was created, are LEFT IN PLACE rather than deleted: deleting a folder this run is not certain about is a destructive write, and the cost of leaving it is one empty folder. Their sheet rows stay at new, so tomorrow offers the same job again and creates a SECOND folder with the same name, which Drive permits.');

@@ -515,10 +515,8 @@ for (const p of pairs) {
     files: [
       { name: fn.cv, kind: 'cv', from: 'render', binary_property: 'cv_pdf', md5: cvR.pdf_md5, bytes: cvR.pdf_bytes },
       { name: fn.letter, kind: 'letter', from: 'render', binary_property: 'letter_pdf', md5: letterR.pdf_md5, bytes: letterR.pdf_bytes },
-      { name: README_FILENAME, kind: 'readme', from: 'build_documents', md5: j.readme_md5 },
-      { name: JOB_AD_FILENAME, kind: 'job_ad', from: 'build_documents', md5: j.job_ad_md5 },
     ],
-    upload_note: 'four files, one folder. The two PDFs are on the binary properties named above and their digests are over the exact bytes measured here. The two markdown files are strings on this pair and their digests are over their exact UTF-8 bytes. Upload all four unchanged and read all four back: a byte added on the way out changes a digest and the read back then fails on a file that uploaded perfectly.',
+    upload_note: 'TWO files, one folder, since 2026-09-17: README.md and job-ad.md were removed on Shaheen instruction and both PDFs are all that is left. They are on the binary properties named above and their digests are over the exact bytes measured here. Upload both unchanged and read both back: a byte added on the way out changes a digest and the read back then fails on a file that uploaded perfectly.',
   });
   stats.shipped += 1;
   out.push({ json: j, binary: binary });

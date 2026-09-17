@@ -177,8 +177,11 @@ const HARD_MAX_TOTAL_CALLS = 60;
     throw new Error('Detail Gate: source_' + SOURCE_KEY + ' is not a switch in the settings schema. It is the off button for this whole stage and it must decode to a real boolean.');
   }
   // The row shape must still carry the field this stage exists to fill.
-  if (CONTRACT.shared_row_shape.indexOf('excerpt') === -1) {
-    throw new Error('Detail Gate: the shared row shape no longer carries an excerpt column. This whole stage exists to fill it.');
+  // Column or internal: see 37-attach-detail.js. The 2026-09-17 trim took excerpt off the sheet and
+  // left it on the row, and this whole stage still exists to fill it.
+  if (Object.keys(CONTRACT.internal_only_fields || {}).indexOf('excerpt') === -1
+      && CONTRACT.shared_row_shape.indexOf('excerpt') === -1) {
+    throw new Error('Detail Gate: the contract carries no excerpt field, as a sheet column or as internal. This whole stage exists to fill it.');
   }
   if (!(HARD_MAX_DETAIL_CALLS > 0) || !(HARD_MAX_TOTAL_CALLS > 0)) {
     throw new Error('Detail Gate: a clamp is not a positive number. These are the only bounds a hand edited settings cell cannot raise.');

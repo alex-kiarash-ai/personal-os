@@ -18,7 +18,9 @@ under validator V6 leg (c) and the daily 08:10 active-flag watcher.
 ## The source contract (FROZEN, read it, never restate it)
 **`work/34-job-search-bi/config/sources.json`** is the single source of truth for every endpoint, every
 query param, every live field name, every date field and format, every rate note, and the shared row
-shape. Written by Agent 1 on 2026-09-11 off live responses, not off a brief.
+shape. Written by Agent 1 on 2026-09-11 off live responses, not off a brief. **Since 2026-09-17 it
+carries a second field list, `internal_only_fields`: the sheet header is `shared_row_shape` and is a
+SUBSET of what a row carries. See the 09-17 section at the end of this file before changing either.**
 
 Three rules about that file:
 1. **Both lanes read the SAME file.** #35 does not get a copy. `work/35-job-search-ai/config/lane.json`
@@ -294,3 +296,58 @@ sync is what creates the squeeze, so the `linkedin_max_calls_per_run` decision (
 the sync is pressed**, which is the reverse of the order the two queue items were written in.
 
 Full record, including the test-suite repair that preceded this: `vault/projects/job-search-bi/status.md`.
+
+
+## 2026-09-17: the jobs tab is ELEVEN columns and the applications tab is NINE (Shaheen)
+
+His words: *"I want to exclude some output to save some tokens and I really think it does not add any
+value."* Then, by name: `apply_url`, `fit_reasons`, `lane` and `excerpt` out of the `jobs` tab, and
+`lane`, `last_contact_at`, `outcome` and `notes` out of the `applications` tab, plus `found_at` and
+`posted_at` written as a DATE rather than a timestamp. The same edit landed in BOTH spreadsheets, in
+this lane, in #35 and in #36, and on the live sheets in the same session.
+
+**What each one was, and what its removal actually costs.**
+
+| Column | Was | The cost of removing it |
+|---|---|---|
+| `apply_url` | the direct apply link when a source publishes one | none measurable here. It was EMPTY on every `linkedin_guest_search` row in the live sheet. #36 still reads it to derive an employer host and falls back to `url`, so it survives as an internal field. |
+| `fit_reasons` | the scorer's sentences, plus the `FLAGS:` and `MODE:` fold | the real one. `red_flags` carries "Swedish fluent required", which Shaheen asked for BY NAME, and there is now no per-row surface for it. It is still produced, still parsed, and COUNTED in Build Rows' stage report, which is the only place the loss is visible. |
+| `lane` | the constant 34 or 35 | none. Each lane owns its own spreadsheet, so the cell restated the document. It is the only one of the four that stopped being FILLED. |
+| `excerpt` | the posting description | none to scoring, and that is the point. It is the `description:` block of the scoring prompt and the whole reason the LinkedIn detail stage exists, so it is still collected and still used. It lost its column and nothing else. |
+
+**THE DISTINCTION THAT MAKES THIS SAFE, and the thing to read before touching the contract.**
+`shared_row_shape` used to be both "the sheet header" and "every field a row carries". It is now only
+the first. The contract carries a new `internal_only_fields` block (`excerpt`, `apply_url`,
+`fit_reasons`), and every guard that used to prove a field existed by looking in `shared_row_shape`
+now checks columns OR internal: nodes 08, 16, 18 (the row-shape agreement), 22 (the never-merge
+rule), 28 (the prompt's fields), 33 and 37 (the detail stage's whole reason to exist). Deleting a
+field from `internal_only_fields` still fails the build, and the negative tests prove both halves.
+
+**The one that bit during the build, worth knowing before the next change here.** The three
+collectors emitted their row by iterating `ROW_SHAPE`. That was the same list as "everything this
+node fills" until the sheet shrank, and it stopped being so the moment the contract went to eleven:
+the loop silently dropped `apply_url` and `excerpt` off every row, which would have sent the scorer a
+posting with no description while every guard still passed. The loop now iterates `COLLECTOR_FILLS`.
+Caught by `test-stage-b.js`, not by reasoning.
+
+**`found_at` and `posted_at` are sliced, not reformatted.** An ISO string loses its time; anything
+else is written through exactly as collected, so a source that publishes a date in its own shape
+never becomes an invalid one. The slice is `/^(\d{4}-\d{2}-\d{2})T/` and inside the node's
+generated code it has to be DOUBLE-escaped, because it sits in a template literal that consumes one
+level. A single backslash there compiles to `/^(d{4}-d{2}-d{2})T/`, which matches nothing and writes
+every timestamp through while reporting zero cells shortened. That is exactly what shipped first and
+`test-output.js` 5b caught it.
+
+**The consequence for #36, stated rather than discovered.** That workflow reads this tab BY POSITION
+and its `status` column moved from M to K. It also used the `excerpt` cell as its fallback advert
+text when a live fetch is refused, and that fallback is now always empty, so a refused fetch produces
+a HELD pair rather than a thin one. Measured on the 2026-09-17 run before the change: 7 of 7 pairs
+fetched their advert live and none used the fallback.
+
+**The live sheets moved in the same session** (`scripts/trim-job-sheets-2026-09-17.js`, snapshot in
+`~/alex-sheet-snapshots/2026-09-17-job-sheets/`, headers read back cell by cell afterwards). That
+script also repaired something it went looking for by accident: this lane's `jobs` tab had its HEADER
+ROW sorted to the BOTTOM (row 37 of 37), every row fifteen cells wide, which is what sorting the
+whole range rather than the data does. The append node reads row 1 as the header, so tomorrow's 06:30
+write would have failed on a sheet nobody had touched since. The header was moved back to row 1 and
+the data row order was left exactly as it was found.

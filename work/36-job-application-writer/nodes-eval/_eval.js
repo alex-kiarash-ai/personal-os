@@ -64,6 +64,9 @@ const NODES = path.join(__dirname, '..', 'nodes');
 const S2 = require(path.join(NODES, '_stage2.js'));
 const MASTER = require(path.join(NODES, '_master.js'));
 const VR = require(path.join(S2.REPO, 'scripts', 'lib', 'voice-rules.js'));
+// comparableCode: the pin comparison below normalises the voice block's daily sync date out of both
+// sides. Required here beside voice-rules, off S2.REPO, for the same reason that one is.
+const VOICE_LIB = require(path.join(S2.REPO, 'scripts', 'lib', 'sync-n8n-voice.js'));
 
 const WRITER_NODE_FILE = path.join(NODES, '29-build-writer-request.js');
 const AUDIT_NODE_FILE = path.join(NODES, '34-audit-pair.js');
@@ -120,11 +123,22 @@ function writerJsCode() {
   if (!code) throw new Error('#36 letter eval: the prose node has no jsCode to copy.');
 
   const pin = readPin();
-  const got = sha256(code);
-  if (got !== pin.sha256) {
+  // THE SYNC DATE IS NORMALISED OUT BEFORE HASHING (2026-09-17). The voice block inside this node
+  // is built at require time and its header is stamped with TODAY, so these bytes change at
+  // midnight whether or not a word of soul.md moved, and this guard went red every calendar day
+  // after the day it was pinned. Measured: on 2026-09-17 it refused against a 09-16 pin, both
+  // 29841 characters, and putting the one date string back reproduced the pinned sha exactly.
+  //
+  // A daily false red is not a strict check, it is a check nobody reads. `comparableCode` lives in
+  // scripts/lib/sync-n8n-voice.js next to the sync that writes the stamp, and it neutralises the
+  // TEN CHARACTERS of the date and nothing else, so every real change to the prompt still refuses.
+  const got = sha256(VOICE_LIB.comparableCode(code));
+  if (got !== pin.sha256_comparable) {
     throw new Error(
       '#36 letter eval: REFUSING TO BUILD. The prose node has drifted from the pin.\n' +
-      '    pinned (live box, ' + pin.captured_at + '): ' + pin.sha256 + '  (' + pin.chars + ' chars)\n' +
+      '    (the voice-block sync DATE is normalised out of both sides, so this is a real change to\n' +
+      '     the prompt and not the daily re-stamp.)\n' +
+      '    pinned (live box, ' + pin.captured_at + '): ' + pin.sha256_comparable + '  (' + pin.chars + ' chars)\n' +
       '    regenerated from the repo now  : ' + got + '  (' + code.length + ' chars)\n' +
       '  An eval assembled from the repo while the box runs something else measures nothing, and it\n' +
       '  would report 6/6 while doing it, which is worse than no eval.\n' +

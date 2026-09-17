@@ -423,13 +423,31 @@ function sourcesContract() {
   if (!s.sources || !s.sources.linkedin_guest_detail) {
     throw new Error('#36 node files: the source contract has no linkedin_guest_detail entry, and the ad fetch builds every LinkedIn url from its endpoint template.');
   }
-  if (!Array.isArray(s.shared_row_shape) || s.shared_row_shape.length !== 15) {
+  // ELEVEN since 2026-09-17, down from fifteen: Shaheen removed apply_url, fit_reasons, lane and
+  // excerpt from both jobs tabs. This workflow reads the tab BY POSITION, so the number is not
+  // cosmetic here: a stale expectation would map fit_score onto the apply_url cell and score every
+  // candidate off a url.
+  if (!Array.isArray(s.shared_row_shape) || s.shared_row_shape.length !== 11) {
     throw new Error(
-      '#36 node files: shared_row_shape is ' + (s.shared_row_shape || []).length + ' fields, not 15.\n' +
+      '#36 node files: shared_row_shape is ' + (s.shared_row_shape || []).length + ' fields, not 11.\n' +
       '  The jobs tab header IS that list in that order, and Build Candidates asserts the live header\n' +
-      '  against it before it reads a single cell. If the shape genuinely grew, both collectors, both\n' +
+      '  against it before it reads a single cell. If the shape genuinely moved, both collectors, both\n' +
       '  sheet headers and this workflow move in the same session.'
     );
+  }
+  // The three fields this workflow still READS off a row that are no longer columns are declared in
+  // the contract, not assumed. apply_url feeds the research host (node 15) and falls back to the
+  // posting url; excerpt was the ad fallback when a live fetch is refused (node 09) and is now
+  // always empty, which turns a refused fetch into a HELD pair rather than a thin one.
+  const internal36 = Object.keys(s.internal_only_fields || {}).filter(function (k) { return k[0] !== '_'; });
+  for (const f of ['apply_url', 'excerpt']) {
+    if (internal36.indexOf(f) === -1 && s.shared_row_shape.indexOf(f) === -1) {
+      throw new Error(
+        '#36 node files: the contract carries no ' + f + ' field, as a column or as internal.\n' +
+        '  This workflow reads it off the row it builds from the sheet, so a field that exists nowhere\n' +
+        '  means node 05 is reading a key that can never be populated by anything.'
+      );
+    }
   }
   return s;
 }
@@ -453,7 +471,7 @@ function linkedinDetailTemplate() {
 // components deriving the same fact from the same text is how they drift. That is exactly right and
 // IT IS NOT AVAILABLE HERE, for a mechanical reason worth stating rather than working around
 // quietly: `_filter` is an in-memory field inside the collector workflow, and the jobs TAB carries
-// fifteen columns, none of which is scope or work_type_rule. By the time a row reaches this
+// eleven columns, none of which is scope or work_type_rule. By the time a row reaches this
 // workflow the collector's decision has been dropped on the floor.
 //
 // So this is the nearest honest thing. The scope TABLE is read out of 20-filter.js's own generated
@@ -462,9 +480,11 @@ function linkedinDetailTemplate() {
 // duplicated is only the MATCHER, and Build Candidates says so on every run: a recovered scope is
 // stamped scope_source recovered_from_location, never presented as the collector's own verdict.
 //
-// The real fix is a sixteenth column, and it is written down in the report for seat 7 rather than
+// The real fix is a twelfth column, and it is written down in the report for seat 7 rather than
 // attempted from here: growing shared_row_shape moves both collectors, both sheet headers and every
-// guard that asserts fifteen, and that is a change with a human step in the middle.
+// guard that asserts eleven, and that is a change with a human step in the middle. Worth knowing
+// before proposing it: the 2026-09-17 trim went the OTHER way, fifteen columns down to eleven, on
+// the grounds that the tab had become unreadable. A new column has to earn its place against that.
 // ---------------------------------------------------------------------------------------------
 function readBakedConst(nodeFile, name, opener) {
   const def = require(nodeFile);
@@ -563,9 +583,19 @@ const WRITER_RUNS_COLUMNS = [
 
 function jobsColumns() { return sourcesContract().shared_row_shape.slice(); }
 
+// NINE since 2026-09-17, down from thirteen. Shaheen removed lane, last_contact_at, outcome and
+// notes on the same instruction that trimmed the jobs tab: the output did not add value. Three of
+// the four were always written EMPTY by this workflow and were his own to fill by hand
+// (last_contact_at, outcome) or redundant (lane: each lane has its own spreadsheet).
+//
+// `notes` was NOT empty and its loss is the real one, so it is recorded here rather than discovered
+// later: it carried the HELD reason and, for a held pair, the full cover letter text, which is what
+// made a needs_review row readable on a phone without opening anything. What survives is the status
+// token itself (needs_review, so the refusal is still visible), the per-run writer_runs note, and
+// the execution. What is gone is the per-application WHY.
 const APPLICATIONS_COLUMNS = [
-  'job_id', 'applied_at', 'lane', 'company', 'title', 'url', 'channel',
-  'cv_ref', 'cover_letter_ref', 'status', 'last_contact_at', 'outcome', 'notes',
+  'job_id', 'applied_at', 'company', 'title', 'url', 'channel',
+  'cv_ref', 'cover_letter_ref', 'status',
 ];
 
 function assertColumnsAgainstSeed() {

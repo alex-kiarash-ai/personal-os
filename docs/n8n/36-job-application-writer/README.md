@@ -242,7 +242,15 @@ finished PDF, which is the only way to know that what went in came out.
 
 ### 10. Putting it in Drive (steps 52 to 65)
 
-One folder per application, inside that lane's own folder. Then the four files go up, one at a time.
+One folder per application, inside that lane's own folder. Then the two files go up, one at a time.
+
+**It was four files until 2026-09-17.** Alongside the CV and the cover letter it also wrote a
+README.md, which recorded what was chosen and why, and a job-ad.md, which kept a copy of the advert
+for the day the posting disappears. Shaheen asked for neither: printing the CV and the letter should
+not produce any md file. The three steps that existed only to turn those two pieces of text into
+files went with them, so the upload now hangs directly off the step that creates the folder. What was
+lost is the record inside the folder of how the documents were made. It survives in the n8n run for
+as long as n8n keeps it, and nowhere else.
 
 Nothing here is ever retried, and that is deliberate in the other direction from the renderer: Drive
 happily allows two folders with the same name in the same place, so a retry after a timeout that

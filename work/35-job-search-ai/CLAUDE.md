@@ -166,3 +166,24 @@ already created the tab. A claim about an external system that was never checked
 a guess wearing the clothes of a finding, and this file is exactly where such a guess goes to look
 official.
 HQ PUSH: **FIXED 2026-09-14, proven both sides (execution 5245).** Shaheen created a separate outgoing credential `Alex HQ Token (outgoing)` (`XXcugYBfR0JUXGGQ`, httpHeaderAuth, header `X-Alex-Token`), both lanes were rebuilt onto it and read back. Run 5245's `Push HQ` returned 200 `{"ok":true}`, and the receiving side was checked SEPARATELY: `Alex HQ - Metrics Ingest (16)` execution 5246 carries the actual payload (project job-search-bi, run_status scoring_down, searched 860, new 0, scored 0, status red). A 200 alone would not have proved delivery, which is why the ingest side was checked rather than assumed. **The lesson stands even though the bug is gone: a credential has a DIRECTION.** The webhook credential verifies calls arriving; it cannot authenticate calls leaving. #35 was rebuilt onto the same credential in the same session and read back, but its own push is still UNOBSERVED, because this lane has never executed.
+
+
+## 2026-09-17: the jobs tab is ELEVEN columns and the applications tab is NINE (Shaheen)
+
+`apply_url`, `fit_reasons`, `lane` and `excerpt` are out of the `jobs` tab; `lane`,
+`last_contact_at`, `outcome` and `notes` are out of the `applications` tab; `found_at` and
+`posted_at` are written as a DATE rather than a timestamp. His words: *"I want to exclude some output
+to save some tokens and I really think it does not add any value."*
+
+**This lane changed because #34 changed, and that is the design working.** Every node file here is a
+byte-identical copy of #34's (validator V20) and both lanes read the SAME contract, so the nine
+edited node files were copied over and this lane was rebuilt in the same session. There is nothing
+lane-specific about the trim.
+
+**The full reasoning, the cost of each removed column, and the two bugs the change produced, are in
+`work/34-job-search-bi/CLAUDE.md` under the same heading.** Read it there rather than trusting a
+summary here: this file has drifted from that one before.
+
+Facts specific to this lane: the sheet is `Job Search - AI` (`1tFW6j2bx_yfOlqcRrd6VJl43tWdZlfLST5R5RSWbTP8`),
+its `jobs`, `jobs_test` and `applications` tabs were all trimmed and read back on 2026-09-17, and its
+header row was in the right place to begin with, unlike #34's.

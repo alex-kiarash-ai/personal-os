@@ -166,8 +166,18 @@ const SELECTORS = {
   if (!S.extra_fields_available || !new RegExp(SELECTORS.criteria_label).test(String(S.extra_fields_available.criteria))) {
     throw new Error('Attach Detail: the contract no longer describes the criteria list at ' + SELECTORS.criteria_label + '. This node puts that list at the front of the excerpt, so the contract and the parser have to agree on where it is.');
   }
-  if (CONTRACT.shared_row_shape.indexOf('excerpt') === -1) {
-    throw new Error('Attach Detail: the shared row shape no longer carries an excerpt column, which is the one field this stage writes.');
+  // excerpt LOST ITS SHEET COLUMN on 2026-09-17 and did NOT stop existing. It is declared in the
+  // contract's internal_only_fields, and it is still the one field this stage writes, still the
+  // description block of the scoring prompt, and therefore still the only reason this stage spends
+  // linkedin_detail_max_calls_per_run on a morning. Checking shared_row_shape here would now refuse a
+  // perfectly correct lane; checking nothing would let a real deletion through silently.
+  if (Object.keys(CONTRACT.internal_only_fields || {}).indexOf('excerpt') === -1
+      && CONTRACT.shared_row_shape.indexOf('excerpt') === -1) {
+    throw new Error(
+      'Attach Detail: the contract carries no excerpt field, as a sheet column or as internal.\n' +
+      '  It is the one field this stage writes and the description block of the scoring prompt, so with\n' +
+      '  it gone this stage buys LinkedIn detail pages that feed nothing and the scorer reads titles.'
+    );
   }
 
   // The caps, in both directions.

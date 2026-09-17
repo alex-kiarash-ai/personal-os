@@ -125,7 +125,7 @@ const DRIVE_FOLDER_PREFIX = 'https://drive.google.com/drive/folders/';
 // ---------------------------------------------------------------------------------------------
 // COLUMN ARITHMETIC. A1 column letters, for a sheet nobody will ever grow past Z, written to cope
 // anyway: a range built as `applications!A2:{1}2` with a bad letter is a range Google accepts and
-// fills with the wrong thirteen cells.
+// fills with the wrong nine cells.
 // ---------------------------------------------------------------------------------------------
 function colLetter(index) {
   if (!Number.isInteger(index) || index < 0 || index > 701) {
@@ -167,7 +167,7 @@ function jobsStatusColumn() {
 // the rest: everything past `ready` is a human editing a cell, or a phase that does not exist yet.
 const APPLICATION_STATUS = {
   ready: 'the CV and the cover letter are built, uploaded and read back byte for byte in Drive. Nothing has been sent: sending is his, always.',
-  needs_review: 'the pipeline produced something and refused to ship it. The reason is in notes, and so is the full letter text when there was one, so the row is readable on a phone without opening anything.',
+  needs_review: 'the pipeline produced something and refused to ship it. The WHY is no longer in the row: the notes column went in the 2026-09-17 trim, so the reason lives in that run writer_runs note and in the execution, and this token is all the sheet says.',
 };
 const APPLICATION_STATUS_RESERVED = {
   sent: 'he submitted it. Written by hand, or by a phase that does not exist yet.',
@@ -188,9 +188,11 @@ const APPLICATION_CHANNEL_RESERVED = {
   referral: 'it went in through a person.',
 };
 
-// applications.outcome - deliberately left EMPTY on write. It is the human's column and it is the
-// last thing a machine should pre-fill: an outcome written before there is one is a fiction that
-// reads exactly like a fact.
+// applications.outcome - REMOVED from the tab on 2026-09-17, with last_contact_at and notes. It was
+// deliberately written EMPTY here (the human's column, and an outcome written before there is one is
+// a fiction that reads exactly like a fact), and Shaheen removed the empty columns rather than
+// filling them. The vocabulary below is kept as the record of what the column meant: nothing writes
+// it, node 66 still reports it as reserved, and that is the trail back if it ever returns.
 const APPLICATION_OUTCOME_RESERVED = ['offer', 'rejected', 'no_reply', 'withdrawn'];
 
 // cv_ref and cover_letter_ref - the referent, which had none.
@@ -360,7 +362,17 @@ function assertShippedPairShape() {
 // The four files of one folder, in upload order. Order is not cosmetic: node 65 asserts FOUR files
 // per shipped pair (U3) and the run report lists them, so a stable order is what makes a partial
 // folder readable at a glance.
-const FILE_KINDS = ['cv', 'letter', 'readme', 'job_ad'];
+// TWO SINCE 2026-09-17, was four. Shaheen: when the workflow prints the CV and the cover letter it
+// should not produce any md file. So README.md and job-ad.md are not built, not converted, not
+// uploaded and not verified, and the three nodes that existed only to turn a string into a file
+// (Convert Route, Text to File, Files Ready) are deleted rather than left routing nothing.
+//
+// WHAT THAT COSTS, and it is not nothing: README.md was the audit record that made an unattended
+// application reviewable six weeks later (D12, D15) - what was selected and why, the one sentence on
+// the CV that is not his own writing, both audit verdicts, the blind grade, the cost. job-ad.md was
+// the posting saved verbatim, for the day the posting is gone. Both now live only in the n8n
+// execution, which ages out. The folder holds the two documents and nothing about how they were made.
+const FILE_KINDS = ['cv', 'letter'];
 
 // ---------------------------------------------------------------------------------------------
 // THE MD5 RUNTIME, the same bytes nodes 44 and 49 carry. See header note 1.

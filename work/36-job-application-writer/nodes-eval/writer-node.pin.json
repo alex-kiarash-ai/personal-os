@@ -4,9 +4,11 @@
   "_when_it_legitimately_moves": "Two causes, and both mean the same thing. (a) soul.md changed, so the voice block baked into node 29 changed, so the repo now generates a prompt the live node does not have. (b) someone edited the node in the n8n editor, which loses on the next rebuild anyway. Either way the eval MUST refuse until the box and the repo agree again, because an eval built from the repo while the box runs something else measures nothing. The fix is never to edit this file by hand: rebuild the runtime workflow (or run the voice sync), then re-pin from the live value with config/check-writer-pin.js --write-pin, which refuses unless the box and the repo already agree.",
   "_no_personal_data": "A sha256 and a character count. The generated prompt carries his voice block and his approved figures; the hash of it carries neither, which is why this file can be tracked in a PUBLIC repo while config/ cannot. No workflow id here either: check-writer-pin.js reads that from the gitignored lane file.",
   "node_name": "Build Writer Request",
-  "sha256": "893bb4b25e95078770a7606b91c8c481be0a60a2391cd84ee3c1f8b1ace19a44",
+  "sha256": "dcffca684b211e5836ba5b527f2957a43a52067f2960e5abc0ca69a53ae77ba4",
   "chars": 29841,
-  "captured_at": "2026-09-16",
+  "captured_at": "2026-09-17",
   "captured_from": "read-only GET /workflows/{id} against the live n8n box, workflow id read from the gitignored config/lane.json",
-  "verified_against_repo": "identical to work/36-job-application-writer/nodes/29-build-writer-request.js -> parameters.jsCode on 2026-09-16"
+  "verified_against_repo": "identical to work/36-job-application-writer/nodes/29-build-writer-request.js -> parameters.jsCode on 2026-09-17",
+  "_the_sync_date_is_normalised": "Since 2026-09-17 the comparison runs on sha256_comparable, which is the jsCode with the voice block's `synced YYYY-MM-DD` header date replaced by a placeholder and NOTHING else changed. Node 29 builds that block at require time and stamps it with today, so the raw bytes change at midnight whether or not soul.md moved: this guard refused on 2026-09-17 against a 09-16 pin, both 29841 characters, and restoring the one date string reproduced the pinned hash exactly. A check that goes red daily for a non-reason teaches the reader to re-pin without looking, which is precisely how a real drift would get blessed. sha256 below is kept as the raw forensic value.",
+  "sha256_comparable": "c97fb6eaea662c70ea1d5891c3d776b43940dfc8a62727ed564392f772e0c80f"
 }

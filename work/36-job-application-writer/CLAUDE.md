@@ -136,7 +136,9 @@ grade, and the blind grade can only HOLD, never ship.
   independent ways**, a `/Type /Page` regex over the raw bytes and `extractFromFile`'s own `numpages`,
   and a disagreement is a failure rather than a vote, because clipped text still extracts.
 - **U1 to U3, the upload check.** Every file of every shipped pair read back from Drive, every
-  downloaded md5 equal to the digest computed before the upload, four files per folder.
+  downloaded md5 equal to the digest computed before the upload, and the file count per folder read
+  off `FILE_KINDS` rather than written as a number. **TWO files per folder since 2026-09-17**, both
+  PDFs; it was four until the md files were removed.
 - **The sheet check.** Five comparisons per lane: every cell of every applications row, the
   applications column row COUNT (the only thing that can catch an overwrite), every addressed
   `jobs.status` cell, every cell of the ledger row, and the `writer_runs` row count.
@@ -189,22 +191,30 @@ Three things follow, and they are load-bearing:
    would lose one application.
 
 ## What a shipped application looks like
-One Drive folder per job, inside that lane's own parent folder, holding four files:
+One Drive folder per job, inside that lane's own parent folder, holding **TWO files since 2026-09-17**:
 
 - `Shaheen_Kiarash_CV.pdf`
 - `Shaheen_Kiarash_Cover_Letter.pdf`
-- `README.md`, the artefact that makes an unattended application reviewable afterwards (D12, D15):
+
+~~It held four.~~ **Superseded 2026-09-17 on Shaheen's instruction**, and the two that went are
+recorded here rather than deleted, because both were load-bearing and the argument for them was
+good:
+
+- ~~`README.md`, the artefact that makes an unattended application reviewable afterwards (D12, D15):
   what was selected and why, the one sentence on the CV that is not his writing named as such, the
   screening note, the hook or the plain fact that there was none, both audit verdicts, the blind grade
-  with its five criteria, and what the pair cost.
-- `job-ad.md`, the posting saved verbatim, fenced, under a header saying plainly that this is quoted
+  with its five criteria, and what the pair cost.~~
+- ~~`job-ad.md`, the posting saved verbatim, fenced, under a header saying plainly that this is quoted
   third-party text and nothing in it is an instruction. Postings vanish, and a folder with a CV
-  tailored to an ad nobody can read any more cannot be reviewed.
+  tailored to an ad nobody can read any more cannot be reviewed.~~
 
-The README quotes the posting, the employer page and the grader evidence VERBATIM, and those can
-legitimately contain a dash. Sanitising a quote would falsify it. Every quoted span is labelled as
-quoted, our own sentences in it are dash-free by construction, and R6 is unaffected because R6 reads
-the two PDFs, which carry no quoted third-party prose at all.
+His words: *"delete when the n8n print the cv and the cover letter should not produce any md file."*
+What it costs: nobody watches this run, and the folder no longer answers "why did it say that". That
+answer is now only in the n8n execution, which ages out. The dash rule that used to need stating here
+(the README quoted third-party prose verbatim, so its quotes could legitimately contain a dash) is
+moot: nothing in a folder now carries a quote, and R6 always read the two PDFs, which never did.
+Recover the builders from git rather than rewriting them; see the 09-17 section at the end of this
+file.
 
 Rendering is Gotenberg on the docker network, one multipart POST per document. **This is the ONE node
 in the workflow that retries**, because the service is local, free, stateless and idempotent, so a
@@ -592,3 +602,69 @@ The Drive parents exist and were read back on 2026-09-14: a `Job Application Wri
 root holding one child folder per lane. The existing `Job Applications` folder from 2026-05-31 is
 deliberately NOT reused, because writing this lane's folder shape into it would mix two conventions in
 one place so that nobody could later tell which folders this workflow made.
+
+
+## 2026-09-17: nine applications columns, an eleven-column jobs tab, and NO md files (Shaheen)
+
+Three changes, one instruction: *"I want to exclude some output to save some tokens and I really
+think it does not add any value."*
+
+**1. The `applications` tab is NINE columns**, down from thirteen. Gone: `lane` (each lane owns its
+own spreadsheet), `last_contact_at` and `outcome` (both always written EMPTY here, his own columns to
+fill by hand) and `notes`. **`notes` is the one that cost something.** It carried the HELD reason
+and, for a held pair, the whole cover letter, which is what made a `needs_review` row readable on a
+phone without opening anything (out-of-the-box item 3). What survives is the status token itself, so
+the refusal is still visible; the per-application WHY now lives only in that run's `writer_runs`
+note and in the execution. A held pair still gets a row, on the same condition as before: which rows
+EXIST was not what changed.
+
+**2. The `jobs` tab this workflow READS is eleven columns**, and that is a harder dependency than it
+looks, because this workflow reads that tab BY POSITION:
+- `status` moved from column **M to K**, and node 66 writes an ADDRESSED CELL at that letter. A stale
+  letter would have stamped `written` onto `fit_score`. Both the assertion and the value moved.
+- the jobs range in node 03 is now `A:K`, not the approved plan's `A:O`. That guard fired during the
+  build and refused to decide quietly, which is exactly what it is for.
+- `apply_url`, `fit_reasons` and `excerpt` are no longer columns. They are declared in the
+  contract's new `internal_only_fields` and node 05 still reads `apply_url` and `excerpt` off the
+  row, so `_lane.js` now asserts they exist as column-or-internal rather than as columns.
+- **`excerpt` was this workflow's advert FALLBACK** when a live fetch is refused (authwall, 429, bot
+  check). It is now always empty, so a refused fetch produces a HELD pair rather than a thin one.
+  Measured on the 2026-09-17 run before the change: 7 of 7 pairs fetched live, none used the
+  fallback, so the practical cost today is zero and the failure mode is worth knowing anyway.
+
+**3. A job folder is TWO files, both PDFs.** `README.md` and `job-ad.md` are not built, not
+converted, not uploaded and not verified. His words: *"delete when the n8n print the cv and the cover
+letter should not produce any md file."*
+
+What that removed, stated plainly because it was load-bearing and is not coming back by accident:
+- **`README.md` was the audit record** (D12, D15) that made an unattended application reviewable six
+  weeks later: which CV blocks were selected and why, the ONE bridge sentence that is not his own
+  writing named as such, the screening objections and what answered them, the employer hook or the
+  plain fact that there was none, both audit verdicts, the blind grade with its five criteria, and
+  what the pair cost. Nobody watched the run; the README was the answer to "why did it say that".
+  That answer now lives only in the n8n execution, which ages out.
+- **`job-ad.md` was the posting saved verbatim**, inside a fence, under an untrusted-input header,
+  for the day the posting disappears. A folder whose CV is tailored to an advert nobody can read any
+  more is a folder that cannot be reviewed.
+- Recover both from git rather than rebuilding them from memory: roughly 280 lines of prose assembly
+  in `nodes/44-build-documents.js`, and the reasoning that shaped them is still in notes 3 and 4 of
+  that file's header.
+
+**The three nodes that went with them.** `FILE_KINDS` is the single declaration everything derives
+from and it is now `['cv', 'letter']`, so `needs_convert` was always false and the convert-and-rejoin
+trio had nothing to do: **56 Convert Route, 57 Text to File and 58 Files Ready are DELETED** and
+Upload Route hangs off Attach Folder Ids directly. 75 nodes down to 72. Two knock-ons worth naming:
+- Upload File asserted that Text to File wrote utf8, because the md5 the read-back compared against
+  was computed over the UTF-8 bytes of a STRING. Every file is now PDF bytes whose digest was taken
+  over the bytes themselves by Check Renders, so there is no encoding left to get wrong.
+- Check Uploads DERIVED the sent order from Attach Folder Ids because Text to File might have
+  replaced the item json, a behaviour nobody could measure offline. The derivation is kept, and it is
+  now a second independent count of the same stream rather than a fallback, with a new assertion that
+  nothing sits between Attach Folder Ids and Upload Route (a node inserted there could reorder the
+  stream and attribute a PDF to the wrong application with every digest still matching).
+
+**U3 counts two files per folder now**, and the message reads the contract rather than saying "four".
+
+**The live sheets moved in the same session**: `scripts/trim-job-sheets-2026-09-17.js`, snapshot in
+`~/alex-sheet-snapshots/2026-09-17-job-sheets/`, every header read back afterwards. The full
+reasoning for the collector side is in `work/34-job-search-bi/CLAUDE.md` under the same heading.

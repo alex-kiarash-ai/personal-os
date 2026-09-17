@@ -33,7 +33,7 @@
  *
  * So the first hop is position, cross checked three ways. The sent list is taken from Upload Route
  * output 0 when that still carries the file metadata, and DERIVED from Attach Folder Ids when it
- * does not, because two of the four files pass through Text to File and this seat cannot prove from
+ * does not, because until 2026-09-17 two of four files passed through Text to File and this seat could not prove from
  * a development machine whether that node keeps the item json. When both are available they are
  * compared pair by pair and kind by kind. Every upload response is then checked against the name
  * Google echoed back and against its own pairedItem index. A count that does not match, an order
@@ -98,21 +98,23 @@ const WHY_MAX = 460;
   if (attach.name !== 'Attach Folder Ids') {
     throw new Error(NODE_NAME + ': node 55 is named ' + JSON.stringify(attach.name) + ' and this node DERIVES the sent file order from it by that name whenever the routed items no longer carry their metadata.');
   }
-  const convertRoute = require('./56-convert-route.js');
-  const filesReady = require('./58-files-ready.js');
-  if (String(convertRoute.parameters.conditions.conditions[0].leftValue).indexOf('needs_convert') === -1) {
-    throw new Error(NODE_NAME + ': Convert Route no longer splits on needs_convert, and the derived sent order is exactly that split: the converted files first, then everything else.');
-  }
-  if (filesReady.parameters.mode !== 'append' || !Array.isArray(filesReady.connectFrom)
-      || String(filesReady.connectFrom[0].node) !== 'Text to File' || Number(filesReady.connectFrom[1].inputIndex) !== 1) {
+  // Convert Route and Files Ready were asserted here until 2026-09-17. They split the file stream on
+  // needs_convert and rejoined it, which is what made the derived sent ORDER a two-part thing, and
+  // both nodes are deleted with the markdown files they existed for. Upload Route now hangs off
+  // Attach Folder Ids directly, so the derived order is simply that node's emission order.
+  const uploadRoute = require('./59-upload-route.js');
+  if (uploadRoute.connectFrom !== 'Attach Folder Ids') {
     throw new Error(
-      NODE_NAME + ': Files Ready no longer appends Text to File on input 0 before Convert Route output 1 on input 1. That order IS the derived sent order this node falls back to when Text to File replaces the item json. Change the wiring and the derivation has to change in the same edit.'
+      NODE_NAME + ': Upload Route now connects from ' + JSON.stringify(uploadRoute.connectFrom) + '.\n' +
+      '  The sent order this node derives is the order Attach Folder Ids emits file items in, which only\n' +
+      '  holds while nothing sits between the two. A node inserted there can reorder the stream, and a\n' +
+      '  wrong order here attributes a PDF to the wrong application with every digest still matching.'
     );
   }
   const acode = String(attach.parameters.jsCode || '');
   for (const [needle, what] of [
     ['expected_md5: txt(f.md5),', 'the digest this node compares the downloaded bytes against'],
-    ['kind: kind,', 'which of the four files this is, which is what U3 counts'],
+    ['kind: kind,', 'which file this is, which is what U3 counts'],
     ['pair_id: pairId,', 'the key every file is grouped back onto'],
   ]) {
     if (acode.indexOf(needle) === -1) {
@@ -174,16 +176,16 @@ let batchWhy = null;
 // ---------------------------------------------------------------------------
 // WHAT WAS SENT, AND WHY IT IS NOT SIMPLY READ OFF THE ROUTE.
 //
-// Two of the four files in every folder passed through Text to File, and this seat cannot prove
-// from a development machine whether that node keeps the item json or replaces it with an empty
-// object. If it replaces it, the metadata this check needs, which application a file belongs to,
-// which of the four it is, and what its digest should be, is not on the routed item at all.
+// Until 2026-09-17 two of the four files in every folder passed through Text to File, and this seat
+// could not prove from a development machine whether that node kept the item json or replaced it
+// with an empty object. If it replaced it, the metadata this check needs, which application a file
+// belongs to, which file it is, and what its digest should be, was not on the routed item at all.
 //
-// So the sent list is DERIVED from the node that owns that metadata, Attach Folder Ids, in the
-// order the graph actually produces: Convert Route sends the markdown files down output 0 and
-// everything else down output 1, and Files Ready appends input 0 before input 1. That makes the
-// order the converted files first, in the order they were emitted, then the PDFs, in the order they
-// were emitted.
+// Both markdown files are gone and so is that node. Every routed item now comes straight from
+// Attach Folder Ids carrying its own metadata, so the derivation below is no longer a fallback for
+// a behaviour nobody could measure: it is a SECOND INDEPENDENT COUNT of the same stream, in that
+// node's emission order, and it is kept for exactly that reason. The cross check costs nothing and
+// it is the only thing that catches a file attributed to the wrong application.
 //
 // The derivation is never trusted on its own. When the route DOES still carry the metadata, the two
 // are compared pair by pair and kind by kind, and a disagreement refuses the whole batch. And in
@@ -192,13 +194,14 @@ let batchWhy = null;
 // are two different documents, so swapping them makes both md5 comparisons fail.
 // ---------------------------------------------------------------------------
 const attachFiles = (attachItems || []).map((i) => i.json || {}).filter((j) => j && j._kind === 'file');
-const derived = attachFiles.filter((f) => f.needs_convert === true).concat(attachFiles.filter((f) => f.needs_convert !== true));
+// Emission order, with no split: needs_convert went with the markdown files on 2026-09-17.
+const derived = attachFiles.slice();
 const routed = (sentItems || []).map((i) => i.json || {});
 const routeCarriesMetadata = routed.length > 0 && routed.every((j) => j && j.pair_id !== undefined && j.kind !== undefined);
 let sent = routeCarriesMetadata ? routed : derived;
 let sentSource = routeCarriesMetadata
   ? 'Upload Route output 0, which still carries the file metadata, cross checked against the order derived from Attach Folder Ids'
-  : 'DERIVED from Attach Folder Ids, because the routed items no longer carry the metadata. Text to File replaced their json, which is the behaviour this seat could not settle offline.';
+  : 'DERIVED from Attach Folder Ids, because the routed items do not carry the metadata. Since 2026-09-17 nothing sits between the two nodes and every item should carry it, so this fallback firing at all is itself worth reading as a finding.';
 
 if (attachItems === null) {
   batch = 'refused';

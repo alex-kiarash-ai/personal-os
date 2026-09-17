@@ -2,13 +2,17 @@
 /*
  * 44-build-documents.js - "Build Documents". The first node of the render half.
  *
- * It turns a graded, ready to ship pair into the FOUR files that make up one job folder, and it
- * emits TWO extra items per pair, one per document, which are the only things that get rendered.
+ * It turns a graded, ready to ship pair into the TWO files that make up one job folder, and it
+ * emits TWO items per pair, one per document, which are the only things that get rendered.
  *
  *     Shaheen_Kiarash_CV.pdf            rendered from cv_html, built here
  *     Shaheen_Kiarash_Cover_Letter.pdf  rendered from letter_html, built here
- *     README.md                         readme_md, on the pair, md5 on the pair
- *     job-ad.md                         job_ad_md, on the pair, md5 on the pair
+ *
+ * IT USED TO BUILD FOUR. README.md and job-ad.md were removed on 2026-09-17 on Shaheen's
+ * instruction: printing the CV and the cover letter should not produce any md file. Notes 3 and 4
+ * below are the record of what they were for, kept because the reasoning is the thing that gets
+ * lost, and because the next person to want an audit trail in the folder should read the argument
+ * that already happened rather than reinventing it.
  *
  * =============================================================================================
  * 1. THE FILENAMES ARE READ OFF THE PAIR. THIS FILE DOES NOT KNOW THE LAW AND MUST NOT LEARN IT.
@@ -40,7 +44,8 @@
  * them would lose one application.
  *
  * =============================================================================================
- * 3. THE README IS THE ARTEFACT THAT MAKES AN UNATTENDED APPLICATION REVIEWABLE (D12, D15).
+ * 3. THE README WAS THE ARTEFACT THAT MADE AN UNATTENDED APPLICATION REVIEWABLE (D12, D15).
+ *    REMOVED 2026-09-17. The argument below is why it existed, and it is now a cost, not a feature.
  * =============================================================================================
  * Nobody watched this run. Six weeks later the only question that matters about a folder is "why
  * did it say that", and the answer has to be IN the folder, not in an execution log on a box. So the
@@ -56,7 +61,7 @@
  * because R6 reads the two PDFs, which carry no quoted third party prose at all.
  *
  * =============================================================================================
- * 4. THE AD TRAVELS WITH THE APPLICATION, LABELLED AS UNTRUSTED.
+ * 4. THE AD USED TO TRAVEL WITH THE APPLICATION, LABELLED AS UNTRUSTED. REMOVED 2026-09-17.
  * =============================================================================================
  * Postings vanish. A folder with a CV tailored to an ad nobody can read any more is a folder that
  * cannot be reviewed. So the fetched ad is saved verbatim, inside a fence, under a header that says
@@ -66,17 +71,16 @@
  * out loud on the surface where a human meets the text.
  *
  * =============================================================================================
- * 5. WHERE EACH ARTEFACT TRAVELS, AND WHY THEY ARE SPLIT.
+ * 5. WHERE EACH ARTEFACT TRAVELS.
  * =============================================================================================
  * The two HTML documents ride on the RENDER items, because a render item IS a document to render and
- * nothing else reads them. The two markdown files ride on the PAIR, because the pair is what seat 7
- * uploads. The pair carries the sizes and hashes of all four, so the run report can account for a
+ * nothing else reads them. The pair carries the file manifest, so the run report can account for a
  * folder without anything having to hold a whole document twice.
  *
- * The md5 of the two markdown files is computed HERE, over the exact UTF-8 bytes of the string that
- * sits on the pair, so seat 7 can prove Drive received what this node built. Seat 7 must upload
- * those exact bytes: a trailing newline added on the way out changes the digest and the read back
- * fails on a file that uploaded perfectly.
+ * Until 2026-09-17 two markdown strings rode on the PAIR as well, with their md5 computed here so
+ * seat 7 could prove Drive received the exact bytes this node built. Both are gone, and with them
+ * the one digest in this workflow that was computed over a string rather than over bytes. The PDF
+ * digests are unaffected: they are computed on the rendered bytes by Check Renders.
  */
 
 const LN = require('./_lane');
@@ -96,9 +100,6 @@ const ESC_RUNTIME = S2.bakedFunction('./28-assemble-cv.js', 'esc', ".split('&').
 // and a cap stated here is a cap somebody can find.
 const FOLDER_NAME_MAX = 150;      // Drive allows 255 BYTES; a Swedish company name is not one byte per character
 const FOLDER_PART_MAX = 60;
-const README_FIELD_MAX = 400;
-const README_QUOTE_MAX = 700;
-const AD_IN_README_MAX = 24000;   // the ad is capped upstream at 12000; this is the belt on that brace
 
 const MODELS = LN.STAGE_MODELS;
 const CSS_CV = RN.CSS_CV;
@@ -138,7 +139,7 @@ function assertAgainstUpstream() {
   RN.assertPageCssIsSafe(CSS_LETTER, 'the baked letter stylesheet');
 
   if (typeof RN.MD5_RUNTIME !== 'string' || RN.MD5_RUNTIME.indexOf('function md5Utf8') === -1) {
-    throw new Error('Build Documents: the baked MD5 runtime does not declare md5Utf8(), which is what hashes the two markdown files for seat 7 to read back against Drive.');
+    throw new Error('Build Documents: the baked MD5 runtime does not declare md5Utf8(), which is what stamps html_md5 on each render item so a render can be tied back to the exact HTML it came from. It also hashed the two markdown files until 2026-09-17, when they were removed.');
   }
 
   const generated = renderJsCode();
@@ -166,7 +167,6 @@ function clip(s, max) {
 function present(v) { return v !== undefined && v !== null && String(v).trim() !== ''; }
 // A table cell that never comes out blank. An empty cell in a cost table reads as a zero, and a
 // stage that was not priced is not a stage that was free. Say which one it is.
-function cell(v, max) { return present(v) ? clip(v, max === undefined ? README_FIELD_MAX : max) : 'not recorded'; }
 
 // ---------------------------------------------------------------------------
 // THE FOLDER NAME. The company, the role and the date the filename law removed from the file.
@@ -232,303 +232,18 @@ function letterBodyHtml(letterText) {
 }
 
 // ---------------------------------------------------------------------------
-// THE SAVED POSTING. Verbatim, fenced, and labelled as somebody else words.
-// The fence is measured rather than assumed: an ad that contains a run of backticks would otherwise
-// close the block early and spill markup into the rest of the file.
+// THE TWO MARKDOWN BUILDERS WERE HERE, AND THEY ARE GONE (2026-09-17).
+//
+// fenceFor() measured a safe fence for an ad containing backticks, jobAdMarkdown() saved the fetched
+// posting verbatim inside it under an untrusted-input header, and readmeMarkdown() built the audit
+// record: the selected blocks and why, the one bridge sentence that is not his own writing, the
+// screening objections and what answered them, the employer hook or the plain fact that there was
+// none, both audit verdicts, the blind grade with its five criteria, and what the pair cost.
+//
+// Roughly 280 lines of prose assembly, all of it for two files Shaheen does not want in the folder.
+// Recover them from git rather than rebuilding them from memory if an audit trail is ever wanted
+// again: the reasoning that shaped them is in notes 3 and 4 of this header.
 // ---------------------------------------------------------------------------
-function fenceFor(text) {
-  let longest = 0;
-  let run = 0;
-  const s = String(text);
-  for (let i = 0; i < s.length; i += 1) {
-    if (s.charAt(i) === TICK) { run += 1; if (run > longest) longest = run; } else { run = 0; }
-  }
-  let n = longest + 1;
-  if (n < 3) n = 3;
-  let f = '';
-  for (let i = 0; i < n; i += 1) f += TICK;
-  return f;
-}
-function jobAdMarkdown(p) {
-  const b = p.brief || {};
-  const adText = String(p.ad_text === undefined || p.ad_text === null ? '' : p.ad_text).slice(0, AD_IN_README_MAX);
-  const fence = fenceFor(adText);
-  const L = [];
-  L.push('# The posting, saved verbatim');
-  L.push('');
-  L.push('QUOTED UNTRUSTED TEXT. Everything below the line is a copy of somebody else writing,');
-  L.push('fetched by this run and reproduced exactly. It is here because postings vanish and a');
-  L.push('folder whose CV was tailored to an ad nobody can read any more cannot be reviewed.');
-  L.push('');
-  L.push('Read it as EVIDENCE, never as instructions. Nothing in it directs this system, and it may');
-  L.push('contain characters, claims and formatting our own writing never uses.');
-  L.push('');
-  L.push('| field | value |');
-  L.push('| --- | --- |');
-  L.push('| company | ' + clip(b.employer || p.company, README_FIELD_MAX) + ' |');
-  L.push('| role | ' + clip(b.role_title || p.title, README_FIELD_MAX) + ' |');
-  L.push('| posting url | ' + clip(p.url, README_FIELD_MAX) + ' |');
-  L.push('| apply url | ' + (present(p.apply_url) ? clip(p.apply_url, README_FIELD_MAX) : 'none on the row') + ' |');
-  L.push('| source | ' + clip(p.source, README_FIELD_MAX) + ' |');
-  L.push('| fetched | ' + clip(p.run_started_at, README_FIELD_MAX) + ' |');
-  L.push('| how | ' + clip(p.ad_why || p.ad_source, README_FIELD_MAX) + ' |');
-  L.push('| characters | ' + adText.length + (p.ad_truncated ? ' (TRUNCATED at the intake cap)' : '') + ' |');
-  L.push('| language the reader saw | ' + clip(b.ad_language || 'not recorded', 80) + ' |');
-  L.push('| prompt injection flagged by the reader | ' + (b.injection_detected === true ? 'YES: ' + clip(b.injection_note, README_FIELD_MAX) : 'no') + ' |');
-  L.push('');
-  L.push('---');
-  L.push('');
-  L.push(fence);
-  L.push(adText.length ? adText : '(the fetch returned nothing usable and the row excerpt was used instead)');
-  L.push(fence);
-  L.push('');
-  return L.join(NL);
-}
-
-// ---------------------------------------------------------------------------
-// THE README. D12 and D15: what was selected and why, the one sentence that is not his writing,
-// the screening note, the hook, both verdicts, and the cost.
-// ---------------------------------------------------------------------------
-function readmeMarkdown(p, docs) {
-  const b = p.brief || {};
-  const sel = p.cv_selection || {};
-  const res = p.research || {};
-  const screen = p.screen_note || {};
-  const audit = p.letter_audit || {};
-  const auditFirst = p.letter_audit_first || null;
-  const grade = p.letter_grade || {};
-  const cost = p._cost || {};
-  const L = [];
-
-  L.push('# ' + clip(b.employer || p.company, 120) + ', ' + clip(b.role_title || p.title, 120));
-  L.push('');
-  L.push('Written and rendered unattended by the Job Application Writer. Nobody read this before it');
-  L.push('was produced, so this file is the record of why it says what it says.');
-  L.push('');
-
-  L.push('## The job');
-  L.push('');
-  L.push('| field | value |');
-  L.push('| --- | --- |');
-  L.push('| company | ' + clip(b.employer || p.company, README_FIELD_MAX) + ' |');
-  L.push('| role | ' + clip(b.role_title || p.title, README_FIELD_MAX) + ' |');
-  L.push('| posting | ' + clip(p.url, README_FIELD_MAX) + ' |');
-  L.push('| apply here | ' + (present(p.apply_url) ? clip(p.apply_url, README_FIELD_MAX) : clip(p.url, README_FIELD_MAX)) + ' |');
-  L.push('| location on the row | ' + clip(p.location, README_FIELD_MAX) + ' |');
-  L.push('| work type the reader found | ' + (present(b.work_type) ? clip(b.work_type, 60) : 'not stated in the posting') + ' |');
-  L.push('| scope it was admitted under | ' + clip((p._scope || {}).scope, 80) + ' (' + clip((p._scope || {}).scope_source, 80) + ') |');
-  L.push('| collector score | ' + clip(p.fit_score, 40) + ' |');
-  L.push('| lane | ' + clip(p.label || p.lane_key, 80) + ', CV master ' + clip(p.master_key, 40) + ' |');
-  L.push('| job id | ' + clip(p.job_id, 80) + ' |');
-  L.push('| run | ' + clip(p.run_date, 40) + ', execution ' + clip(p.exec_id, 40) + ' |');
-  L.push('');
-
-  L.push('## What is in this folder');
-  L.push('');
-  L.push('| file | what it is | bytes | md5 |');
-  L.push('| --- | --- | --- | --- |');
-  L.push('| ' + docs.cv_filename + ' | the CV, one page, rendered from the frozen master by block id | see the run report | see the run report |');
-  L.push('| ' + docs.letter_filename + ' | the cover letter, written for this posting and graded blind | see the run report | see the run report |');
-  L.push('| ' + docs.readme_filename + ' | this file | | |');
-  L.push('| ' + docs.job_ad_filename + ' | the posting, saved verbatim, quoted untrusted text | | ' + docs.job_ad_md5 + ' |');
-  L.push('');
-  L.push('The two PDF byte counts and hashes are measured after the render and live in the run row,');
-  L.push('because this file is written before the PDFs exist.');
-  L.push('');
-
-  L.push('## The CV: what was selected, and why');
-  L.push('');
-  L.push('Every sentence on the CV came out of the frozen master by content hashed block id. The');
-  L.push('selector chose ids; the assembler emitted the master strings those ids resolve to. There is');
-  L.push('no code path by which a rewritten sentence can be on that page.');
-  L.push('');
-  L.push('| field | value |');
-  L.push('| --- | --- |');
-  L.push('| master | ' + clip(sel.master_key, 40) + ', sha256 ' + clip(String(sel.master_sha256 || '').slice(0, 16), 40) + ' |');
-  L.push('| blocks the selector asked for | ' + ((sel.requested_ids || []).length) + ' |');
-  L.push('| blocks that shipped | ' + ((sel.emitted_ids || []).length) + ' |');
-  L.push('| forced because they are mandatory | ' + ((sel.mandatory_forced || []).length) + ' |');
-  L.push('| dropped to fit one page | ' + ((sel.dropped || []).length) + ' |');
-  L.push('| page fill | ' + clip(sel.para_chars, 20) + ' of ' + clip(sel.ceiling_chars, 20) + ' characters, ' + clip(sel.headroom_chars, 20) + ' spare |');
-  L.push('');
-  if (present(sel.why)) {
-    L.push('The selector reason, in its own words:');
-    L.push('');
-    L.push('> ' + clip(sel.why, README_QUOTE_MAX));
-    L.push('');
-  }
-  if ((sel.dropped || []).length) {
-    L.push('Dropped to fit the page, in the order the selector said to drop them:');
-    L.push('');
-    for (const d of (sel.dropped || []).slice(0, 20)) {
-      L.push('- ' + clip(d.id, 80) + ' (recovered ' + clip(d.recovered_chars, 20) + ' characters)');
-    }
-    L.push('');
-  }
-  const coverage = Array.isArray(sel.objection_coverage) ? sel.objection_coverage : [];
-  if (coverage.length) {
-    L.push('How the selector says the CV answers the screening objections:');
-    L.push('');
-    for (const c of coverage.slice(0, 12)) {
-      L.push('- ' + clip(c.objection, 240) + ' -> ' + clip(c.state, 60) + (present(c.block_id) ? ' via ' + clip(c.block_id, 80) : '') + (present(c.note) ? '. ' + clip(c.note, 240) : ''));
-    }
-    L.push('');
-  }
-
-  L.push('## The one sentence on the CV that is not his writing');
-  L.push('');
-  if (present(sel.bridge_line)) {
-    L.push('The CV carries ONE bridging line that the master does not contain. It was generated for');
-    L.push('this application, it was checked against the shared voice rules before it was allowed on');
-    L.push('the page, and it is the only sentence on the CV he has not personally written:');
-    L.push('');
-    L.push('> ' + clip(sel.bridge_line, README_QUOTE_MAX));
-    L.push('');
-    L.push('State: ' + clip(sel.bridge_state, 60) + '. ' + clip(sel.bridge_why, README_QUOTE_MAX));
-  } else {
-    L.push('None. The CV is master text end to end for this application. State: ' + clip(sel.bridge_state, 60) + '.');
-    if (present(sel.bridge_why)) { L.push(''); L.push(clip(sel.bridge_why, README_QUOTE_MAX)); }
-  }
-  L.push('');
-
-  L.push('## The hook');
-  L.push('');
-  if (res.hook && present(res.hook.quote)) {
-    L.push('One sentence from the employer own page, quoted back to them. It was proved to be a real');
-    L.push('substring of a page this run actually fetched, never recalled and never invented.');
-    L.push('');
-    L.push('> ' + clip(res.hook.quote, README_QUOTE_MAX));
-    L.push('');
-    L.push('| field | value |');
-    L.push('| --- | --- |');
-    L.push('| from | ' + clip(res.hook.url || res.site_url, README_FIELD_MAX) + ' |');
-    L.push('| why the research call picked it | ' + clip(res.hook.why, README_FIELD_MAX) + ' |');
-    L.push('| page kind | ' + clip(res.page_kind, 80) + ' |');
-  } else {
-    L.push('THERE WAS NO HOOK, and that is a real outcome rather than a missing step. D6 says a letter');
-    L.push('with no hook is correct and a letter with an invented one is not.');
-    L.push('');
-    L.push('Why: ' + clip(res.why || res.hook_why_dropped || 'no employer page could be read this run', README_QUOTE_MAX));
-    L.push('');
-    L.push('Research state: ' + clip(res.state, 80) + '.');
-  }
-  L.push('');
-
-  L.push('## What a screener would object to, and where the letter answers it');
-  L.push('');
-  const objections = Array.isArray(b.objections) ? b.objections : [];
-  const lines = Array.isArray(screen.lines) ? screen.lines : [];
-  if (!objections.length) {
-    L.push('The recruiter seat returned no objections for this posting.');
-  } else {
-    L.push('A senior recruiter seat read the posting against his CV and named the reasons it would be');
-    L.push('screened out. The writer then had to answer each one with a sentence IN the letter, and the');
-    L.push('audit checked that the named sentence really is in there, character for character.');
-    L.push('');
-    for (let i = 0; i < objections.length; i += 1) {
-      const o = objections[i] || {};
-      const named = lines.filter((x) => x && x.kind === 'objection' && Number(x.index) === (i + 1))[0] || null;
-      L.push((i + 1) + '. **' + clip(o.objection, 300) + '**');
-      if (present(o.evidence)) L.push('   Evidence in the posting: ' + clip(o.evidence, README_QUOTE_MAX));
-      L.push('   Answered by: ' + (named ? clip(named.sentence, README_QUOTE_MAX) : 'NOTHING NAMED. The audit would have held this pair.'));
-      L.push('');
-    }
-  }
-  const gapLine = lines.filter((x) => x && x.kind === 'gap')[0] || null;
-  L.push('The honest gap, in the letter, in his own words:');
-  L.push('');
-  L.push(gapLine ? '> ' + clip(gapLine.sentence, README_QUOTE_MAX) : '> none named, which the audit treats as a failure.');
-  L.push('');
-  L.push('The screening note never goes into the letter. It is the writer working, not the writer');
-  L.push('writing, and it lives here so a person can check the answer rather than take it on trust.');
-  L.push('');
-
-  L.push('## The checks');
-  L.push('');
-  L.push('| check | verdict |');
-  L.push('| --- | --- |');
-  L.push('| deterministic audit A1 to A18 | ' + (audit.pass === true ? 'PASS' : 'see below') + ', ' + ((audit.checks || []).length) + ' checks, ' + clip(audit.words, 20) + ' words |');
-  L.push('| rewrite | ' + (p._rewrite_attempted === true ? 'one reasoned rewrite, then re-audited' : 'not needed, the first draft passed') + ' |');
-  L.push('| blind voice grade | ' + clip(grade.verdict, 40) + ' |');
-  L.push('| voice rules | sha ' + clip(String(audit.voice_rules_sha || '').slice(0, 16), 40) + ', the same file the CLI and the live eval use |');
-  L.push('| his voice block was in the writer node | ' + (p.voice_block_present === true ? 'yes' : 'NO, and the pair should have been held') + ' |');
-  L.push('');
-  if (auditFirst && Array.isArray(auditFirst.failed_letter) && auditFirst.failed_letter.length) {
-    L.push('The first draft failed ' + auditFirst.failed_letter.join(', ') + ' and was rewritten once, on the same');
-    L.push('request object, with those checks named. Nothing was repaired silently.');
-    L.push('');
-  }
-  // THE DENIED MENTIONS. A banned technology the letter NAMED and then denied ("I do not have X")
-  // passes the claim check, because the rule for those three forbids CLAIMING the capability and
-  // the writer prompt ORDERS an honest gap. That is a judgement this workflow made unattended, so
-  // the person reviewing the folder gets to see it and disagree, rather than finding the word in
-  // the letter and assuming a gate was asleep.
-  const denied = Array.isArray(audit.denied_claims) ? audit.denied_claims : [];
-  if (denied.length) {
-    L.push('The letter NAMES ' + denied.length + ' banned technology mention(s) and denies each one. That is allowed and it');
-    L.push('is deliberate: the rule on those is never to CLAIM the capability, and the honest gap the');
-    L.push('writer is asked for sometimes needs the word. Each one, with the sentence around it:');
-    L.push('');
-    for (const d of denied.slice(0, 6)) {
-      L.push('- ' + clip(d.claim, 40) + ': ' + clip(d.what, 60) + ' in ' + JSON.stringify(clip(d.quote, README_QUOTE_MAX)));
-    }
-    L.push('');
-  }
-  const criteria = (grade.criteria && typeof grade.criteria === 'object') ? grade.criteria : {};
-  const critIds = Object.keys(criteria);
-  if (critIds.length) {
-    L.push('The blind grade. A separate call saw the letter and the rubric, and nothing else: not the');
-    L.push('posting, not the CV, not the screening note, not the audit result, none of the reasoning.');
-    L.push('');
-    L.push('| criterion | verdict | evidence |');
-    L.push('| --- | --- | --- |');
-    for (const id of critIds) {
-      const c = criteria[id] || {};
-      L.push('| ' + clip(id, 20) + ' | ' + clip(c.verdict, 20) + ' | ' + clip(c.evidence, README_FIELD_MAX) + ' |');
-    }
-    L.push('');
-    if (grade.contradiction === true) {
-      L.push('Note: the grader own summary verdict said ' + clip(grade.claimed_verdict, 20) + ', which contradicts its own five');
-      L.push('criteria. The verdict above is RECOMPUTED from the criteria, which is what decides.');
-      L.push('');
-    }
-  }
-
-  L.push('## What this cost');
-  L.push('');
-  L.push('| stage | model | in | out | cached read | usd |');
-  L.push('| --- | --- | --- | --- | --- | --- |');
-  let unpriced = 0;
-  for (const c of (Array.isArray(cost.calls) ? cost.calls : [])) {
-    const u = c.usage || {};
-    if (!present(c.usd)) unpriced += 1;
-    L.push('| ' + cell(c.stage, 40) + ' | ' + cell(c.model, 40) + ' | ' + cell(u.input_tokens, 20) + ' | ' + cell(u.output_tokens, 20) + ' | ' + cell(u.cache_read_input_tokens, 20) + ' | ' + cell(c.usd, 20) + ' |');
-  }
-  L.push('');
-  L.push('Pair total: ' + cell(cost.usd, 20) + ' USD.');
-  if (unpriced) {
-    L.push('');
-    L.push(unpriced + ' stage(s) above say not recorded in the usd column. That means the stage did not price');
-    L.push('its own call row, NOT that the call was free. The pair total is the authority and it already');
-    L.push('includes them. A blank cell there would have read as a zero, which is why it says this instead.');
-  }
-  L.push('');
-
-  L.push('## Provenance');
-  L.push('');
-  L.push('| stage | model |');
-  L.push('| --- | --- |');
-  for (const k of Object.keys(MODELS)) L.push('| ' + k + ' | ' + MODELS[k] + ' |');
-  L.push('');
-  L.push('The CV and the letter were rendered from HTML by Chromium, on the box, at ' + PAGE_MIN_HEIGHT_MM + 'mm of');
-  L.push('page height with overflow VISIBLE. Nothing that did not fit was hidden: an over long CV grows');
-  L.push('a second page and is refused, which is the point. Both PDFs were then read back and checked:');
-  L.push('both rendered, the CV is exactly one page counted two independent ways, the letter is one');
-  L.push('page, the text layer parses and carries his name, the terms an applicant tracking system');
-  L.push('greps for survived the round trip, and no en dash or em dash is in either.');
-  L.push('');
-  return L.join(NL);
-}
 
 // --- the run ---------------------------------------------------------------------
 const items = $input.all().map((i) => i.json);
@@ -600,35 +315,19 @@ for (const raw of items) {
 
   const pairId = String(j.lane_key || 'lane') + ':' + String(j.job_id || 'job');
 
-  const jobAd = jobAdMarkdown(j);
-  const docs = {
-    cv_filename: cvName,
-    letter_filename: letterName,
-    readme_filename: README_FILENAME,
-    job_ad_filename: JOB_AD_FILENAME,
-    job_ad_md5: md5Utf8(jobAd),
-  };
-  const readme = readmeMarkdown(j, docs);
-
   j.pair_id = pairId;
   j.folder_name = folder.name;
   j.folder_parts = folder.parts;
-  j.readme_md = readme;
-  j.job_ad_md = jobAd;
-  j.readme_md5 = md5Utf8(readme);
-  j.job_ad_md5 = docs.job_ad_md5;
   j._documents = {
     folder_name: folder.name,
     files: [
       { name: cvName, kind: 'cv', from: 'render', md5: null },
       { name: letterName, kind: 'letter', from: 'render', md5: null },
-      { name: README_FILENAME, kind: 'readme', from: 'this node', md5: j.readme_md5, bytes: utf8Bytes(readme).length },
-      { name: JOB_AD_FILENAME, kind: 'job_ad', from: 'this node', md5: j.job_ad_md5, bytes: utf8Bytes(jobAd).length },
     ],
     cv_html_chars: cvHtml.length,
     letter_html_chars: letterHtml.length,
     page_min_height_mm: PAGE_MIN_HEIGHT_MM,
-    md5_note: 'the two markdown digests are over the exact UTF-8 bytes of readme_md and job_ad_md as they sit on this pair. Upload those bytes unchanged: a trailing newline added on the way out changes the digest and the Drive read back fails on a file that uploaded perfectly.',
+    manifest_note: 'TWO files per folder since 2026-09-17, both PDFs. README.md and job-ad.md were built here until then and Shaheen removed them: printing the CV and the letter should not produce any md file. Their md5 was computed here over a string; the PDF digests are computed by Check Renders over the rendered bytes, which is unchanged.',
     rule: 'the two PDF names came off the pair, where Audit Pair put them after checking them against the filename law. The company, the role and the date are in the FOLDER name, which never leaves this machine.',
   };
   j._call_now = false;
@@ -680,7 +379,7 @@ const report = {
   counts: stats,
   skipped_by_status: skipReasons,
   folders: folders,
-  files_per_folder: ['the CV pdf', 'the cover letter pdf', README_FILENAME, JOB_AD_FILENAME],
+  files_per_folder: ['the CV pdf', 'the cover letter pdf'],
   page_min_height_mm: PAGE_MIN_HEIGHT_MM,
   render_safety: 'min-height with overflow visible, never height with overflow hidden. A clipped page still counts as one page and its lost text still extracts, so nothing downstream could see the loss. An over long CV grows a second page and is refused instead.',
   filename_rule: 'the two PDF names are read off the pair, where Audit Pair stamped them after validating them against the regex in scripts/outputs-ledger.js. The PDF /Title metadata is derived from the same two names, because that string travels with the file exactly as the filename does.',
@@ -699,14 +398,9 @@ function renderJsCode() {
     '// Edit that file and re-run build.js. Editing this node in the n8n editor loses the change.',
     'const CSS_CV = ' + JSON.stringify(CSS_CV) + ';',
     'const CSS_LETTER = ' + JSON.stringify(CSS_LETTER) + ';',
-    'const README_FILENAME = ' + JSON.stringify(RN.README_FILENAME) + ';',
-    'const JOB_AD_FILENAME = ' + JSON.stringify(RN.JOB_AD_FILENAME) + ';',
     'const PAGE_MIN_HEIGHT_MM = ' + JSON.stringify(RN.PAGE_MIN_HEIGHT_MM) + ';',
     'const FOLDER_NAME_MAX = ' + JSON.stringify(FOLDER_NAME_MAX) + ';',
     'const FOLDER_PART_MAX = ' + JSON.stringify(FOLDER_PART_MAX) + ';',
-    'const README_FIELD_MAX = ' + JSON.stringify(README_FIELD_MAX) + ';',
-    'const README_QUOTE_MAX = ' + JSON.stringify(README_QUOTE_MAX) + ';',
-    'const AD_IN_README_MAX = ' + JSON.stringify(AD_IN_README_MAX) + ';',
     'const MODELS = ' + JSON.stringify(MODELS) + ';',
     LOGIC,
   ].join('\n');

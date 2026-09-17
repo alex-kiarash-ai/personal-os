@@ -33,8 +33,13 @@
  * =============================================================================================
  *   applications   an appended block of rows, addressed by A1 range. One row per application that
  *                  EXISTS: every shipped pair, and every held pair that actually produced a letter.
- *                  A hold gets a row with the full letter text in `notes`, because out of the box
- *                  item 3 says a hold has to be readable on a phone without opening anything.
+ *                  NINE COLUMNS SINCE 2026-09-17: lane, last_contact_at, outcome and notes came off
+ *                  the tab on Shaheen's instruction. Out of the box item 3 asked for a hold to be
+ *                  readable on a phone without opening anything, and `notes` is how that was done,
+ *                  carrying the HELD reason and the whole letter. That is gone, and what a held row
+ *                  now says is `needs_review` in the status cell: the refusal is still visible, the
+ *                  reason lives in the writer_runs note and the execution. The row is still written
+ *                  on the same condition as before, because which rows EXIST was not what changed.
  *   jobs!<col>N    one addressed cell per pair, taking that job out of tomorrow morning's queue.
  *                  Node 05 admits a row only when its status cell reads `new`, so writing any other
  *                  value closes it and typing `new` back by hand re-queues it. That is the zero code
@@ -54,7 +59,9 @@
  * 4. cellFormat IS RAW AND THAT IS LOAD BEARING.
  * =============================================================================================
  * Under USER_ENTERED a cell beginning `=`, `+`, `-` or `@` is a live FORMULA. `company`, `title` and
- * `url` came off a job posting written by a stranger, and `notes` can carry a whole cover letter. So
+ * `url` came off a job posting written by a stranger, and the writer_runs `note` is assembled here.
+ * (`notes`, the one that could carry a whole cover letter, stopped being a column on 2026-09-17,
+ * which shrinks this surface and does not remove it.) So
  * RAW is set explicitly, and every free text cell ALSO has the prefix stripped, because a defence
  * that depends on another node's option is not a defence. The collector lane makes both moves for
  * the same reason on the same class of data.
@@ -86,7 +93,8 @@ const NODE_NAME = 'Build Sheet Writes';
 // posting written by a stranger. Sheets allows 50000 characters in a cell; these are far under it.
 const CELL_MAX = 500;
 const URL_MAX = 900;
-const NOTES_MAX = 20000;
+// NOTES_MAX went with the applications `notes` column on 2026-09-17. It bounded a 20000 character
+// cell that carried a whole cover letter; nothing writes prose that long any more.
 const RUN_NOTE_MAX = 900;
 const WHY_MAX = 300;
 
@@ -198,17 +206,21 @@ const URL_SHAPES = (function deriveUrlShapes() {
       '  moves all three, and it moves the tab in both live spreadsheets, which is a human step.'
     );
   }
-  if (W.APPLICATIONS_COLUMNS.length !== 13 || W.APPLICATIONS_COLUMNS[0] !== 'job_id') {
-    throw new Error(NODE_NAME + ': the applications column list is ' + JSON.stringify(W.APPLICATIONS_COLUMNS) + '. job_id has to be column A, because that column is what node 05 reads as the already written set.');
+  // NINE since 2026-09-17: lane, last_contact_at, outcome and notes came off the tab. job_id stays
+  // column A because that column is what node 05 reads as the already-written set.
+  if (W.APPLICATIONS_COLUMNS.length !== 9 || W.APPLICATIONS_COLUMNS[0] !== 'job_id') {
+    throw new Error(NODE_NAME + ': the applications column list is ' + JSON.stringify(W.APPLICATIONS_COLUMNS) + '. It is nine columns since the 2026-09-17 trim and job_id has to be column A, because that column is what node 05 reads as the already written set.');
   }
-  if (JOBS_STATUS.letter !== 'M') {
-    // Not wrong in itself, but it is the one address in this seat that is computed from a contract
-    // that lives in another project, so a move is worth failing on rather than absorbing.
+  // K SINCE 2026-09-17, was M. The jobs tab went from fifteen columns to eleven when Shaheen removed
+  // apply_url, fit_reasons, lane and excerpt, which moved `status` two letters left. This is the one
+  // address in this seat computed from a contract that lives in another project, and this workflow
+  // writes an ADDRESSED CELL at it, so a stale letter would stamp `written` onto fit_score.
+  if (JOBS_STATUS.letter !== 'K') {
     throw new Error(
-      NODE_NAME + ': the jobs tab status column is now ' + JSON.stringify(JOBS_STATUS.letter) + ' rather than M.\n' +
-      '  That means the shared row shape in work/34-job-search-bi/config/sources.json moved, which moves\n' +
-      '  both collectors, both sheet headers and every guard that asserts fifteen columns. Confirm the\n' +
-      '  live header before letting this workflow write an addressed cell at the new letter.'
+      NODE_NAME + ': the jobs tab status column is now ' + JSON.stringify(JOBS_STATUS.letter) + ' rather than K.\n' +
+      '  That means the shared row shape in work/34-job-search-bi/config/sources.json moved again, which\n' +
+      '  moves both collectors, both sheet headers and every guard that asserts eleven columns. Confirm\n' +
+      '  the live header before letting this workflow write an addressed cell at the new letter.'
     );
   }
 }());
@@ -429,30 +441,25 @@ for (let li = 0; li < laneSeeds.length; li += 1) {
     }
 
     // The applications row. One per application that EXISTS: a shipped pair, and a held pair that
-    // actually produced a letter somebody can read.
+    // actually produced a letter. The condition is UNCHANGED by the 2026-09-17 trim, deliberately:
+    // the letter it tested for used to be readable in the notes cell and now is not, but which
+    // rows exist is a separate decision from which columns they carry, and only the columns changed.
     const letter = txt(p.letter_text);
     const wantsRow = outcome === 'ship' || (outcome === 'hold' && letter.length > 0);
     if (!wantsRow) continue;
 
     const shipped = outcome === 'ship';
-    const noteParts = [];
-    if (shipped) {
-      noteParts.push('Folder: ' + cut(txt(p.folder_url), URL_MAX));
-      const grade = (p._grade && typeof p._grade === 'object') ? p._grade : null;
-      if (grade && grade.verdict) noteParts.push('Blind grade: ' + cell(grade.verdict, 120));
-      const rc = (p.render_check && typeof p.render_check === 'object') ? p.render_check : null;
-      if (rc && rc.pass === true) noteParts.push('R1 to R6 passed and all four files were downloaded from Drive again and matched their digests.');
-    } else {
-      noteParts.push('HELD (' + cell(p._status, 80) + '): ' + cell(p._status_why, 600));
-      noteParts.push('Nothing was uploaded, so there is no link. The letter as written is below, so this row can be read on a phone without opening anything.');
-      noteParts.push('--- the cover letter as written ---');
-      noteParts.push(letter);
-    }
+    // The note assembly is GONE with the notes column (2026-09-17). It built the folder link, the
+    // blind grade and the render verdict for a shipped row, and the HELD reason plus the full letter
+    // text for a held one. All of it now lives only in the writer_runs note and the execution.
+    //
+    // A HELD pair still gets its row, and that is deliberate rather than left over: needs_review in
+    // the status cell is the visible fact that a pair was attempted and refused, which is worth more
+    // than a missing row. What it no longer carries is the WHY.
 
     const rowObj = {
       job_id: cell(p.job_id, 120),
       applied_at: cell(seed.run_date, 40),
-      lane: cell(String(seed.source_project), 20),
       company: cell(p.company, CELL_MAX),
       title: cell(p.title, CELL_MAX),
       url: cut(cell(p.url, URL_MAX), URL_MAX),
@@ -460,9 +467,6 @@ for (let li = 0; li < laneSeeds.length; li += 1) {
       cv_ref: shipped ? cut(txt(p.cv_ref), URL_MAX) : '',
       cover_letter_ref: shipped ? cut(txt(p.cover_letter_ref), URL_MAX) : '',
       status: shipped ? STATUS_READY : STATUS_NEEDS_REVIEW,
-      last_contact_at: '',
-      outcome: '',
-      notes: block(noteParts.join(NL + NL), NOTES_MAX),
     };
     const row = [];
     for (const c of APP_COLUMNS) row.push(rowObj[c] === undefined ? '' : rowObj[c]);
@@ -660,7 +664,6 @@ function renderJsCode() {
     'const URLS = ' + JSON.stringify(URL_SHAPES) + ';',
     'const CELL_MAX = ' + JSON.stringify(CELL_MAX) + ';',
     'const URL_MAX = ' + JSON.stringify(URL_MAX) + ';',
-    'const NOTES_MAX = ' + JSON.stringify(NOTES_MAX) + ';',
     'const RUN_NOTE_MAX = ' + JSON.stringify(RUN_NOTE_MAX) + ';',
     'const WHY_MAX = ' + JSON.stringify(WHY_MAX) + ';',
     'const VOCAB = ' + JSON.stringify(VOCAB) + ';',

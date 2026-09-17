@@ -43,10 +43,11 @@ const W = require('./_write');
 const CONDITION_ID = '8e47b012-5cd9-4a63-98f1-2b70e6a4d381';
 
 (function assertAgainstUpstream() {
-  const ready = require('./58-files-ready.js');
-  if (ready.name !== 'Files Ready') {
-    throw new Error('Upload Route: node 58 is named ' + JSON.stringify(ready.name) + ' and this node connects from "Files Ready". Rename both in the same edit.');
-  }
+  // CONNECTS FROM ATTACH FOLDER IDS SINCE 2026-09-17. It used to hang off Files Ready, the merge
+  // that rejoined the two markdown files after Text to File turned them into binaries. Shaheen
+  // removed both md files, so every item this route sees is already a PDF with its bytes attached,
+  // and nodes 56 to 58 (Convert Route, Text to File, Files Ready) were deleted rather than left
+  // routing an empty branch.
   const attach = require('./55-attach-folder-ids.js');
   if (attach.name !== 'Attach Folder Ids') {
     throw new Error('Upload Route: node 55 is named ' + JSON.stringify(attach.name) + ' and the fallback half of this condition resolves through that exact name. A rename here is a rename in an expression string, which nothing else would catch.');
@@ -70,7 +71,7 @@ const CONDITION_ID = '8e47b012-5cd9-4a63-98f1-2b70e6a4d381';
   // used, and asserted here so a rename cannot leave a dead node name inside a string literal.
   const expr = W.fallbackExpr('_kind', 'Attach Folder Ids');
   if (expr.indexOf('$("Attach Folder Ids").item.json._kind') === -1) {
-    throw new Error('Upload Route: the fallback expression no longer resolves through Attach Folder Ids, and the two markdown files depend on it when Text to File replaces their json.');
+    throw new Error('Upload Route: the fallback expression no longer resolves through Attach Folder Ids by name, which is the half of this condition that survives a node replacing the item json.');
   }
 }());
 
@@ -79,8 +80,8 @@ module.exports = {
   type: 'n8n-nodes-base.if',
   typeVersion: 2.2,
   position: [14820, 100],
-  connectFrom: 'Files Ready',
-  notes: 'Output 0 (true): the four files of every shipped folder, two PDFs and two markdown. Output 1 (false): every pair, every lane report and every stage report. The condition reads _kind off the item AND off the paired source item, because two of the four files came through Text to File and this seat cannot prove from here whether that node keeps the item json; if it does the fallback never runs, and if it does not the fallback is the staging workflow own proven shape. Strict validation, so a computed left side that ever stops being a string fails loudly rather than routing quietly.',
+  connectFrom: 'Attach Folder Ids',
+  notes: 'Output 0 (true): the two PDFs of every shipped folder. Output 1 (false): every pair, every lane report and every stage report. It hung off Files Ready until 2026-09-17, when the two markdown files were removed and the convert-and-rejoin trio (Convert Route, Text to File, Files Ready) was deleted with them; every item now arrives straight from Attach Folder Ids with its bytes already on it. The condition still reads _kind off the item AND off the paired source item: the fallback costs nothing, it is the staging workflow own proven shape, and it is what keeps this route correct if any future node replaces an item json. Strict validation, so a computed left side that ever stops being a string fails loudly rather than routing quietly.',
   parameters: {
     conditions: {
       options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
