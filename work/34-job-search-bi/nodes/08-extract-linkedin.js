@@ -86,7 +86,9 @@ const COLLECTOR_FILLS = [
   'job_id', 'found_at', 'source', 'title', 'company', 'location',
   'remote', 'posted_at', 'url', 'apply_url', 'excerpt',
 ];
-const LEFT_FOR_LATER = ['fit_score', 'fit_reasons', 'status'];
+// `flags` joins the list 2026-09-17 evening: the scorer produces it as red_flags and
+// 38-build-rows.js writes it, so a collector leaves it null exactly as it leaves fit_score.
+const LEFT_FOR_LATER = ['fit_score', 'fit_reasons', 'status', 'flags'];
 
 // The class tokens this node parses on. Declared here, asserted against the contract's field_map
 // prose below, so a selector changing in the contract fails THIS BUILD instead of producing twelve

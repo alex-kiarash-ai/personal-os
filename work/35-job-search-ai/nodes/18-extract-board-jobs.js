@@ -115,7 +115,9 @@ const COLLECTOR_FILLS = [
   'job_id', 'found_at', 'source', 'title', 'company', 'location',
   'remote', 'posted_at', 'url', 'apply_url', 'excerpt',
 ];
-const LEFT_FOR_LATER = ['fit_score', 'fit_reasons', 'status'];
+// `flags` joins the list 2026-09-17 evening: the scorer produces it as red_flags and
+// 38-build-rows.js writes it, so a collector leaves it null exactly as it leaves fit_score.
+const LEFT_FOR_LATER = ['fit_score', 'fit_reasons', 'status', 'flags'];
 
 // A full job description in a sheet cell makes the sheet unusable. The two boards that publish a
 // real plain-text excerpt keep theirs; the four that publish only description HTML get it stripped

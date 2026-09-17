@@ -298,7 +298,13 @@ the sync is pressed**, which is the reverse of the order the two queue items wer
 Full record, including the test-suite repair that preceded this: `vault/projects/job-search-bi/status.md`.
 
 
-## 2026-09-17: the jobs tab is ELEVEN columns and the applications tab is NINE (Shaheen)
+## 2026-09-17: the jobs tab is TWELVE columns and the applications tab is NINE (Shaheen)
+
+**Read this heading carefully: it was ELEVEN for a few hours.** The afternoon took four columns off
+the jobs tab; the evening put ONE back, `flags`, appended after `status`. The record below is the
+afternoon's reasoning, which is unchanged except that `red_flags` now has a surface again. The
+evening's three decisions (why it is last, why the Swedish flag is ordered first, why the cap is
+called `FLAGS_CELL_MAX`) are in `vault/projects/job-search-bi/status.md` under the same date.
 
 His words: *"I want to exclude some output to save some tokens and I really think it does not add any
 value."* Then, by name: `apply_url`, `fit_reasons`, `lane` and `excerpt` out of the `jobs` tab, and

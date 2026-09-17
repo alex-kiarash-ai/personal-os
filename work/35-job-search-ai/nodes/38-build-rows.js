@@ -40,7 +40,7 @@
  *       on 2026-09-11: "append cannot write a header-only tab cleanly".
  *
  * ---------------------------------------------------------------------------------------------
- * 3. THE FOLD IS GONE, AND WHAT WENT WITH IT. (2026-09-17, Shaheen's instruction.)
+ * 3. THE FOLD IS GONE. THE FLAGS CAME BACK ALONE. (2026-09-17, both halves his instruction.)
  * ---------------------------------------------------------------------------------------------
  * Until 2026-09-17 this node folded `work_mode` and `red_flags` into the `fit_reasons` cell, because
  * neither had a column and `red_flags` carries the exact string "Swedish fluent required" which
@@ -48,12 +48,26 @@
  * apply_url, fit_reasons, lane and excerpt came off the jobs tab in both spreadsheets on his
  * instruction, his reason being that the output does not add value and costs tokens.
  *
- * WHAT THAT COSTS, stated here rather than discovered in three weeks:
- *   - The per-row red flags have NO CELL any more. "Swedish fluent required" is still produced by
- *     the scorer and still counted in this node's stage report (`dropped_from_the_sheet` below), so
- *     it survives in the run data and in the HQ push, but nothing shows it against the job in the
- *     sheet. If he wants it back, the cheapest home is the runs-tab note, not a new column.
- *   - `work_mode` is in the same position, minus the by-name request.
+ * THE FLAGS GOT A SURFACE BACK THE SAME EVENING, and the shape of it is the point. Shown the
+ * measured cost of the trim (3 of the 28 jobs scored that morning carried "Swedish fluent required",
+ * one of them at 72, above his threshold, so the writer would have built a CV for a job needing
+ * fluent Swedish and the sheet would not have said so), he chose ONE NARROW COLUMN: `flags`.
+ *
+ * `flags` IS NOT fit_reasons RETURNING, and the difference is the whole reason the tab is readable:
+ *   - it carries `red_flags` ONLY. Not the scorer's sentences, not `MODE:`. Those stay unwritten.
+ *   - it is CAPPED at FLAGS_CELL_MAX and it is usually EMPTY.
+ *   - the SWEDISH FLAG IS ORDERED FIRST, so the cap can never be the thing that truncates the one
+ *     flag he asked for by name. That is the same guarantee the old fold made with a build-time
+ *     assertion against Parse Score's caps; here it is made by ordering instead, which cannot drift
+ *     when somebody changes a number.
+ *   - it is APPENDED after `status`, so `status` keeps column K. #36 writes an ADDRESSED CELL at
+ *     that letter, and moving the one address computed from another project's contract to put a new
+ *     column in a prettier place would be a bad trade.
+ *
+ * WHAT IS STILL NOT WRITTEN: the scorer's sentences and `work_mode`. Stopping the model from
+ * PRODUCING the sentences was measured and rejected: execution 5474 spent 1,561 of 2,484 output
+ * tokens on them against 43,963 input tokens, about 14 percent of a run and roughly a dollar a
+ * month across both lanes. The cost of this lane is the advert going in, not the reasons coming out.
  *   - An unscored row no longer explains itself. The old cell carried "NOT SCORED (scoring_off): ..."
  *     and now an unscored row is simply one with an empty `fit_score`. That is still unambiguous in
  *     the sheet (empty means nobody scored it) and the reason survives per-run in the runs verdict.
@@ -103,7 +117,17 @@ const ROW_SHAPE = CONTRACT.shared_row_shape;
 // EXCERPT_MAX, FIT_REASONS_MAX and NOTE_REASON_MAX went with the fold on 2026-09-17: the two long
 // cells they bounded are not columns any more, and a cap on a value nobody writes is dead code that
 // reads like a live rule. CELL_MAX now covers every column there is.
-const CELL_MAX = 500;          // every column, and they are all short ones now
+const CELL_MAX = 500;          // every column except flags
+// The flags cell is deliberately the NARROWEST thing in the row. 160 characters holds the Swedish
+// flag (24) plus two more real ones with room to spare, and refuses to become a paragraph. If this
+// number ever has to grow to fit what the scorer emits, that is the signal that the flags list has
+// turned back into prose and the answer is to fix the scorer, not this cap.
+//
+// NAMED _CELL_ ON PURPOSE. `FLAGS_MAX` was the first name and it is ALREADY TAKEN in this workflow:
+// Parse Score declares `const FLAGS_MAX = 4`, meaning the maximum NUMBER of flags it will keep. Two
+// nodes in one workflow holding the same name for a count and a character cap is how somebody later
+// "fixes" one by looking at the other. Read off the live box before renaming, not guessed.
+const FLAGS_CELL_MAX = 160;
 
 // The two columns Shaheen asked to see as a DATE and not a timestamp (2026-09-17). The slice is
 // deliberate and is not a reformat: an ISO string loses its time and anything else is written
@@ -124,10 +148,21 @@ const ROW_STATUS = 'new';
   // The eleven columns this node writes ARE the contract's row shape, and the sheet header is the
   // same list in the same order. Cross-checked against the provisioning seed while it is on disk.
   O.assertTabsAgainstSeed(ROW_SHAPE);
-  for (const f of ['job_id', 'status', 'fit_score', 'source', 'found_at', 'posted_at', 'company', 'title', 'url', 'remote', 'location']) {
+  for (const f of ['job_id', 'status', 'fit_score', 'source', 'found_at', 'posted_at', 'company', 'title', 'url', 'remote', 'location', 'flags']) {
     if (ROW_SHAPE.indexOf(f) === -1) {
-      throw new Error('Build Rows: the contract no longer carries a ' + f + ' column, and this node fills every one of the eleven by name.');
+      throw new Error('Build Rows: the contract no longer carries a ' + f + ' column, and this node fills every one of the twelve by name.');
     }
+  }
+  // `flags` IS LAST, and that is load bearing rather than tidy: `status` stays at column K, which is
+  // the letter #36 writes an addressed cell at. A contract that puts flags anywhere else moves that
+  // address, so this refuses instead of letting it happen quietly.
+  if (ROW_SHAPE[ROW_SHAPE.length - 1] !== 'flags' || ROW_SHAPE.indexOf('status') !== 10) {
+    throw new Error(
+      'Build Rows: the row shape is ' + JSON.stringify(ROW_SHAPE) + '.\n' +
+      '  `flags` has to be the LAST column and `status` has to stay at index 10 (column K), because\n' +
+      '  #36 node 66 writes an ADDRESSED CELL at that letter to take a job out of tomorrow queue. If\n' +
+      '  the order is genuinely changing, move #36 jobsStatusColumn and node 03 range in the same edit.'
+    );
   }
   // The four that LEFT on 2026-09-17, refused by name. A silent return would mean this node writes a
   // column whose value nothing computes any more, and the fold that used to fill fit_reasons is gone.
@@ -141,9 +176,9 @@ const ROW_STATUS = 'new';
       );
     }
   }
-  if (ROW_SHAPE.length !== 11) {
+  if (ROW_SHAPE.length !== 12) {
     throw new Error(
-      'Build Rows: shared_row_shape is now ' + ROW_SHAPE.length + ' fields, not 11.\n' +
+      'Build Rows: shared_row_shape is now ' + ROW_SHAPE.length + ' fields, not 12.\n' +
       '  If that is deliberate, the LIVE jobs tab header moves in the SAME session (Stage A rule).'
     );
   }
@@ -217,21 +252,40 @@ function dateOnly(v) {
   return m[1];
 }
 
-// The scorer still produces reasons, red flags and a work mode, and since 2026-09-17 nothing writes
-// them. These four counters are the ONLY place that loss is visible, so the stage report can say how
-// much was thrown away rather than the sheet quietly getting shorter. See header note 3.
+// --- the flags cell, and what is still not written -------------------------------------------
+// THE SWEDISH FLAG IS ORDERED FIRST. Not sorted, not prioritised by length: moved to the front of
+// the list before the join, so the FLAGS_CELL_MAX cap can only ever truncate a flag that comes after it.
+// The old fold guaranteed the same thing with a build-time assertion against Parse Score's caps,
+// which meant two numbers had to stay in step; ordering cannot drift when somebody changes one.
+let flagRowsWithSwedish = 0;
+let flagsWritten = 0;
+let flagCellsTruncated = 0;
+// Still unwritten, and counted so the stage report can say how much: see header note 3.
 let reasonsDropped = 0;
-let flagsDropped = 0;
 let modesDropped = 0;
 let unscoredNoteDropped = 0;
-let flagRowsWithSwedish = 0;
-function countWhatTheSheetNoLongerShows(row) {
+
+function flagsCell(row) {
+  const s = row._score || {};
+  const all = Array.isArray(s.red_flags)
+    ? s.red_flags.map((f) => String(f === null || f === undefined ? '' : f).trim()).filter((f) => f !== '')
+    : [];
+  if (!all.length) return '';
+  const swedish = all.filter((f) => f === SWEDISH_FLAG);
+  const rest = all.filter((f) => f !== SWEDISH_FLAG);
+  const ordered = swedish.concat(rest);
+  if (swedish.length) flagRowsWithSwedish += 1;
+  flagsWritten += ordered.length;
+  const joined = ordered.join('; ');
+  const out = cell(joined, FLAGS_CELL_MAX);
+  if (joined.length > FLAGS_CELL_MAX) flagCellsTruncated += 1;
+  return out;
+}
+
+function countWhatIsStillNotWritten(row) {
   const s = row._score || {};
   if (row.score_status !== 'scored') unscoredNoteDropped += 1;
   if (typeof row.fit_reasons === 'string' && row.fit_reasons.trim()) reasonsDropped += 1;
-  const flags = Array.isArray(s.red_flags) ? s.red_flags.filter((f) => f !== null && f !== undefined && String(f).trim() !== '') : [];
-  flagsDropped += flags.length;
-  if (flags.some((f) => String(f) === SWEDISH_FLAG)) flagRowsWithSwedish += 1;
   const mode = typeof s.work_mode === 'string' ? s.work_mode.trim().toLowerCase() : '';
   if (mode && mode !== 'unclear') modesDropped += 1;
 }
@@ -251,13 +305,18 @@ for (const j of jobs) {
   byStatus[j.score_status || 'unstamped'] = (byStatus[j.score_status || 'unstamped'] || 0) + 1;
 
   if (j.write_to_sheet === true) {
-    // EXACTLY the eleven columns, in sheet order, then the routing boolean. See header note 2.
-    countWhatTheSheetNoLongerShows(j);
+    // EXACTLY the twelve columns, in sheet order, then the routing boolean. See header note 2.
+    countWhatIsStillNotWritten(j);
     const row = {};
     for (const col of ROW_SHAPE) {
       row[col] = DATE_ONLY_COLUMNS.indexOf(col) === -1 ? cell(j[col], CELL_MAX) : cell(dateOnly(j[col]), CELL_MAX);
     }
     row.status = ROW_STATUS;
+    // The collectors leave it null and the scorer never writes a cell, so this node fills it. An
+    // unscored row gets an EMPTY flags cell rather than an explanation: an empty fit_score is the
+    // tell that nobody scored it, and a flags column that sometimes carries machine states would
+    // stop being scannable, which is the whole reason it is narrow.
+    row.flags = flagsCell(j);
     // fit_score stays a real number so the sheet sorts on it. Null becomes an empty cell rather
     // than a zero: a zero is a score the model gave and an empty cell is a score nobody gave.
     row.fit_score = (j.fit_score === null || j.fit_score === undefined || !isFinite(Number(j.fit_score))) ? '' : Number(j.fit_score);
@@ -351,20 +410,25 @@ const report = {
   by_score_status: byStatus,
   columns: ROW_SHAPE,
   status_written: ROW_STATUS,
-  dropped_from_the_sheet: {
-    what: 'apply_url, fit_reasons, lane and excerpt stopped being columns on 2026-09-17 (Shaheen). The scorer still produces fit_reasons, red_flags and work_mode and NOTHING writes them; this block is the only place the loss is counted.',
-    rows_with_reasons_the_sheet_no_longer_shows: reasonsDropped,
-    red_flags_the_sheet_no_longer_shows: flagsDropped,
+  flags_column: {
+    what: 'red_flags ONLY, capped at FLAGS_CELL_MAX, usually empty, with the Swedish flag ordered FIRST so the cap can never truncate it. Added 2026-09-17 evening when Shaheen chose one narrow column over losing the flag entirely.',
+    cap: FLAGS_CELL_MAX,
+    flags_written: flagsWritten,
     rows_carrying_the_swedish_flag: flagRowsWithSwedish,
     swedish_flag_string: SWEDISH_FLAG,
-    work_modes_the_sheet_no_longer_shows: modesDropped,
-    unscored_rows_that_no_longer_explain_themselves: unscoredNoteDropped,
-    structured_copies_survive_on: '_score.red_flags and _score.work_mode, in the run data',
-    the_cheapest_way_back: 'the runs-tab note, not a new jobs column',
+    cells_truncated_by_the_cap: flagCellsTruncated,
+  },
+  still_not_written: {
+    what: 'apply_url, fit_reasons, lane and excerpt stopped being columns on 2026-09-17. The flags column brought the red_flags half of fit_reasons back; the scorer sentences and work_mode are still produced and still written nowhere.',
+    rows_with_reasons_the_sheet_does_not_show: reasonsDropped,
+    work_modes_the_sheet_does_not_show: modesDropped,
+    unscored_rows_that_do_not_explain_themselves: unscoredNoteDropped,
+    structured_copies_survive_on: '_score.fit_reasons and _score.work_mode, in the run data',
+    measured_cost_of_asking_for_the_sentences: 'execution 5474: 1,561 of 2,484 output tokens against 43,963 input, about 14 percent of the run and roughly a dollar a month across both lanes. Measured before deciding not to stop asking.',
   },
   dates_written_date_only: { columns: DATE_ONLY_COLUMNS, cells_shortened: datesShortened },
   sanitising: counters,
-  cell_caps: { standard: CELL_MAX },
+  cell_caps: { standard: CELL_MAX, flags: FLAGS_CELL_MAX },
   warnings: warnings,
   _write_now: false,
 };
@@ -381,6 +445,7 @@ const jsCode = [
   `const ROW_SHAPE = ${JSON.stringify(ROW_SHAPE)};`,
   `const ROW_STATUS = ${JSON.stringify(ROW_STATUS)};`,
   `const CELL_MAX = ${JSON.stringify(CELL_MAX)};`,
+  `const FLAGS_CELL_MAX = ${JSON.stringify(FLAGS_CELL_MAX)};`,
   `const DATE_ONLY_COLUMNS = ${JSON.stringify(DATE_ONLY_COLUMNS)};`,
   // Read out of the scoring helper rather than typed, so the run report can never claim a flag
   // string the prompt does not actually ask the model for.

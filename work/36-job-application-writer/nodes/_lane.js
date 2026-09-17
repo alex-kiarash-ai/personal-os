@@ -423,16 +423,28 @@ function sourcesContract() {
   if (!s.sources || !s.sources.linkedin_guest_detail) {
     throw new Error('#36 node files: the source contract has no linkedin_guest_detail entry, and the ad fetch builds every LinkedIn url from its endpoint template.');
   }
-  // ELEVEN since 2026-09-17, down from fifteen: Shaheen removed apply_url, fit_reasons, lane and
-  // excerpt from both jobs tabs. This workflow reads the tab BY POSITION, so the number is not
-  // cosmetic here: a stale expectation would map fit_score onto the apply_url cell and score every
-  // candidate off a url.
-  if (!Array.isArray(s.shared_row_shape) || s.shared_row_shape.length !== 11) {
+  // TWELVE since the evening of 2026-09-17. Fifteen that morning, eleven that afternoon when
+  // Shaheen removed apply_url, fit_reasons, lane and excerpt, then twelve when he took one narrow
+  // column back: `flags`, the red_flags alone, appended AFTER status. This workflow reads the tab BY
+  // POSITION, so the number is not cosmetic here: a stale expectation would map fit_score onto a
+  // neighbouring cell and score every candidate off the wrong value.
+  if (!Array.isArray(s.shared_row_shape) || s.shared_row_shape.length !== 12) {
     throw new Error(
-      '#36 node files: shared_row_shape is ' + (s.shared_row_shape || []).length + ' fields, not 11.\n' +
+      '#36 node files: shared_row_shape is ' + (s.shared_row_shape || []).length + ' fields, not 12.\n' +
       '  The jobs tab header IS that list in that order, and Build Candidates asserts the live header\n' +
       '  against it before it reads a single cell. If the shape genuinely moved, both collectors, both\n' +
       '  sheet headers and this workflow move in the same session.'
+    );
+  }
+  // THE ONE THING THIS WORKFLOW CANNOT ABSORB QUIETLY. `status` is the cell node 66 writes by A1
+  // ADDRESS to take a job out of tomorrow's queue, and `flags` was appended rather than inserted
+  // precisely so that letter did not move. If a future edit puts a column before status, this
+  // refuses here rather than letting an addressed write land on the wrong column.
+  if (s.shared_row_shape.indexOf('status') !== 10) {
+    throw new Error(
+      '#36 node files: `status` is at index ' + s.shared_row_shape.indexOf('status') + ' in the row shape, not 10 (column K).\n' +
+      '  Node 66 writes an ADDRESSED CELL at that letter. Move jobsStatusColumn and the node 03 range\n' +
+      '  in the same edit, or put the new column at the END the way `flags` was.'
     );
   }
   // The three fields this workflow still READS off a row that are no longer columns are declared in

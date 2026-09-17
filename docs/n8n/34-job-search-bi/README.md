@@ -78,21 +78,28 @@ this lane searched 712 postings and scored 14 of them for about eight US cents.
 
 ### 6. Writing it down (steps 38 to 47)
 
-Scored jobs become eleven columns in the sheet. Then every single thing that was written is read
+Scored jobs become twelve columns in the sheet. Then every single thing that was written is read
 back off the sheet and compared against what was meant to be written. A server saying "OK" is not
 proof that anything was saved.
 
-**It was fifteen columns until 2026-09-17.** Shaheen removed four: the direct apply link, which was
-empty on every LinkedIn row anyway, the scorer's written reasons, the lane number, which the
-spreadsheet itself already told you, and the advert text. His reason was that they did not add
-anything and cost tokens. The two dates, when the job was found and when it was posted, are written
-as plain dates now instead of full timestamps.
+**It was fifteen columns until 2026-09-17, then eleven, then twelve.** Shaheen removed four that
+afternoon: the direct apply link, which was empty on every LinkedIn row anyway, the scorer's written
+reasons, the lane number, which the spreadsheet itself already told you, and the advert text. His
+reason was that they did not add anything and cost tokens. The two dates, when the job was found and
+when it was posted, are written as plain dates now instead of full timestamps.
 
-Two things worth knowing about what that cost. The advert text is still collected and is still what
-the scoring step reads, it is simply not written down any more, so scoring is unaffected. And the
-scorer still produces its reasons and its red flags, including the "Swedish fluent required" warning
-Shaheen asked for by name, but there is no longer a column to show them in: they now live only in
-the run report.
+Then one came back the same evening. Removing the reasons column had also removed the only place the
+"Swedish fluent required" warning appeared, and that warning is there because Shaheen asked for it by
+name: a job that demands fluent Swedish still gets collected and scored, but he wants to see it. On
+the morning of the change, three of the twenty eight scored jobs carried it and one of them scored
+seventy two, above his cut off, so the writer would have built a CV for it without the sheet saying a
+word. So there is now a narrow column called flags. It holds the warnings and nothing else, it is
+capped short, it is usually empty, and the Swedish warning is always put first so a long list can
+never push it out.
+
+The advert text is still collected and is still what the scoring step reads, it is simply not written
+down any more, so scoring is unaffected. What is still not written anywhere is the scorer's
+sentences and whether the job is onsite or remote.
 
 Two small decisions here that are not defaults. Job text is written as plain text, because a job
 advert starting with an equals sign would otherwise become a live formula in the spreadsheet. And the

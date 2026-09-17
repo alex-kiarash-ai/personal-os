@@ -92,9 +92,13 @@ const RUNS_LAST = colLetter(WRITER_RUNS_COLUMNS.length);
   // and excerpt from the jobs tab in both spreadsheets, fifteen columns down to eleven, and both
   // sheet headers moved in that same session. The check is kept rather than deleted: this node
   // reads by position, and the next move should stop the build exactly the way this one did.
-  if (JOBS_LAST !== 'K') {
+  // A:L SINCE THE EVENING OF 2026-09-17. It was A:O by the approved plan, A:K for a few hours that
+  // afternoon when Shaheen removed four columns, and A:L once he took `flags` back. The check is
+  // kept rather than widened: this node reads by position, and the next move should stop the build
+  // exactly the way both of these did.
+  if (JOBS_LAST !== 'L') {
     throw new Error(
-      'Seed Lanes: the jobs row shape is now ' + JOBS_COLUMNS.length + ' columns, so the range is A:' + JOBS_LAST + ' and eleven columns means A:K.\n' +
+      'Seed Lanes: the jobs row shape is now ' + JOBS_COLUMNS.length + ' columns, so the range is A:' + JOBS_LAST + ' and twelve columns means A:L.\n' +
       '  That may be right, and it is not something this build decides quietly: both collectors write\n' +
       '  by position and both sheet headers move in the same session.'
     );
