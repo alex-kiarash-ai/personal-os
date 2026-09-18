@@ -20,7 +20,13 @@ Shaheen asks ("pipeline", "life ops", "show all", or interactive `/morning-brief
 4. **Calendar** - collisions/prep-gaps only, not the full agenda ("2 events, 1 collision 14:00").
 5. **Loop-status** - `node scripts/alex-outcome-loop.js loopstatus` (the moat's distance-to-activation).
 6. **Contact note** - "1 hiring-contact note ready" flag when #03 Phase 3 has staged one (silent until then).
-7. **Ready work** - the task-graph ready count (Recall-Spine Phase 4; ARMED not built, so silent for now).
+7. **Ready work** - `node scripts/daily-plan-core.js briefline` (the **Daily Plan** board, LIVE 2026-08-26).
+   Prints `Today: N tasks, first: <task>` plus an overdue count, and is **SILENT when the day is empty**.
+   **Exit 4 means the mirror is STALE: pass its `[CACHED] ... last synced <date>` banner through verbatim**,
+   never render the rows as today's verified list. Exit 3 means no source at all; say that, show nothing.
+   Board + schema + read path: `vault/projects/daily-plan/status.md`; the interactive twin is `/today`.
+   This slot was reserved for the Recall-Spine Phase 4 task-graph count, which is still ARMED not built;
+   when it lands, both feed this ONE line. The 7-line cap does not grow for it.
 
 Rules: no slot may expand past one line in the index; if a slot needs detail, it names the drill-down word.
 Missed-run / dead-sweep flags (below) OVERRIDE the cap - a silent multi-day outage must never be hidden to

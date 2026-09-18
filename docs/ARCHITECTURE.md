@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-17. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/architecture.template.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-18. -->
 
 # Architecture: how Alex works
 
@@ -299,7 +299,11 @@ these two are used interactively, where the only boundary is this rule.
 **Notion creation sequence:**
 1. `notion-create-database(title, schema)` → db_id + collection_id (= data_source_id)
 2. `notion-move-pages` under the Personal Ops System parent (creation alone doesn't place correctly)
-3. `notion-update-data-source` ALTER COLUMN for select options (dropped during creation)
+3. `notion-update-data-source` ALTER COLUMN for select options **only if they did not survive creation.**
+   **Corrected 2026-08-26:** with the SQL DDL `schema` syntax, `SELECT('opt':color, ...)` options DO survive
+   `notion-create-database` - all 21 options across three select columns came back intact in the returned
+   data-source state when the Daily Plan DB was built. Read the creation response before firing an ALTER;
+   the step is a fallback now, not a required leg.
 4. `notion-create-view`, then `notion-create-pages` with `parent: {type: data_source_id, data_source_id: collection_id}` + `content`
 5. `notion-update-page` with `command: "replace_content", new_str, properties: {}, content_updates: []`
 
@@ -416,6 +420,7 @@ If Notion MCP is unavailable, write deliverables locally and skip the DB step.
 - /setup - First-run onboarding wizard
 - /ingest - Process new raw sources
 - /status - Health check and "what happened while I was away"
+- /today - The day's tasks from the Daily Plan board, and marking them done (LIVE 2026-08-26). The Notion surface behind Shaheen's operating plan to 31 Oct: Alex hands him the day, he says what got done, Alex moves the row and read-back verifies it. He never ticks boxes himself. Also fills the morning brief's reserved slot 7. Board + read path + the staleness guard: vault/projects/daily-plan/status.md.
 - /lint - Vault health check
 - /new - Create a new automation or project
 - /cron-setup - Manage system schedules (on/off/specific)

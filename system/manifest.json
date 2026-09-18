@@ -153,6 +153,7 @@
       "setup",
       "ingest",
       "status",
+      "today",
       "lint",
       "new",
       "cron-setup",

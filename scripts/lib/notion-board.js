@@ -77,7 +77,11 @@ async function queryOnce(url, version, token, body) {
 }
 
 // Page through EVERY row. Returns [{pageId, task, status, project, order}].
-async function readBoardLive({ token, dataSourceId, dbId }) {
+// `normalize` lets a caller with a DIFFERENT schema reuse the pagination + version-fallback
+// logic without copying it. Defaults to the Progress Tracker shape (#01), so existing callers
+// are unaffected. Added 2026-08-26 for the Daily Plan board.
+async function readBoardLive({ token, dataSourceId, dbId, normalize }) {
+  const rowFn = typeof normalize === 'function' ? normalize : normalizeRow;
   const attempts = [];
   if (dataSourceId) attempts.push({ url: `${NOTION_API}/v1/data_sources/${dataSourceId}/query`, version: DS_VERSION });
   if (dbId) attempts.push({ url: `${NOTION_API}/v1/databases/${dbId}/query`, version: DB_VERSION });
@@ -93,7 +97,7 @@ async function readBoardLive({ token, dataSourceId, dbId }) {
         if (cursor) body.start_cursor = cursor;
         const data = await queryOnce(url, version, token, body);
         const results = data.results || data.page_or_data_source || [];
-        for (const pg of results) if ((pg.object === 'page') || pg.properties) rows.push(normalizeRow(pg));
+        for (const pg of results) if ((pg.object === 'page') || pg.properties) rows.push(rowFn(pg));
         if (!data.has_more) return rows;
         cursor = data.next_cursor;
         if (!cursor) return rows;
