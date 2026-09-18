@@ -190,7 +190,7 @@
       {
         "name": "daily-plan",
         "status_md": "vault/projects/daily-plan/status.md",
-        "reason": "the Notion Daily Plan board (created 2026-08-26). The board is LIVE in Notion and its status page carries the live db ids, but the code that drives it (scripts/daily-plan-core.js and the /today command) exists ONLY on the unmerged branch merge/powershell-post-aug7, commit 786ca9e - one of the stranded commits M-19 tracks. Registered 2026-09-10 with that state stated rather than left as a weekly amber with no owner; when that branch lands this becomes a numbered project."
+        "reason": "the Notion Daily Plan board (created 2026-08-26). The board is LIVE in Notion and its status page carries the live db ids, and its code is now on main. Superseded 2026-09-18: scripts/daily-plan-core.js and the /today command LANDED via PR #22, cherry-picked from commit 786ca9e on merge/powershell-post-aug7, where they had been the only copy since 2026-08-26. The other two commits on that branch were already superseded on main and were deliberately NOT merged. It stays UNNUMBERED: promoting it to a numbered project is Shaheen call, not a side effect of the code landing."
       }
     ],
     "unnumbered": [
