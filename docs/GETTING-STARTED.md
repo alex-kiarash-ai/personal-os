@@ -1,4 +1,4 @@
-<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-17. -->
+<!-- GENERATED FILE - do not hand-edit. Source: templates/getting-started.template.md + system/manifest.json + scheduler/schedule.md + CLAUDE.md. Regenerate: node scripts/generate-alex.js. Generated 2026-09-18. -->
 
 # Getting Started: set up and run the Personal Ops System
 
@@ -82,7 +82,7 @@ The registry `system/manifest.json` is the source of truth; this list is generat
 - **36 Job Application Writer** (LIVE; trigger: n8n weekdays 07:15 (draft CV + cover letter)) - The writing half of the job search. One workflow reads BOTH job-search spreadsheets (#34 BI and #35 AI) at 07:15, and for each row worth applying to it produces a tailored one-page CV and a cover letter into a Drive folder, then writes an applications row, a jobs.status cell and a writer_runs row per lane and reads every one of them back. The CV cannot contain a rewritten sentence by construction: the selector emits block ids and the assembler emits master strings, so an invented id is a refusal rather than a paragraph. It writes documents. It never applies, never emails, never opens a browser. LIVE and ACTIVE since 2026-09-16: first real run that day (4 attempted, 2 held, 1 blocked, 1 capped), scheduled runs every weekday since, and the row was corrected from DORMANT on 2026-09-17 after the box was read back active with the cron firing. A job folder is TWO PDFs since 2026-09-17, not four files: the README.md and job-ad.md were removed on Shaheen's instruction, and the three nodes that converted them went with them (72 nodes, was 75).
 - **Voice** (DORMANT, revisit 2026-11-05; trigger: Ctrl+Alt+D dictate + the native /voice HOLD mode; the Stop/Notification speech hooks are NOT installed (removed 2026-08-05 with the lane); v2 loop on-demand) - Voice v3 'ride the official surface' (research run 22, built 2026-07-12): two-way voice INSIDE the interactive Claude Code session. In: native /voice HOLD dictation (EN/SV, free, review-then-Enter - autoSubmit OFF by design vs acceptEdits) + Ctrl+Alt+D local-whisper dictate lane for AR/SV/EN (types into the prompt, never presses Enter). Out: Stop-hook Edge-TTS->SAPI never-mute speech, gated on outputs/voice/voice-on.flag ('voice on/off' to Alex). $0/mo, no long-lived audio process. v2 open-mic loop (alex_voice.py) stays the on-demand walk-around tool.
 
-**Utility commands:** /setup, /ingest, /status, /lint, /new, /cron-setup, /brand, /port-to-kit.
+**Utility commands:** /setup, /ingest, /status, /today, /lint, /new, /cron-setup, /brand, /port-to-kit.
 
 ## 5. The tools Alex reaches (MCP)
 
